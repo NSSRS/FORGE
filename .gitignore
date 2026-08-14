@@ -1,16 +1,16 @@
-__pycache__/
-*.py[cod]
-*.pyo
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-.venv/
-venv/
-env/
+**/__pycache__/
+**/*.py[cod]
+**/*.pyo
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+**/.venv/
+**/venv/
+**/env/
 .idea/
 .vscode/
 .DS_Store
 Thumbs.db
 
-# Generated numerical output; keep the preview images used by README.
-results/*.csv
+# Generated numerical tables. Preview plots remain tracked.
+**/*.csv
