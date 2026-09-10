@@ -1,0 +1,9 @@
+/build/
+/logs/*
+!/logs/.gitkeep
+/tmp/
+/src/soem_demo_c/
+__pycache__/
+*.pyc
+/vendor/
+/config/bench-equipment.md
