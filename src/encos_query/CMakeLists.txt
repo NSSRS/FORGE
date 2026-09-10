@@ -45,6 +45,10 @@ add_executable(encos_motion motion.c)
 target_compile_options(encos_motion PRIVATE -Wall -Wextra -Werror)
 target_link_libraries(encos_motion PRIVATE encos_protocol encos_soem)
 
+add_executable(encos_assign_id assign_id.c)
+target_compile_options(encos_assign_id PRIVATE -Wall -Wextra -Werror)
+target_link_libraries(encos_assign_id PRIVATE encos_protocol encos_soem)
+
 enable_testing()
 add_executable(encos_protocol_test ../../tests/encos_protocol_test.c)
 target_compile_options(encos_protocol_test PRIVATE -Wall -Wextra -Werror)

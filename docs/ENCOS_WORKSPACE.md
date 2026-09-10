@@ -46,6 +46,20 @@ For two to four powered motors, use their known, unique CAN IDs and avoid broadc
 sudo ./build/encos_query/encos_query enp86s0 --motor-ids 1,2,3,4
 ```
 
+### Assigning duplicate CAN IDs
+
+The ID-change command is addressed through CAN ID `0x7FF` but matches the **old motor ID in its payload**. If two motors are both ID 1, both would accept a `1 -> 2` command. Therefore power off and disconnect every other motor before changing an ID. The guarded utility sends the documented command once, waits for the success reply, and then clears bridge output:
+
+```bash
+# With only the second motor connected and powered:
+sudo ./build/encos_query/encos_assign_id enp86s0 1 2 --execute
+
+# Power-cycle it, then verify only that motor:
+sudo ./build/encos_query/encos_query enp86s0
+```
+
+Repeat with one isolated motor at a time. Do not use `encos_assign_id` while duplicate IDs share the powered CAN bus.
+
 The bounded motion utility accepts the same explicit ID list. It commands each listed motor through PDO slots 0–3 every 10 ms, monitors type-2 feedback for every motor, and stops all outputs if any motor exceeds a safety limit:
 
 ```bash
