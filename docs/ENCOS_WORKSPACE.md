@@ -38,9 +38,21 @@ The helper fetches public upstream SOEM on the first run, builds `build/encos_qu
 
 The project-owned utilities use a pinned public release of SOEM. The private local supplier distribution remains outside the repository.
 
-Use `sudo ./build/encos_query/encos_query enp86s0` for the one-bridge, one-motor query test after the powered bench is prepared. It validates the 86-byte output and 92-byte input PDOs, then reads motor ID, position, versions, and CAN timeout. It sends no control, configuration, zeroing, brake, or movement commands.
+Use `sudo ./build/encos_query/encos_query enp86s0` for automatic discovery when exactly one motor is powered on the CAN bus. It validates the 86-byte output and 92-byte input PDOs, then reads motor ID, position, versions, and CAN timeout. It sends no control, configuration, zeroing, brake, or movement commands.
 
-The separate motion test requires a phase-current limit, positive travel in degrees, and `--execute`. For the initial 45-degree test, it ramps outward over 10 seconds at a 1 rpm ceiling, holds 0.5 seconds, returns over 10 seconds, and logs type-2 feedback. Start at 2.0 A only if that phase-current ceiling is approved for the actual motor and fixture.
+For two to four powered motors, use their known, unique CAN IDs and avoid broadcast discovery:
+
+```bash
+sudo ./build/encos_query/encos_query enp86s0 --motor-ids 1,2,3,4
+```
+
+The bounded motion utility accepts the same explicit ID list. It commands each listed motor through PDO slots 0–3 every 10 ms, monitors type-2 feedback for every motor, and stops all outputs if any motor exceeds a safety limit:
+
+```bash
+sudo ./build/encos_query/encos_motion enp86s0 2.0 45 --motor-ids 1,2 --execute
+```
+
+The initial profile ramps outward over 10 seconds at a 1 rpm ceiling, holds 0.5 seconds, and returns over 10 seconds. Start with one motor and 2.0 A only if that phase-current ceiling is approved for the actual motor and fixture. Do not run a multi-motor motion until IDs, termination, direction, clearance, and individual feedback are verified.
 
 Read [the protocol and architecture guide](docs/ENCOS_BRINGUP.md) for command units and known example defects. Copy [the equipment template](config/bench-equipment.example.md) to `config/bench-equipment.md` to record actual hardware; that local record is ignored by Git.
 

@@ -19,8 +19,34 @@
 #define SETTLE_CYCLES 50
 #define END_HOLD_CYCLES 50
 #define RAMP_CYCLES 1000
+#define ENCOS_MAX_CONTROLLED_MOTORS 4u
 
 static volatile sig_atomic_t stop_requested;
+
+typedef struct {
+    uint16_t id;
+    float initial_position;
+    encos_type2_feedback_t feedback;
+    bool feedback_seen;
+    float maximum_excursion;
+} motor_state_t;
+
+static bool parse_motor_ids(const char *text, motor_state_t motors[ENCOS_MAX_CONTROLLED_MOTORS],
+                            size_t *count)
+{
+    char buffer[64];
+    if (text == NULL || count == NULL || strlen(text) >= sizeof(buffer)) return false;
+    strcpy(buffer, text); *count = 0;
+    for (char *token = strtok(buffer, ","); token != NULL; token = strtok(NULL, ",")) {
+        char *end = NULL; unsigned long value = strtoul(token, &end, 10);
+        if (*token == '\0' || *end != '\0' || value == 0 || value >= ENCOS_DISCOVERY_CAN_ID ||
+            *count >= ENCOS_MAX_CONTROLLED_MOTORS) return false;
+        for (size_t i = 0; i < *count; ++i) if (motors[i].id == value) return false;
+        motors[(*count)++].id = (uint16_t)value;
+    }
+    return *count != 0;
+}
+
 static uint8_t io_map[4096];
 
 static void request_stop(int signal_number)
@@ -213,128 +239,76 @@ static bool parse_current_limit(const char *text, float *current_limit)
 
 int main(int argc, char **argv)
 {
-    if (argc != 5 || strcmp(argv[4], "--execute") != 0) {
-        fprintf(stderr, "Usage: sudo %s ETHERNET_INTERFACE CURRENT_LIMIT_A MOVE_DEG --execute\n", argv[0]);
-        fprintf(stderr, "Current must be 0.1 to 6.5 A and approved for the motor.\n");
+    bool discover = argc == 5 && strcmp(argv[4], "--execute") == 0;
+    motor_state_t motors[ENCOS_MAX_CONTROLLED_MOTORS] = {0};
+    size_t motor_count = 0;
+    if (!discover && (argc != 7 || strcmp(argv[4], "--motor-ids") != 0 ||
+                      strcmp(argv[6], "--execute") != 0 ||
+                      !parse_motor_ids(argv[5], motors, &motor_count))) {
+        fprintf(stderr, "Usage: sudo %s IFACE CURRENT_A MOVE_DEG [--motor-ids ID[,ID...]] --execute\n", argv[0]);
+        fprintf(stderr, "Explicit IDs support one to four motors; legacy form discovers one motor.\n");
         return 2;
     }
     float current_limit = 0.0f;
-    if (!parse_current_limit(argv[2], &current_limit)) {
-        fprintf(stderr, "Invalid current limit; required range is 0.1 to 6.5 A.\n");
-        return 2;
-    }
-    char *move_end = NULL;
-    errno = 0;
-    const float move_degrees = strtof(argv[3], &move_end);
-    if (errno != 0 || move_end == argv[3] || *move_end != '\0' ||
-        !isfinite(move_degrees) || move_degrees < 0.1f || move_degrees > 45.0f) {
-        fprintf(stderr, "Invalid move; required range is +0.1 to +45.0 degrees.\n");
-        return 2;
-    }
-    const int ramp_cycles = RAMP_CYCLES;
-    const int total_motion_cycles = SETTLE_CYCLES + ramp_cycles + END_HOLD_CYCLES +
-                                    ramp_cycles + END_HOLD_CYCLES;
-    signal(SIGINT, request_stop);
-    signal(SIGTERM, request_stop);
-
+    if (!parse_current_limit(argv[2], &current_limit)) { fprintf(stderr, "Invalid current limit.\n"); return 2; }
+    char *move_end = NULL; errno = 0; const float move_degrees = strtof(argv[3], &move_end);
+    if (errno != 0 || move_end == argv[3] || *move_end != '\0' || !isfinite(move_degrees) ||
+        move_degrees < 0.1f || move_degrees > 45.0f) { fprintf(stderr, "Invalid move; required +0.1 to +45 degrees.\n"); return 2; }
+    signal(SIGINT, request_stop); signal(SIGTERM, request_stop);
     int expected_wkc = 0;
-    if (!enter_operational(argv[1], &expected_wkc)) {
-        ec_close();
-        return 1;
-    }
+    if (!enter_operational(argv[1], &expected_wkc)) { ec_close(); return 1; }
     encos_bridge_outputs_t *outputs = (encos_bridge_outputs_t *)ec_slave[1].outputs;
     const encos_bridge_inputs_t *inputs = (const encos_bridge_inputs_t *)ec_slave[1].inputs;
-
-    uint16_t motor_id = 0;
-    float initial_position = 0.0f;
-    if (!read_motor_id(outputs, inputs, expected_wkc, &motor_id) ||
-        !read_position(outputs, inputs, expected_wkc, motor_id, &initial_position)) {
-        fprintf(stderr, "Could not establish fault-free motor telemetry. Motion not started.\n");
-        clear_outputs(outputs, expected_wkc);
-        ec_close();
-        return 1;
+    if (discover) {
+        if (!read_motor_id(outputs, inputs, expected_wkc, &motors[0].id)) {
+            fprintf(stderr, "Could not discover one motor. Use --motor-ids with multiple powered motors.\n"); goto fail;
+        }
+        motor_count = 1;
     }
-
-    printf("Motor %u initial position %.6f deg.\n", motor_id, initial_position);
-    printf("Test: +%.1f deg over %.1f s, hold 0.5 s, return over %.1f s; speed 1 rpm; current %.2f A.\n",
-           move_degrees, ramp_cycles / 100.0f, ramp_cycles / 100.0f, current_limit);
-    printf("time_s,target_deg,position_deg,current_a,temperature_c,error\n");
-
-    encos_type2_feedback_t feedback = {0};
-    bool feedback_seen = false;
-    float maximum_excursion = 0.0f;
+    for (size_t i = 0; i < motor_count; ++i) {
+        if (!read_position(outputs, inputs, expected_wkc, motors[i].id, &motors[i].initial_position)) {
+            fprintf(stderr, "Motor %u has no fault-free initial position.\n", motors[i].id); goto fail;
+        }
+        printf("Motor %u initial position %.6f deg.\n", motors[i].id, motors[i].initial_position);
+    }
+    printf("Test: %zu motors, +%.1f deg over 10.0 s, return over 10.0 s; speed 1 rpm; current %.2f A.\n", motor_count, move_degrees, current_limit);
+    printf("time_s,motor_id,target_deg,position_deg,current_a,temperature_c,error\n");
+    const int total = SETTLE_CYCLES + RAMP_CYCLES + END_HOLD_CYCLES + RAMP_CYCLES + END_HOLD_CYCLES;
     int result = 0;
-    for (int cycle = 0; cycle < total_motion_cycles && !stop_requested; ++cycle) {
-        const float target = target_for_cycle(cycle, initial_position, move_degrees,
-                                              ramp_cycles);
-        encos_can_frame_t command = {0};
-        if (!encos_make_servo_position_request(motor_id, target, SPEED_CEILING_RPM,
-                                               current_limit, 2, &command)) {
-            fprintf(stderr, "Internal command validation failed.\n");
-            result = 1;
-            break;
-        }
-        memset(outputs, 0, sizeof(*outputs));
-        outputs->motor_num = 1;
-        outputs->can_ide = 0;
-        outputs->motor[0] = command;
-        if (!exchange(expected_wkc)) {
-            fprintf(stderr, "EtherCAT working counter dropped; stopping output.\n");
-            result = 1;
-            break;
-        }
-
-        encos_type2_feedback_t latest = {0};
-        if (find_type2_feedback(inputs, motor_id, &latest)) {
-            feedback = latest;
-            feedback_seen = true;
-            const float excursion = fabsf(feedback.position_deg - initial_position);
-            if (excursion > maximum_excursion) {
-                maximum_excursion = excursion;
+    for (int cycle = 0; cycle < total && !stop_requested; ++cycle) {
+        memset(outputs, 0, sizeof(*outputs)); outputs->motor_num = (uint8_t)motor_count; outputs->can_ide = 0;
+        for (size_t i = 0; i < motor_count; ++i) {
+            const float target = target_for_cycle(cycle, motors[i].initial_position, move_degrees, RAMP_CYCLES);
+            if (!encos_make_servo_position_request(motors[i].id, target, SPEED_CEILING_RPM, current_limit, 2, &outputs->motor[i])) {
+                fprintf(stderr, "Internal command validation failed.\n"); result = 1; break;
             }
-            const float current_margin = fmaxf(0.5f, current_limit * 0.25f);
-            if (feedback.error != 0 || feedback.temperature_c > 70.0f ||
-                fabsf(feedback.current_a) > current_limit + current_margin ||
-                excursion > move_degrees + 2.0f ||
-                fabsf(feedback.position_deg - target) > 5.0f) {
-                fprintf(stderr, "Feedback limit exceeded; stopping output.\n");
-                result = 1;
-                break;
-            }
-        } else if (cycle >= 50) {
-            fprintf(stderr, "No type-2 motor feedback within 0.5 seconds; stopping output.\n");
-            result = 1;
-            break;
         }
-
-        if (cycle == SETTLE_CYCLES + 100 && maximum_excursion < 0.1f) {
-            fprintf(stderr, "No measured motion after 1 second of ramp; stopping output.\n");
-            result = 1;
-            break;
+        if (result || !exchange(expected_wkc)) { fprintf(stderr, "EtherCAT exchange failed; stopping output.\n"); result = 1; break; }
+        for (size_t i = 0; i < motor_count; ++i) {
+            encos_type2_feedback_t latest = {0};
+            const float target = target_for_cycle(cycle, motors[i].initial_position, move_degrees, RAMP_CYCLES);
+            if (find_type2_feedback(inputs, motors[i].id, &latest)) {
+                motors[i].feedback = latest; motors[i].feedback_seen = true;
+                const float excursion = fabsf(latest.position_deg - motors[i].initial_position);
+                if (excursion > motors[i].maximum_excursion) motors[i].maximum_excursion = excursion;
+                const float margin = fmaxf(0.5f, current_limit * 0.25f);
+                if (latest.error != 0 || latest.temperature_c > 70.0f || fabsf(latest.current_a) > current_limit + margin ||
+                    excursion > move_degrees + 2.0f || fabsf(latest.position_deg - target) > 5.0f) {
+                    fprintf(stderr, "Motor %u feedback limit exceeded; stopping output.\n", motors[i].id); result = 1; break;
+                }
+            } else if (cycle >= 50) { fprintf(stderr, "Motor %u has no type-2 feedback; stopping output.\n", motors[i].id); result = 1; break; }
+            if (cycle == SETTLE_CYCLES + 100 && motors[i].maximum_excursion < 0.1f) { fprintf(stderr, "Motor %u did not move.\n", motors[i].id); result = 1; break; }
+            if (cycle % 10 == 0 && motors[i].feedback_seen) printf("%.2f,%u,%.6f,%.6f,%.3f,%.1f,%u\n", cycle / 100.0f, motors[i].id, target, latest.position_deg, latest.current_a, latest.temperature_c, latest.error);
         }
-        if (cycle % 10 == 0 && feedback_seen) {
-            printf("%.2f,%.6f,%.6f,%.3f,%.1f,%u\n", cycle / 100.0f, target,
-                   feedback.position_deg, feedback.current_a, feedback.temperature_c,
-                   feedback.error);
-            fflush(stdout);
-        }
-        usleep(MOTION_CYCLE_US);
+        if (result) break;
+        fflush(stdout); usleep(MOTION_CYCLE_US);
     }
-
-    if (stop_requested) {
-        fprintf(stderr, "Interrupted; stopping output.\n");
-        result = 1;
-    }
-    if (result == 0 && (!feedback_seen || maximum_excursion < move_degrees * 0.8f ||
-                        fabsf(feedback.position_deg - initial_position) > 1.0f)) {
-        fprintf(stderr, "Motion/return acceptance check failed.\n");
-        result = 1;
-    }
-
-    clear_outputs(outputs, expected_wkc);
-    ec_close();
-    if (result == 0) {
-        printf("PASS: bounded motion completed and returned near the initial position.\n");
-    }
+    if (stop_requested) { fprintf(stderr, "Interrupted; stopping output.\n"); result = 1; }
+    for (size_t i = 0; i < motor_count; ++i)
+        if (!motors[i].feedback_seen || motors[i].maximum_excursion < move_degrees * 0.8f || fabsf(motors[i].feedback.position_deg - motors[i].initial_position) > 1.0f) result = 1;
+    clear_outputs(outputs, expected_wkc); ec_close();
+    if (!result) printf("PASS: %zu bounded motions completed and returned near initial positions.\n", motor_count);
     return result;
+fail:
+    clear_outputs(outputs, expected_wkc); ec_close(); return 1;
 }

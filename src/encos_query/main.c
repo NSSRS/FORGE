@@ -13,6 +13,7 @@
 
 #define CYCLE_US 1000
 #define RESPONSE_TIMEOUT_CYCLES 1000
+#define ENCOS_MAX_CONTROLLED_MOTORS 4u
 
 static volatile sig_atomic_t stop_requested;
 
@@ -116,6 +117,26 @@ static bool match_timeout(const encos_can_frame_t *frame, void *opaque)
                                      &result->error);
 }
 
+
+static bool parse_motor_ids(const char *text, uint16_t ids[ENCOS_MAX_CONTROLLED_MOTORS],
+                            size_t *count)
+{
+    char buffer[64];
+    if (text == NULL || count == NULL || strlen(text) >= sizeof(buffer)) return false;
+    strcpy(buffer, text);
+    *count = 0;
+    for (char *token = strtok(buffer, ","); token != NULL; token = strtok(NULL, ",")) {
+        char *end = NULL;
+        unsigned long value = strtoul(token, &end, 10);
+        if (*token == '\0' || *end != '\0' || value == 0 ||
+            value >= ENCOS_DISCOVERY_CAN_ID || *count >= ENCOS_MAX_CONTROLLED_MOTORS) return false;
+        for (size_t index = 0; index < *count; ++index)
+            if (ids[index] == value) return false;
+        ids[(*count)++] = (uint16_t)value;
+    }
+    return *count != 0;
+}
+
 static int enter_operational(const char *interface_name, int *expected_wkc)
 {
     if (!ec_init(interface_name)) {
@@ -158,8 +179,13 @@ static int enter_operational(const char *interface_name, int *expected_wkc)
 
 int main(int argc, char **argv)
 {
-    if (argc != 2) {
-        fprintf(stderr, "Usage: sudo %s ETHERNET_INTERFACE\n", argv[0]);
+    uint16_t motor_ids[ENCOS_MAX_CONTROLLED_MOTORS] = {0};
+    size_t motor_count = 0;
+    const bool discover = argc == 2;
+    if (!discover && (argc != 4 || strcmp(argv[2], "--motor-ids") != 0 ||
+                      !parse_motor_ids(argv[3], motor_ids, &motor_count))) {
+        fprintf(stderr, "Usage: sudo %s ETHERNET_INTERFACE [--motor-ids ID[,ID...]]\n", argv[0]);
+        fprintf(stderr, "Use one to four explicit CAN IDs when more than one motor is powered.\n");
         return 2;
     }
     signal(SIGINT, request_stop);
@@ -174,53 +200,40 @@ int main(int argc, char **argv)
     const encos_bridge_inputs_t *inputs = (const encos_bridge_inputs_t *)ec_slave[1].inputs;
     printf("Bridge operational: OUT=86 IN=92 WKC=%d. Query-only mode.\n", expected_wkc);
 
-    uint16_t motor_id = 0;
-    encos_can_frame_t request = encos_make_discovery_request();
-    if (!send_query_and_wait(outputs, inputs, expected_wkc, &request, match_discovery,
-                             &motor_id)) {
-        fprintf(stderr, "No valid motor-ID reply within 1 second.\n");
+    if (discover) {
+        encos_can_frame_t request = encos_make_discovery_request();
+        if (!send_query_and_wait(outputs, inputs, expected_wkc, &request, match_discovery,
+                                 &motor_ids[0])) {
+            fprintf(stderr, "No valid motor-ID reply within 1 second.\n");
+            goto fail;
+        }
+        motor_count = 1;
+    }
+    printf("Configured motor count: %zu\n", motor_count);
+    for (size_t index = 0; index < motor_count; ++index) {
+        const uint16_t motor_id = motor_ids[index];
+        position_result_t position = {.motor_id = motor_id};
+        version_result_t version = {.motor_id = motor_id};
+        timeout_result_t timeout = {.motor_id = motor_id};
+        encos_can_frame_t request = encos_make_query_request(motor_id, 1);
+        if (!send_query_and_wait(outputs, inputs, expected_wkc, &request, match_position,
+                                 &position) || position.error != 0) goto motor_fail;
+        request = encos_make_query_request(motor_id, 30);
+        if (!send_query_and_wait(outputs, inputs, expected_wkc, &request, match_version,
+                                 &version) || version.error != 0) goto motor_fail;
+        request = encos_make_query_request(motor_id, 31);
+        if (!send_query_and_wait(outputs, inputs, expected_wkc, &request, match_timeout,
+                                 &timeout) || timeout.error != 0) goto motor_fail;
+        printf("Motor %u: position %.6f deg; HW %u.%u.%u; SW %u.%u.%u; CAN timeout %u ms.\n",
+               motor_id, position.position_deg, version.version.hardware[0], version.version.hardware[1],
+               version.version.hardware[2], version.version.software[0], version.version.software[1],
+               version.version.software[2], timeout.timeout_ms);
+        continue;
+motor_fail:
+        fprintf(stderr, "Motor %u did not return fault-free telemetry.\n", motor_id);
         goto fail;
     }
-    printf("Motor ID: %u\n", motor_id);
-
-    position_result_t position = {.motor_id = motor_id};
-    request = encos_make_query_request(motor_id, 1);
-    if (!send_query_and_wait(outputs, inputs, expected_wkc, &request, match_position,
-                             &position)) {
-        fprintf(stderr, "No valid position reply within 1 second.\n");
-        goto fail;
-    }
-    printf("Position: %.6f deg, motor error: %u\n", position.position_deg, position.error);
-
-    version_result_t version = {.motor_id = motor_id};
-    request = encos_make_query_request(motor_id, 30);
-    if (!send_query_and_wait(outputs, inputs, expected_wkc, &request, match_version,
-                             &version)) {
-        fprintf(stderr, "No valid version reply within 1 second.\n");
-        goto fail;
-    }
-    printf("Hardware version: %u.%u.%u; software version: %u.%u.%u; motor error: %u\n",
-           version.version.hardware[0], version.version.hardware[1],
-           version.version.hardware[2], version.version.software[0],
-           version.version.software[1], version.version.software[2], version.error);
-
-    timeout_result_t timeout = {.motor_id = motor_id};
-    request = encos_make_query_request(motor_id, 31);
-    if (!send_query_and_wait(outputs, inputs, expected_wkc, &request, match_timeout,
-                             &timeout)) {
-        fprintf(stderr, "No valid CAN-timeout reply within 1 second.\n");
-        goto fail;
-    }
-    printf("CAN timeout: %u ms; motor error: %u\n", timeout.timeout_ms, timeout.error);
-
-    memset(outputs, 0, sizeof(*outputs));
-    exchange(expected_wkc);
-    ec_close();
-    return 0;
-
+    memset(outputs, 0, sizeof(*outputs)); exchange(expected_wkc); ec_close(); return 0;
 fail:
-    memset(outputs, 0, sizeof(*outputs));
-    exchange(expected_wkc);
-    ec_close();
-    return 1;
+    memset(outputs, 0, sizeof(*outputs)); exchange(expected_wkc); ec_close(); return 1;
 }
