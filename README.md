@@ -1,47 +1,80 @@
-# ENCOS motor software workspace
+# FORGE
 
-Ubuntu 24.04 on the Intel NUC. Hardware route: dedicated Ethernet → ENCOS EtherCAT-CAN bridge → classic CAN motors. Begin with one bridge and one motor on CAN1.
+FORGE collects engineering tools for the magnetic wall-climbing welding robot.
 
-## Layout
-
-| Path | Purpose |
+| Project | Purpose |
 |---|---|
-| `src/encos_query/` | Project-owned query-only bridge and motor diagnostic |
-| `docs/` | Bring-up guide, bench procedure, and file migration record |
-| `config/bench-equipment.example.md` | Redacted equipment-record template |
-| `tests/` | Future host-side protocol and controller tests |
-| `scripts/` | Build helpers |
-| `build/` | Generated build output |
-| `logs/` | Hardware test recordings |
-| `tmp/` | Temporary files, including existing PDF extracts |
+| [`suspension_wheel_geometry_sim`](suspension_wheel_geometry_sim/) | Interactive six-wheel geometry, suspension, caster, contact, clearance, and terrain visualization |
+| [`mag_thermal_thickness_sim`](mag_thermal_thickness_sim/) | Three-dimensional plate-conduction, magnet heating, and empirical magnetic-adhesion screening |
+| [`src/encos_query`](src/encos_query/) | Ubuntu EtherCAT-to-CAN bridge diagnostic and bounded ENCOS motor motion test |
 
-The local `vendor/` folder holds the supplier material used during bench work. It is excluded from Git along with the extracted supplier demo. The build fetches the pinned, public upstream SOEM v1.4.0 source into the build directory.
+The simulators are intended for early mechanical and thermal design exploration. The ENCOS utilities are bench bring-up tools and require a controlled, powered hardware fixture.
 
-## Build on Ubuntu
+## ENCOS motor workspace
 
-Install the development tools if needed:
-
-```bash
-sudo apt update
-sudo apt install build-essential cmake git unzip ethtool iproute2 ripgrep
-```
-
-From this workspace:
+On Ubuntu 24.04, build the EtherCAT-CAN diagnostic and bounded motion utility with:
 
 ```bash
 ./scripts/build.sh
 ```
 
-The helper fetches public upstream SOEM on the first run, builds `build/encos_query/encos_query` and the bounded `build/encos_query/encos_motion` test, then runs host-side protocol tests. It does not access hardware.
+The first build fetches the pinned public SOEM v1.4.0 dependency. Supplier files, extracted supplier demos, local equipment records, and motion logs are intentionally excluded from Git.
 
-## Current software status
+See [the ENCOS workspace guide](docs/ENCOS_WORKSPACE.md), [the protocol guide](docs/ENCOS_BRINGUP.md), and [the bench procedure](docs/ENCOS_TEST_BENCH.md).
 
-The project-owned utilities use a pinned public release of SOEM. The private local supplier distribution remains outside the repository.
+## Quick start
 
-Use `sudo ./build/encos_query/encos_query enp86s0` for the one-bridge, one-motor query test after the powered bench is prepared. It validates the 86-byte output and 92-byte input PDOs, then reads motor ID, position, versions, and CAN timeout. It sends no control, configuration, zeroing, brake, or movement commands.
+### Suspension and wheel geometry
 
-The separate motion test requires a phase-current limit, positive travel in degrees, and `--execute`. For the initial 45-degree test, it ramps outward over 10 seconds at a 1 rpm ceiling, holds 0.5 seconds, returns over 10 seconds, and logs type-2 feedback. Start at 2.0 A only if that phase-current ceiling is approved for the actual motor and fixture.
+```powershell
+cd suspension_wheel_geometry_sim
+python main.py
+```
 
-Read [the protocol and architecture guide](docs/ENCOS_BRINGUP.md) for command units and known example defects. Copy [the equipment template](config/bench-equipment.example.md) to `config/bench-equipment.md` to record actual hardware; that local record is ignored by Git.
+The interactive window supports live geometry sliders, multiple terrain modes, driven rear-wheel animation, fixed transverse front suspension geometry, and passive front caster yaw.
 
-Both programs compile on this Ubuntu 24.04 NUC, and the query protocol tests pass. The query utility has been run successfully with a powered motor.
+Run its tests with:
+
+```powershell
+python -m unittest -v
+```
+
+### Thermal and magnetic adhesion
+
+```powershell
+cd mag_thermal_thickness_sim
+python -m pip install -r requirements.txt
+python heat_visualizer.py
+```
+
+Run its numerical regression suite with:
+
+```powershell
+python test.py
+```
+
+The thermal tests run real finite-difference cases and may take about one minute.
+
+## Repository layout
+
+```text
+FORGE/
+├── suspension_wheel_geometry_sim/
+├── mag_thermal_thickness_sim/
+├── src/encos_query/
+├── docs/
+├── scripts/
+└── README.md
+```
+
+Each project has its own documentation with its model assumptions, controls, outputs, and limitations.
+
+## Verified state
+
+- Suspension simulator: 6 regression tests passing
+- Thermal simulator: 15 unit, formula, and numerical regression tests passing
+- ENCOS query and bounded-motion utilities: clean build and protocol test passing on Ubuntu 24.04
+
+## Safety and interpretation
+
+The geometry simulator does not calculate magnetic adhesion, friction, motor torque, or structural loads. The thermal simulator uses constant material properties, a simplified heat source, a lumped magnet, and empirical adhesion corrections. Results should be calibrated against measured temperatures and pull-force data before they inform physical design decisions.

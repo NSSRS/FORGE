@@ -1,9 +1,25 @@
+**/__pycache__/
+**/*.py[cod]
+**/*.pyo
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+**/.venv/
+**/venv/
+**/env/
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Generated numerical tables. Preview plots remain tracked.
+**/*.csv
+
+# ENCOS local build, supplier distribution, and bench-specific data.
 /build/
 /logs/*
 !/logs/.gitkeep
 /tmp/
 /src/soem_demo_c/
-__pycache__/
-*.pyc
 /vendor/
 /config/bench-equipment.md
