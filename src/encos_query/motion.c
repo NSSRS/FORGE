@@ -14,11 +14,12 @@
 #include "encos_protocol.h"
 
 #define QUERY_CYCLE_US 1000
-#define MOTION_CYCLE_US 10000
-#define SPEED_CEILING_RPM 1.0f
-#define SETTLE_CYCLES 50
-#define END_HOLD_CYCLES 50
-#define RAMP_CYCLES 1000
+#define MOTION_CYCLE_US 1000
+#define SPEED_CEILING_RPM 5.0f
+#define SETTLE_CYCLES 500
+#define END_HOLD_CYCLES 500
+#define RAMP_CYCLES 2000
+#define LOG_EVERY_CYCLES 10
 #define ENCOS_MAX_CONTROLLED_MOTORS 4u
 
 static volatile sig_atomic_t stop_requested;
@@ -271,7 +272,7 @@ int main(int argc, char **argv)
         }
         printf("Motor %u initial position %.6f deg.\n", motors[i].id, motors[i].initial_position);
     }
-    printf("Test: %zu motors, +%.1f deg over 10.0 s, return over 10.0 s; speed 1 rpm; current %.2f A.\n", motor_count, move_degrees, current_limit);
+    printf("Test: %zu motors, +%.1f deg over %.1f s, return over %.1f s; target 1000 Hz; speed 5 rpm; current %.2f A.\n", motor_count, move_degrees, RAMP_CYCLES * MOTION_CYCLE_US / 1000000.0f, RAMP_CYCLES * MOTION_CYCLE_US / 1000000.0f, current_limit);
     printf("time_s,motor_id,target_deg,position_deg,current_a,temperature_c,error\n");
     const int total = SETTLE_CYCLES + RAMP_CYCLES + END_HOLD_CYCLES + RAMP_CYCLES + END_HOLD_CYCLES;
     int result = 0;
@@ -296,9 +297,9 @@ int main(int argc, char **argv)
                     excursion > move_degrees + 2.0f || fabsf(latest.position_deg - target) > 5.0f) {
                     fprintf(stderr, "Motor %u feedback limit exceeded; stopping output.\n", motors[i].id); result = 1; break;
                 }
-            } else if (cycle >= 50) { fprintf(stderr, "Motor %u has no type-2 feedback; stopping output.\n", motors[i].id); result = 1; break; }
-            if (cycle == SETTLE_CYCLES + 100 && motors[i].maximum_excursion < 0.1f) { fprintf(stderr, "Motor %u did not move.\n", motors[i].id); result = 1; break; }
-            if (cycle % 10 == 0 && motors[i].feedback_seen) printf("%.2f,%u,%.6f,%.6f,%.3f,%.1f,%u\n", cycle / 100.0f, motors[i].id, target, latest.position_deg, latest.current_a, latest.temperature_c, latest.error);
+            } else if (cycle >= 500) { fprintf(stderr, "Motor %u has no type-2 feedback within 0.5 seconds; stopping output.\n", motors[i].id); result = 1; break; }
+            if (cycle == SETTLE_CYCLES + 1000 && motors[i].maximum_excursion < 0.1f) { fprintf(stderr, "Motor %u did not move.\n", motors[i].id); result = 1; break; }
+            if (cycle % LOG_EVERY_CYCLES == 0 && motors[i].feedback_seen) printf("%.3f,%u,%.6f,%.6f,%.3f,%.1f,%u\n", cycle * MOTION_CYCLE_US / 1000000.0f, motors[i].id, target, latest.position_deg, latest.current_a, latest.temperature_c, latest.error);
         }
         if (result) break;
         fflush(stdout); usleep(MOTION_CYCLE_US);
