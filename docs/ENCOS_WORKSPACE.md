@@ -68,6 +68,12 @@ sudo ./build/encos_query/encos_motion enp86s0 2.0 45 --motor-ids 1,2 --execute
 
 The initial profile ramps outward over 10 seconds at a 1 rpm ceiling, holds 0.5 seconds, and returns over 10 seconds. Start with one motor and 2.0 A only if that phase-current ceiling is approved for the actual motor and fixture. Do not run a multi-motor motion until IDs, termination, direction, clearance, and individual feedback are verified.
 
+For a three-motor verification sequence, after IDs 1, 2, and 3 have individually passed telemetry, run the three motors together, then ID 1, ID 2, and ID 3 in turn. Every stage uses the bounded out-and-return profile and aborts the remaining sequence if a stage fails:
+
+```bash
+sudo ./scripts/run_three_motor_sequence.sh enp86s0 2.0 45 --execute
+```
+
 Read [the protocol and architecture guide](docs/ENCOS_BRINGUP.md) for command units and known example defects. Copy [the equipment template](config/bench-equipment.example.md) to `config/bench-equipment.md` to record actual hardware; that local record is ignored by Git.
 
 Both programs compile on this Ubuntu 24.04 NUC, and the query protocol tests pass. The query utility has been run successfully with a powered motor.
