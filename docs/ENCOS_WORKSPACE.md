@@ -1,5 +1,10 @@
 # ENCOS motor software workspace
 
+Current development: `main` now contains controls only. The physics simulators
+are on `physics-analysis`. The new C11 shared driver and Python per-motor position
+and velocity API are documented in [PYTHON_CONTROL.md](PYTHON_CONTROL.md). Its
+100 Hz loop and three-motor CAN1 limit are separate from the older bench CLI below.
+
 Ubuntu 24.04 on the Intel NUC. Hardware route: dedicated Ethernet → ENCOS EtherCAT-CAN bridge → classic CAN motors. Begin with one bridge and one motor on CAN1.
 
 ## Layout
@@ -60,7 +65,7 @@ sudo ./build/encos_query/encos_query enp86s0
 
 Repeat with one isolated motor at a time. Do not use `encos_assign_id` while duplicate IDs share the powered CAN bus.
 
-The bounded motion utility accepts the same explicit ID list. It commands each listed motor through PDO slots 0–3 every 10 ms, monitors type-2 feedback for every motor, and stops all outputs if any motor exceeds a safety limit:
+The bounded motion utility accepts the same explicit ID list. It commands each listed motor through PDO slots 0–3 with a target 1 ms loop, monitors type-2 feedback for every motor, and stops all outputs if any motor exceeds a safety limit. Slot 3 routes to CAN2 according to the bridge guide; four IDs do not mean four motors on CAN1:
 
 ```bash
 sudo ./build/encos_query/encos_motion enp86s0 2.0 45 --motor-ids 1,2 --execute

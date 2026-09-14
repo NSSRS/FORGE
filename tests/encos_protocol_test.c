@@ -79,11 +79,44 @@ static void test_servo_position_and_feedback(void)
     CHECK(feedback.error == 0);
 }
 
+static void test_velocity(void)
+{
+    encos_can_frame_t frame;
+    const uint8_t manual[] = {0x41, 0x42, 0x48, 0, 0, 0, 0x64};
+    CHECK(encos_make_servo_velocity_request(1, 50, 10, 1, &frame));
+    CHECK(frame.id == 1 && frame.dlc == 7 && !frame.rtr);
+    CHECK(!memcmp(frame.data, manual, sizeof(manual)));
+    CHECK(encos_make_servo_velocity_request(1, -50, 10, 3, &frame));
+    CHECK(frame.data[0] == 0x43 && frame.data[1] == 0xc2);
+    CHECK(!encos_make_servo_velocity_request(0, 1, 1, 1, &frame));
+    CHECK(!encos_make_servo_velocity_request(0x7ff, 1, 1, 1, &frame));
+    CHECK(!encos_make_servo_velocity_request(1, NAN, 1, 1, &frame));
+    CHECK(!encos_make_servo_velocity_request(1, INFINITY, 1, 1, &frame));
+    CHECK(!encos_make_servo_velocity_request(1, 1, -1, 1, &frame));
+    CHECK(!encos_make_servo_velocity_request(1, 1, 6554, 1, &frame));
+    CHECK(!encos_make_servo_velocity_request(1, 1, 1, 4, &frame));
+    CHECK(!encos_make_servo_velocity_request(1, 1, 1, 1, NULL));
+    frame = (encos_can_frame_t){.id = 1, .dlc = 8,
+        .data = {0x63, 0xc2, 0x48, 0, 0, 0xff, 0x85, 49}};
+    encos_type3_feedback_t v;
+    CHECK(encos_parse_type3_feedback(&frame, 1, &v));
+    CHECK(v.velocity_rpm == -50 && fabsf(v.current_a + 1.23f) < 1e-5f);
+    CHECK(v.temperature_c == -0.5f && v.error == 3);
+    CHECK(!encos_parse_type3_feedback(&frame, 2, &v));
+    frame.dlc = 7;
+    CHECK(!encos_parse_type3_feedback(&frame, 1, &v));
+    frame.dlc = 8; frame.rtr = 1;
+    CHECK(!encos_parse_type3_feedback(&frame, 1, &v));
+    frame.rtr = 0; frame.data[1] = 0x7f; frame.data[2] = 0x80;
+    CHECK(!encos_parse_type3_feedback(&frame, 1, &v));
+}
+
 int main(void)
 {
     test_layout_and_requests();
     test_replies();
     test_servo_position_and_feedback();
+    test_velocity();
     puts("encos protocol tests passed");
     return 0;
 }

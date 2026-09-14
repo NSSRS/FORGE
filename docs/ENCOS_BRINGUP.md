@@ -1,5 +1,10 @@
 # ENCOS motor bring-up on Ubuntu 24.04
 
+Current implementation and the manual/automatic chassis velocity-control direction
+are in [PYTHON_CONTROL.md](PYTHON_CONTROL.md). The architecture below records the
+initial joint-position bring-up plan, not a requirement to use motor position mode
+for future chassis trajectory tracking.
+
 Prepared 2026-09-08 from ENCOS V1.19EAP and the supplied CAN/EtherCAT materials. This is a design and commissioning guide, not a hardware-tested driver. Motor model, firmware, adapter, joint count and mechanical loading remain unknown. Page references below use the manual's printed page numbers (PDF page = printed page + 5).
 
 ## Recommended starting architecture

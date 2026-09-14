@@ -1,80 +1,76 @@
-# FORGE
+# FORGE motor controls
 
-FORGE collects engineering tools for the magnetic wall-climbing welding robot.
+Motor-control development for the magnetic wall-climbing welding robot.
 
-| Project | Purpose |
+- **`main`**: ENCOS motor utilities, C driver, and Python interface.
+- **[`physics-analysis`](https://github.com/NSSRS/FORGE/tree/physics-analysis)**:
+  thermal/magnetic adhesion and suspension/wheel/terrain simulators, preserved
+  from the former `main` at `324d21e`.
+- **`encos-motor-workspace`**: preserved earlier combined workspace.
+
+## Python motion interface
+
+Write application logic in Python; the **C11** shared library owns the SOEM
+EtherCAT loop. This is C, not C++. The first interface supports one bridge and
+1-3 unique motor IDs on CAN1, with independent commands for each motor:
+
+| API | Meaning |
 |---|---|
-| [`suspension_wheel_geometry_sim`](suspension_wheel_geometry_sim/) | Interactive six-wheel geometry, suspension, caster, contact, clearance, and terrain visualization |
-| [`mag_thermal_thickness_sim`](mag_thermal_thickness_sim/) | Three-dimensional plate-conduction, magnet heating, and empirical magnetic-adhesion screening |
-| [`src/encos_query`](src/encos_query/) | Ubuntu EtherCAT-to-CAN bridge diagnostic and bounded ENCOS motor motion test |
+| `bus.velocity(id, rpm)` | Mode 2: signed output-shaft speed |
+| `bus.position(id, degrees)` | Mode 1: absolute output-shaft position |
+| `bus.state(id)` | Position, velocity, phase current, temperature, motor error |
+| `bus.stop()` | Request ramped zero speed for all active motors |
+| `bus.check()` | Raise on a latched fault |
 
-The simulators are intended for early mechanical and thermal design exploration. The ENCOS utilities are bench bring-up tools and require a controlled, powered hardware fixture.
+Both manual driving and future automatic chassis trajectory tracking can use
+this velocity interface. Chassis kinematics, encoder/IMU/camera state estimation,
+keyboard mapping, and trajectory tracking are future work.
 
-## ENCOS motor workspace
-
-On Ubuntu 24.04, build the EtherCAT-CAN diagnostic and bounded motion utility with:
+Run the independent-motor example without hardware (Python 3.10+):
 
 ```bash
+PYTHONPATH=python python3 examples/independent_motors.py
+```
+
+Or on PowerShell:
+
+```powershell
+$env:PYTHONPATH = 'python'
+python examples/independent_motors.py
+```
+
+For native Ubuntu 24.04 hardware builds:
+
+```bash
+sudo apt install build-essential cmake git python3
 ./scripts/build.sh
 ```
 
-The first build fetches the pinned public SOEM v1.4.0 dependency. Supplier files, extracted supplier demos, local equipment records, and motion logs are intentionally excluded from Git.
+The build fetches pinned upstream SOEM v1.4.0, builds the C utilities and
+`build/encos_query/libencos_driver.so`, and runs protocol plus Python/native
+integration tests. Tests use a fake bridge and do not access motor hardware.
+See **[Python setup, examples, deadlines, and limitations](docs/PYTHON_CONTROL.md)**
+before hardware use. Supplier files and the local equipment record stay outside Git.
 
-See [the ENCOS workspace guide](docs/ENCOS_WORKSPACE.md), [the protocol guide](docs/ENCOS_BRINGUP.md), and [the bench procedure](docs/ENCOS_TEST_BENCH.md).
+## Existing bench utilities
 
-## Quick start
+- `encos_query`: discovery and read-only telemetry.
+- `encos_assign_id`: guarded ID assignment with one isolated motor.
+- `encos_motion`: bounded positive position excursion and return.
 
-### Suspension and wheel geometry
+The original utilities remain available. See the [workspace guide](docs/ENCOS_WORKSPACE.md),
+[protocol reference](docs/ENCOS_BRINGUP.md), and [bench procedure](docs/ENCOS_TEST_BENCH.md).
+Do not run more than one EtherCAT master on the interface.
 
-```powershell
-cd suspension_wheel_geometry_sim
-python main.py
-```
+## Verification and limits
 
-The interactive window supports live geometry sliders, multiple terrain modes, driven rear-wheel animation, fixed transverse front suspension geometry, and passive front caster yaw.
+The new library compiles on Ubuntu 24.04. Protocol vectors, Python simulation,
+and native-thread tests with a fake SOEM bridge cover independent motion,
+validation, command expiry, feedback/transport faults, and cleanup.
+**The new Python/native motion path has not been tested on physical motors.**
 
-Run its tests with:
-
-```powershell
-python -m unittest -v
-```
-
-### Thermal and magnetic adhesion
-
-```powershell
-cd mag_thermal_thickness_sim
-python -m pip install -r requirements.txt
-python heat_visualizer.py
-```
-
-Run its numerical regression suite with:
-
-```powershell
-python test.py
-```
-
-The thermal tests run real finite-difference cases and may take about one minute.
-
-## Repository layout
-
-```text
-FORGE/
-├── suspension_wheel_geometry_sim/
-├── mag_thermal_thickness_sim/
-├── src/encos_query/
-├── docs/
-├── scripts/
-└── README.md
-```
-
-Each project has its own documentation with its model assumptions, controls, outputs, and limitations.
-
-## Verified state
-
-- Suspension simulator: 6 regression tests passing
-- Thermal simulator: 15 unit, formula, and numerical regression tests passing
-- ENCOS query and bounded-motion utilities: clean build and protocol test passing on Ubuntu 24.04
-
-## Safety and interpretation
-
-The geometry simulator does not calculate magnetic adhesion, friction, motor torque, or structural loads. The thermal simulator uses constant material properties, a simplified heat source, a lumped magnet, and empirical adhesion corrections. Results should be calibrated against measured temperatures and pull-force data before they inform physical design decisions.
+Every active motor needs an explicit command refresh within 250 ms. The C worker
+attempts zero-speed commands on timeout/fault/close, then clears its outputs.
+That is not a verified mechanical stop: cached bridge feedback and bridge behavior
+after host loss still require bench verification. Motor/fixture limits must
+be supplied explicitly; no model-specific safe settings are assumed.

@@ -17,6 +17,40 @@ static void write_be_u64(uint64_t value, uint8_t *data)
     }
 }
 
+/* ENCOS V1.19EAP section 9.1.3: seven bytes, float RPM, 0.1 A ceiling. */
+bool encos_make_servo_velocity_request(uint16_t motor_id, float velocity_rpm,
+                                      float current_ceiling_a, uint8_t feedback_type,
+                                      encos_can_frame_t *frame)
+{
+    if (!frame || motor_id == 0 || motor_id >= ENCOS_DISCOVERY_CAN_ID ||
+        !isfinite(velocity_rpm) || !isfinite(current_ceiling_a) ||
+        current_ceiling_a < 0 || current_ceiling_a > 6553.5f || feedback_type > 3)
+        return false;
+    uint32_t bits;
+    memcpy(&bits, &velocity_rpm, sizeof(bits));
+    uint32_t current = (uint32_t)lroundf(current_ceiling_a * 10.0f);
+    *frame = (encos_can_frame_t){.id = motor_id, .dlc = 7};
+    frame->data[0] = 0x40u | feedback_type;
+    for (int i = 0; i < 4; ++i) frame->data[1+i] = (uint8_t)(bits >> (24-8*i));
+    frame->data[5] = (uint8_t)(current >> 8);
+    frame->data[6] = (uint8_t)current;
+    return true;
+}
+
+bool encos_parse_type3_feedback(const encos_can_frame_t *frame, uint16_t motor_id,
+                                encos_type3_feedback_t *feedback)
+{
+    if (!frame || !feedback || frame->id != motor_id || frame->rtr != 0 ||
+        frame->dlc != 8 || (frame->data[0] >> 5) != 3) return false;
+    uint32_t bits = read_be_u32(&frame->data[1]);
+    memcpy(&feedback->velocity_rpm, &bits, sizeof(bits));
+    if (!isfinite(feedback->velocity_rpm)) return false;
+    feedback->current_a = (int16_t)(((uint16_t)frame->data[5] << 8) | frame->data[6]) / 100.0f;
+    feedback->temperature_c = ((int)frame->data[7] - 50) / 2.0f;
+    feedback->error = frame->data[0] & 0x1f;
+    return true;
+}
+
 static bool query_header_matches(const encos_can_frame_t *frame, uint16_t motor_id,
                                  uint8_t query_code, uint8_t expected_dlc, uint8_t *error)
 {
