@@ -14,7 +14,7 @@
 #include <time.h>
 #include <unistd.h>
 
-#define MAX_MOTORS 3
+#define MAX_MOTORS 4
 #define PERIOD_S 0.01
 #define TIMEOUT_S 0.25
 

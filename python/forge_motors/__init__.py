@@ -1,7 +1,8 @@
 """Per-motor ENCOS commands; units are output-shaft degrees, RPM and phase A.
 
 No implicit heartbeat: callers must renew EVERY active motor within 250 ms.
-One MotorBus owns one bridge with 1-3 explicitly identified motors on CAN1.
+One MotorBus owns one bridge with 1-4 explicitly identified motors. Configuration
+entries 1-3 use CAN1 (slots 0-2); entry 4 uses CAN2 (slot 3).
 """
 from __future__ import annotations
 
@@ -179,8 +180,8 @@ class MotorBus:
     """
     def __init__(self, configs, *, interface=None, simulate=False, execute=False, library=None):
         configs = tuple(configs)
-        if not 1 <= len(configs) <= 3 or not all(isinstance(c, MotorConfig) for c in configs):
-            raise ValueError("Supply 1-3 MotorConfig objects for CAN1")
+        if not 1 <= len(configs) <= 4 or not all(isinstance(c, MotorConfig) for c in configs):
+            raise ValueError("Supply 1-4 MotorConfig objects; the fourth motor uses CAN2")
         self.configs = {c.motor_id: c for c in configs}
         if len(self.configs) != len(configs):
             raise ValueError("Motor IDs must be unique")

@@ -3,7 +3,8 @@
 Current development: `main` now contains controls only. The physics simulators
 are on `physics-analysis`. The new C11 shared driver and Python per-motor position
 and velocity API are documented in [PYTHON_CONTROL.md](PYTHON_CONTROL.md). Its
-100 Hz loop and three-motor CAN1 limit are separate from the older bench CLI below.
+100 Hz loop is separate from the older bench CLI below. Both accept up to four
+motors in configuration order: slots 0-2 use CAN1 and slot 3 uses CAN2.
 
 Ubuntu 24.04 on the Intel NUC. Hardware route: dedicated Ethernet → ENCOS EtherCAT-CAN bridge → classic CAN motors. Begin with one bridge and one motor on CAN1.
 

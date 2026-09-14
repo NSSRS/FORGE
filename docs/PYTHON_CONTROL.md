@@ -6,14 +6,20 @@
 `libencos_driver.so`. A C pthread owns SOEM exchanges at a target 100 Hz on a
 monotonic schedule; Python updates command buffers. This is not hard real time.
 
-One session owns one bridge and 1-3 distinct motor IDs in contiguous PDO slots
-0-2 on CAN1. Configuration order determines slots. There is no broadcast discovery.
-CAN2, multiple bridges, hybrid mode, torque, brake release and configuration writes
-are not exposed. The older CLI's four-ID limit does not extend this CAN1 scope.
+One session owns one bridge and 1-4 distinct motor IDs in contiguous PDO slots
+0-3. Configuration order determines slots: entries 1-3 use CAN1, and entry 4 uses
+CAN2. Motor IDs do not select the CAN channel. There is no broadcast discovery.
+Arbitrary slot layouts, multiple bridges, hybrid mode, torque, brake release and
+configuration writes are not exposed. Four motors do not mean four slots on CAN1.
 
 Opening sends only position queries. A motor's first command activates it;
 the others remain query-only. Initial position must be available and within
 configured absolute limits before activation.
+
+For four motors, supply four `MotorConfig` entries and command each ID separately.
+The fourth motor must be connected to CAN2 with that bus correctly terminated.
+Hardware verification of the fourth passage is still required; software tests
+exercise all four slots through the fake bridge.
 
 ## Build and install
 

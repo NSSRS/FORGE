@@ -12,7 +12,8 @@ Motor-control development for the magnetic wall-climbing welding robot.
 
 Write application logic in Python; the **C11** shared library owns the SOEM
 EtherCAT loop. This is C, not C++. The first interface supports one bridge and
-1-3 unique motor IDs on CAN1, with independent commands for each motor:
+1-4 unique motor IDs, with independent commands for each motor. Configuration
+entries 1-3 use CAN1; the fourth uses CAN2:
 
 | API | Meaning |
 |---|---|

@@ -3,7 +3,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
-/* One process-wide SOEM session; contiguous slots 0..count-1 on CAN1 only. */
+/* One process-wide SOEM session, up to four motors in configuration order.
+ * Contiguous slots 0-2 route to CAN1; slot 3 (fourth motor) routes to CAN2. */
 typedef struct {
     uint16_t motor_id;
     float min_position_deg, max_position_deg;

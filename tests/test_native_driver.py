@@ -47,6 +47,37 @@ class NativeTests(unittest.TestCase):
         self.assertEqual(self.bus.state(2).position_deg, 15)
         self.assertEqual(self.bus.state(1).temperature_c, 25)
 
+    def test_four_independent_motors_and_reject_fifth(self):
+        self.bus.close()
+        configs = [MotorConfig(i, -180, 180, 5, 1, 10) for i in (1, 2, 3, 4)]
+        for simulate in (True, False):
+            with self.subTest(simulate=simulate):
+                with MotorBus(configs, simulate=simulate, interface="forge-test",
+                              execute=True, library=self.path) as bus:
+                    bus.wait_ready()
+                    for _ in range(8):
+                        bus.velocity(1, -2)
+                        bus.position(2, 10)
+                        bus.velocity(3, 2)
+                        bus.position(4, -10)
+                        time.sleep(.03)
+                    self.assertLess(bus.state(1).velocity_rpm, 0)
+                    self.assertGreater(bus.state(2).position_deg, 0)
+                    self.assertGreater(bus.state(3).velocity_rpm, 0)
+                    self.assertLess(bus.state(4).position_deg, 0)
+                if not simulate:
+                    from forge_motors import _Config
+                    five = configs + [MotorConfig(5, -180, 180, 5, 1, 10)]
+                    array = (_Config * 5)(*(_Config(**vars(c)) for c in five))
+                    handle = bus._backend.lib.encos_driver_open(b"forge-test", array, 5)
+                    if handle:
+                        bus._backend.lib.encos_driver_close(handle)
+                    self.assertFalse(handle)
+                with self.assertRaises(ValueError):
+                    MotorBus(configs + [MotorConfig(5, -180, 180, 5, 1, 10)],
+                             simulate=simulate, interface="forge-test", execute=True,
+                             library=self.path)
+
     def test_watchdog_runs_without_python_heartbeat(self):
         self.bus.velocity(1, 2)
         time.sleep(.35)
