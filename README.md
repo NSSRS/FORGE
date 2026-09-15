@@ -52,6 +52,8 @@ The build fetches pinned upstream SOEM v1.4.0, builds the C utilities and
 integration tests. Tests use a fake bridge and do not access motor hardware.
 See **[Python setup, examples, deadlines, and limitations](docs/PYTHON_CONTROL.md)**
 before hardware use. Supplier files and the local equipment record stay outside Git.
+The **[robot platform roadmap](docs/ROBOT_PLATFORM_ROADMAP.md)** defines the planned
+ROS 2 nodes, teleoperation, localization, trajectory tracking, and ESTOP architecture.
 
 ## Existing bench utilities
 
