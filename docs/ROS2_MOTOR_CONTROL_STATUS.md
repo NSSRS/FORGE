@@ -87,8 +87,8 @@ driver, automatic publisher, and keyboard teleop under the same root account.
 The driver reached hardware-ready state on `enp86s0` for IDs 1, 2, and 3. When
 the command path became active, the motors shook and the native driver latched
 fault class 3 (`feedback/limit failure`). The session closed without automatic
-re-arm. Powered testing is paused pending read-only telemetry and identification
-of the specific motor/error/current/feedback condition.
+re-arm. At that point, powered testing was paused pending read-only telemetry and
+identification of the specific motor/error/current/feedback condition.
 
 The next read-only query returned fault-free position, hardware, version, and
 500 ms timeout replies from all three motors. Positions were -151.493652 degrees
@@ -105,10 +105,10 @@ establishes individual low-speed position control but does not yet clear
 simultaneous three-motor velocity control.
 
 All three motors subsequently passed the same +1 degree / return test
-simultaneously with a 2 A phase-current ceiling per motor. ROS DDS is now forced
-to loopback with `ROS_LOCALHOST_ONLY=1` so discovery and topic traffic do not use
-the dedicated EtherCAT interface. The native driver now prints the exact motor
-and measured condition before latching a fault.
+simultaneously with a 2 A phase-current ceiling per motor. At that stage, ROS DDS
+was forced to loopback with `ROS_LOCALHOST_ONLY=1` so discovery and topic traffic
+did not use the dedicated EtherCAT interface. The native driver was also updated
+to print the exact motor and measured condition before latching a fault.
 
 The following ROS keyboard run reported the exact cause: motor 2 reached
 720.049 degrees, outside the configured [-720, 720] degree commissioning range.

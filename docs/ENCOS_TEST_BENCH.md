@@ -1,6 +1,6 @@
 # ENCOS test bench: NUC, Ubuntu, Windows and EtherCAT-CAN bridge
 
-This guide uses the ENCOS EtherCAT-CAN board identified in the conversation. Start with one bridge and one motor, with no robot link or external load attached. No URDF is needed yet. This guide has been checked against the supplied documents and C example; commands have not been run on the Ubuntu NUC or hardware. Motor model, brake, supply and board firmware must be recorded before the powered-motion stage.
+This guide uses the ENCOS EtherCAT-CAN board identified in the conversation. Start with one bridge and one motor, with no robot link or external load attached. No URDF is needed yet. The procedure has now been exercised on the Ubuntu NUC with three secured, unloaded motors: query-only telemetry, isolated and simultaneous bounded position tests, native Python velocity control, automatic ROS command/feedback, and dead-man keyboard control all passed. See [ROS2_MOTOR_CONTROL_STATUS.md](ROS2_MOTOR_CONTROL_STATUS.md) for the dated results and remaining limitations. Motor models, brake behavior, bridge firmware, loaded stopping, and host-loss behavior still require verification before robot use.
 
 ## 1. Assign each device a job
 
@@ -174,7 +174,12 @@ Pass: one stable bridge, OP state reached, working counter matches its computed 
 
 ## 9. Prepare the powered-motor diagnostic program
 
-This is a required implementation stage before running powered motion. The supplied example is not a finished bench controller, and this guide does not add an executable motor test utility. Do not simply uncomment its 180-degree movement or zero-setting examples.
+The supplied vendor example is not a finished bench controller; do not simply
+uncomment its 180-degree movement or zero-setting examples. Project-owned
+utilities now provide query-only telemetry (`encos_query`), bounded position
+motion (`encos_motion`), and guarded Python/ROS velocity control. The checklist
+below remains the acceptance standard rather than a description of missing
+software.
 
 The adapted utility must have:
 
@@ -189,13 +194,20 @@ The adapted utility must have:
 9. A model-appropriate controlled stop and brake sequence; a hardware stop independent of Linux.
 10. CSV logging outside the critical loop, including raw frames and evidence of fresh CAN reception where provided by the bridge.
 
+The current implementation covers guarded entry, PDO-size validation, explicit
+IDs and slots, checked protocol decoding, measured-position initialization,
+bounded commands, feedback/current/temperature checks, command deadlines, and
+latched fault handling. Still unresolved are authoritative bridge receive-age
+metadata, the model-specific brake/disarm sequence, independent hardware-stop
+behavior, and complete structured timing/raw-frame logs.
+
 Important: valid EtherCAT working counters only prove exchange with the bridge. They do not prove that its cached motor feedback is new. Determine whether bridge firmware supplies receive counters, timestamps or validity flags; otherwise an unchanged cached position can be mistaken for a healthy stationary motor.
 
 Important: determine what the bridge does when the NUC or EtherCAT connection disappears. If it keeps replaying the last CAN control frame, the motor's own CAN timeout may never expire. Test the bridge's watchdog/output-invalidation behavior with the motor secured and a hardware stop available; do not assume the motor's 500 ms watchdog covers host failure.
 
 ## 10. Power one motor and establish telemetry
 
-After step 9 is implemented and the equipment sheet is complete:
+With the project-owned utilities built and the equipment sheet complete:
 
 1. With all power off, connect the one motor to CAN1 and verify power polarity and termination.
 2. Boot Ubuntu and verify the motor application is disarmed, with no background master running.
@@ -239,7 +251,14 @@ Log run ID, software version, motor/bridge firmware, bus/passage/ID, limits, mon
 
 Once one motor passes, add a second only with power off and a unique ID on that bus. Map every motor to (bridge index, passage, CAN ID). Each bridge supports passages 1-3 on CAN1 and 4-6 on CAN2. One board is sufficient for up to six motor slots, but throughput still needs measurement. Start conservatively and preserve timing headroom.
 
-Only then add ROS 2 Jazzy, a ros2_control hardware interface, joint_state_broadcaster and joint_trajectory_controller. The later URDF/YAML should include joint axes, origins, signs, zero references, travel/velocity/effort limits and any external transmission. Dynamic feedforward also needs mass, center of mass, inertia and payload. Continue using servo position mode initially; evaluate hybrid mode once the task requires it.
+A temporary ROS 2 Jazzy commissioning layer now publishes direct motor RPM
+commands and `/joint_states`; it is not yet a chassis controller or a
+`ros2_control` hardware interface. Add the production `ros2_control` interface,
+joint-state/trajectory controllers, and URDF/YAML only after the chassis mapping
+and safety requirements are defined. Those files must include joint axes,
+origins, signs, zero references, travel/velocity/effort limits, and external
+transmissions. Dynamic feedforward also needs mass, center of mass, inertia, and
+payload. Evaluate hybrid mode only when the task requires it.
 
 ## Troubleshooting order
 

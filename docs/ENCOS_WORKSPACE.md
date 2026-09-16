@@ -15,7 +15,7 @@ Ubuntu 24.04 on the Intel NUC. Hardware route: dedicated Ethernet → ENCOS Ethe
 | `src/encos_query/` | Project-owned query-only bridge and motor diagnostic |
 | `docs/` | Bring-up guide, bench procedure, and file migration record |
 | `config/bench-equipment.example.md` | Redacted equipment-record template |
-| `tests/` | Future host-side protocol and controller tests |
+| `tests/` | Host-side protocol, simulation, and fake-native-driver tests |
 | `scripts/` | Build helpers |
 | `build/` | Generated build output |
 | `logs/` | Hardware test recordings |
@@ -69,7 +69,7 @@ Repeat with one isolated motor at a time. Do not use `encos_assign_id` while dup
 The bounded motion utility accepts the same explicit ID list. It commands each listed motor through PDO slots 0–3 with a target 1 ms loop, monitors type-2 feedback for every motor, and stops all outputs if any motor exceeds a safety limit. Slot 3 routes to CAN2 according to the bridge guide; four IDs do not mean four motors on CAN1:
 
 ```bash
-sudo ./build/encos_query/encos_motion enp86s0 2.0 45 --motor-ids 1,2 --execute
+sudo ./build/encos_query/encos_motion enp86s0 2.0 1 --motor-ids 1,2 --execute
 ```
 
 The initial profile targets a 1 kHz loop, ramps outward over 2 seconds at a 5 rpm ceiling, holds 0.5 seconds, and returns over 2 seconds. Standard Linux scheduling can add jitter, so treat 1 kHz as a target and inspect the resulting motion/feedback log before relying on it. Start with one motor and 2.0 A only if that phase-current ceiling is approved for the actual motor and fixture. Do not run a multi-motor motion until IDs, termination, direction, clearance, and individual feedback are verified.
@@ -77,9 +77,15 @@ The initial profile targets a 1 kHz loop, ramps outward over 2 seconds at a 5 rp
 For a three-motor verification sequence, after IDs 1, 2, and 3 have individually passed telemetry, run the three motors together, then ID 1, ID 2, and ID 3 in turn. Every stage uses the bounded out-and-return profile and aborts the remaining sequence if a stage fails:
 
 ```bash
-sudo ./scripts/run_three_motor_sequence.sh enp86s0 2.0 45 --execute
+sudo ./scripts/run_three_motor_sequence.sh enp86s0 2.0 1 --execute
 ```
 
-Read [the protocol and architecture guide](docs/ENCOS_BRINGUP.md) for command units and known example defects. Copy [the equipment template](config/bench-equipment.example.md) to `config/bench-equipment.md` to record actual hardware; that local record is ignored by Git.
+Read [the protocol and architecture guide](ENCOS_BRINGUP.md) for command units and known example defects. Copy [the equipment template](../config/bench-equipment.example.md) to `config/bench-equipment.md` to record actual hardware; that local record is ignored by Git.
 
-Both programs compile on this Ubuntu 24.04 NUC, and the query protocol tests pass. The query utility has been run successfully with a powered motor.
+The utilities compile on this Ubuntu 24.04 NUC and the host-side tests pass.
+Query-only telemetry passed for IDs 1-3. Each motor and all three together passed
+the bounded +1-degree/return test at a 2 A phase-current ceiling. The native
+Python three-motor velocity test, automatic ROS command test, and keyboard
+commissioning also passed on the secured unloaded bench; see
+[ROS2_MOTOR_CONTROL_STATUS.md](ROS2_MOTOR_CONTROL_STATUS.md). Loaded stopping,
+brake behavior, feedback freshness, and host-loss behavior remain unverified.

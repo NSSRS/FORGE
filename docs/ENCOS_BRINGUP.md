@@ -5,7 +5,7 @@ are in [PYTHON_CONTROL.md](PYTHON_CONTROL.md). The architecture below records th
 initial joint-position bring-up plan, not a requirement to use motor position mode
 for future chassis trajectory tracking.
 
-Prepared 2026-09-08 from ENCOS V1.19EAP and the supplied CAN/EtherCAT materials. This is a design and commissioning guide, not a hardware-tested driver. Motor model, firmware, adapter, joint count and mechanical loading remain unknown. Page references below use the manual's printed page numbers (PDF page = printed page + 5).
+Prepared 2026-09-08 from ENCOS V1.19EAP and the supplied CAN/EtherCAT materials. This remains a design and commissioning guide, while the project-owned driver has now passed bounded tests with three secured, unloaded motors. Those results do not validate loaded motion, braking, traction, or host-loss behavior. Exact motor models, brake configuration, bridge firmware, mechanical loading, and final robot joint mapping remain incomplete. Page references below use the manual's printed page numbers (PDF page = printed page + 5).
 
 ## Recommended starting architecture
 
@@ -184,6 +184,13 @@ Convert radians/degrees at the protocol boundary. ENCOS feedback is already outp
 7. The manual itself has inconsistencies: its p. 43 hybrid worked binary example does not apply the specified range quantization; some configuration DLC/ACK descriptions conflict with examples (notably acceleration, communication mode and zero offset). Treat those as firmware-validation items, not ready-to-run recipes. Thermal descriptions on pp. 2-3 also differ; establish conservative model-specific operating limits with ENCOS.
 
 ## Acceptance sequence and remaining inputs
+
+Status on 2026-09-16: IDs 1-3 passed telemetry, individual and simultaneous
++1-degree position excursions, a bounded native Python velocity test at +30 RPM,
+an automatic ROS test at +5 RPM, and root-to-root dead-man keyboard control on
+the secured unloaded bench. The sequence below remains the path to a loaded
+robot; controlled host/link-loss behavior, braking, and mechanical validation
+are not complete.
 
 1. Single motor: wiring/termination/power checks; discovery and repeatable telemetry; record settings.
 2. Secured motor: measured-position initialization, brake handling if fitted, tiny bounded moves, direction/units/current verification.

@@ -421,7 +421,12 @@ Future XML/configuration should provide:
 
 ## Immediate next milestone
 
-Before the NUC is available, implement and validate a simulated four-motor chassis
-with keyboard teleoperation, command arbitration, limits, and the safety state
-machine. The simulation should consume the same robot XML/YAML and ROS command
-interfaces intended for the physical system.
+The NUC-to-bridge-to-three-motor commissioning path is now working on the
+secured unloaded bench, including native Python and temporary ROS 2 direct-RPM
+control. Next, collect the four-wheel geometry, motor direction/assignment,
+external gearing, brake details, and model-specific limits, then implement and
+validate a simulated four-motor chassis with steering-aware keyboard
+teleoperation, command arbitration, limits, and the safety state machine. The
+simulation should consume the same robot XML/YAML and ROS command interfaces
+intended for the physical system. In parallel, complete controlled host/link-loss
+and loaded stopping tests before chassis motion.
