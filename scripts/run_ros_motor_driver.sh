@@ -12,5 +12,5 @@ workspace_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$workspace_dir/scripts/ros2_env.sh"
 set -u
 exec ros2 run forge_motor_control forge_motor_driver --ros-args \
-  --params-file "$workspace_dir/ros2_ws/install/forge_motor_control/share/forge_motor_control/config/commissioning.yaml" \
+  --params-file "$workspace_dir/install/ros2/forge_motor_control/share/forge_motor_control/config/commissioning.yaml" \
   -p simulate:=false -p execute:=true

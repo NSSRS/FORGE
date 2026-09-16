@@ -2,7 +2,7 @@
 """Bounded hardware velocity test for the three-motor FORGE bench.
 
 The default hardware profile is intentionally fixed to the values recorded in
-config/bench-equipment.md. Hardware motion requires the literal --execute flag.
+docs/bench-equipment.md. Hardware motion requires the literal --execute flag.
 """
 
 from __future__ import annotations

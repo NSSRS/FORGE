@@ -108,7 +108,7 @@ ip -br link
 The active build fetches pinned upstream SOEM v1.4.0; the bundled supplier copy
 is reference material. SOEM is a userspace EtherCAT master; installing the IgH
 kernel master is not part of this path. See the [workspace layout](ENCOS_WORKSPACE.md#layout)
-and `config/bench-equipment.md` for the local equipment record.
+and `docs/bench-equipment.md` for the local equipment record.
 
 ## 6. Dedicate the Ethernet interface
 
@@ -322,7 +322,7 @@ deprecated `ROS_LOCALHOST_ONLY` variable.
 Fast DDS may report the root driver's endpoints as `_NODE_NAME_UNKNOWN_`, so
 `ros2 node list` is not a reliable liveness check for this temporary
 commissioning arrangement. `scripts/ros2_env.sh` loads
-`config/fastdds-udp-loopback.xml`, which restricts DDS to loopback and disables
+`src/forge_motor_control/config/fastdds-udp-loopback.xml`, which restricts DDS to loopback and disables
 data sharing, but this did not make mixed-account payload delivery reliable.
 
 The guarded native Python test subsequently passed with motors 1, 2, and 3 at a

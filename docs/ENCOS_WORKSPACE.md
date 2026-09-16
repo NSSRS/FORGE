@@ -13,18 +13,37 @@ Ubuntu 24.04 on the Intel NUC. Hardware route: dedicated Ethernet → ENCOS Ethe
 | Path | Purpose |
 |---|---|
 | `src/encos_query/` | C11 protocol codec, shared driver, and bench utilities |
-| `python/forge_motors/` | Python API, ctypes binding, and hardware-free simulator |
-| `ros2_ws/src/forge_motor_control/` | ROS 2 driver, keyboard publisher, and commissioning config |
-| `examples/` | Python application examples |
+| `src/forge_motors/` | Python API, ctypes binding, and hardware-free simulator |
+| `src/forge_motor_control/` | ROS 2 driver, keyboard publisher, and commissioning config |
 | `docs/` | Protocol, bench procedure/results, Python/ROS usage, and platform roadmap |
-| `config/bench-equipment.example.md` | Redacted equipment-record template |
+| `docs/bench-equipment.example.md` | Redacted equipment-record template |
 | `tests/` | Host-side protocol, simulation, and fake-native-driver tests |
-| `scripts/` | Build, ROS environment, and guarded commissioning helpers |
-| `build/` | Generated build output |
-| `logs/` | Hardware test recordings |
+| `scripts/` | Build/ROS helpers, Python simulation example, and guarded commissioning commands |
+| `build/` | Generated native (`encos_query/`) and ROS (`ros2/`) build output |
+| `logs/` | Generated hardware recordings and colcon logs (untracked; create when needed) |
+| `install/ros2/` | Generated ROS package installation (untracked) |
 | `tmp/` | Temporary files, including existing PDF extracts |
 
 The local `vendor/` folder holds the supplier material used during bench work. It is excluded from Git along with the extracted supplier demo. The build fetches the pinned, public upstream SOEM v1.4.0 source into the build directory.
+
+## Updating from the previous layout
+
+The source folders formerly named `python/` and `ros2_ws/src/` are now under
+`src/`. The simulation example is `scripts/independent_motors.py`, and the DDS
+profile belongs to the ROS package's `config/` directory. Public Python imports
+and ROS executable names are unchanged.
+
+After pulling this reorganization, rebuild the ROS package using the
+[updated command](ROS2_MOTOR_CONTROL_STATUS.md#build-and-run), then start a fresh
+terminal and source `scripts/ros2_env.sh`. The new build/install paths avoid
+reusing colcon caches or symlinks that point to the former source location.
+For an existing editable Python installation, rerun `python -m pip install -e .`
+with that environment's interpreter. For source-tree use, set `PYTHONPATH=src`.
+
+If a local `config/bench-equipment.md` exists, move it to
+`docs/bench-equipment.md`; both paths remain ignored to protect local records.
+Existing `ros2_ws/` build artifacts remain ignored and are no longer used.
+The native C build path is unchanged. Create `logs/` locally when saving runs.
 
 ## Build on Ubuntu
 
@@ -88,7 +107,7 @@ For a three-motor verification sequence, after IDs 1, 2, and 3 have individually
 sudo ./scripts/run_three_motor_sequence.sh enp86s0 2.0 1 --execute
 ```
 
-Read [the protocol and architecture guide](ENCOS_BRINGUP.md) for command units and known example defects. Copy [the equipment template](../config/bench-equipment.example.md) to `config/bench-equipment.md` to record actual hardware; that local record is ignored by Git.
+Read [the protocol and architecture guide](ENCOS_BRINGUP.md) for command units and known example defects. Copy [the equipment template](../docs/bench-equipment.example.md) to `docs/bench-equipment.md` to record actual hardware; that local record is ignored by Git.
 
 Dated hardware outcomes and remaining limits are recorded in the
 [bench commissioning record](ENCOS_TEST_BENCH.md#commissioning-record-2026-09-16).

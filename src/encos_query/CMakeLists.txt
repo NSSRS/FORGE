@@ -67,7 +67,7 @@ target_compile_options(encos_driver_test PRIVATE -Wall -Wextra -Werror)
 target_link_libraries(encos_driver_test PRIVATE encos_protocol pthread)
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
 add_test(NAME python_motors COMMAND ${CMAKE_COMMAND} -E env
-    "PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}/../../python"
+    "PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}/.."
     "ENCOS_TEST_LIBRARY=$<TARGET_FILE:encos_driver_test>"
     ${Python3_EXECUTABLE} -m unittest discover
     -s ${CMAKE_CURRENT_SOURCE_DIR}/../../tests -p "test_*.py" -v)

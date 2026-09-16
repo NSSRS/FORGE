@@ -32,14 +32,14 @@ see [ROS 2 motor-control status](docs/ROS2_MOTOR_CONTROL_STATUS.md).
 Run the independent-motor example without hardware (Python 3.10+):
 
 ```bash
-PYTHONPATH=python python3 examples/independent_motors.py
+PYTHONPATH=src python3 scripts/independent_motors.py
 ```
 
 Or on PowerShell:
 
 ```powershell
-$env:PYTHONPATH = 'python'
-python examples/independent_motors.py
+$env:PYTHONPATH = 'src'
+python scripts/independent_motors.py
 ```
 
 For native Ubuntu 24.04 builds, follow the
@@ -49,6 +49,22 @@ See **[Python setup, examples, deadlines, and limitations](docs/PYTHON_CONTROL.m
 before hardware use. Supplier files and the local equipment record stay outside Git.
 The **[robot platform roadmap](docs/ROBOT_PLATFORM_ROADMAP.md)** defines the planned
 ROS 2 nodes, teleoperation, localization, trajectory tracking, and ESTOP architecture.
+
+## Repository layout
+
+```text
+src/
+  encos_query/          C11 driver, protocol codec, and bench utilities
+  forge_motors/         Standalone Python API and simulator
+  forge_motor_control/  ROS 2 package metadata, configuration, and Python module
+docs/                   Guides, equipment template, and bench results
+scripts/                Build/run helpers and simulation example
+tests/                  Protocol, Python, and fake-bridge tests
+```
+
+The ROS package's inner `forge_motor_control/` is its importable Python module;
+the outer directory contains `package.xml`, setuptools metadata, and resources.
+Build output, installed packages, and logs are generated locally and untracked.
 
 ## Documentation
 

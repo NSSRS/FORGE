@@ -70,7 +70,7 @@ with MotorBus(configs, simulate=True) as bus:
         time.sleep(0.02)
 ```
 
-For hardware, complete the [equipment record](../config/bench-equipment.example.md)
+For hardware, complete the [equipment record](../docs/bench-equipment.example.md)
 and [bench procedure](ENCOS_TEST_BENCH.md). Supply actual IDs, approved limits, and
 an absolute position range containing the measured startup angle. Substitute
 `MotorBus(configs, interface="enp86s0", execute=True)` using the actual NIC name.

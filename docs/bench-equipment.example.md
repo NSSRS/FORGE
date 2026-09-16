@@ -1,6 +1,6 @@
 # Bench equipment record
 
-Copy this file to `config/bench-equipment.md` before recording local commissioning details. The local record is intentionally ignored by Git.
+Copy this file to `docs/bench-equipment.md` before recording local commissioning details. The local record is intentionally ignored by Git.
 
 | Item | Value |
 |---|---|

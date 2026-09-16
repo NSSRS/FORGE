@@ -16,13 +16,13 @@ CTest sets it automatically. The normal loader uses `libencos_driver.so`, not
 Portable Python-only tests:
 
 ```bash
-PYTHONPATH=python python3 -m unittest discover -s tests -p 'test_*.py' -v
+PYTHONPATH=src python3 -m unittest discover -s tests -p 'test_*.py' -v
 ```
 
 On PowerShell:
 
 ```powershell
-$env:PYTHONPATH = 'python'
+$env:PYTHONPATH = 'src'
 python -m unittest discover -s tests -p 'test_*.py' -v
 ```
 

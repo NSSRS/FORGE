@@ -35,8 +35,8 @@ Held-key repeat then refreshes commands normally; releasing the key retains the
 ```bash
 cd /home/forge2/forge2_ws
 source /opt/ros/jazzy/setup.bash
-colcon --log-base ros2_ws/log build --base-paths ros2_ws/src \
-  --build-base ros2_ws/build --install-base ros2_ws/install --symlink-install
+colcon --log-base logs/colcon build --base-paths src/forge_motor_control \
+  --build-base build/ros2 --install-base install/ros2 --symlink-install
 ```
 
 Hardware driver terminal:
