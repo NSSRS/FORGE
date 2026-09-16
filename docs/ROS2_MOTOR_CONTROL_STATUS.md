@@ -82,102 +82,11 @@ discovery crosses the root/non-root boundary but payload delivery is unreliable,
 even with UDP-only loopback configuration. Run the temporary commissioning
 driver, automatic publisher, and keyboard teleop under the same root account.
 
-## First ROS hardware run (2026-09-16)
+## Bench results and limitations
 
-The driver reached hardware-ready state on `enp86s0` for IDs 1, 2, and 3. When
-the command path became active, the motors shook and the native driver latched
-fault class 3 (`feedback/limit failure`). The session closed without automatic
-re-arm. At that point, powered testing was paused pending read-only telemetry and
-identification of the specific motor/error/current/feedback condition.
-
-The next read-only query returned fault-free position, hardware, version, and
-500 ms timeout replies from all three motors. Positions were -151.493652 degrees
-(ID 1), 69.675499 degrees (ID 2), and 2.895467 degrees (ID 3). Brake replies were
-unknown. All three reported software 1.0.0, which conflicts with the first
-preflight's 1.0.8 and 1.0.32 values for IDs 1 and 3. The discrepancy may indicate
-cached or otherwise unverified bridge replies and must not be treated as proof
-of firmware identity.
-
-Motors 1, 2, and 3 then each passed the native isolated motion test
-independently: +1 degree over two seconds, return over two seconds, a 2 A
-phase-current ceiling, and final position near the measured start. This
-establishes individual low-speed position control but does not yet clear
-simultaneous three-motor velocity control.
-
-All three motors subsequently passed the same +1 degree / return test
-simultaneously with a 2 A phase-current ceiling per motor. At that stage, ROS DDS
-was forced to loopback with `ROS_LOCALHOST_ONLY=1` so discovery and topic traffic
-did not use the dedicated EtherCAT interface. The native driver was also updated
-to print the exact motor and measured condition before latching a fault.
-
-The following ROS keyboard run reported the exact cause: motor 2 reached
-720.049 degrees, outside the configured [-720, 720] degree commissioning range.
-This was a software position-limit stop, not a reported current, temperature,
-EtherCAT, or motor fault. Output-shaft position accumulates across turns while
-the motor remains powered, so continuous wheel velocity control requires a
-continuous-joint policy instead of the bounded-position policy used for initial
-bench motion.
-
-The driver now implements that policy: Mode 1 position control retains angular
-bounds, while Mode 2 velocity control permits continuous accumulated output
-rotation. Speed, phase-current, temperature, motor-error, feedback-age,
-command-age, and EtherCAT protections remain enabled. ROS discovery is limited
-to loopback with `ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST` rather than the
-deprecated `ROS_LOCALHOST_ONLY` variable.
-
-Fast DDS may report the root driver's endpoints as `_NODE_NAME_UNKNOWN_`, so
-`ros2 node list` is not a reliable liveness check for this temporary
-commissioning arrangement. `scripts/ros2_env.sh` loads
-`config/fastdds-udp-loopback.xml`, which restricts DDS to loopback and disables
-data sharing, but this did not make mixed-account payload delivery reliable.
-
-The guarded native Python test subsequently passed with motors 1, 2, and 3 at a
-+30 RPM target for two seconds and a 2 A phase-current ceiling per motor. It
-reported all three below 0.5 RPM during the stop window. The automatic ROS test
-then passed at +5 RPM for two seconds with fresh `/joint_states` feedback and a
-verified reported stop. Root-to-root keyboard commissioning also worked at
-both +5 RPM and -5 RPM with dead-man stopping. These results validate the
-current unloaded bench path; they do not establish loaded robot stopping or
-host-loss behavior.
-
-## Confirmed bench values (2026-09-16)
-
-| Item | Value |
-|---|---|
-| EtherCAT interface | `enp86s0`, confirmed as the direct bridge connection |
-| CAN motor IDs | 1, 2, 3 |
-| Initial bus | CAN1; the three configured Python slots map to CAN1 |
-| Mechanical condition | Motors are secured and unloaded; operator approved roughly one output revolution for a bench test |
-| Bench PSU | 5 A maximum supply current |
-| Requested provisional command ceiling | 2 A phase-current ceiling per motor; this is not a 6 A aggregate supply-current claim |
-
-## Query-only hardware result (2026-09-16)
-
-The bridge reached OPERATIONAL with the required 86-byte output / 92-byte input
-PDO layout and WKC 3. No motion command was sent.
-
-| CAN ID | Position | Hardware | Software | CAN timeout |
-|---:|---:|---:|---:|---:|
-| 1 | 119.436943 deg | 1.0.1 | 1.0.8 | 500 ms |
-| 2 | -19.084883 deg | 1.0.1 | 1.0.0 | 500 ms |
-| 3 | -85.408943 deg | 1.0.1 | 1.0.32 | 500 ms |
-
-The PSU current and a motor's phase current are different quantities. The 2 A
-value is a provisional command ceiling, not a model-derived safe operating
-limit.
-
-## Powered-motion status
-
-Holding-brake presence and its documented release sequence are unknown. A
-holding brake is an electromagnetic mechanism that can prevent shaft rotation;
-the ENCOS manual says it should be opened before motor control. On 2026-09-16,
-the operator explicitly instructed the bench test to proceed without treating
-brake status as a motion gate. Stop immediately if a motor does not rotate,
-draws unexpected current, heats, vibrates, or reports a fault.
-
-`scripts/run_three_motor_velocity.py` implements the completed bounded
-three-motor check: a +30 RPM target for a two-second command window, a 2 A
-phase-current ceiling per motor, explicit zero-speed commands, and shutdown. A
-fixed 60 RPM/s native slew limits abrupt velocity steps; it is intentionally not
-another ROS/Python tuning parameter. The driver retains feedback, command-age,
-current, temperature, overspeed, and EtherCAT fault checks.
+The secured, unloaded three-motor path passed bounded native Python velocity,
+automatic ROS command/feedback, and keyboard commissioning tests. The complete
+[2026-09-16 commissioning record](ENCOS_TEST_BENCH.md#commissioning-record-2026-09-16)
+preserves the initial fault, subsequent diagnosis, measured values, firmware
+discrepancy, operator decision about unknown brake status, and test limits.
+Loaded stopping and host-loss behavior remain unverified.

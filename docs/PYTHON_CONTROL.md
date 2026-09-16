@@ -27,9 +27,10 @@ Use native Ubuntu 24.04 with a dedicated EtherCAT NIC and the ENCOS 86-byte OUT 
 92-byte IN mapping. WSL supports compilation/fake-bridge tests here, not the
 supported physical motor connection.
 
+First complete the [native build](ENCOS_WORKSPACE.md#build-on-ubuntu), then install
+the Python package from the repository root:
+
 ```bash
-sudo apt install build-essential cmake git python3 python3-venv
-./scripts/build.sh
 python3 -m venv .venv
 .venv/bin/python -m pip install -e .
 ```
@@ -162,18 +163,10 @@ for independent motor-angle experiments.
 
 ## Verification
 
-`./scripts/build.sh` runs C packet tests and Python tests including the real C
-driver linked to a fake SOEM transport. The fake library has no raw-socket code
-and is never chosen by the default hardware loader. Portable Python-only checks:
-
-```bash
-PYTHONPATH=python python3 -m unittest discover -s tests -p 'test_*.py' -v
-```
-
-Native cases skip unless `ENCOS_TEST_LIBRARY` points to the fake library; CTest
-sets it automatically. Tests cover manual Mode 2 vectors, negative speeds, signed
-feedback, independent commands, deadlines, transport/feedback faults and cleanup.
-Software tests do not establish physical motion or stopping behavior.
+See [Motor tests](../tests/README.md) for native/fake-bridge coverage and portable
+Python test commands. Software tests do not establish physical motion or stopping
+behavior; dated hardware evidence is in the
+[bench commissioning record](ENCOS_TEST_BENCH.md#commissioning-record-2026-09-16).
 
 Protocol source: supplied ENCOS V1.19EAP printed sections 4.1-4.5, 9.1.2-9.1.3,
 10.2-10.3. The supplier PDF remains outside the public repository.

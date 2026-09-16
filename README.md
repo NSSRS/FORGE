@@ -2,7 +2,7 @@
 
 Motor-control development for the magnetic wall-climbing welding robot.
 
-- **`main`**: ENCOS motor utilities, C driver, and Python interface.
+- **`main`**: ENCOS C11 driver/utilities, Python interface, and ROS 2 commissioning package.
 - **[`physics-analysis`](https://github.com/NSSRS/FORGE/tree/physics-analysis)**:
   thermal/magnetic adhesion and suspension/wheel/terrain simulators, preserved
   from the former `main` at `324d21e`.
@@ -42,20 +42,25 @@ $env:PYTHONPATH = 'python'
 python examples/independent_motors.py
 ```
 
-For native Ubuntu 24.04 hardware builds:
-
-```bash
-sudo apt install build-essential cmake git python3
-./scripts/build.sh
-```
-
-The build fetches pinned upstream SOEM v1.4.0, builds the C utilities and
-`build/encos_query/libencos_driver.so`, and runs protocol plus Python/native
-integration tests. Tests use a fake bridge and do not access motor hardware.
+For native Ubuntu 24.04 builds, follow the
+[workspace build guide](docs/ENCOS_WORKSPACE.md#build-on-ubuntu). It builds the
+C utilities and shared library and runs hardware-free protocol/Python tests.
 See **[Python setup, examples, deadlines, and limitations](docs/PYTHON_CONTROL.md)**
 before hardware use. Supplier files and the local equipment record stay outside Git.
 The **[robot platform roadmap](docs/ROBOT_PLATFORM_ROADMAP.md)** defines the planned
 ROS 2 nodes, teleoperation, localization, trajectory tracking, and ESTOP architecture.
+
+## Documentation
+
+| Guide | Contents |
+|---|---|
+| [Workspace](docs/ENCOS_WORKSPACE.md) | Repository layout, native build, and C utility commands |
+| [Python control](docs/PYTHON_CONTROL.md) | Installation, API, command deadlines, and driver limitations |
+| [ROS 2 commissioning](docs/ROS2_MOTOR_CONTROL_STATUS.md) | Topics, keyboard behavior, build/run, and DDS setup |
+| [Bench procedure and record](docs/ENCOS_TEST_BENCH.md) | Wiring, acceptance checks, dated measurements and outcomes |
+| [Protocol reference](docs/ENCOS_BRINGUP.md) | Packet units/encoding, vendor findings, and original bring-up design |
+| [Platform roadmap](docs/ROBOT_PLATFORM_ROADMAP.md) | Planned chassis control, localization, and safety architecture |
+| [Tests](tests/README.md) | Coverage and native/portable test commands |
 
 ## Existing bench utilities
 

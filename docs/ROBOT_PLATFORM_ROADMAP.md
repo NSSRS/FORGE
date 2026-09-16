@@ -17,6 +17,11 @@ and joint limits will later be supplied as XML. Prefer ROS URDF with Xacro where
 parameters or repeated structures are needed. Hardware limits that affect safe
 operation must also live in reviewed configuration rather than relying only on URDF.
 
+The implemented direct-RPM commissioning interface is documented in
+[ROS 2 motor control](ROS2_MOTOR_CONTROL_STATUS.md). The chassis interfaces and
+keyboard mapping below are planned; dated hardware evidence lives in the
+[bench record](ENCOS_TEST_BENCH.md#commissioning-record-2026-09-16).
+
 ## System architecture
 
 ```mermaid

@@ -1,6 +1,6 @@
 # ENCOS test bench: NUC, Ubuntu, Windows and EtherCAT-CAN bridge
 
-This guide uses the ENCOS EtherCAT-CAN board identified in the conversation. Start with one bridge and one motor, with no robot link or external load attached. No URDF is needed yet. The procedure has now been exercised on the Ubuntu NUC with three secured, unloaded motors: query-only telemetry, isolated and simultaneous bounded position tests, native Python velocity control, automatic ROS command/feedback, and dead-man keyboard control all passed. See [ROS2_MOTOR_CONTROL_STATUS.md](ROS2_MOTOR_CONTROL_STATUS.md) for the dated results and remaining limitations. Motor models, brake behavior, bridge firmware, loaded stopping, and host-loss behavior still require verification before robot use.
+This guide uses the ENCOS EtherCAT-CAN board identified in the conversation. Start with one bridge and one motor, with no robot link or external load attached. No URDF is needed yet. The procedure has now been exercised on the Ubuntu NUC with three secured, unloaded motors: query-only telemetry, isolated and simultaneous bounded position tests, native Python velocity control, automatic ROS command/feedback, and dead-man keyboard control all passed. See the [commissioning record](#commissioning-record-2026-09-16) for dated results and remaining limitations, and [ROS 2 motor control](ROS2_MOTOR_CONTROL_STATUS.md) for build/run instructions. Motor models, brake behavior, bridge firmware, loaded stopping, and host-loss behavior still require verification before robot use.
 
 ## 1. Assign each device a job
 
@@ -95,16 +95,20 @@ MotorTool is not assumed to work through the EtherCAT bridge. Do not buy USB-CAN
 This workspace is now on the Ubuntu 24.04 NUC at `/home/forge2/forge2_ws`.
 Original vendor files are preserved in `vendor/encos/`; the C example has already been extracted into `src/soem_demo_c/`. Do not extract over the working copy.
 
+Install dependencies using the [workspace build guide](ENCOS_WORKSPACE.md#build-on-ubuntu),
+then confirm the host and available interfaces:
+
 ```bash
-sudo apt update
-sudo apt install build-essential cmake git unzip ethtool iproute2 ripgrep
 cd /home/forge2/forge2_ws
 uname -a
 cat /etc/os-release
 ip -br link
 ```
 
-Use the bundled SOEM version initially. SOEM is a userspace EtherCAT master; installing the IgH kernel master is not part of this path. See the root README for the directory layout and `config/bench-equipment.md` for the equipment record.
+The active build fetches pinned upstream SOEM v1.4.0; the bundled supplier copy
+is reference material. SOEM is a userspace EtherCAT master; installing the IgH
+kernel master is not part of this path. See the [workspace layout](ENCOS_WORKSPACE.md#layout)
+and `config/bench-equipment.md` for the local equipment record.
 
 ## 6. Dedicate the Ethernet interface
 
@@ -133,44 +137,36 @@ sudo nmcli device set "$ENCOS_IFACE" managed yes
 
 Keep the NUC awake during tests; disable automatic suspend in Ubuntu Power settings. For first testing, no real-time kernel is required. Measure timing before selecting higher rates or changing kernel/scheduler configuration.
 
-## 7. Build the supplied C example without running it
+## 7. Build the project-owned C utilities without running hardware
 
-In `src/soem_demo_c/app/main.c`, replace `EtherCAT_Init("ens33")` with the exact dedicated interface name. For example, use `EtherCAT_Init("enp3s0")` only if that is your actual NIC. The supplied program does not accept an interface command-line argument.
+Follow [Build on Ubuntu](ENCOS_WORKSPACE.md#build-on-ubuntu). The build produces
+`encos_query`, `encos_assign_id`, `encos_motion`, and `libencos_driver.so` under
+`build/encos_query/`, then runs the hardware-free tests. The interface is supplied
+at runtime; no supplier source edits are needed.
 
-```bash
-cd /home/forge2/forge2_ws
-./scripts/build.sh
-```
-
-The inspected CMake files produce `build/soem_demo_c/app/master_stack_test`. The archive does not contain a `slaveinfo` executable/target. Save compiler errors if the build fails; do not follow unrelated old IgH installation instructions to fix a SOEM build.
-
-Source inspection found:
-
-- The active `EtherCAT_Command_Set()` currently copies a zero-initialized command structure; its example speed, zero-setting and position commands are commented out. Confirm your copied source still matches this before running it.
-- `degraded_handler()` prints ESTOP but does not stop the main loop or disable motor outputs.
-- Automatic recovery may return slaves to OP without a separate motor re-arm step.
-- `main.c` sleeps 1000 microseconds after doing work; that does not guarantee a precise 1 kHz period.
-- There is a hardcoded warning expecting four slaves, even though one is valid for this bench.
-- Slave array bounds and process-data sizes need verification. The packed structure has storage for eight CAN entries although the bridge advertises six motor slots. Do not shrink it or infer the PDO size without matching actual firmware mapping.
+The [historical supplier-demo inspection](ENCOS_BRINGUP.md#supplier-soem-c-demo-inspection-historical)
+preserves its build target, hardcoded interface, and known defects.
 
 ## 8. Perform the board-only test
 
-Keep MOTOR POWER OFF and the motor CAN harness disconnected. This is a bridge test only.
-
-1. Connect NUC Ethernet to bridge IN with the supplied cable.
-2. Power the bridge at 5 V.
-3. Check link detection with `sudo ethtool "$ENCOS_IFACE"`.
-4. Run only the inspected, unchanged-output C example:
+Keep MOTOR POWER OFF and the motor CAN harness disconnected. Connect NUC Ethernet
+to bridge IN, power the bridge at 5 V, and check the link with
+`sudo ethtool "$ENCOS_IFACE"`. From the workspace, run:
 
 ```bash
-cd /home/forge2/forge2_ws
-sudo ./build/soem_demo_c/app/master_stack_test
+sudo ./build/encos_query/encos_query "$ENCOS_IFACE"
 ```
 
-5. Expect one slave found, process-data mapping and OPERATIONAL state. The obsolete 'expected 4' warning is not itself evidence that a one-board setup is wrong.
-6. Observe for a minute, stop with Ctrl+C, and save the output. Ctrl+C ends this board-only test; it is not yet a verified motor stop procedure.
+The current query-only utility validates one slave and the 86-byte output /
+92-byte input PDO layout. With no motor connected, expect the bridge-operational
+message followed by a motor-ID query timeout and a nonzero exit. That timeout
+does not indicate a failed bridge test. It sends no motion commands and clears
+outputs before exiting; it is not a sustained one-minute bridge soak test.
 
-Pass: one stable bridge, OP state reached, working counter matches its computed expected value, and no recurring link/process-data faults. The bridge LEDs supplement this check; they do not prove motor communication. Power down before connecting motor wiring.
+Pass for this initial check: one bridge reaches OP with the expected working
+counter and correct PDO sizes. LEDs do not prove motor communication. Sustained
+link/process-data stability still needs verification. Power down before
+connecting motor wiring.
 
 ## 9. Prepare the powered-motor diagnostic program
 
@@ -277,3 +273,105 @@ payload. Evaluate hybrid mode only when the task requires it.
 | ESTOP printed but loop continues | Known vendor demo behavior; requires actual latched stop implementation |
 
 Sources: supplied ENCOS V1.19EAP, bridge instructions, and inspected soem_demo_c.zip CMakeLists.txt, app/main.c and app/transmit.c. Upstream reference: [SOEM project](https://github.com/OpenEtherCATsociety/SOEM). Original protocol analysis: ENCOS_BRINGUP.md. The workbook, videos and Windows executables are listed as reference materials; this guide does not claim to have executed the binaries, watched the videos or verified the workbook against physical board firmware.
+
+## Commissioning record (2026-09-16)
+
+### First ROS hardware run (2026-09-16)
+
+The driver reached hardware-ready state on `enp86s0` for IDs 1, 2, and 3. When
+the command path became active, the motors shook and the native driver latched
+fault class 3 (`feedback/limit failure`). The session closed without automatic
+re-arm. At that point, powered testing was paused pending read-only telemetry and
+identification of the specific motor/error/current/feedback condition.
+
+The next read-only query returned fault-free position, hardware, version, and
+500 ms timeout replies from all three motors. Positions were -151.493652 degrees
+(ID 1), 69.675499 degrees (ID 2), and 2.895467 degrees (ID 3). Brake replies were
+unknown. All three reported software 1.0.0, which conflicts with the first
+preflight's 1.0.8 and 1.0.32 values for IDs 1 and 3. The discrepancy may indicate
+cached or otherwise unverified bridge replies and must not be treated as proof
+of firmware identity.
+
+Motors 1, 2, and 3 then each passed the native isolated motion test
+independently: +1 degree over two seconds, return over two seconds, a 2 A
+phase-current ceiling, and final position near the measured start. This
+establishes individual low-speed position control but does not yet clear
+simultaneous three-motor velocity control.
+
+All three motors subsequently passed the same +1 degree / return test
+simultaneously with a 2 A phase-current ceiling per motor. At that stage, ROS DDS
+was forced to loopback with `ROS_LOCALHOST_ONLY=1` so discovery and topic traffic
+did not use the dedicated EtherCAT interface. The native driver was also updated
+to print the exact motor and measured condition before latching a fault.
+
+The following ROS keyboard run reported the exact cause: motor 2 reached
+720.049 degrees, outside the configured [-720, 720] degree commissioning range.
+This was a software position-limit stop, not a reported current, temperature,
+EtherCAT, or motor fault. Output-shaft position accumulates across turns while
+the motor remains powered, so continuous wheel velocity control requires a
+continuous-joint policy instead of the bounded-position policy used for initial
+bench motion.
+
+The driver now implements that policy: Mode 1 position control retains angular
+bounds, while Mode 2 velocity control permits continuous accumulated output
+rotation. Speed, phase-current, temperature, motor-error, feedback-age,
+command-age, and EtherCAT protections remain enabled. ROS discovery is limited
+to loopback with `ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST` rather than the
+deprecated `ROS_LOCALHOST_ONLY` variable.
+
+Fast DDS may report the root driver's endpoints as `_NODE_NAME_UNKNOWN_`, so
+`ros2 node list` is not a reliable liveness check for this temporary
+commissioning arrangement. `scripts/ros2_env.sh` loads
+`config/fastdds-udp-loopback.xml`, which restricts DDS to loopback and disables
+data sharing, but this did not make mixed-account payload delivery reliable.
+
+The guarded native Python test subsequently passed with motors 1, 2, and 3 at a
++30 RPM target for two seconds and a 2 A phase-current ceiling per motor. It
+reported all three below 0.5 RPM during the stop window. The automatic ROS test
+then passed at +5 RPM for two seconds with fresh `/joint_states` feedback and a
+verified reported stop. Root-to-root keyboard commissioning also worked at
+both +5 RPM and -5 RPM with dead-man stopping. These results validate the
+current unloaded bench path; they do not establish loaded robot stopping or
+host-loss behavior.
+
+### Confirmed bench values (2026-09-16)
+
+| Item | Value |
+|---|---|
+| EtherCAT interface | `enp86s0`, confirmed as the direct bridge connection |
+| CAN motor IDs | 1, 2, 3 |
+| Initial bus | CAN1; the three configured Python slots map to CAN1 |
+| Mechanical condition | Motors are secured and unloaded; operator approved roughly one output revolution for a bench test |
+| Bench PSU | 5 A maximum supply current |
+| Requested provisional command ceiling | 2 A phase-current ceiling per motor; this is not a 6 A aggregate supply-current claim |
+
+### Query-only hardware result (2026-09-16)
+
+The bridge reached OPERATIONAL with the required 86-byte output / 92-byte input
+PDO layout and WKC 3. No motion command was sent.
+
+| CAN ID | Position | Hardware | Software | CAN timeout |
+|---:|---:|---:|---:|---:|
+| 1 | 119.436943 deg | 1.0.1 | 1.0.8 | 500 ms |
+| 2 | -19.084883 deg | 1.0.1 | 1.0.0 | 500 ms |
+| 3 | -85.408943 deg | 1.0.1 | 1.0.32 | 500 ms |
+
+The PSU current and a motor's phase current are different quantities. The 2 A
+value is a provisional command ceiling, not a model-derived safe operating
+limit.
+
+### Powered-motion status
+
+Holding-brake presence and its documented release sequence are unknown. A
+holding brake is an electromagnetic mechanism that can prevent shaft rotation;
+the ENCOS manual says it should be opened before motor control. On 2026-09-16,
+the operator explicitly instructed the bench test to proceed without treating
+brake status as a motion gate. Stop immediately if a motor does not rotate,
+draws unexpected current, heats, vibrates, or reports a fault.
+
+`scripts/run_three_motor_velocity.py` implements the completed bounded
+three-motor check: a +30 RPM target for a two-second command window, a 2 A
+phase-current ceiling per motor, explicit zero-speed commands, and shutdown. A
+fixed 60 RPM/s native slew limits abrupt velocity steps; it is intentionally not
+another ROS/Python tuning parameter. The driver retains feedback, command-age,
+current, temperature, overspeed, and EtherCAT fault checks.

@@ -12,11 +12,14 @@ Ubuntu 24.04 on the Intel NUC. Hardware route: dedicated Ethernet → ENCOS Ethe
 
 | Path | Purpose |
 |---|---|
-| `src/encos_query/` | Project-owned query-only bridge and motor diagnostic |
-| `docs/` | Bring-up guide, bench procedure, and file migration record |
+| `src/encos_query/` | C11 protocol codec, shared driver, and bench utilities |
+| `python/forge_motors/` | Python API, ctypes binding, and hardware-free simulator |
+| `ros2_ws/src/forge_motor_control/` | ROS 2 driver, keyboard publisher, and commissioning config |
+| `examples/` | Python application examples |
+| `docs/` | Protocol, bench procedure/results, Python/ROS usage, and platform roadmap |
 | `config/bench-equipment.example.md` | Redacted equipment-record template |
 | `tests/` | Host-side protocol, simulation, and fake-native-driver tests |
-| `scripts/` | Build helpers |
+| `scripts/` | Build, ROS environment, and guarded commissioning helpers |
 | `build/` | Generated build output |
 | `logs/` | Hardware test recordings |
 | `tmp/` | Temporary files, including existing PDF extracts |
@@ -29,7 +32,7 @@ Install the development tools if needed:
 
 ```bash
 sudo apt update
-sudo apt install build-essential cmake git unzip ethtool iproute2 ripgrep
+sudo apt install build-essential cmake git python3 python3-venv unzip ethtool iproute2 ripgrep
 ```
 
 From this workspace:
@@ -38,7 +41,12 @@ From this workspace:
 ./scripts/build.sh
 ```
 
-The helper fetches public upstream SOEM on the first run, builds `build/encos_query/encos_query` and the bounded `build/encos_query/encos_motion` test, then runs host-side protocol tests. It does not access hardware.
+The helper fetches pinned public upstream SOEM v1.4.0 on the first run and builds
+`encos_query`, `encos_assign_id`, `encos_motion`, and `libencos_driver.so` under
+`build/encos_query/`. It then runs C protocol and Python/native integration tests
+against a fake bridge; no motor hardware is accessed. See [test coverage and
+portable checks](../tests/README.md), [Python installation](PYTHON_CONTROL.md#build-and-install),
+and the separate [ROS 2 build](ROS2_MOTOR_CONTROL_STATUS.md#build-and-run).
 
 ## Current software status
 
@@ -82,10 +90,5 @@ sudo ./scripts/run_three_motor_sequence.sh enp86s0 2.0 1 --execute
 
 Read [the protocol and architecture guide](ENCOS_BRINGUP.md) for command units and known example defects. Copy [the equipment template](../config/bench-equipment.example.md) to `config/bench-equipment.md` to record actual hardware; that local record is ignored by Git.
 
-The utilities compile on this Ubuntu 24.04 NUC and the host-side tests pass.
-Query-only telemetry passed for IDs 1-3. Each motor and all three together passed
-the bounded +1-degree/return test at a 2 A phase-current ceiling. The native
-Python three-motor velocity test, automatic ROS command test, and keyboard
-commissioning also passed on the secured unloaded bench; see
-[ROS2_MOTOR_CONTROL_STATUS.md](ROS2_MOTOR_CONTROL_STATUS.md). Loaded stopping,
-brake behavior, feedback freshness, and host-loss behavior remain unverified.
+Dated hardware outcomes and remaining limits are recorded in the
+[bench commissioning record](ENCOS_TEST_BENCH.md#commissioning-record-2026-09-16).

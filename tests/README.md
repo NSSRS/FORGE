@@ -1,6 +1,7 @@
 # Motor tests
 
-Run `./scripts/build.sh` on Ubuntu to build and run all tests with CTest.
+Follow the [Ubuntu build guide](../docs/ENCOS_WORKSPACE.md#build-on-ubuntu);
+`./scripts/build.sh` builds and runs all tests with CTest.
 
 - `encos_protocol_test.c`: query/position/velocity codec vectors and malformed frames.
 - `test_python_motors.py`: simulation, independent commands, deadlines, validation and cleanup.
@@ -16,6 +17,13 @@ Portable Python-only tests:
 
 ```bash
 PYTHONPATH=python python3 -m unittest discover -s tests -p 'test_*.py' -v
+```
+
+On PowerShell:
+
+```powershell
+$env:PYTHONPATH = 'python'
+python -m unittest discover -s tests -p 'test_*.py' -v
 ```
 
 These checks do not validate physical stopping or bridge feedback freshness.

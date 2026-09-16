@@ -148,7 +148,7 @@ Use a monotonic fixed-period worker, bounded queues, timestamps, per-motor fresh
 
 The default watchdog is 500 ms. Query and test it. Choose a shorter nonzero timeout only after measuring scheduling margins and validating the mechanical stopping behavior. Configuration code 0x0B sets milliseconds; `C0 0B 01 F4` means 500 ms. Zero disables protection. A process watchdog and coordinated robot stop are needed as well; stopping CAN transmission may remove holding torque. Loss of any critical joint's fresh feedback should abort coordinated motion.
 
-## Optional EtherCAT route
+## EtherCAT bridge reference
 
 The supplied bridge provides two CAN buses, three command slots per side, six motors total; passages 1-3 go to CAN1 and 4-6 to CAN2. The bridge document states up to 1 kHz EtherCAT cycles and tests with 20 chained boards. It has onboard CAN termination; account for that in each bus. Supply the bridge separately at 5 V with at least 500 mA provision per board. This is not the motor supply voltage.
 
@@ -183,12 +183,36 @@ Convert radians/degrees at the protocol boundary. ENCOS feedback is already outp
 6. Current units differ: servo position/speed current ceilings use 0.1 A units; direct current commands and type-2/3 current feedback use 0.01 A units.
 7. The manual itself has inconsistencies: its p. 43 hybrid worked binary example does not apply the specified range quantization; some configuration DLC/ACK descriptions conflict with examples (notably acceleration, communication mode and zero offset). Treat those as firmware-validation items, not ready-to-run recipes. Thermal descriptions on pp. 2-3 also differ; establish conservative model-specific operating limits with ENCOS.
 
+### Supplier SOEM C demo inspection (historical)
+
+The local supplier archive is preserved outside Git at `src/soem_demo_c/`.
+Its `app/main.c` hardcodes `EtherCAT_Init("ens33")`; it has no interface
+command-line argument. The inspected CMake files produce
+`build/soem_demo_c/app/master_stack_test` and have no `slaveinfo` target.
+The current `scripts/build.sh` builds project-owned utilities, not this demo.
+Keep supplier contents unchanged; any adaptation belongs in project-owned code.
+
+Source inspection found:
+
+- The active `EtherCAT_Command_Set()` currently copies a zero-initialized command structure; its example speed, zero-setting and position commands are commented out. Confirm your copied source still matches this before running it.
+- `degraded_handler()` prints ESTOP but does not stop the main loop or disable motor outputs.
+- Automatic recovery may return slaves to OP without a separate motor re-arm step.
+- `main.c` sleeps 1000 microseconds after doing work; that does not guarantee a precise 1 kHz period.
+- There is a hardcoded warning expecting four slaves, even though one is valid for this bench.
+- Slave array bounds and process-data sizes need verification. The packed structure has storage for eight CAN entries although the bridge advertises six motor slots. Do not shrink it or infer the PDO size without matching actual firmware mapping.
+
+The original board-only procedure used this inspected, unchanged-output demo
+with motor power off and the motor CAN harness disconnected: connect the NUC
+to bridge IN, supply the board with 5 V, check the NIC link, observe one slave
+in OP with the expected working counter for a minute, then stop with Ctrl+C
+and save the output. The obsolete "expected 4" warning did not itself indicate
+a one-board fault. Ctrl+C was not a verified motor-stop procedure. These are
+historical supplier-demo notes, not instructions for the current build.
+
 ## Acceptance sequence and remaining inputs
 
-Status on 2026-09-16: IDs 1-3 passed telemetry, individual and simultaneous
-+1-degree position excursions, a bounded native Python velocity test at +30 RPM,
-an automatic ROS test at +5 RPM, and root-to-root dead-man keyboard control on
-the secured unloaded bench. The sequence below remains the path to a loaded
+See the [dated commissioning record](ENCOS_TEST_BENCH.md#commissioning-record-2026-09-16)
+for completed unloaded tests. The sequence below remains the path to a loaded
 robot; controlled host/link-loss behavior, braking, and mechanical validation
 are not complete.
 
