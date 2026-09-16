@@ -52,6 +52,17 @@ static void test_replies(void)
 
     frame.dlc = 5;
     CHECK(!encos_parse_timeout_reply(&frame, id, &timeout_ms, &error));
+
+    frame = (encos_can_frame_t){.id = 0x123, .dlc = 3,
+                                .data = {0xa0, 37, 1}};
+    bool brake_released = false;
+    CHECK(encos_parse_brake_status_reply(&frame, id, &brake_released, &error));
+    CHECK(brake_released && error == 0);
+    frame.data[2] = 0;
+    CHECK(encos_parse_brake_status_reply(&frame, id, &brake_released, &error));
+    CHECK(!brake_released);
+    frame.data[2] = 2;
+    CHECK(!encos_parse_brake_status_reply(&frame, id, &brake_released, &error));
 }
 
 static void test_servo_position_and_feedback(void)

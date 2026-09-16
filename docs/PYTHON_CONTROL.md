@@ -49,9 +49,9 @@ from forge_motors import MotorBus, MotorConfig
 
 configs = [
     MotorConfig(motor_id=1, min_position_deg=-180, max_position_deg=180,
-                max_velocity_rpm=5, max_current_a=1, max_acceleration_rpm_s=10),
+                max_velocity_rpm=5, max_current_a=1),
     MotorConfig(motor_id=2, min_position_deg=-180, max_position_deg=180,
-                max_velocity_rpm=5, max_current_a=1, max_acceleration_rpm_s=10),
+                max_velocity_rpm=5, max_current_a=1),
 ]
 
 with MotorBus(configs, simulate=True) as bus:
@@ -65,7 +65,7 @@ with MotorBus(configs, simulate=True) as bus:
 
     end = time.monotonic() + 1
     while time.monotonic() < end:
-        bus.stop()            # renew zero-speed targets through the ramp
+        bus.stop()            # renew zero-speed targets
         time.sleep(0.02)
 ```
 
@@ -84,22 +84,28 @@ unrelated masters do not honor that lock.
 
 | Method | Behavior |
 |---|---|
-| `velocity(id, rpm)` | Mode 2; C ramps speed using `max_acceleration_rpm_s` |
+| `velocity(id, rpm)` | Mode 2; signed output speed with a fixed 60 RPM/s protective slew |
 | `position(id, degrees)` | Mode 1; absolute target with configured speed/current ceilings |
 | `state(id)` | Read `MotorState`, including after a fault; unknown position/velocity are `None` |
 | `wait_ready(timeout=2)` | Wait for initial position observations; no activation or command refresh |
 | `check()` | Raise `MotorError` on a latched session fault |
-| `stop()` | Request ramped zero velocity on active motors; keep calling through deceleration |
+| `stop()` | Request zero velocity on active motors |
 | `close()` | Best-effort immediate zero speed for 500 ms, then empty PDOs and release |
 
 Context-manager exit calls `close()`. Normal `stop()` is nonblocking and does not
-disarm, engage a brake, or hold chassis position. Close/fault handling bypasses
-the ordinary acceleration ramp and does not promise standstill within 500 ms.
+disarm, engage a brake, or hold chassis position. Neither a zero-speed command nor
+close/fault handling promises mechanical standstill within 500 ms. The fixed
+host-side slew is not exposed as a tuning parameter. The API does not change the
+motor's firmware acceleration configuration or generate synchronized wheel
+trajectories. Setters are serialized but are not an atomic multi-motor batch.
+CAN transmission is sequential too.
 
-`max_acceleration_rpm_s` only applies to velocity commands. Position commands use
-the motor's own acceleration configuration; this API does not change firmware
-parameters or generate synchronized wheel trajectories. Setters are serialized
-but are not an atomic multi-motor batch. CAN transmission is sequential too.
+Configured position bounds are enforced for Mode 1 position control. Mode 2
+velocity control treats output rotation as continuous and does not fault solely
+because the powered multi-turn encoder count crosses those angular bounds.
+Velocity, current, temperature, motor-error, feedback-age, command-age, and
+EtherCAT checks remain active in both modes. The motor's multi-turn count resets
+after power loss.
 
 Feedback types 2 and 3 alternate during motion, so position and velocity can come
 from different cycles. Current is phase A, not supply current or calibrated chassis

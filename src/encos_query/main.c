@@ -117,6 +117,19 @@ static bool match_timeout(const encos_can_frame_t *frame, void *opaque)
                                      &result->error);
 }
 
+typedef struct {
+    uint16_t motor_id;
+    bool released;
+    uint8_t error;
+} brake_result_t;
+
+static bool match_brake_status(const encos_can_frame_t *frame, void *opaque)
+{
+    brake_result_t *result = opaque;
+    return encos_parse_brake_status_reply(frame, result->motor_id, &result->released,
+                                          &result->error);
+}
+
 
 static bool parse_motor_ids(const char *text, uint16_t ids[ENCOS_MAX_CONTROLLED_MOTORS],
                             size_t *count)
@@ -135,6 +148,21 @@ static bool parse_motor_ids(const char *text, uint16_t ids[ENCOS_MAX_CONTROLLED_
         ids[(*count)++] = (uint16_t)value;
     }
     return *count != 0;
+}
+
+static const char *motor_error_name(uint8_t error)
+{
+    switch (error) {
+    case 0: return "none";
+    case 1: return "overtemperature";
+    case 2: return "overcurrent";
+    case 3: return "overvoltage";
+    case 4: return "undervoltage";
+    case 5: return "encoder fault";
+    case 6: return "brake overvoltage";
+    case 7: return "driver fault";
+    default: return "unknown motor error";
+    }
 }
 
 static int enter_operational(const char *interface_name, int *expected_wkc)
@@ -210,30 +238,63 @@ int main(int argc, char **argv)
         motor_count = 1;
     }
     printf("Configured motor count: %zu\n", motor_count);
+    int result = 0;
     for (size_t index = 0; index < motor_count; ++index) {
         const uint16_t motor_id = motor_ids[index];
         position_result_t position = {.motor_id = motor_id};
         version_result_t version = {.motor_id = motor_id};
         timeout_result_t timeout = {.motor_id = motor_id};
+        brake_result_t brake = {.motor_id = motor_id};
         encos_can_frame_t request = encos_make_query_request(motor_id, 1);
         if (!send_query_and_wait(outputs, inputs, expected_wkc, &request, match_position,
-                                 &position) || position.error != 0) goto motor_fail;
+                                 &position)) {
+            fprintf(stderr, "Motor %u: no valid position reply.\n", motor_id);
+            result = 1;
+            continue;
+        }
+        if (position.error != 0) {
+            fprintf(stderr, "Motor %u: error %u (%s) in position reply.\n", motor_id,
+                    position.error, motor_error_name(position.error));
+            result = 1;
+            continue;
+        }
         request = encos_make_query_request(motor_id, 30);
         if (!send_query_and_wait(outputs, inputs, expected_wkc, &request, match_version,
-                                 &version) || version.error != 0) goto motor_fail;
+                                 &version)) {
+            fprintf(stderr, "Motor %u: no valid version reply.\n", motor_id);
+            result = 1;
+            continue;
+        }
+        if (version.error != 0) {
+            fprintf(stderr, "Motor %u: error %u (%s) in version reply.\n", motor_id,
+                    version.error, motor_error_name(version.error));
+            result = 1;
+            continue;
+        }
         request = encos_make_query_request(motor_id, 31);
         if (!send_query_and_wait(outputs, inputs, expected_wkc, &request, match_timeout,
-                                 &timeout) || timeout.error != 0) goto motor_fail;
-        printf("Motor %u: position %.6f deg; HW %u.%u.%u; SW %u.%u.%u; CAN timeout %u ms.\n",
+                                 &timeout)) {
+            fprintf(stderr, "Motor %u: no valid timeout reply.\n", motor_id);
+            result = 1;
+            continue;
+        }
+        if (timeout.error != 0) {
+            fprintf(stderr, "Motor %u: error %u (%s) in timeout reply.\n", motor_id,
+                    timeout.error, motor_error_name(timeout.error));
+            result = 1;
+            continue;
+        }
+        request = encos_make_query_request(motor_id, 37);
+        const bool brake_known = send_query_and_wait(outputs, inputs, expected_wkc, &request,
+                                                      match_brake_status, &brake) &&
+                                 brake.error == 0;
+        printf("Motor %u: position %.6f deg; HW %u.%u.%u; SW %u.%u.%u; CAN timeout %u ms; brake %s.\n",
                motor_id, position.position_deg, version.version.hardware[0], version.version.hardware[1],
                version.version.hardware[2], version.version.software[0], version.version.software[1],
-               version.version.software[2], timeout.timeout_ms);
-        continue;
-motor_fail:
-        fprintf(stderr, "Motor %u did not return fault-free telemetry.\n", motor_id);
-        goto fail;
+               version.version.software[2], timeout.timeout_ms,
+               brake_known ? (brake.released ? "released" : "engaged") : "unknown");
     }
-    memset(outputs, 0, sizeof(*outputs)); exchange(expected_wkc); ec_close(); return 0;
+    memset(outputs, 0, sizeof(*outputs)); exchange(expected_wkc); ec_close(); return result;
 fail:
     memset(outputs, 0, sizeof(*outputs)); exchange(expected_wkc); ec_close(); return 1;
 }

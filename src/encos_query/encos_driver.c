@@ -17,6 +17,7 @@
 #define MAX_MOTORS 4
 #define PERIOD_S 0.01
 #define TIMEOUT_S 0.25
+#define VELOCITY_SLEW_RPM_S 60.0f
 
 typedef struct {
     encos_motor_config_t config;
@@ -100,11 +101,39 @@ static void read_feedback(encos_driver_t *d, motor_t *m, double now)
         /* Observation time is NOT a proven CAN reception timestamp: the bridge
          * may retain frames. See docs/PYTHON_CONTROL.md before hardware use. */
         m->state.observed_monotonic_s = m->feedback_time = now;
-        if (m->state.error || m->state.temperature_c > 70 ||
-            fabsf(m->state.current_a) > m->config.max_current_a + fmaxf(0.5f, m->config.max_current_a * 0.25f) ||
-            m->state.position_deg < m->config.min_position_deg ||
-            m->state.position_deg > m->config.max_position_deg ||
-            fabsf(m->state.velocity_rpm) > m->config.max_velocity_rpm + 1.0f) {
+        const float current_limit = m->config.max_current_a +
+                                    fmaxf(0.5f, m->config.max_current_a * 0.25f);
+        if (m->state.error) {
+            fprintf(stderr, "ENCOS fault: motor %u reported error %u.\n",
+                    m->config.motor_id, m->state.error);
+            d->fault = 3;
+            return;
+        }
+        if (m->state.temperature_c > 70) {
+            fprintf(stderr, "ENCOS fault: motor %u temperature %.2f C exceeds 70 C.\n",
+                    m->config.motor_id, m->state.temperature_c);
+            d->fault = 3;
+            return;
+        }
+        if (fabsf(m->state.current_a) > current_limit) {
+            fprintf(stderr, "ENCOS fault: motor %u current %.3f A exceeds %.3f A.\n",
+                    m->config.motor_id, m->state.current_a, current_limit);
+            d->fault = 3;
+            return;
+        }
+        if (m->mode == 1 &&
+            (m->state.position_deg < m->config.min_position_deg ||
+             m->state.position_deg > m->config.max_position_deg)) {
+            fprintf(stderr, "ENCOS fault: motor %u position %.3f deg outside [%.3f, %.3f].\n",
+                    m->config.motor_id, m->state.position_deg,
+                    m->config.min_position_deg, m->config.max_position_deg);
+            d->fault = 3;
+            return;
+        }
+        if (fabsf(m->state.velocity_rpm) > m->config.max_velocity_rpm + 1.0f) {
+            fprintf(stderr, "ENCOS fault: motor %u velocity %.3f RPM exceeds %.3f RPM.\n",
+                    m->config.motor_id, m->state.velocity_rpm,
+                    m->config.max_velocity_rpm + 1.0f);
             d->fault = 3;
             return;
         }
@@ -120,11 +149,22 @@ static void *run(void *context)
         pthread_mutex_lock(&d->mutex);
         double now = now_s(), dt = now - previous;
         previous = now;
-        if (!d->fault && dt > 0.1) d->fault = 2;
+        if (!d->fault && dt > 0.1) {
+            fprintf(stderr, "ENCOS fault: native EtherCAT loop gap %.6f s exceeds 0.1 s.\n", dt);
+            d->fault = 2;
+        }
         for (size_t i = 0; i < d->count; ++i) {
             motor_t *m = &d->motors[i];
-            if (!d->fault && m->mode && now - m->command_time > TIMEOUT_S) d->fault = 1;
-            if (!d->fault && m->mode && now - m->feedback_time > TIMEOUT_S) d->fault = 3;
+            if (!d->fault && m->mode && now - m->command_time > TIMEOUT_S) {
+                fprintf(stderr, "ENCOS fault: motor %u command age %.6f s exceeds %.2f s.\n",
+                        m->config.motor_id, now - m->command_time, TIMEOUT_S);
+                d->fault = 1;
+            }
+            if (!d->fault && m->mode && now - m->feedback_time > TIMEOUT_S) {
+                fprintf(stderr, "ENCOS fault: motor %u feedback age %.6f s exceeds %.2f s.\n",
+                        m->config.motor_id, now - m->feedback_time, TIMEOUT_S);
+                d->fault = 3;
+            }
         }
         if (d->fault && stop_started == 0) stop_started = now;
         memset(out, 0, sizeof(*out));
@@ -141,10 +181,12 @@ static void *run(void *context)
             } else {
                 m->ack = m->ack == 2 ? 3 : 2;
                 if (d->fault || m->mode == 2) {
-                    if (d->fault) m->sent_rpm = 0;
-                    else {
-                        float step = m->config.max_acceleration_rpm_s * (float)dt;
-                        m->sent_rpm += fmaxf(-step, fminf(step, m->target - m->sent_rpm));
+                    if (d->fault) {
+                        m->sent_rpm = 0.0f;
+                    } else {
+                        const float step = VELOCITY_SLEW_RPM_S * (float)dt;
+                        m->sent_rpm += fmaxf(-step,
+                            fminf(step, m->target - m->sent_rpm));
                     }
                     encos_make_servo_velocity_request(m->config.motor_id, m->sent_rpm,
                         m->config.max_current_a, (uint8_t)m->ack, &out->motor[i]);
@@ -155,7 +197,11 @@ static void *run(void *context)
                 }
             }
         }
-        if (!exchange(d) && !d->fault) d->fault = 2;
+        if (!exchange(d) && !d->fault) {
+            fprintf(stderr, "ENCOS fault: EtherCAT working counter dropped below %d.\n",
+                    d->expected_wkc);
+            d->fault = 2;
+        }
         if (!d->fault)
             for (size_t i = 0; i < d->count && !d->fault; ++i)
                 read_feedback(d, &d->motors[i], now_s());
@@ -180,8 +226,8 @@ encos_driver_t *encos_driver_open(const char *interface_name,
             !isfinite(c->min_position_deg) || !isfinite(c->max_position_deg) ||
             c->min_position_deg >= c->max_position_deg ||
             !isfinite(c->max_velocity_rpm) || c->max_velocity_rpm <= 0 || c->max_velocity_rpm > 3276.7f ||
-            !isfinite(c->max_current_a) || c->max_current_a < 0.1f || c->max_current_a > 409.5f ||
-            !isfinite(c->max_acceleration_rpm_s) || c->max_acceleration_rpm_s <= 0) return NULL;
+            !isfinite(c->max_current_a) || c->max_current_a < 0.1f ||
+            c->max_current_a > 409.5f) return NULL;
         for (size_t j = 0; j < i; ++j) if (c->motor_id == config[j].motor_id) return NULL;
     }
     pthread_mutex_lock(&owner_mutex);
@@ -254,7 +300,8 @@ int encos_driver_command(encos_driver_t *d, uint16_t id, int mode, float target)
     if (m && !d->fault && (m->state.flags & 1) && now - m->feedback_time <= TIMEOUT_S &&
         ((mode == 1 && target >= m->config.min_position_deg && target <= m->config.max_position_deg) ||
          (mode == 2 && fabsf(target) <= m->config.max_velocity_rpm))) {
-        if (m->mode != mode) m->sent_rpm = (m->state.flags & 2) ? m->state.velocity_rpm : 0;
+        if (m->mode != mode)
+            m->sent_rpm = (m->state.flags & 2) ? m->state.velocity_rpm : 0.0f;
         if (!m->mode) m->feedback_time = now;
         m->mode = mode;
         m->target = target;

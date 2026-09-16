@@ -15,6 +15,7 @@ import threading
 import time
 
 __all__ = ["MotorBus", "MotorConfig", "MotorState", "MotorError"]
+_VELOCITY_SLEW_RPM_S = 60.0
 
 
 class MotorError(RuntimeError):
@@ -28,21 +29,18 @@ class MotorConfig:
     max_position_deg: float
     max_velocity_rpm: float
     max_current_a: float
-    max_acceleration_rpm_s: float
 
     def __post_init__(self):
         if type(self.motor_id) is not int or not 1 <= self.motor_id < 0x7FF:
             raise ValueError("motor_id must be an integer from 1 through 2046")
-        values = (self.min_position_deg, self.max_position_deg, self.max_velocity_rpm,
-                  self.max_current_a, self.max_acceleration_rpm_s)
+        values = (self.min_position_deg, self.max_position_deg,
+                  self.max_velocity_rpm, self.max_current_a)
         if not all(math.isfinite(v) for v in values):
             raise ValueError("limits must be finite")
         if not self.min_position_deg < self.max_position_deg:
             raise ValueError("minimum position must be below maximum")
         if not 0 < self.max_velocity_rpm <= 3276.7 or not 0.1 <= self.max_current_a <= 409.5:
             raise ValueError("speed/current limits exceed the shared position/velocity codec range")
-        if not 0 < self.max_acceleration_rpm_s <= 1e6:
-            raise ValueError("acceleration must be positive and at most 1e6 RPM/s")
         # Prevent finite Python doubles overflowing the C float ABI.
         if any(not math.isfinite(ct.c_float(v).value) for v in values):
             raise ValueError("limits must fit float32")
@@ -60,8 +58,7 @@ class MotorState:
 
 class _Config(ct.Structure):
     _fields_ = [("motor_id", ct.c_uint16)] + [(name, ct.c_float) for name in (
-        "min_position_deg", "max_position_deg", "max_velocity_rpm", "max_current_a",
-        "max_acceleration_rpm_s")]
+        "min_position_deg", "max_position_deg", "max_velocity_rpm", "max_current_a")]
 
 
 class _State(ct.Structure):
@@ -138,14 +135,14 @@ class _Sim:
             for motor_id, (mode, target, _) in self.commands.items():
                 c, p = self.configs[motor_id], self.positions[motor_id]
                 if mode == 2:
-                    step = c.max_acceleration_rpm_s * dt
+                    step = _VELOCITY_SLEW_RPM_S * dt
                     velocity = self.velocities[motor_id]
                     velocity += max(-step, min(step, target - velocity))
                 else:
                     velocity = max(-c.max_velocity_rpm, min(c.max_velocity_rpm, (target-p)/(6*dt)))
                 p += velocity * 6 * dt
                 self.positions[motor_id], self.velocities[motor_id] = p, velocity
-                if not c.min_position_deg <= p <= c.max_position_deg:
+                if mode == 1 and not c.min_position_deg <= p <= c.max_position_deg:
                     self.fault = 3
                     break
         self.last = now
@@ -217,7 +214,7 @@ class MotorBus:
             self._active.add(motor_id)
 
     def velocity(self, motor_id: int, rpm: float):
-        """Mode 2, signed output RPM; native loop applies acceleration limiting."""
+        """Mode 2, signed output RPM with a fixed protective slew."""
         self._command(motor_id, 2, rpm)
 
     def position(self, motor_id: int, degrees: float):
@@ -254,7 +251,7 @@ class MotorBus:
         raise MotorError("Initial position feedback timed out")
 
     def stop(self):
-        """Request ramped zero speed on all active motors. Keep refreshing until stopped.
+        """Request zero speed on all active motors.
 
         This does not disarm, engage a brake, or hold chassis position.
         """

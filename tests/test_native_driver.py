@@ -12,7 +12,7 @@ class NativeTests(unittest.TestCase):
         self.path = os.environ["ENCOS_TEST_LIBRARY"]
         self.fake = ctypes.CDLL(self.path)
         self.fake.fake_fault.argtypes = [ctypes.c_int]
-        self.configs = [MotorConfig(i, -180, 180, 5, 1, 10) for i in (1, 2)]
+        self.configs = [MotorConfig(i, -180, 180, 5, 1) for i in (1, 2)]
         self.bus = MotorBus(self.configs, interface="forge-test", execute=True, library=self.path)
         self.addCleanup(self.bus.close)
         self.bus.wait_ready()
@@ -49,7 +49,7 @@ class NativeTests(unittest.TestCase):
 
     def test_four_independent_motors_and_reject_fifth(self):
         self.bus.close()
-        configs = [MotorConfig(i, -180, 180, 5, 1, 10) for i in (1, 2, 3, 4)]
+        configs = [MotorConfig(i, -180, 180, 5, 1) for i in (1, 2, 3, 4)]
         for simulate in (True, False):
             with self.subTest(simulate=simulate):
                 with MotorBus(configs, simulate=simulate, interface="forge-test",
@@ -67,14 +67,14 @@ class NativeTests(unittest.TestCase):
                     self.assertLess(bus.state(4).position_deg, 0)
                 if not simulate:
                     from forge_motors import _Config
-                    five = configs + [MotorConfig(5, -180, 180, 5, 1, 10)]
+                    five = configs + [MotorConfig(5, -180, 180, 5, 1)]
                     array = (_Config * 5)(*(_Config(**vars(c)) for c in five))
                     handle = bus._backend.lib.encos_driver_open(b"forge-test", array, 5)
                     if handle:
                         bus._backend.lib.encos_driver_close(handle)
                     self.assertFalse(handle)
                 with self.assertRaises(ValueError):
-                    MotorBus(configs + [MotorConfig(5, -180, 180, 5, 1, 10)],
+                    MotorBus(configs + [MotorConfig(5, -180, 180, 5, 1)],
                              simulate=simulate, interface="forge-test", execute=True,
                              library=self.path)
 

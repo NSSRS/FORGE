@@ -46,6 +46,8 @@ bool encos_parse_version_reply(const encos_can_frame_t *frame, uint16_t motor_id
                                encos_version_t *version, uint8_t *error);
 bool encos_parse_timeout_reply(const encos_can_frame_t *frame, uint16_t motor_id,
                                uint16_t *timeout_ms, uint8_t *error);
+bool encos_parse_brake_status_reply(const encos_can_frame_t *frame, uint16_t motor_id,
+                                    bool *released, uint8_t *error);
 bool encos_parse_type2_feedback(const encos_can_frame_t *frame, uint16_t motor_id,
                                 encos_type2_feedback_t *feedback);
 

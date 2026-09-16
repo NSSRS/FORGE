@@ -2,7 +2,7 @@
 import time
 from forge_motors import MotorBus, MotorConfig
 
-configs = [MotorConfig(i, -180, 180, 5, 1, 10) for i in (1, 2)]
+configs = [MotorConfig(i, -180, 180, 5, 1) for i in (1, 2)]
 with MotorBus(configs, simulate=True) as bus:
     bus.wait_ready()
     start = time.monotonic()

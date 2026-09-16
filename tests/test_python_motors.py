@@ -11,7 +11,7 @@ class Clock:
 
 
 def config(motor_id=1):
-    return MotorConfig(motor_id, -180, 180, 5, 1, 10)
+    return MotorConfig(motor_id, -180, 180, 5, 1)
 
 
 class MotorTests(unittest.TestCase):
@@ -63,18 +63,25 @@ class MotorTests(unittest.TestCase):
         self.bus.check()
         self.assertFalse(self.bus._backend.commands)
 
-    def test_acceleration_and_ramped_stop(self):
+    def test_velocity_and_stop_use_protective_slew(self):
         self.bus.velocity(1, 5)
-        self.clock.advance(.1)
-        self.assertAlmostEqual(self.bus.state(1).velocity_rpm, 1, places=5)
+        self.clock.advance(.05)
+        self.assertAlmostEqual(self.bus.state(1).velocity_rpm, 3, places=5)
         self.bus.stop()
         self.clock.advance(.1)
         self.assertAlmostEqual(self.bus.state(1).velocity_rpm, 0, places=5)
 
-    def test_position_limit_fault(self):
+    def test_velocity_allows_continuous_position(self):
         self.bus._backend.positions[1] = 179.99
         self.bus.velocity(1, 5)
         self.clock.advance(.1)
+        self.bus.check()
+        self.assertGreater(self.bus.state(1).position_deg, 180)
+
+    def test_position_mode_retains_position_limit(self):
+        self.bus.position(1, 179)
+        self.bus._backend.positions[1] = 181
+        self.clock.advance(.01)
         with self.assertRaisesRegex(MotorError, "limit"): self.bus.check()
 
     def test_close_is_idempotent_and_final(self):
@@ -97,10 +104,10 @@ class MotorTests(unittest.TestCase):
     def test_configuration_validation(self):
         with self.assertRaises(ValueError): MotorBus([config(), config()], simulate=True)
         with self.assertRaises(ValueError): MotorBus([], simulate=True)
-        with self.assertRaises(ValueError): MotorConfig(1, 2, 1, 5, 1, 10)
-        with self.assertRaises(ValueError): MotorConfig(1, -180, 180, 0, 1, 10)
-        with self.assertRaises(ValueError): MotorConfig(1, -180, 180, 5, math.nan, 10)
-        with self.assertRaises(ValueError): MotorConfig(1, -1e100, 180, 5, 1, 10)
+        with self.assertRaises(ValueError): MotorConfig(1, 2, 1, 5, 1)
+        with self.assertRaises(ValueError): MotorConfig(1, -180, 180, 0, 1)
+        with self.assertRaises(ValueError): MotorConfig(1, -180, 180, 5, math.nan)
+        with self.assertRaises(ValueError): MotorConfig(1, -1e100, 180, 5, 1)
 
 
 if __name__ == "__main__": unittest.main()

@@ -8,7 +8,7 @@
 typedef struct {
     uint16_t motor_id;
     float min_position_deg, max_position_deg;
-    float max_velocity_rpm, max_current_a, max_acceleration_rpm_s;
+    float max_velocity_rpm, max_current_a;
 } encos_motor_config_t;
 
 typedef struct {

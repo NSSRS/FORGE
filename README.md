@@ -20,12 +20,14 @@ entries 1-3 use CAN1; the fourth uses CAN2:
 | `bus.velocity(id, rpm)` | Mode 2: signed output-shaft speed |
 | `bus.position(id, degrees)` | Mode 1: absolute output-shaft position |
 | `bus.state(id)` | Position, velocity, phase current, temperature, motor error |
-| `bus.stop()` | Request ramped zero speed for all active motors |
+| `bus.stop()` | Request zero speed for all active motors |
 | `bus.check()` | Raise on a latched fault |
 
 Both manual driving and future automatic chassis trajectory tracking can use
 this velocity interface. Chassis kinematics, encoder/IMU/camera state estimation,
-keyboard mapping, and trajectory tracking are future work.
+steering-aware keyboard mapping, and trajectory tracking are future work. A
+temporary direct-RPM ROS 2 keyboard publisher is available for commissioning;
+see [ROS 2 motor-control status](docs/ROS2_MOTOR_CONTROL_STATUS.md).
 
 Run the independent-motor example without hardware (Python 3.10+):
 
@@ -70,7 +72,9 @@ Do not run more than one EtherCAT master on the interface.
 The new library compiles on Ubuntu 24.04. Protocol vectors, Python simulation,
 and native-thread tests with a fake SOEM bridge cover independent motion,
 validation, command expiry, feedback/transport faults, and cleanup.
-**The new Python/native motion path has not been tested on physical motors.**
+The native Python path and temporary ROS 2 commissioning path have completed
+bounded tests with three secured, unloaded physical motors. This does not
+validate loaded robot motion, traction, braking, or host-loss behavior.
 
 Every active motor needs an explicit command refresh within 250 ms. The C worker
 attempts zero-speed commands on timeout/fault/close, then clears its outputs.

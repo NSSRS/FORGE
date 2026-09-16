@@ -162,6 +162,17 @@ bool encos_parse_timeout_reply(const encos_can_frame_t *frame, uint16_t motor_id
     return true;
 }
 
+bool encos_parse_brake_status_reply(const encos_can_frame_t *frame, uint16_t motor_id,
+                                    bool *released, uint8_t *error)
+{
+    if (released == NULL || !query_header_matches(frame, motor_id, 37, 3, error) ||
+        frame->data[2] > 1) {
+        return false;
+    }
+    *released = frame->data[2] == 1;
+    return true;
+}
+
 
 bool encos_parse_type2_feedback(const encos_can_frame_t *frame, uint16_t motor_id,
                                 encos_type2_feedback_t *feedback)
