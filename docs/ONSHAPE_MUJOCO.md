@@ -100,6 +100,11 @@ during validation. Old mesh files are retained on repeat exports; remove obsolet
 meshes only after verifying they are no longer referenced. Custom processors and
 extra relative XML files are outside this initial helper's scope.
 
+The project-local compatibility wrapper exports continuous wheel joints as
+unlimited hinges. STL files exceeding MuJoCo's 200,000-triangle STL limit (and
+ASCII STL files) are converted to OBJ without reducing their geometry. Original
+STL assets are retained. Installed third-party packages are not modified.
+
 ```text
 src/forge_sim/model/
   config.example.json  # tracked template

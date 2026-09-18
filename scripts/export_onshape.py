@@ -12,6 +12,7 @@ from urllib.parse import urlparse
 
 from dotenv import load_dotenv
 import mujoco
+from onshape_compat import prepare_meshes
 
 ROOT = Path(__file__).resolve().parents[1]
 MODEL = ROOT / "src/forge_sim/model"
@@ -41,7 +42,8 @@ def main() -> None:
     with tempfile.TemporaryDirectory(prefix=".export-", dir=MODEL) as folder:
         stage = Path(folder)
         (stage / "config.json").write_text(json.dumps(config, indent=2) + "\n")
-        subprocess.run([str(executable), str(stage)], cwd=ROOT, check=True)
+        subprocess.run([sys.executable, str(ROOT / "scripts/onshape_compat.py"), str(stage)], cwd=ROOT, check=True)
+        prepare_meshes(stage / "robot.xml")
         shutil.copy2(MODEL / "scene.xml", stage / "scene.xml")
         model = mujoco.MjModel.from_xml_path(str(stage / "scene.xml"))
         mujoco.mj_forward(model, mujoco.MjData(model))

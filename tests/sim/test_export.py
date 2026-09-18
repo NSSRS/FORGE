@@ -5,11 +5,13 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "scripts"))
 SPEC = importlib.util.spec_from_file_location("export_onshape", ROOT / "scripts/export_onshape.py")
 export = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(export)
@@ -20,7 +22,14 @@ class ExportTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.model = Path(self.temp.name) / "model"
-        shutil.copytree(ROOT / "src/forge_sim/model", self.model)
+        self.model.mkdir()
+        shutil.copy2(ROOT / "src/forge_sim/model/scene.xml", self.model / "scene.xml")
+        shutil.copy2(ROOT / "src/forge_sim/model/config.example.json", self.model / "config.example.json")
+        (self.model / "robot.xml").write_text(
+            '<mujoco model="forge_placeholder"><compiler angle="radian"/>'
+            '<worldbody><body name="fixture"><geom type="box" size=".1 .1 .1"/>'
+            '</body></worldbody></mujoco>'
+        )
         self.original = (self.model / "robot.xml").read_bytes()
         self.scene = (self.model / "scene.xml").read_bytes()
         config = json.loads((self.model / "config.example.json").read_text())
@@ -43,7 +52,7 @@ class ExportTests(unittest.TestCase):
 
     def test_invalid_mjcf_keeps_existing_model(self):
         def invalid(command, **kwargs):
-            (Path(command[1]) / "robot.xml").write_text("<not-mjcf/>")
+            (Path(command[-1]) / "robot.xml").write_text("<not-mjcf/>")
         with patch.object(export.subprocess, "run", side_effect=invalid):
             with self.assertRaises(ValueError):
                 export.main()
@@ -57,7 +66,7 @@ class ExportTests(unittest.TestCase):
                                   b'<asset><mesh name="fixture" file="fixture.obj"/></asset><worldbody>')
 
         def valid(command, **kwargs):
-            stage = Path(command[1])
+            stage = Path(command[-1])
             (stage / "robot.xml").write_bytes(updated)
             (stage / "scene.xml").write_text("invalid exporter scene deliberately replaced")
             (stage / "assets").mkdir()
