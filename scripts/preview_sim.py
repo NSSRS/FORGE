@@ -2,9 +2,16 @@
 from __future__ import annotations
 
 import argparse
+import os
+import platform
 from pathlib import Path
 import threading
 import time
+
+# Avoid Mesa worker-thread crashes on large merged meshes in WSLg.
+# Respect explicit user settings and leave native Linux/Windows unchanged.
+if "microsoft" in platform.release().lower():
+    os.environ.setdefault("LP_NUM_THREADS", "1")
 
 import mujoco
 import numpy as np
@@ -70,6 +77,7 @@ def main() -> None:
             viewer.sync()
             interval = model.opt.timestep if running.is_set() else 1 / 60
             time.sleep(max(0.0, interval - (time.monotonic() - tick)))
+
 
 
 if __name__ == "__main__":

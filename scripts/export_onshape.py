@@ -8,17 +8,57 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from datetime import datetime
 from urllib.parse import urlparse
 
 from dotenv import load_dotenv
 import mujoco
 from onshape_compat import prepare_meshes
+from merge_mjcf import merge_model
+from place_on_floor import place_on_floor
 
 ROOT = Path(__file__).resolve().parents[1]
 MODEL = ROOT / "src/forge_sim/model"
 
 
-def main() -> None:
+def publish_model(stage: Path) -> Path:
+    backup = ROOT / ".sim-backups" / datetime.now().strftime("%Y%m%d-%H%M%S-%f")
+    backup.mkdir(parents=True)
+    shutil.copy2(MODEL / "scene.xml", backup / "scene.xml")
+    moved, installed = [], []
+    try:
+        for name in ("assets", "robot.xml"):
+            source = MODEL / name
+            if source.resolve().parent != MODEL.resolve() or source.is_symlink():
+                raise ValueError("Model paths must be inside the model directory")
+            if source.exists():
+                os.replace(source, backup / name)
+                moved.append(name)
+        for name in ("assets", "robot.xml"):
+            os.replace(stage / name, MODEL / name)
+            installed.append(name)
+    except BaseException:
+        for name in reversed(installed):
+            os.replace(MODEL / name, stage / name)
+        for name in reversed(moved):
+            os.replace(backup / name, MODEL / name)
+        raise
+    return backup
+
+
+def main(merge_existing=False, target_faces=10000) -> None:
+    if merge_existing:
+        with tempfile.TemporaryDirectory(prefix=".export-", dir=MODEL) as folder:
+            stage = Path(folder)
+            shutil.copy2(MODEL / "robot.xml", stage / "robot.xml")
+            shutil.copy2(MODEL / "scene.xml", stage / "scene.xml")
+            shutil.copytree(MODEL / "assets", stage / "assets")
+            report = merge_model(stage, target_faces)
+            place_on_floor(stage)
+            mujoco.MjModel.from_xml_path(str(stage / "scene.xml"))
+            backup = publish_model(stage)
+        print_summary(report, backup)
+        return
     config_path = MODEL / "config.json"
     if not config_path.exists():
         raise SystemExit("Copy config.example.json to config.json and set your assembly-tab URL first.")
@@ -45,14 +85,28 @@ def main() -> None:
         subprocess.run([sys.executable, str(ROOT / "scripts/onshape_compat.py"), str(stage)], cwd=ROOT, check=True)
         prepare_meshes(stage / "robot.xml")
         shutil.copy2(MODEL / "scene.xml", stage / "scene.xml")
+        report = merge_model(stage, target_faces)
+        place_on_floor(stage)
         model = mujoco.MjModel.from_xml_path(str(stage / "scene.xml"))
         mujoco.mj_forward(model, mujoco.MjData(model))
-        if (stage / "assets").exists():
-            shutil.copytree(stage / "assets", MODEL / "assets", dirs_exist_ok=True)
-        os.replace(stage / "robot.xml", MODEL / "robot.xml")
-    print("Export complete: robot.xml and assets updated; scene.xml retained.")
+        backup = publish_model(stage)
+    print_summary(report, backup)
+
+
+def print_summary(report, backup):
+    print(f"Export complete: {len(report)} merged body meshes; joints/inertia verified unchanged.")
+    print(f"Triangles: {sum(x['original_faces'] for x in report)} -> {sum(x['merged_faces'] for x in report)}")
+    print(f"Previous model backup: {backup}")
+    print("Preview approximation: one color and convex collision hull per body.")
     print("Run python scripts/preview_sim.py to inspect the paused model.")
 
 
 if __name__ == "__main__":
-    main()
+    import argparse
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--merge-existing", action="store_true", help="Merge local CAD without calling Onshape")
+    parser.add_argument("--faces-per-body", type=int, default=10000, help="Triangle target per body; 0 disables reduction")
+    args = parser.parse_args()
+    if args.faces_per_body < 0:
+        parser.error("--faces-per-body must be nonnegative")
+    main(args.merge_existing, args.faces_per_body)

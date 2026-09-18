@@ -91,19 +91,37 @@ python scripts/export_onshape.py
 python scripts/preview_sim.py
 ```
 
-The helper runs `onshape-to-robot` in a temporary staging directory, validates
-the exported model with the project scene, then copies assets and replaces
-`robot.xml`. Failed export/validation leaves the existing model intact. The
-project's floor and lighting remain in `scene.xml`, which includes `robot.xml`.
-Exporter-generated `scene.xml` is intentionally replaced by that project scene
-during validation. Old mesh files are retained on repeat exports; remove obsolete
-meshes only after verifying they are no longer referenced. Custom processors and
-extra relative XML files are outside this initial helper's scope.
+The helper exports in a temporary staging directory, then merges all part meshes
+within each exported rigid body into one body-local OBJ and one geom. It never
+merges across joints. Top-level subassemblies connected rigidly by the exporter
+may already form one body together. Relative part transforms are baked into the
+merged vertices; body/joint transforms and explicit mass/inertia remain unchanged.
+Colors are unified per body. Collision uses one convex hull per merged body, so
+gaps and concave regions have approximate contacts: this is a preview model, not
+a validated contact-dynamics model.
+
+Only dense source meshes with over 50,000 triangles are reduced, retaining at
+least half their faces. Ordinary parts are left intact. The 10,000-face per-body
+target is soft and can be exceeded to protect shape details. Use
+`python scripts/export_onshape.py --faces-per-body 0` for lossless geometry merging.
+To merge an existing unmerged local model without calling Onshape, use
+`python scripts/export_onshape.py --merge-existing`. Repeated reduction of an
+already simplified model is cumulative; start from a fresh export or original
+backup when comparing settings.
+
+Before promotion, the helper compares joints, hierarchy, inertia, and link poses
+at three joint configurations. It moves the previous `robot.xml` and entire
+`assets/` into the ignored `.sim-backups/` folder before installing the new model.
+Thus only merged OBJ files remain in the active assets folder. The existing
+`scene.xml` is retained. Failed generation/validation leaves the active model
+intact, and promotion failures roll back. Custom processors, additional XML,
+geom-referencing sensors/contacts, and primitive geoms are outside this workflow.
 
 The project-local compatibility wrapper exports continuous wheel joints as
 unlimited hinges. STL files exceeding MuJoCo's 200,000-triangle STL limit (and
-ASCII STL files) are converted to OBJ without reducing their geometry. Original
-STL assets are retained. Installed third-party packages are not modified.
+ASCII STL files) are converted to OBJ before body merging. Individual source
+meshes are absent from the final active output. Installed third-party packages
+are not modified.
 
 ```text
 src/forge_sim/model/
@@ -140,6 +158,9 @@ documentation if it can be shared. Never force-add `.env` or exporter caches.
 - **No viewer window:** confirm `echo "$DISPLAY"` is nonempty in Ubuntu. Use
   `--check` to separate model errors from WSLg graphics errors. If OpenGL fails,
   try `LIBGL_ALWAYS_SOFTWARE=1 python scripts/preview_sim.py`.
+- **WSLg Mesa crashes on large meshes:** the preview sets `LP_NUM_THREADS=1`
+  on WSL unless already set. This avoids the observed Mesa multi-thread crash
+  without forcing a different graphics backend or changing system settings.
 - **401/403:** check local key values, read permissions, and document access.
 - **Wrong assembly:** ensure the URL is from an assembly tab, not a Part Studio.
 - **Missing joints:** check `dof_` naming and the exporter warnings.
@@ -164,3 +185,24 @@ These options apply to that command only; they do not change global Git settings
 
 The upstream exporter can also generate its own test scene; see its
 [MuJoCo output documentation](https://onshape-to-robot.readthedocs.io/en/latest/exporter_mujoco.html).
+
+
+## GPU rendering on WSL (NVIDIA)
+
+The current preview was tested with WSLg D3D12 on an RTX 4090. Select it for
+this process without changing global settings:
+
+```bash
+GALLIUM_DRIVER=d3d12 MESA_D3D12_DEFAULT_ADAPTER_NAME=NVIDIA python scripts/preview_sim.py
+```
+
+For manual joint inspection, use the full viewer, pause with Space, then move
+its Joint sliders (the passive preview disables these sliders):
+
+```bash
+GALLIUM_DRIVER=d3d12 MESA_D3D12_DEFAULT_ADAPTER_NAME=NVIDIA python -m mujoco.viewer --mjcf=src/forge_sim/model/scene.xml
+```
+
+GPU selection accelerates rendering; standard MuJoCo physics still runs on CPU.
+The current model has no actuators. The front suspension position/connectivity
+still needs rebuilding in Onshape before the next export.

@@ -35,3 +35,4 @@ Thumbs.db
 **/.cache/
 /src/forge_sim/model/config.json
 /src/forge_sim/model/.export-*/
+/.sim-backups/

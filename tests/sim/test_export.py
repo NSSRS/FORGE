@@ -37,6 +37,9 @@ class ExportTests(unittest.TestCase):
         (self.model / "config.json").write_text(json.dumps(config))
         for mocker in (
             patch.object(export, "MODEL", self.model),
+            patch.object(export, "ROOT", Path(self.temp.name)),
+            patch.object(export, "merge_model", return_value=[]),
+            patch.object(export, "place_on_floor"),
             patch.object(export, "load_dotenv"),
             patch.dict(os.environ, ONSHAPE_ACCESS_KEY="offline-test", ONSHAPE_SECRET_KEY="offline-test"),
         ):

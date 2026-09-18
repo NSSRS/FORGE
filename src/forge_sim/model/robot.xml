@@ -1,13 +1,101 @@
-<mujoco model="forge_placeholder">
-  <!-- Setup fixture only: replace through export_onshape.py with real FORGE CAD. -->
-  <compiler angle="radian"/>
+<?xml version='1.0' encoding='utf-8'?>
+<mujoco model="forge">
+  <compiler angle="radian" meshdir="assets" autolimits="true" />
+  <default>
+    <default class="forge">
+      <joint frictionloss="0.1" armature="0.005" />
+      <position kp="50" dampratio="1" />
+      <default class="visual">
+        <geom type="mesh" contype="0" conaffinity="0" group="2" />
+      </default>
+      <default class="collision">
+        <geom group="3" />
+      </default>
+    </default>
+  </default>
   <worldbody>
-    <body name="placeholder_base" pos="0 0 0.12">
-      <geom type="box" size="0.16 0.10 0.04" mass="1" rgba="0.18 0.28 0.4 1"/>
-      <body name="placeholder_link" pos="0 0 0.04">
-        <joint name="placeholder_hinge" type="hinge" axis="0 1 0" range="-1.2 1.2" damping="0.1"/>
-        <geom type="capsule" fromto="0 0 0 0 0 0.20" size="0.025" mass="0.2" rgba="0.95 0.45 0.12 1"/>
+    <frame name="forge_floor_pose" quat="0.7071067811865476 0.7071067811865476 0 0" pos="0 0 0.0786833818748">
+      <body name="body" pos="0 0 0" quat="1 0 0 0" childclass="forge">
+        <inertial pos="-0.0706836 0.0183314 0.184855" mass="4.58078" fullinertia="0.0621046 0.232532 0.173705 -1.12631e-05 3.19005e-05 0.00129716" />
+        <body name="suspension_rear_1" pos="0.285225 0.0138164 0.0934628" quat="0.5 -0.5 -0.5 0.5">
+          <joint axis="0 0 1" name="suspension_2" type="hinge" />
+          <inertial pos="-0.0335596 -1.37023e-07 -0.0351591" mass="0.9487" fullinertia="0.0304603 0.000547182 0.0306866 4.7e-09 -3.17479e-05 1.8742e-08" />
+          <body name="linkage_wheel_1" pos="-0.0515 -0.248 -0.02" quat="0.985094 -0 -0 0.172018">
+            <joint axis="0 0 1" name="wheel_1" type="hinge" />
+            <inertial pos="0 0 -0.00985793" mass="0.0272141" fullinertia="3.34248e-06 3.29096e-06 2.74034e-06 0 0 -0" />
+            <geom name="body_03_linkage_wheel_1" type="mesh" mesh="body_03_linkage_wheel_1" group="2" mass="0" rgba="0.792157 0.819608 0.933333 1.0" contype="1" conaffinity="1" friction="1.0 0.005 0.0001" />
+          </body>
+          <body name="linkage_wheel_2" pos="-0.0515 0.248 -0.02" quat="0.0771407 0 0 -0.99702">
+            <joint axis="0 0 1" name="wheel_2" type="hinge" />
+            <inertial pos="-0 0 -0.00985793" mass="0.0272141" fullinertia="3.34248e-06 3.29096e-06 2.74034e-06 0 0 0" />
+            <geom name="body_04_linkage_wheel_2" type="mesh" mesh="body_04_linkage_wheel_2" group="2" mass="0" rgba="0.898039 0.917647 0.929412 1.0" contype="1" conaffinity="1" friction="1.0 0.005 0.0001" />
+          </body>
+          <geom name="body_02_suspension_rear_1" type="mesh" mesh="body_02_suspension_rear_1" group="2" mass="0" rgba="0.898039 0.917647 0.929412 1.0" contype="1" conaffinity="1" friction="1.0 0.005 0.0001" />
+        </body>
+        <body name="suspension_rear_2" pos="-0.426775 0.0138164 0.0934628" quat="0.5 0.5 0.5 0.5">
+          <joint axis="0 0 1" name="suspension_3" type="hinge" />
+          <inertial pos="-0.0335596 1.37023e-07 -0.0215615" mass="0.9487" fullinertia="0.030458 0.000544893 0.0306866 -4.7e-09 2.46276e-06 1.8518e-08" />
+          <body name="linkage_wheel_3" pos="-0.0515 0.248 -0.005" quat="0.419984 -0 -0 0.907532">
+            <joint axis="0 0 1" name="wheel_3" type="hinge" />
+            <inertial pos="-0 0 -0.00985793" mass="0.0272141" fullinertia="3.3291e-06 3.30435e-06 2.74034e-06 -2.2595e-08 -0 0" />
+            <geom name="body_06_linkage_wheel_3" type="mesh" mesh="body_06_linkage_wheel_3" group="2" mass="0" rgba="0.690196 0.658824 0.639216 1.0" contype="1" conaffinity="1" friction="1.0 0.005 0.0001" />
+          </body>
+          <body name="linkage_wheel_4" pos="-0.0515 -0.248 -0.005" quat="0.911367 0 0 0.411595">
+            <joint axis="0 0 1" name="wheel_4" type="hinge" />
+            <inertial pos="-0 0 -0.00985793" mass="0.0272141" fullinertia="3.34248e-06 3.29096e-06 2.74034e-06 0 0 -0" />
+            <geom name="body_07_linkage_wheel_4" type="mesh" mesh="body_07_linkage_wheel_4" group="2" mass="0" rgba="0.690196 0.658824 0.639216 1.0" contype="1" conaffinity="1" friction="1.0 0.005 0.0001" />
+          </body>
+          <geom name="body_05_suspension_rear_2" type="mesh" mesh="body_05_suspension_rear_2" group="2" mass="0" rgba="0.647059 0.619608 0.588235 1.0" contype="1" conaffinity="1" friction="1.0 0.005 0.0001" />
+        </body>
+        <geom name="body_01_body" type="mesh" mesh="body_01_body" group="2" mass="0" rgba="1.0 1.0 1.0 1.0" contype="1" conaffinity="1" friction="1.0 0.005 0.0001" />
       </body>
-    </body>
+      <body name="linkage_suspension_1" pos="0 0 0" quat="1 0 0 0" childclass="forge">
+        <freejoint name="linkage_suspension_1_freejoint" />
+        <inertial pos="-0.0707748 0.0138164 0.482631" mass="0.312932" fullinertia="0.00026677 0.000348017 0.000160332 -9.8e-11 1.36e-10 5e-12" />
+        <body name="suspension_front" pos="-0.0707748 0.0138164 0.510543" quat="0 0.707107 -0.707107 0">
+          <joint axis="0 0 1" name="suspension_1" type="hinge" />
+          <inertial pos="-0.00358434 -1.3994e-07 -0.0295923" mass="0.976788" fullinertia="0.0218821 0.000423551 0.0218674 2.2067e-08 -6.55382e-05 9.682e-09" />
+          <body name="freedrive_1" pos="-0.00675 -0.232 -0.0505" quat="0.171835 0.68591 -0.171835 -0.68591">
+            <joint axis="0 0 1" name="freedrive_1" type="hinge" />
+            <inertial pos="-0.0115336 0.00616709 -0.0402398" mass="0.129099" fullinertia="0.000155682 0.000145839 7.37007e-05 -7.37555e-06 -3.37195e-05 1.80249e-05" />
+            <body name="linkage_wheel_5" pos="-0.0341872 -0.0109224 -0.06525" quat="0.30398 0.0329142 0.70634 0.638433">
+              <joint axis="0 0 1" name="wheel_5" type="hinge" />
+              <inertial pos="0.000150415 -0.000269359 0.0264423" mass="0.0334717" fullinertia="1.52368e-05 1.51793e-05 2.3974e-06 4.5493e-08 4.744e-09 -8.496e-09" />
+              <geom name="body_11_linkage_wheel_5" type="mesh" mesh="body_11_linkage_wheel_5" group="2" mass="0" rgba="0.690196 0.658824 0.639216 1.0" contype="1" conaffinity="1" friction="1.0 0.005 0.0001" />
+            </body>
+            <geom name="body_10_freedrive_1" type="mesh" mesh="body_10_freedrive_1" group="2" mass="0" rgba="0.792157 0.819608 0.933333 1.0" contype="1" conaffinity="1" friction="1.0 0.005 0.0001" />
+          </body>
+          <body name="freedrive_2" pos="-0.00675 0.232 -0.0505" quat="0.0852043 -0.701955 -0.0852043 0.701955">
+            <joint axis="0 0 1" name="freedrive_2" type="hinge" />
+            <inertial pos="-0.0126993 -0.00312784 -0.0402398" mass="0.129099" fullinertia="0.000158615 0.000142907 7.37007e-05 4.11578e-06 -3.71242e-05 -9.14844e-06" />
+            <body name="linkage_wheel_6" pos="-0.0181136 -0.0309832 -0.06525" quat="0.0415023 0.128578 -0.695318 -0.705888">
+              <joint axis="0 0 1" name="wheel_6" type="hinge" />
+              <inertial pos="0.000264249 0.000159228 0.0264423" mass="0.0334717" fullinertia="1.51822e-05 1.52339e-05 2.3974e-06 -4.6869e-08 8.334e-09 5.022e-09" />
+              <geom name="body_13_linkage_wheel_6" type="mesh" mesh="body_13_linkage_wheel_6" group="2" mass="0" rgba="0.690196 0.658824 0.639216 1.0" contype="1" conaffinity="1" friction="1.0 0.005 0.0001" />
+            </body>
+            <geom name="body_12_freedrive_2" type="mesh" mesh="body_12_freedrive_2" group="2" mass="0" rgba="0.776471 0.756863 0.737255 1.0" contype="1" conaffinity="1" friction="1.0 0.005 0.0001" />
+          </body>
+          <geom name="body_09_suspension_front" type="mesh" mesh="body_09_suspension_front" group="2" mass="0" rgba="0.898039 0.917647 0.929412 1.0" contype="1" conaffinity="1" friction="1.0 0.005 0.0001" />
+        </body>
+        <geom name="body_08_linkage_suspension_1" type="mesh" mesh="body_08_linkage_suspension_1" group="2" mass="0" rgba="0.898039 0.917647 0.929412 1.0" contype="1" conaffinity="1" friction="1.0 0.005 0.0001" />
+      </body>
+    </frame>
   </worldbody>
+  <asset>
+    <mesh name="body_01_body" file="body_01_body.obj" />
+    <mesh name="body_02_suspension_rear_1" file="body_02_suspension_rear_1.obj" />
+    <mesh name="body_03_linkage_wheel_1" file="body_03_linkage_wheel_1.obj" />
+    <mesh name="body_04_linkage_wheel_2" file="body_04_linkage_wheel_2.obj" />
+    <mesh name="body_05_suspension_rear_2" file="body_05_suspension_rear_2.obj" />
+    <mesh name="body_06_linkage_wheel_3" file="body_06_linkage_wheel_3.obj" />
+    <mesh name="body_07_linkage_wheel_4" file="body_07_linkage_wheel_4.obj" />
+    <mesh name="body_08_linkage_suspension_1" file="body_08_linkage_suspension_1.obj" />
+    <mesh name="body_09_suspension_front" file="body_09_suspension_front.obj" />
+    <mesh name="body_10_freedrive_1" file="body_10_freedrive_1.obj" />
+    <mesh name="body_11_linkage_wheel_5" file="body_11_linkage_wheel_5.obj" />
+    <mesh name="body_12_freedrive_2" file="body_12_freedrive_2.obj" />
+    <mesh name="body_13_linkage_wheel_6" file="body_13_linkage_wheel_6.obj" />
+  </asset>
+  <actuator />
+  <equality />
 </mujoco>
