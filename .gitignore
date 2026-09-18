@@ -27,3 +27,11 @@ Thumbs.db
 # Legacy local paths: keep private records and old build output untracked.
 /ros2_ws/
 /config/bench-equipment.md
+
+# Onshape credentials, local export selection, and generated caches.
+.env
+.env.*
+!.env.example
+**/.cache/
+/src/forge_sim/model/config.json
+/src/forge_sim/model/.export-*/

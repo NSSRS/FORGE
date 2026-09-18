@@ -1,0 +1,13 @@
+<mujoco model="forge_placeholder">
+  <!-- Setup fixture only: replace through export_onshape.py with real FORGE CAD. -->
+  <compiler angle="radian"/>
+  <worldbody>
+    <body name="placeholder_base" pos="0 0 0.12">
+      <geom type="box" size="0.16 0.10 0.04" mass="1" rgba="0.18 0.28 0.4 1"/>
+      <body name="placeholder_link" pos="0 0 0.04">
+        <joint name="placeholder_hinge" type="hinge" axis="0 1 0" range="-1.2 1.2" damping="0.1"/>
+        <geom type="capsule" fromto="0 0 0 0 0 0.20" size="0.025" mass="0.2" rgba="0.95 0.45 0.12 1"/>
+      </body>
+    </body>
+  </worldbody>
+</mujoco>

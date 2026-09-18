@@ -2,6 +2,21 @@
 
 Motor-control development for the magnetic wall-climbing welding robot.
 
+## MuJoCo preview (`forge_sim`)
+
+The [Onshape-to-MJCF walkthrough](docs/ONSHAPE_MUJOCO.md) covers the WSL setup,
+CAD export, and preview. From this checkout in Ubuntu:
+
+```bash
+bash scripts/setup_sim.sh
+source .venv/bin/activate
+python scripts/preview_sim.py
+```
+
+The viewer starts paused. `src/forge_sim/model/scene.xml` includes `robot.xml`.
+The committed robot is a clearly labeled setup placeholder until the real
+Onshape assembly is exported. This preview adds no controllers or hardware calls.
+
 - **`main`**: ENCOS C11 driver/utilities, Python interface, and ROS 2 commissioning package.
 - **[`physics-analysis`](https://github.com/NSSRS/FORGE/tree/physics-analysis)**:
   thermal/magnetic adhesion and suspension/wheel/terrain simulators, preserved
@@ -57,6 +72,7 @@ src/
   encos_query/          C11 driver, protocol codec, and bench utilities
   forge_motors/         Standalone Python API and simulator
   forge_motor_control/  ROS 2 package metadata, configuration, and Python module
+  forge_sim/model/      MuJoCo robot, scene, and Onshape config template
 docs/                   Guides, equipment template, and bench results
 scripts/                Build/run helpers and simulation example
 tests/                  Protocol, Python, and fake-bridge tests

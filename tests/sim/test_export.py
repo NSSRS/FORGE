@@ -1,0 +1,78 @@
+"""Offline regression checks for preserving a working model during export."""
+import importlib.util
+import json
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import tempfile
+import unittest
+from unittest.mock import patch
+
+ROOT = Path(__file__).resolve().parents[2]
+SPEC = importlib.util.spec_from_file_location("export_onshape", ROOT / "scripts/export_onshape.py")
+export = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(export)
+
+
+class ExportTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.model = Path(self.temp.name) / "model"
+        shutil.copytree(ROOT / "src/forge_sim/model", self.model)
+        self.original = (self.model / "robot.xml").read_bytes()
+        self.scene = (self.model / "scene.xml").read_bytes()
+        config = json.loads((self.model / "config.example.json").read_text())
+        config["url"] = "https://cad.onshape.com/documents/test/w/test/e/test"
+        (self.model / "config.json").write_text(json.dumps(config))
+        for mocker in (
+            patch.object(export, "MODEL", self.model),
+            patch.object(export, "load_dotenv"),
+            patch.dict(os.environ, ONSHAPE_ACCESS_KEY="offline-test", ONSHAPE_SECRET_KEY="offline-test"),
+        ):
+            mocker.start()
+            self.addCleanup(mocker.stop)
+
+    def test_failed_download_keeps_existing_model(self):
+        with patch.object(export.subprocess, "run", side_effect=subprocess.CalledProcessError(1, "export")):
+            with self.assertRaises(subprocess.CalledProcessError):
+                export.main()
+        self.assertEqual((self.model / "robot.xml").read_bytes(), self.original)
+        self.assertFalse(list(self.model.glob(".export-*")))
+
+    def test_invalid_mjcf_keeps_existing_model(self):
+        def invalid(command, **kwargs):
+            (Path(command[1]) / "robot.xml").write_text("<not-mjcf/>")
+        with patch.object(export.subprocess, "run", side_effect=invalid):
+            with self.assertRaises(ValueError):
+                export.main()
+        self.assertEqual((self.model / "robot.xml").read_bytes(), self.original)
+
+    def test_valid_export_retains_scene_and_copies_assets(self):
+        updated = self.original.replace(b"forge_placeholder", b"offline_export_fixture")
+        updated = updated.replace(b'<compiler angle="radian"/>',
+                                  b'<compiler angle="radian" meshdir="assets"/>')
+        updated = updated.replace(b"<worldbody>",
+                                  b'<asset><mesh name="fixture" file="fixture.obj"/></asset><worldbody>')
+
+        def valid(command, **kwargs):
+            stage = Path(command[1])
+            (stage / "robot.xml").write_bytes(updated)
+            (stage / "scene.xml").write_text("invalid exporter scene deliberately replaced")
+            (stage / "assets").mkdir()
+            (stage / "assets/fixture.obj").write_text(
+                "v 0 0 0\nv 1 0 0\nv 0 1 0\nv 0 0 1\n"
+                "f 1 3 2\nf 1 2 4\nf 1 4 3\nf 2 3 4\n"
+            )
+
+        with patch.object(export.subprocess, "run", side_effect=valid):
+            export.main()
+        self.assertEqual((self.model / "robot.xml").read_bytes(), updated)
+        self.assertEqual((self.model / "scene.xml").read_bytes(), self.scene)
+        model = export.mujoco.MjModel.from_xml_path(str(self.model / "scene.xml"))
+        self.assertEqual(model.nmesh, 1)
+
+
+if __name__ == "__main__":
+    unittest.main()
