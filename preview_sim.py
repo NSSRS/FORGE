@@ -16,7 +16,7 @@ if "microsoft" in platform.release().lower():
 import mujoco
 import numpy as np
 
-MODEL_DIR = Path(__file__).resolve().parents[1] / "src/forge_sim/model"
+MODEL_DIR = Path(__file__).resolve().parent / "model"
 
 
 def check_scene(scene: Path, steps: int = 500) -> mujoco.MjModel:

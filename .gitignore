@@ -33,6 +33,6 @@ Thumbs.db
 .env.*
 !.env.example
 **/.cache/
-/src/forge_sim/model/config.json
-/src/forge_sim/model/.export-*/
+/model/config.json
+/model/.export-*/
 /.sim-backups/

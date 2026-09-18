@@ -17,8 +17,8 @@ from onshape_compat import prepare_meshes
 from merge_mjcf import merge_model
 from place_on_floor import place_on_floor
 
-ROOT = Path(__file__).resolve().parents[1]
-MODEL = ROOT / "src/forge_sim/model"
+ROOT = Path(__file__).resolve().parent
+MODEL = ROOT / "model"
 
 
 def publish_model(stage: Path) -> Path:
@@ -77,12 +77,12 @@ def main(merge_existing=False, target_faces=10000) -> None:
         raise SystemExit("Set ONSHAPE_ACCESS_KEY and ONSHAPE_SECRET_KEY in the local .env or shell.")
     executable = Path(sys.executable).parent / "onshape-to-robot"
     if not executable.exists():
-        raise SystemExit("Activate the simulation venv; run bash scripts/setup_sim.sh first.")
+        raise SystemExit("Activate the simulation venv; run bash setup_sim.sh first.")
     # Failed API calls or invalid MJCF must not replace the working preview.
     with tempfile.TemporaryDirectory(prefix=".export-", dir=MODEL) as folder:
         stage = Path(folder)
         (stage / "config.json").write_text(json.dumps(config, indent=2) + "\n")
-        subprocess.run([sys.executable, str(ROOT / "scripts/onshape_compat.py"), str(stage)], cwd=ROOT, check=True)
+        subprocess.run([sys.executable, str(ROOT / "onshape_compat.py"), str(stage)], cwd=ROOT, check=True)
         prepare_meshes(stage / "robot.xml")
         shutil.copy2(MODEL / "scene.xml", stage / "scene.xml")
         report = merge_model(stage, target_faces)
@@ -98,7 +98,7 @@ def print_summary(report, backup):
     print(f"Triangles: {sum(x['original_faces'] for x in report)} -> {sum(x['merged_faces'] for x in report)}")
     print(f"Previous model backup: {backup}")
     print("Preview approximation: one color and convex collision hull per body.")
-    print("Run python scripts/preview_sim.py to inspect the paused model.")
+    print("Run python preview_sim.py to inspect the paused model.")
 
 
 if __name__ == "__main__":

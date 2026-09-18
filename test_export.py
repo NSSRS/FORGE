@@ -10,9 +10,9 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "scripts"))
-SPEC = importlib.util.spec_from_file_location("export_onshape", ROOT / "scripts/export_onshape.py")
+ROOT = Path(__file__).resolve().parent
+sys.path.insert(0, str(ROOT))
+SPEC = importlib.util.spec_from_file_location("export_onshape", ROOT / "export_onshape.py")
 export = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(export)
 
@@ -23,8 +23,8 @@ class ExportTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.model = Path(self.temp.name) / "model"
         self.model.mkdir()
-        shutil.copy2(ROOT / "src/forge_sim/model/scene.xml", self.model / "scene.xml")
-        shutil.copy2(ROOT / "src/forge_sim/model/config.example.json", self.model / "config.example.json")
+        shutil.copy2(ROOT / "model/scene.xml", self.model / "scene.xml")
+        shutil.copy2(ROOT / "model/config.example.json", self.model / "config.example.json")
         (self.model / "robot.xml").write_text(
             '<mujoco model="forge_placeholder"><compiler angle="radian"/>'
             '<worldbody><body name="fixture"><geom type="box" size=".1 .1 .1"/>'
