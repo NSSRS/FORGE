@@ -1,29 +1,12 @@
-# Motor tests
+# Simulation tests
 
-Follow the [Ubuntu build guide](../docs/ENCOS_WORKSPACE.md#build-on-ubuntu);
-`./scripts/build.sh` builds and runs all tests with CTest.
-
-- `encos_protocol_test.c`: query/position/velocity codec vectors and malformed frames.
-- `test_python_motors.py`: simulation, independent commands, deadlines, validation and cleanup.
-- `test_native_driver.py`: real C pthread and ctypes ABI against a fake SOEM bridge;
-  transport/feedback failures, motor faults, per-motor leases, ownership and shutdown.
-
-The fake library has no raw-socket transport and cannot access motor hardware.
-Native integration cases skip unless `ENCOS_TEST_LIBRARY` names that library;
-CTest sets it automatically. The normal loader uses `libencos_driver.so`, not
-`libencos_driver_test.so`.
-
-Portable Python-only tests:
+From the repository root with the simulation virtual environment activated:
 
 ```bash
-PYTHONPATH=src python3 -m unittest discover -s tests -p 'test_*.py' -v
+python -m unittest discover -s tests/sim -v
+python scripts/preview_sim.py --check
 ```
 
-On PowerShell:
-
-```powershell
-$env:PYTHONPATH = 'src'
-python -m unittest discover -s tests -p 'test_*.py' -v
-```
-
-These checks do not validate physical stopping or bridge feedback freshness.
+The tests cover continuous-joint export compatibility, failed-export preservation,
+asset promotion, and merged geometry/joint structure. The smoke check loads the
+committed scene and runs 500 physics steps without a display or Onshape credentials.

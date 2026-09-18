@@ -2,8 +2,9 @@
 
 This branch sets up CAD export and a passive preview only. It does not implement
 magnetic adhesion, motor control, ROS integration, or a training environment.
-The committed `robot.xml` is an illustrative fixed-base fixture, not FORGE CAD.
-The actual export needs your assembly URL and locally supplied Onshape keys.
+The committed `robot.xml` is the merged FORGE CAD preview. The front suspension
+position/connectivity still needs rebuilding in Onshape. A new export needs your
+assembly URL and locally supplied Onshape keys.
 
 ## 1. WSL workspace
 
@@ -127,7 +128,7 @@ are not modified.
 src/forge_sim/model/
   config.example.json  # tracked template
   config.json          # ignored, actual assembly selection
-  robot.xml            # exported CAD, placeholder until first export
+  robot.xml            # merged FORGE CAD preview
   scene.xml            # includes robot.xml, floor, lighting
   assets/              # exported meshes
 ```
