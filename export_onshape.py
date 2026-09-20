@@ -2,12 +2,14 @@
 from __future__ import annotations
 
 import json
+import colorsys
 import os
 from pathlib import Path
 import shutil
 import subprocess
 import sys
 import tempfile
+import xml.etree.ElementTree as ET
 from datetime import datetime
 from urllib.parse import urlparse
 
@@ -16,10 +18,45 @@ import mujoco
 from onshape_compat import prepare_meshes
 from merge_mjcf import merge_model
 from place_on_floor import place_on_floor
+from velocity_control import install_velocity_actuators
 
 ROOT = Path(__file__).resolve().parent
 MODEL = ROOT / "model"
 
+
+
+def apply_wheel_material(folder: Path):
+    tree = ET.parse(folder / "robot.xml")
+    root = tree.getroot()
+    geoms = [g for i in range(1, 7)
+             for b in root.findall(f".//body[@name='linkage_wheel_{i}']")
+             for g in b.findall("geom")]
+    if not geoms:
+        return
+    asset = root.find("asset")
+    if asset is None:
+        asset = ET.SubElement(root, "asset")
+    for tag, name in (("texture", "wheel_checker"), ("material", "wheel_checker_material")):
+        for old in list(asset.findall(f"{tag}[@name='{name}']")):
+            asset.remove(old)
+    ET.SubElement(asset, "texture", name="wheel_checker", type="cube", builtin="checker",
+                  width="256", height="256", rgb1="0.04 0.04 0.04", rgb2="0.95 0.95 0.95")
+    ET.SubElement(asset, "material", name="wheel_checker_material", texture="wheel_checker",
+                  rgba="1 1 1 1", texuniform="false", reflectance="0", shininess="0.1")
+    for geom in geoms:
+        geom.set("material", "wheel_checker_material")
+        geom.set("rgba", "1 1 1 1")
+    # Stable low-saturation colors for each non-wheel rigid body.
+    body_colors = {"body": 0.58, "suspension_front": 0.08,
+                   "suspension_rear_1": 0.32, "suspension_rear_2": 0.76,
+                   "freedrive_1": 0.96, "freedrive_2": 0.46}
+    for name, hue in body_colors.items():
+        rgb = colorsys.hsv_to_rgb(hue, 0.28, 0.72)
+        for body in root.findall(f".//body[@name='{name}']"):
+            for geom in body.findall("geom"):
+                geom.set("rgba", " ".join(f"{v:.4f}" for v in (*rgb, 1)))
+    ET.indent(tree)
+    tree.write(folder / "robot.xml", encoding="utf-8", xml_declaration=True)
 
 def publish_model(stage: Path) -> Path:
     backup = ROOT / ".sim-backups" / datetime.now().strftime("%Y%m%d-%H%M%S-%f")
@@ -53,8 +90,10 @@ def main(merge_existing=False, target_faces=10000) -> None:
             shutil.copy2(MODEL / "robot.xml", stage / "robot.xml")
             shutil.copy2(MODEL / "scene.xml", stage / "scene.xml")
             shutil.copytree(MODEL / "assets", stage / "assets")
-            report = merge_model(stage, target_faces)
+            report = merge_model(stage, target_faces, preserve_collision=True)
             place_on_floor(stage)
+            install_velocity_actuators(stage)
+            apply_wheel_material(stage)
             mujoco.MjModel.from_xml_path(str(stage / "scene.xml"))
             backup = publish_model(stage)
         print_summary(report, backup)
@@ -85,8 +124,16 @@ def main(merge_existing=False, target_faces=10000) -> None:
         subprocess.run([sys.executable, str(ROOT / "onshape_compat.py"), str(stage)], cwd=ROOT, check=True)
         prepare_meshes(stage / "robot.xml")
         shutil.copy2(MODEL / "scene.xml", stage / "scene.xml")
-        report = merge_model(stage, target_faces)
+        mujoco.MjModel.from_xml_path(str(stage / "scene.xml"))
+        raw_backup = ROOT / ".sim-backups" / ("raw-" + datetime.now().strftime("%Y%m%d-%H%M%S-%f"))
+        raw_backup.mkdir(parents=True)
+        shutil.copy2(stage / "robot.xml", raw_backup / "robot.xml")
+        shutil.copy2(stage / "scene.xml", raw_backup / "scene.xml")
+        shutil.copytree(stage / "assets", raw_backup / "assets")
+        report = merge_model(stage, target_faces, preserve_collision=True)
         place_on_floor(stage)
+        install_velocity_actuators(stage)
+        apply_wheel_material(stage)
         model = mujoco.MjModel.from_xml_path(str(stage / "scene.xml"))
         mujoco.mj_forward(model, mujoco.MjData(model))
         backup = publish_model(stage)
@@ -97,7 +144,7 @@ def print_summary(report, backup):
     print(f"Export complete: {len(report)} merged body meshes; joints/inertia verified unchanged.")
     print(f"Triangles: {sum(x['original_faces'] for x in report)} -> {sum(x['merged_faces'] for x in report)}")
     print(f"Previous model backup: {backup}")
-    print("Preview approximation: one color and convex collision hull per body.")
+    print("Merged visual meshes; original per-part collision geoms retained.")
     print("Run python preview_sim.py to inspect the paused model.")
 
 

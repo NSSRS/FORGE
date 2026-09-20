@@ -67,7 +67,7 @@ def verify_structure(before, after):
         np.testing.assert_allclose(states[0].xmat, states[1].xmat, atol=1e-9)
 
 
-def merge_model(folder: Path, target_faces: int = 10000):
+def merge_model(folder: Path, target_faces: int = 10000, preserve_collision=False):
     folder = folder.resolve()
     xml_path = folder / "robot.xml"
     before = mujoco.MjModel.from_xml_path(str(folder / "scene.xml"))
@@ -82,10 +82,14 @@ def merge_model(folder: Path, target_faces: int = 10000):
     assets = root.find("asset")
     if assets is None:
         assets = ET.SubElement(root, "asset")
-    for mesh in list(assets.findall("mesh")):
-        assets.remove(mesh)
+    if not preserve_collision:
+        for mesh in list(assets.findall("mesh")):
+            assets.remove(mesh)
     merged_dir = folder / "merged_assets"
     merged_dir.mkdir()
+    if preserve_collision:
+        shutil.copytree(folder / "assets", merged_dir, dirs_exist_ok=True,
+                        ignore=shutil.ignore_patterns("*.part"))
     compiler.set("meshdir", "merged_assets")
     report = []
     for body in root.findall(".//worldbody//body"):
@@ -111,8 +115,14 @@ def merge_model(folder: Path, target_faces: int = 10000):
             np.savetxt(stream, vertices, fmt="v %.17g %.17g %.17g")
             np.savetxt(stream, faces + 1, fmt="f %d %d %d")
         ET.SubElement(assets, "mesh", name=name, file=f"{name}.obj")
-        for geom in geoms:
-            body.remove(geom)
+        for geom, gid in zip(geoms, ids):
+            if preserve_collision and (before.geom_contype[gid] or before.geom_conaffinity[gid]):
+                geom.set("group", "3")
+                geom.set("mass", "0")
+                if not geom.get("name"):
+                    geom.set("name", f"collision_{gid}")
+            else:
+                body.remove(geom)
         # Explicit inertia stays unchanged; one color and convex collision hull per body.
         color = before.geom_rgba[visual[0]]
         mat_id = before.geom_matid[visual[0]]
@@ -121,7 +131,7 @@ def merge_model(folder: Path, target_faces: int = 10000):
         collision = [i for i in ids if before.geom_contype[i] or before.geom_conaffinity[i]]
         attrs = dict(name=name, type="mesh", mesh=name, group="2", mass="0",
                      rgba=" ".join(map(str, color)), contype="0", conaffinity="0")
-        if collision:
+        if collision and not preserve_collision:
             i = collision[0]
             attrs.update(contype=str(int(np.bitwise_or.reduce(before.geom_contype[collision]))),
                          conaffinity=str(int(np.bitwise_or.reduce(before.geom_conaffinity[collision]))),
@@ -129,8 +139,9 @@ def merge_model(folder: Path, target_faces: int = 10000):
         ET.SubElement(body, "geom", **attrs)
         report.append(dict(body=body.get("name"), parts=len(visual),
                            original_faces=old_faces, merged_faces=len(faces)))
-    for material in list(assets.findall("material")):
-        assets.remove(material)
+    if not preserve_collision:
+        for material in list(assets.findall("material")):
+            assets.remove(material)
     ET.indent(tree)
     tree.write(xml_path, encoding="utf-8", xml_declaration=True)
     after = mujoco.MjModel.from_xml_path(str(folder / "scene.xml"))

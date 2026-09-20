@@ -48,6 +48,35 @@ class MergeTests(unittest.TestCase):
             self.assertEqual(sum(r['original_faces'] for r in report),
                              sum(r['merged_faces'] for r in report))
 
+    def test_preserve_collision_leaves_gap_between_parts(self):
+        with tempfile.TemporaryDirectory() as directory:
+            folder = Path(directory)
+            (folder / "assets").mkdir()
+            (folder / "assets/part.obj").write_text(
+                "v 0 0 0\nv .1 0 0\nv 0 .1 0\nv 0 0 .1\n"
+                "f 1 3 2\nf 1 2 4\nf 1 4 3\nf 2 3 4\n")
+            (folder / "scene.xml").write_text('<mujoco><include file="robot.xml"/></mujoco>')
+            (folder / "robot.xml").write_text('''<mujoco>
+              <compiler meshdir="assets"/><asset><mesh name="part" file="part.obj"/></asset>
+              <worldbody><body name="base"><freejoint/>
+              <inertial pos="0 0 0" mass="1" diaginertia="1 1 1"/>
+              <geom name="left" type="mesh" mesh="part" pos="-.3 0 0" group="2"/>
+              <geom name="right" type="mesh" mesh="part" pos=".3 0 0" group="2"/>
+              </body><geom name="probe" type="sphere" pos="0 .02 .02" size=".01"/>
+              </worldbody></mujoco>''')
+            merge_model(folder, 0, preserve_collision=True)
+            m=mujoco.MjModel.from_xml_path(str(folder/'scene.xml'))
+            d=mujoco.MjData(m);mujoco.mj_forward(m,d)
+            self.assertEqual(d.ncon,0)
+            for name in ('left','right'):
+                self.assertEqual(m.geom(name).group[0],3)
+                self.assertEqual(m.geom(name).contype[0],1)
+            visual=np.flatnonzero(m.geom_group==2)
+            self.assertEqual(len(visual),1)
+            self.assertEqual(m.geom_contype[visual[0]],0)
+            self.assertEqual(m.geom_conaffinity[visual[0]],0)
+            self.assertTrue((folder/'assets/part.obj').exists())
+
 
 
 if __name__ == "__main__":

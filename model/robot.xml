@@ -14,69 +14,406 @@
     </default>
   </default>
   <worldbody>
-    <frame name="forge_floor_pose" quat="0.7071067811865476 0.7071067811865476 0 0" pos="0 0 0.0786833818748">
+    <frame name="forge_wall_pose" quat="1 0 0 0" pos="0.063275 -0.712116618125 1.80199306156">
       <body name="body" pos="0 0 0" quat="1 0 0 0" childclass="forge">
         <inertial pos="-0.0706933 0.0180427 0.203892" mass="4.89372" fullinertia="0.0883367 0.25884 0.173871 -1.14631e-05 4.50812e-05 0.00169087" />
+        <geom type="mesh" class="collision" pos="0.0732252 0.0138164 0.301463" quat="0.447214 0 -0.894427 0" mesh="cha_2_碳管_420mm_1" material="cha_2_碳管_420mm_1_material" group="3" mass="0" name="collision_3" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="-0.223275 0.0388164 0.215963" quat="0 0.707107 -0.707107 0" mesh="pla_ref3_m5垫片_1" material="pla_ref3_m5垫片_1_material" group="3" mass="0" name="collision_5" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="0.179325 0.0138164 0.0934628" quat="1 -0 -0 0" mesh="cha_9_悬挂补强不锈钢精密管_od15_id12_l175_1" material="cha_9_悬挂补强不锈钢精密管_od15_id12_l175_1_material" group="3" mass="0" name="collision_7" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="-0.0707748 0.0138164 0.513043" quat="0.341628 -0.619104 -0.341628 -0.619104" mesh="sus_ref1_悬挂用交滚轴承_rau2005cc0p5_1" material="sus_ref1_悬挂用交滚轴承_rau2005cc0p5_1_material" group="3" mass="0" name="collision_9" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="0.341325 0.0138164 0.0934628" quat="0.5 -0.5 -0.5 -0.5" mesh="cha_13_轴末端锁_1" material="cha_13_轴末端锁_1_material" group="3" mass="0" name="collision_11" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="-0.160775 -0.0126836 0.205963" quat="0 0.707107 0 0.707107" mesh="pla_13_pla中板补强_1" material="pla_13_pla中板补强_1_material" group="3" mass="0" name="collision_13" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="0.0532049 -0.0156836 0.215761" quat="0.473828 -0.117195 -0.847253 -0.209557" mesh="pla_14_6mm碳管x225mm_1" material="pla_14_6mm碳管x225mm_1_material" group="3" mass="0" name="collision_15" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="-0.1568 -0.0126836 0.277533" quat="0 -0.272008 -0 -0.962295" mesh="pla_13_pla中板补强_1" material="pla_13_pla中板补强_1_material" group="3" mass="0" name="collision_17" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="0.0817252 0.0388164 0.215963" quat="0.707107 -0 0 -0.707107" mesh="pla_ref3_m5垫片_1" material="pla_ref3_m5垫片_1_material" group="3" mass="0" name="collision_19" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="-0.115323 0.0588164 0.118915" quat="1 -0 -0.000423691 0" mesh="pla_ref2_m6垫片_1" material="pla_ref2_m6垫片_1_material" group="3" mass="0" name="collision_21" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="-0.320875 0.0138164 0.0934628" quat="0 0 -1 0" mesh="cha_9_悬挂补强不锈钢精密管_od15_id12_l175_1" material="cha_9_悬挂补强不锈钢精密管_od15_id12_l175_1_material" group="3" mass="0" name="collision_23" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="-0.218275 0.0138164 0.193463" quat="1 -0 -0 0" mesh="pla_3_机械臂平台碳纤维稳定支架_1" material="pla_3_机械臂平台碳纤维稳定支架_1_material" group="3" mass="0" name="collision_25" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="0.0342252 -0.00480315 0.104213" quat="0.258819 0.965926 0 -0" mesh="sus_20_底盘后角顶盖_type_2_m_m5螺母版_1" material="sus_20_底盘后角顶盖_type_2_m_m5螺母版_1_material" group="3" mass="0" name="collision_27" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="0.190225 0.0138164 0.145463" quat="0.447214 0 -0.894427 0" mesh="cha_8_中碳管压盖_1" material="cha_8_中碳管压盖_1_material" group="3" mass="0" name="collision_29" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="-0.175775 -0.00480315 0.104213" quat="0.258819 0.965926 -0 0" mesh="sus_20_底盘后角顶盖_type_2_m_m5螺母版_1" material="sus_20_底盘后角顶盖_type_2_m_m5螺母版_1_material" group="3" mass="0" name="collision_31" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="-0.218275 0.0138164 0.193463" quat="0 -0 -0 -1" mesh="pla_1_碳板支架_1" material="pla_1_碳板支架_1_material" group="3" mass="0" name="collision_33" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="-0.109775 0.0138164 0.441463" quat="0 0.894427 0 0.447214" mesh="cha_8_中碳管压盖_1" material="cha_8_中碳管压盖_1_material" group="3" mass="0" name="collision_35" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="0.0767252 0.0163164 0.205963" quat="0 0 -1 0" mesh="pla_6_机械臂平台后支架_1" material="pla_6_机械臂平台后支架_1_material" group="3" mass="0" name="collision_37" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="0.0342252 0.0324359 0.0827128" quat="0.965926 -0.258819 0 -0" mesh="sus_5_底盘后角顶盖_type_1_m_m5_1" material="sus_5_底盘后角顶盖_type_1_m_m5_1_material" group="3" mass="0" name="collision_39" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="-0.331775 0.0138164 0.145463" quat="0.894427 -0 -0.447214 0" mesh="cha_8_中碳管压盖_1" material="cha_8_中碳管压盖_1_material" group="3" mass="0" name="collision_41" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="-0.0812449 -0.0126836 0.400502" quat="0 0.962295 0 -0.272008" mesh="pla_13_pla中板补强_1" material="pla_13_pla中板补强_1_material" group="3" mass="0" name="collision_43" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="-0.0707748 0.0468164 0.123463" quat="0 0 -1 0" mesh="pla_7_机械臂主平台_1" material="pla_7_机械臂主平台_1_material" group="3" mass="0" name="collision_45" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="-0.115323 0.0588164 0.208011" quat="1 -0 -0 0" mesh="pla_ref2_m6垫片_1" material="pla_ref2_m6垫片_1_material" group="3" mass="0" name="collision_47" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="0.0487551 -0.0126836 0.223003" quat="0 0.962295 0 0.272008" mesh="pla_13_pla中板补强_1" material="pla_13_pla中板补强_1_material" group="3" mass="0" name="collision_49" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="-0.223275 -0.0111836 0.115963" quat="0 0.707107 -0.707107 0" mesh="pla_ref3_m5垫片_1" material="pla_ref3_m5垫片_1_material" group="3" mass="0" name="collision_51" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="0.0817252 -0.0111836 0.0709628" quat="0.707107 -0 0 -0.707107" mesh="pla_ref3_m5垫片_1" material="pla_ref3_m5垫片_1_material" group="3" mass="0" name="collision_53" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="-0.214775 0.0138164 0.301463" quat="0.894427 -0 -0.447214 0" mesh="cha_2_碳管_420mm_1" material="cha_2_碳管_420mm_1_material" group="3" mass="0" name="collision_55" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="0.0817252 0.0388164 0.195963" quat="0.707107 -0 0 -0.707107" mesh="pla_ref3_m5垫片_1" material="pla_ref3_m5垫片_1_material" group="3" mass="0" name="collision_57" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="-0.0707748 0.0138164 0.585543" quat="0.707107 -0 0.707107 -0" mesh="cha_11_悬挂补强不锈钢精密管_od15_id12_l90_1" material="cha_11_悬挂补强不锈钢精密管_od15_id12_l90_1_material" group="3" mass="0" name="collision_59" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="-0.112775 0.0138164 0.437463" quat="0.894427 -0 -0.447214 0" mesh="cha_12_悬挂补强不锈钢精密管_od15_id12_l58_1" material="cha_12_悬挂补强不锈钢精密管_od15_id12_l58_1_material" group="3" mass="0" name="collision_61" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="-0.225775 0.0138164 0.0934628" quat="0.707107 0 -0.707107 0" mesh="pla_5_机械臂平台前支架_左_1" material="pla_5_机械臂平台前支架_左_1_material" group="3" mass="0" name="collision_63" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="0.0817252 0.0388164 0.115963" quat="0.707107 -0 0 -0.707107" mesh="pla_ref3_m5垫片_1" material="pla_ref3_m5垫片_1_material" group="3" mass="0" name="collision_65" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="-0.0707748 -0.0096836 0.205963" quat="0 -0 -0 -1" mesh="pla_12_碳纤维中板_1" material="pla_12_碳纤维中板_1_material" group="3" mass="0" name="collision_67" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="0.0767252 0.0138164 0.193463" quat="1 -0 -0 0" mesh="pla_1_碳板支架_1" material="pla_1_碳板支架_1_material" group="3" mass="0" name="collision_69" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="-0.0317748 0.0138164 0.441463" quat="0 -0.447214 0 -0.894427" mesh="cha_8_中碳管压盖_1" material="cha_8_中碳管压盖_1_material" group="3" mass="0" name="collision_71" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="-0.223275 0.0388164 0.115963" quat="0 0.707107 -0.707107 0" mesh="pla_ref3_m5垫片_1" material="pla_ref3_m5垫片_1_material" group="3" mass="0" name="collision_73" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="0.179325 0.0138164 0.0934628" quat="1 -0 -0 0" mesh="cha_6_底盘后角_1" material="cha_6_底盘后角_1_material" group="3" mass="0" name="collision_75" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="-0.331775 0.0138164 0.145463" quat="0 0.894427 0 0.447214" mesh="cha_8_中碳管压盖_1" material="cha_8_中碳管压盖_1_material" group="3" mass="0" name="collision_77" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="-0.150775 -0.0096836 0.253463" quat="0.707107 0 -0.707107 0" mesh="ele_2_nuc_降压板_1" material="ele_2_nuc_降压板_1_material" group="3" mass="0" name="collision_79" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="-0.165775 -0.0156836 0.205963" quat="0.631919 0.317299 0.631919 0.317299" mesh="pla_15_6mm碳管x190mm_1" material="pla_15_6mm碳管x190mm_1_material" group="3" mass="0" name="collision_81" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="0.0152509 -0.0126836 0.277533" quat="0 0.962295 0 0.272008" mesh="pla_13_pla中板补强_1" material="pla_13_pla中板补强_1_material" group="3" mass="0" name="collision_83" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="-0.482875 0.0138164 0.0934628" quat="0.5 -0.5 0.5 0.5" mesh="cha_13_轴末端锁_1" material="cha_13_轴末端锁_1_material" group="3" mass="0" name="collision_85" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="-0.172275 -0.0091836 0.205963" quat="0 1 0 -0" mesh="pla_ref3_m5垫片_1" material="pla_ref3_m5垫片_1_material" group="3" mass="0" name="collision_87" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="0.0767252 0.0138164 0.193463" quat="1 -0 -0 0" mesh="pla_2_碳板支架另一侧_1" material="pla_2_碳板支架另一侧_1_material" group="3" mass="0" name="collision_89" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="-0.0262271 0.0588164 0.118915" quat="1 -0 -0 0" mesh="pla_ref2_m6垫片_1" material="pla_ref2_m6垫片_1_material" group="3" mass="0" name="collision_91" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="-0.218275 0.0138164 0.193463" quat="0 -0 -0 -1" mesh="pla_2_碳板支架另一侧_1" material="pla_2_碳板支架另一侧_1_material" group="3" mass="0" name="collision_93" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="-0.311675 0.0138164 0.172263" quat="0.447214 -0 0.894427 -0" mesh="cha_10_悬挂补强不锈钢精密管_od15_id12_l65_1" material="cha_10_悬挂补强不锈钢精密管_od15_id12_l65_1_material" group="3" mass="0" name="collision_95" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="-0.0707748 -0.0126836 0.205963" quat="0 0.707107 0 0.707107" mesh="pla_13_pla中板补强_1" material="pla_13_pla中板补强_1_material" group="3" mass="0" name="collision_97" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="0.0692252 0.0138164 0.0934628" quat="0.707107 -0 -0.707107 0" mesh="pla_4_机械臂平台前支架_右_1" material="pla_4_机械臂平台前支架_右_1_material" group="3" mass="0" name="collision_99" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="0.179325 0.0138164 0.0934601" quat="1 -0 -0 0" mesh="cha_4_底盘后角顶盖_type_1_1" material="cha_4_底盘后角顶盖_type_1_1_material" group="3" mass="0" name="collision_101" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="0.0817252 0.0388164 0.0709628" quat="0.707107 -0 0 -0.707107" mesh="pla_ref3_m5垫片_1" material="pla_ref3_m5垫片_1_material" group="3" mass="0" name="collision_103" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="0.269325 0.0138164 0.0934601" quat="0 0 0 -1" mesh="cha_5_底盘后角顶盖_type_2_1" material="cha_5_底盘后角顶盖_type_2_1_material" group="3" mass="0" name="collision_105" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="0.0817252 -0.0111836 0.115963" quat="0.707107 -0 0 -0.707107" mesh="pla_ref3_m5垫片_1" material="pla_ref3_m5垫片_1_material" group="3" mass="0" name="collision_107" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="-0.0707748 0.0138164 0.562543" quat="0 -0 0.707107 0.707107" mesh="cha_13_轴末端锁_1" material="cha_13_轴末端锁_1_material" group="3" mass="0" name="collision_109" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="-0.0317748 0.0138164 0.441463" quat="0.447214 0 -0.894427 0" mesh="cha_8_中碳管压盖_1" material="cha_8_中碳管压盖_1_material" group="3" mass="0" name="collision_111" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="-0.320875 0.0138164 0.0934601" quat="0 0 -0 -1" mesh="cha_5_底盘后角顶盖_type_2_1" material="cha_5_底盘后角顶盖_type_2_1_material" group="3" mass="0" name="collision_113" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="-0.0707748 -0.0126836 0.492543" quat="0 -0 -0 -1" mesh="pla_9_中板架后连接件_1" material="pla_9_中板架后连接件_1_material" group="3" mass="0" name="collision_115" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="-0.190305 -0.0126836 0.223003" quat="0 0.962295 0 -0.272008" mesh="pla_13_pla中板补强_1" material="pla_13_pla中板补强_1_material" group="3" mass="0" name="collision_117" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="0.190225 0.0138164 0.145463" quat="0 -0.447214 -0 -0.894427" mesh="cha_8_中碳管压盖_1" material="cha_8_中碳管压盖_1_material" group="3" mass="0" name="collision_119" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="-0.223275 -0.0061836 0.215963" quat="0 0.707107 -0.707107 0" mesh="pla_ref3_m5垫片_1" material="pla_ref3_m5垫片_1_material" group="3" mass="0" name="collision_121" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="-0.223275 -0.0111836 0.0709628" quat="0 0.707107 -0.707107 0" mesh="pla_ref3_m5垫片_1" material="pla_ref3_m5垫片_1_material" group="3" mass="0" name="collision_123" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="0.170125 0.0138164 0.172263" quat="0.894427 -0 0.447214 0" mesh="cha_10_悬挂补强不锈钢精密管_od15_id12_l65_1" material="cha_10_悬挂补强不锈钢精密管_od15_id12_l65_1_material" group="3" mass="0" name="collision_125" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="-0.223275 0.0388164 0.195963" quat="0 0.707107 -0.707107 0" mesh="pla_ref3_m5垫片_1" material="pla_ref3_m5垫片_1_material" group="3" mass="0" name="collision_127" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="-0.0603047 -0.0126836 0.400502" quat="0 0.962295 0 0.272008" mesh="pla_13_pla中板补强_1" material="pla_13_pla中板补强_1_material" group="3" mass="0" name="collision_129" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="0.0817252 -0.0061836 0.195963" quat="0.707107 -0 0 -0.707107" mesh="pla_ref3_m5垫片_1" material="pla_ref3_m5垫片_1_material" group="3" mass="0" name="collision_131" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="0.0307252 -0.0091836 0.205963" quat="0 1 0 -0" mesh="pla_ref3_m5垫片_1" material="pla_ref3_m5垫片_1_material" group="3" mass="0" name="collision_133" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="-0.0287748 0.0138164 0.437463" quat="0.447214 -0 -0.894427 0" mesh="cha_12_悬挂补强不锈钢精密管_od15_id12_l58_1" material="cha_12_悬挂补强不锈钢精密管_od15_id12_l58_1_material" group="3" mass="0" name="collision_135" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="-0.0707748 0.0488164 0.203463" quat="1 -0 -0 0" mesh="pla_8_主平台碳纤维补强_1" material="pla_8_主平台碳纤维补强_1_material" group="3" mass="0" name="collision_137" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="-0.410875 0.0138164 0.0934601" quat="1 -0 -0 0" mesh="cha_4_底盘后角顶盖_type_1_1" material="cha_4_底盘后角顶盖_type_1_1_material" group="3" mass="0" name="collision_139" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="-0.0268005 -0.0126836 0.345973" quat="0 0.962295 0 0.272008" mesh="pla_13_pla中板补强_1" material="pla_13_pla中板补强_1_material" group="3" mass="0" name="collision_141" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="-0.114749 -0.0126836 0.345973" quat="0 -0.272008 0 -0.962295" mesh="pla_13_pla中板补强_1" material="pla_13_pla中板补强_1_material" group="3" mass="0" name="collision_143" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="0.0817252 0.0138164 0.193463" quat="1 -0 -0 0" mesh="pla_3_机械臂平台碳纤维稳定支架_1" material="pla_3_机械臂平台碳纤维稳定支架_1_material" group="3" mass="0" name="collision_145" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="0.0817252 -0.0061836 0.215963" quat="0.707107 -0 0 -0.707107" mesh="pla_ref3_m5垫片_1" material="pla_ref3_m5垫片_1_material" group="3" mass="0" name="collision_147" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="-0.320875 0.0138164 0.0934628" quat="0 0 -0 -1" mesh="cha_6_底盘后角_1" material="cha_6_底盘后角_1_material" group="3" mass="0" name="collision_149" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="-0.0707748 -0.0136836 0.492543" quat="1 -0 -0 0" mesh="pla_11_tpu中板架减震管_1" material="pla_11_tpu中板架减震管_1_material" group="3" mass="0" name="collision_151" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="-0.0707748 0.0138164 0.0934628" quat="1 -0 -0 0" mesh="cha_1_碳管_800mm_3" material="cha_1_碳管_800mm_3_material" group="3" mass="0" name="collision_153" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="-0.218275 0.0163164 0.205963" quat="1 -0 -0 0" mesh="pla_6_机械臂平台后支架_1" material="pla_6_机械臂平台后支架_1_material" group="3" mass="0" name="collision_155" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="0.0307252 -0.0091836 0.205963" quat="1 -0 -0 0" mesh="pla_10_tpu中板架减震球_1" material="pla_10_tpu中板架减震球_1_material" group="3" mass="0" name="collision_157" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="-0.172275 -0.0091836 0.205963" quat="1 -0 -0 0" mesh="pla_10_tpu中板架减震球_1" material="pla_10_tpu中板架减震球_1_material" group="3" mass="0" name="collision_159" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="-0.0262271 0.0588164 0.208011" quat="1 -0 -0 0" mesh="pla_ref2_m6垫片_1" material="pla_ref2_m6垫片_1_material" group="3" mass="0" name="collision_161" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="-0.223275 0.0388164 0.0709628" quat="0 0.707107 -0.707107 0" mesh="pla_ref3_m5垫片_1" material="pla_ref3_m5垫片_1_material" group="3" mass="0" name="collision_163" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="-0.109775 0.0138164 0.441463" quat="0.894427 -0 -0.447214 0" mesh="cha_8_中碳管压盖_1" material="cha_8_中碳管压盖_1_material" group="3" mass="0" name="collision_165" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="-0.223275 -0.0061836 0.195963" quat="0 0.707107 -0.707107 0" mesh="pla_ref3_m5垫片_1" material="pla_ref3_m5垫片_1_material" group="3" mass="0" name="collision_167" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="0.0192252 -0.0126836 0.205963" quat="0 0.707107 0 0.707107" mesh="pla_13_pla中板补强_1" material="pla_13_pla中板补强_1_material" group="3" mass="0" name="collision_169" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="-0.0769661 -0.0156836 0.407466" quat="0.432995 0.225307 0.774239 -0.402873" mesh="pla_14_6mm碳管x225mm_1" material="pla_14_6mm碳管x225mm_1_material" group="3" mass="0" name="collision_171" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="-0.175775 0.0324359 0.0827128" quat="0.965926 -0.258819 -0 0" mesh="sus_5_底盘后角顶盖_type_1_m_m5_1" material="sus_5_底盘后角顶盖_type_1_m_m5_1_material" group="3" mass="0" name="collision_173" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="0.284225 0.0138164 0.0934628" quat="0 0 -1 0" mesh="linkage_2" material="linkage_2_material" group="3" mass="0" name="collision_175" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="-0.425775 0.0138164 0.0934628" quat="1 -0 -0 0" mesh="linkage_2" material="linkage_2_material" group="3" mass="0" name="collision_177" rgba="0.5184 0.6232 0.7200 1.0000" />
+        <geom type="mesh" class="collision" pos="-0.0708348 0.0343164 0.482129" quat="0.5 -0.5 0.5 -0.5" mesh="linkage_1" material="linkage_1_material" group="3" mass="0" name="collision_179" rgba="0.5184 0.6232 0.7200 1.0000" />
         <body name="suspension_front" pos="-0.0708348 0.0138164 0.510463" quat="0 0.707107 -0.707107 0">
           <joint axis="0 0 1" name="suspension_1" type="hinge" />
           <inertial pos="-0.00358434 -1.3994e-07 -0.0295923" mass="0.976788" fullinertia="0.0218821 0.000423551 0.0218674 2.2067e-08 -6.55382e-05 9.682e-09" />
+          <geom type="mesh" class="collision" pos="-0 -0.31 -0.0255" quat="0.5 -0.5 0.5 0.5" mesh="sus_1m_前轮悬挂_偏航角固定_内_4___sus_1_前轮悬挂_偏航角固定_内___chamfer1" material="sus_1m_前轮悬挂_偏航角固定_内_4___sus_1_前轮悬挂_偏航角固定_内___chamfer1_material" group="3" mass="0" name="collision_181" rgba="0.7200 0.6152 0.5184 1.0000" />
+          <geom type="mesh" class="collision" pos="0 0.17 -0.0255" quat="0.5 -0.5 0.5 0.5" mesh="sus_1_前轮悬挂_偏航角固定_内_1" material="sus_1_前轮悬挂_偏航角固定_内_1_material" group="3" mass="0" name="collision_183" rgba="0.7200 0.6152 0.5184 1.0000" />
+          <geom type="mesh" class="collision" pos="0.0215 -0.17 -0.0255" quat="0 -0.707107 -0.707107 -0" mesh="sus_2_前轮悬挂_偏航角固定_外_2" material="sus_2_前轮悬挂_偏航角固定_外_2_material" group="3" mass="0" name="collision_185" rgba="0.7200 0.6152 0.5184 1.0000" />
+          <geom type="mesh" class="collision" pos="-0 -0.05 -0.00425" quat="0.5 0.5 -0.5 -0.5" mesh="sus_5_底盘后角顶盖_type_1_m_m5_1" material="sus_5_底盘后角顶盖_type_1_m_m5_1_material" group="3" mass="0" name="collision_187" rgba="0.7200 0.6152 0.5184 1.0000" />
+          <geom type="mesh" class="collision" pos="-0.0215 0.17 -0.0255" quat="0.707107 -0 0 0.707107" mesh="sus_2_前轮悬挂_偏航角固定_外_2" material="sus_2_前轮悬挂_偏航角固定_外_2_material" group="3" mass="0" name="collision_189" rgba="0.7200 0.6152 0.5184 1.0000" />
+          <geom type="mesh" class="collision" pos="0 0.05 -0.04675" quat="0.5 -0.5 0.5 -0.5" mesh="sus_5_底盘后角顶盖_type_1_m_m5_1" material="sus_5_底盘后角顶盖_type_1_m_m5_1_material" group="3" mass="0" name="collision_191" rgba="0.7200 0.6152 0.5184 1.0000" />
+          <geom type="mesh" class="collision" pos="0.0215 0.17 -0.0255" quat="0 -0.707107 -0.707107 -0" mesh="sus_2_前轮悬挂_偏航角固定_外_2" material="sus_2_前轮悬挂_偏航角固定_外_2_material" group="3" mass="0" name="collision_193" rgba="0.7200 0.6152 0.5184 1.0000" />
+          <geom type="mesh" class="collision" pos="0 0.05 -0.00425" quat="0.5 0.5 0.5 0.5" mesh="sus_5_底盘后角顶盖_type_1_m_m5_1" material="sus_5_底盘后角顶盖_type_1_m_m5_1_material" group="3" mass="0" name="collision_195" rgba="0.7200 0.6152 0.5184 1.0000" />
+          <geom type="mesh" class="collision" pos="0 0 -0.0255" quat="0.707107 0.707107 -0 -0" mesh="sus_9_前轮悬挂_中心悬挂_外_1" material="sus_9_前轮悬挂_中心悬挂_外_1_material" group="3" mass="0" name="collision_197" rgba="0.7200 0.6152 0.5184 1.0000" />
+          <geom type="mesh" class="collision" pos="-0 0 -0.0255" quat="0.707107 0.707107 -0 -0" mesh="sus_8_前轮悬挂_中心悬挂_内_1" material="sus_8_前轮悬挂_中心悬挂_内_1_material" group="3" mass="0" name="collision_199" rgba="0.7200 0.6152 0.5184 1.0000" />
+          <geom type="mesh" class="collision" pos="-0 -0.05 -0.04675" quat="0.5 -0.5 -0.5 0.5" mesh="sus_5_底盘后角顶盖_type_1_m_m5_1" material="sus_5_底盘后角顶盖_type_1_m_m5_1_material" group="3" mass="0" name="collision_201" rgba="0.7200 0.6152 0.5184 1.0000" />
+          <geom type="mesh" class="collision" pos="-0.0215 -0.17 -0.0255" quat="0.707107 -0 0 0.707107" mesh="sus_2_前轮悬挂_偏航角固定_外_2" material="sus_2_前轮悬挂_偏航角固定_外_2_material" group="3" mass="0" name="collision_203" rgba="0.7200 0.6152 0.5184 1.0000" />
+          <geom type="mesh" class="collision" pos="-0 0 -0.0485" quat="0.704295 0.0629915 0.704295 -0.0629915" mesh="sus_ref1_悬挂用交滚轴承_rau2005cc0p5_1" material="sus_ref1_悬挂用交滚轴承_rau2005cc0p5_1_material" group="3" mass="0" name="collision_205" rgba="0.7200 0.6152 0.5184 1.0000" />
+          <geom type="mesh" class="collision" pos="-0 0 -0.0025" quat="0.704295 0.0629915 0.704295 -0.0629915" mesh="sus_ref1_悬挂用交滚轴承_rau2005cc0p5_1" material="sus_ref1_悬挂用交滚轴承_rau2005cc0p5_1_material" group="3" mass="0" name="collision_207" rgba="0.7200 0.6152 0.5184 1.0000" />
+          <geom type="mesh" class="collision" pos="0 0 -0.0255" quat="0.5 0.5 0.5 0.5" mesh="sus_7_前轮悬挂_碳管_1" material="sus_7_前轮悬挂_碳管_1_material" group="3" mass="0" name="collision_209" rgba="0.7200 0.6152 0.5184 1.0000" />
           <body name="freedrive_1" pos="-0.00675 -0.232 -0.0505" quat="0.171835 0.68591 -0.171835 -0.68591">
             <joint axis="0 0 1" name="freedrive_1" type="hinge" />
             <inertial pos="-0.0115336 0.00616709 -0.0402398" mass="0.129099" fullinertia="0.000155682 0.000145839 7.37007e-05 -7.37555e-06 -3.37195e-05 1.80249e-05" />
+            <geom type="mesh" class="collision" pos="0 -0 0" quat="0.707107 -0.707107 -0 0" mesh="sus_ref9_圆锥滚子轴承_1" material="sus_ref9_圆锥滚子轴承_1_material" group="3" mass="0" name="collision_211" rgba="0.7200 0.5184 0.5668 1.0000" />
+            <geom type="mesh" class="collision" pos="-0.0325371 -0.00783573 -0.06525" quat="0.0158614 -0.857598 -0.513987 0.00950626" mesh="sus_ref12_法兰轴承_20_32_7_1" material="sus_ref12_法兰轴承_20_32_7_1_material" group="3" mass="0" name="collision_213" rgba="0.7200 0.5184 0.5668 1.0000" />
+            <geom type="mesh" class="collision" pos="-0 -0 0.03525" quat="0.606517 -0.606517 -0.363506 0.363506" mesh="sus_4_前轮悬挂_偏航角导轴_1" material="sus_4_前轮悬挂_偏航角导轴_1_material" group="3" mass="0" name="collision_215" rgba="0.7200 0.5184 0.5668 1.0000" />
+            <geom type="mesh" class="collision" pos="-0 -0 -0.01375" quat="0.606517 0.606517 0.363506 0.363506" mesh="sus_3_前轮悬挂_轮固定63mm_1" material="sus_3_前轮悬挂_轮固定63mm_1_material" group="3" mass="0" name="collision_217" rgba="0.7200 0.5184 0.5668 1.0000" />
+            <geom type="mesh" class="collision" pos="0 -0 0.03275" quat="0.586058 -0.395646 0.586058 0.395646" mesh="sus_ref1_悬挂用交滚轴承_rau2005cc0p5_1" material="sus_ref1_悬挂用交滚轴承_rau2005cc0p5_1_material" group="3" mass="0" name="collision_219" rgba="0.7200 0.5184 0.5668 1.0000" />
+            <geom type="mesh" class="collision" pos="-0.0115574 0.0314084 -0.06525" quat="0.501084 0.114837 -0.191608 -0.83607" mesh="sus_ref12_法兰轴承_20_32_7_1" material="sus_ref12_法兰轴承_20_32_7_1_material" group="3" mass="0" name="collision_221" rgba="0.7200 0.5184 0.5668 1.0000" />
             <body name="linkage_wheel_5" pos="-0.0341872 -0.0109224 -0.06525" quat="0.30398 0.0329142 0.70634 0.638433">
               <joint axis="0 0 1" name="wheel_5" type="hinge" />
               <inertial pos="0.000150415 -0.000269359 0.0264423" mass="0.0334717" fullinertia="1.52368e-05 1.51793e-05 2.3974e-06 4.5493e-08 4.744e-09 -8.496e-09" />
-              <geom name="body_04_linkage_wheel_5" type="mesh" mesh="body_04_linkage_wheel_5" group="2" mass="0" rgba="0.690196 0.658824 0.639216 1.0" contype="1" conaffinity="1" friction="1.0 0.005 0.0001" />
+              <geom type="mesh" class="collision" pos="0.000366795 0.000368686 0.0415" quat="0.684305 -0.684305 -0.178119 0.178119" mesh="sus_ref2_磁铁轮_63mm_1" material="wheel_checker_material" group="3" mass="0" name="collision_223" rgba="1 1 1 1" />
+              <geom type="mesh" class="collision" pos="0 0 -0.005" quat="1 -0 -0 0" mesh="sus_22_前悬架轮轴盖通孔版_1" material="wheel_checker_material" group="3" mass="0" name="collision_225" rgba="1 1 1 1" />
+              <geom type="mesh" class="collision" pos="0 0 0.0575" quat="0.425652 -0.564641 0.425652 0.564641" mesh="sus_23_前轮轴盖预紧器_1" material="wheel_checker_material" group="3" mass="0" name="collision_227" rgba="1 1 1 1" />
+              <geom type="mesh" class="collision" pos="0 0 0.0565" quat="0 -0.798524 0.601963 0" mesh="sus_21_前悬架轮轴盖螺纹版_1" material="wheel_checker_material" group="3" mass="0" name="collision_229" rgba="1 1 1 1" />
+              <geom type="mesh" class="collision" pos="0 0 0.0095" quat="0.251898 -0 0 -0.967754" mesh="sus_6_前轮悬挂_轮轴管_63mm_4" material="wheel_checker_material" group="3" mass="0" name="collision_231" rgba="1 1 1 1" />
+              <geom name="body_04_linkage_wheel_5" type="mesh" mesh="body_04_linkage_wheel_5" group="2" mass="0" rgba="1 1 1 1" contype="0" conaffinity="0" material="wheel_checker_material" />
             </body>
-            <geom name="body_03_freedrive_1" type="mesh" mesh="body_03_freedrive_1" group="2" mass="0" rgba="0.792157 0.819608 0.933333 1.0" contype="1" conaffinity="1" friction="1.0 0.005 0.0001" />
+            <geom name="body_03_freedrive_1" type="mesh" mesh="body_03_freedrive_1" group="2" mass="0" rgba="0.7200 0.5184 0.5668 1.0000" contype="0" conaffinity="0" />
           </body>
           <body name="freedrive_2" pos="-0.00675 0.232 -0.0505" quat="0.0852043 -0.701955 -0.0852043 0.701955">
             <joint axis="0 0 1" name="freedrive_2" type="hinge" />
             <inertial pos="-0.0126993 -0.00312784 -0.0402398" mass="0.129099" fullinertia="0.000158615 0.000142907 7.37007e-05 4.11578e-06 -3.71242e-05 -9.14844e-06" />
+            <geom type="mesh" class="collision" pos="-0 -0 0.03275" quat="0.383963 -0.593778 -0.383963 -0.593778" mesh="sus_ref1_悬挂用交滚轴承_rau2005cc0p5_1" material="sus_ref1_悬挂用交滚轴承_rau2005cc0p5_1_material" group="3" mass="0" name="collision_233" rgba="0.5184 0.7200 0.6716 1.0000" />
+            <geom type="mesh" class="collision" pos="-0.0295971 0.0156229 -0.06525" quat="0.784695 0.062233 -0.0487605 -0.61482" mesh="sus_ref12_法兰轴承_20_32_7_1" material="sus_ref12_法兰轴承_20_32_7_1_material" group="3" mass="0" name="collision_235" rgba="0.5184 0.7200 0.6716 1.0000" />
+            <geom type="mesh" class="collision" pos="0 -0 -0" quat="0.707107 -0.707107 0 -0" mesh="sus_ref9_圆锥滚子轴承_1" material="sus_ref9_圆锥滚子轴承_1_material" group="3" mass="0" name="collision_237" rgba="0.5184 0.7200 0.6716 1.0000" />
+            <geom type="mesh" class="collision" pos="0 0 -0.01375" quat="0.436108 0.436108 0.556605 0.556605" mesh="sus_3_前轮悬挂_轮固定63mm_1" material="sus_3_前轮悬挂_轮固定63mm_1_material" group="3" mass="0" name="collision_239" rgba="0.5184 0.7200 0.6716 1.0000" />
+            <geom type="mesh" class="collision" pos="-0.018951 -0.0275848 -0.06525" quat="0.0382532 0.615563 0.785643 0.0488226" mesh="sus_ref12_法兰轴承_20_32_7_1" material="sus_ref12_法兰轴承_20_32_7_1_material" group="3" mass="0" name="collision_241" rgba="0.5184 0.7200 0.6716 1.0000" />
+            <geom type="mesh" class="collision" pos="-0 -0 0.03525" quat="0.436108 -0.436108 -0.556605 0.556605" mesh="sus_4_前轮悬挂_偏航角导轴_1" material="sus_4_前轮悬挂_偏航角导轴_1_material" group="3" mass="0" name="collision_243" rgba="0.5184 0.7200 0.6716 1.0000" />
             <body name="linkage_wheel_6" pos="-0.0181136 -0.0309832 -0.06525" quat="0.0415023 0.128578 -0.695318 -0.705888">
               <joint axis="0 0 1" name="wheel_6" type="hinge" />
               <inertial pos="0.000264249 0.000159228 0.0264423" mass="0.0334717" fullinertia="1.51822e-05 1.52339e-05 2.3974e-06 -4.6869e-08 8.334e-09 5.022e-09" />
-              <geom name="body_06_linkage_wheel_6" type="mesh" mesh="body_06_linkage_wheel_6" group="2" mass="0" rgba="0.690196 0.658824 0.639216 1.0" contype="1" conaffinity="1" friction="1.0 0.005 0.0001" />
+              <geom type="mesh" class="collision" pos="-0.000362144 0.00036555 0.00949999" quat="0.61565 0.61565 -0.347814 -0.347814" mesh="sus_ref2_磁铁轮_63mm_1" material="wheel_checker_material" group="3" mass="0" name="collision_245" rgba="1 1 1 1" />
+              <geom type="mesh" class="collision" pos="0 -0 0.0575" quat="0.705503 -0.0475923 0.705503 0.0475923" mesh="sus_23_前轮轴盖预紧器_1" material="wheel_checker_material" group="3" mass="0" name="collision_247" rgba="1 1 1 1" />
+              <geom type="mesh" class="collision" pos="0 -0 -0.005" quat="1 0 0 0" mesh="sus_22_前悬架轮轴盖通孔版_1" material="wheel_checker_material" group="3" mass="0" name="collision_249" rgba="1 1 1 1" />
+              <geom type="mesh" class="collision" pos="0 -0 0.0565" quat="0 0.0673056 -0.997732 -0" mesh="sus_21_前悬架轮轴盖螺纹版_1" material="wheel_checker_material" group="3" mass="0" name="collision_251" rgba="1 1 1 1" />
+              <geom type="mesh" class="collision" pos="2.617e-09 9.488e-09 0.00949999" quat="0.870661 -0 0 -0.491884" mesh="sus_6_前轮悬挂_轮轴管_63mm_4" material="wheel_checker_material" group="3" mass="0" name="collision_253" rgba="1 1 1 1" />
+              <geom name="body_06_linkage_wheel_6" type="mesh" mesh="body_06_linkage_wheel_6" group="2" mass="0" rgba="1 1 1 1" contype="0" conaffinity="0" material="wheel_checker_material" />
             </body>
-            <geom name="body_05_freedrive_2" type="mesh" mesh="body_05_freedrive_2" group="2" mass="0" rgba="0.776471 0.756863 0.737255 1.0" contype="1" conaffinity="1" friction="1.0 0.005 0.0001" />
+            <geom name="body_05_freedrive_2" type="mesh" mesh="body_05_freedrive_2" group="2" mass="0" rgba="0.5184 0.7200 0.6716 1.0000" contype="0" conaffinity="0" />
           </body>
-          <geom name="body_02_suspension_front" type="mesh" mesh="body_02_suspension_front" group="2" mass="0" rgba="0.898039 0.917647 0.929412 1.0" contype="1" conaffinity="1" friction="1.0 0.005 0.0001" />
+          <geom name="body_02_suspension_front" type="mesh" mesh="body_02_suspension_front" group="2" mass="0" rgba="0.7200 0.6152 0.5184 1.0000" contype="0" conaffinity="0" />
         </body>
         <body name="suspension_rear_1" pos="0.285225 0.0138164 0.0934628" quat="0.5 -0.5 -0.5 0.5">
           <joint axis="0 0 1" name="suspension_2" type="hinge" />
           <inertial pos="-0.0335596 -1.37023e-07 -0.0351591" mass="0.9487" fullinertia="0.0304603 0.000547182 0.0306866 4.7e-09 -3.17479e-05 1.8742e-08" />
+          <geom type="mesh" class="collision" pos="-0.0644414 -0.249233 -0.017" quat="0.0201778 -0.0201778 0.706819 -0.706819" mesh="sus_ref11_4_6销子_1" material="sus_ref11_4_6销子_1_material" group="3" mass="0" name="collision_255" rgba="0.5345 0.7200 0.5184 1.0000" />
+          <geom type="mesh" class="collision" pos="-0.0439615 -0.258591 -0.017" quat="0.622212 -0.622212 0.335935 -0.335935" mesh="sus_ref11_4_6销子_1" material="sus_ref11_4_6销子_1_material" group="3" mass="0" name="collision_257" rgba="0.5345 0.7200 0.5184 1.0000" />
+          <geom type="mesh" class="collision" pos="-0.0460971 -0.236176 -0.017" quat="0.602034 -0.602034 -0.370884 0.370884" mesh="sus_ref11_4_6销子_1" material="sus_ref11_4_6销子_1_material" group="3" mass="0" name="collision_259" rgba="0.5345 0.7200 0.5184 1.0000" />
+          <geom type="mesh" class="collision" pos="-0.0515 -0.248 -0.06" quat="0.268233 0.268233 -0.654256 -0.654256" mesh="sus_ref10_垫圈20_30_3_1" material="sus_ref10_垫圈20_30_3_1_material" group="3" mass="0" name="collision_261" rgba="0.5345 0.7200 0.5184 1.0000" />
+          <geom type="mesh" class="collision" pos="-0.0515 -0.248 -0.0525" quat="0.374316 0.599906 0.374316 -0.599906" mesh="sus_ref1_悬挂用交滚轴承_rau2005cc0p5_1" material="sus_ref1_悬挂用交滚轴承_rau2005cc0p5_1_material" group="3" mass="0" name="collision_263" rgba="0.5345 0.7200 0.5184 1.0000" />
+          <geom type="mesh" class="collision" pos="-0.0515 -0.248 -0.055" quat="0.542999 -0.542999 -0.452937 0.452937" mesh="sus_ref7_垫圈20_25_2_1" material="sus_ref7_垫圈20_25_2_1_material" group="3" mass="0" name="collision_265" rgba="0.5345 0.7200 0.5184 1.0000" />
+          <geom type="mesh" class="collision" pos="-0.0185 -0.21 -0.02" quat="0.5 0.5 0.5 -0.5" mesh="sus_18m_电机架_80mm_1___sus_18_电机架_80mm___chamfer2" material="sus_18m_电机架_80mm_1___sus_18_电机架_80mm___chamfer2_material" group="3" mass="0" name="collision_267" rgba="0.5345 0.7200 0.5184 1.0000" />
+          <geom type="mesh" class="collision" pos="-0.0451727 0.259356 -0.023" quat="0.380923 0.380923 -0.595733 -0.595733" mesh="sus_ref11_4_6销子_1" material="sus_ref11_4_6销子_1_material" group="3" mass="0" name="collision_269" rgba="0.5345 0.7200 0.5184 1.0000" />
+          <geom type="mesh" class="collision" pos="-0.0515 0.248 -0.055" quat="0.45398 -0.45398 -0.542127 0.542127" mesh="sus_ref7_垫圈20_25_2_1" material="sus_ref7_垫圈20_25_2_1_material" group="3" mass="0" name="collision_271" rgba="0.5345 0.7200 0.5184 1.0000" />
+          <geom type="mesh" class="collision" pos="-0.0185 0.21 -0.02" quat="0.5 0.5 0.5 -0.5" mesh="sus_18_电机架_80mm_1" material="sus_18_电机架_80mm_1_material" group="3" mass="0" name="collision_273" rgba="0.5345 0.7200 0.5184 1.0000" />
+          <geom type="mesh" class="collision" pos="-0.0448288 0.236842 -0.023" quat="0.325458 0.325458 0.627756 0.627756" mesh="sus_ref11_4_6销子_1" material="sus_ref11_4_6销子_1_material" group="3" mass="0" name="collision_275" rgba="0.5345 0.7200 0.5184 1.0000" />
+          <geom type="mesh" class="collision" pos="-0.0515 0.248 -0.057" quat="0.378063 -0.378063 -0.597552 0.597552" mesh="sus_ref10_垫圈20_30_3_1" material="sus_ref10_垫圈20_30_3_1_material" group="3" mass="0" name="collision_277" rgba="0.5345 0.7200 0.5184 1.0000" />
+          <geom type="mesh" class="collision" pos="-0.0644985 0.247801 -0.023" quat="0.706381 0.706381 0.0320231 0.0320231" mesh="sus_ref11_4_6销子_1" material="sus_ref11_4_6销子_1_material" group="3" mass="0" name="collision_279" rgba="0.5345 0.7200 0.5184 1.0000" />
+          <geom type="mesh" class="collision" pos="-0.0515 0.248 -0.0525" quat="0.475495 -0.523359 -0.475495 -0.523359" mesh="sus_ref1_悬挂用交滚轴承_rau2005cc0p5_1" material="sus_ref1_悬挂用交滚轴承_rau2005cc0p5_1_material" group="3" mass="0" name="collision_281" rgba="0.5345 0.7200 0.5184 1.0000" />
+          <geom type="mesh" class="collision" pos="0.0185 0 -0.017" quat="0.5 0.5 0.5 -0.5" mesh="sus_17_铁丝压片_1" material="sus_17_铁丝压片_1_material" group="3" mass="0" name="collision_283" rgba="0.5345 0.7200 0.5184 1.0000" />
+          <geom type="mesh" class="collision" pos="-0.0335 0 -0.035" quat="1 0 -0 0" mesh="sus_10_细碳管_600mm_1" material="sus_10_细碳管_600mm_1_material" group="3" mass="0" name="collision_285" rgba="0.5345 0.7200 0.5184 1.0000" />
+          <geom type="mesh" class="collision" pos="-0.0335 0.164 -0.035" quat="0 -0.707107 -0.707107 -0" mesh="sus_15_后悬挂末端连接_1" material="sus_15_后悬挂末端连接_1_material" group="3" mass="0" name="collision_287" rgba="0.5345 0.7200 0.5184 1.0000" />
+          <geom type="mesh" class="collision" pos="-0 0 -0.0525" quat="0.681969 0.186863 0.681969 -0.186863" mesh="sus_ref1_悬挂用交滚轴承_rau2005cc0p5_1" material="sus_ref1_悬挂用交滚轴承_rau2005cc0p5_1_material" group="3" mass="0" name="collision_289" rgba="0.5345 0.7200 0.5184 1.0000" />
+          <geom type="mesh" class="collision" pos="-0.0462298 0 -0.0476739" quat="0.270598 0.653281 -0.653281 -0.270598" mesh="sus_12_后悬挂压槽_1" material="sus_12_后悬挂压槽_1_material" group="3" mass="0" name="collision_291" rgba="0.5345 0.7200 0.5184 1.0000" />
+          <geom type="mesh" class="collision" pos="-0.0462298 0 -0.0222728" quat="0.653281 0.270598 -0.270598 -0.653281" mesh="sus_12_后悬挂压槽_1" material="sus_12_后悬挂压槽_1_material" group="3" mass="0" name="collision_293" rgba="0.5345 0.7200 0.5184 1.0000" />
+          <geom type="mesh" class="collision" pos="0.0043 0 -0.035" quat="0 -0.707107 -0.707107 -0" mesh="sus_ref6_补强铁丝_1" material="sus_ref6_补强铁丝_1_material" group="3" mass="0" name="collision_295" rgba="0.5345 0.7200 0.5184 1.0000" />
+          <geom type="mesh" class="collision" pos="0 -0 0" quat="0.5 0.5 0.5 -0.5" mesh="sus_11_后悬架主轴_1" material="sus_11_后悬架主轴_1_material" group="3" mass="0" name="collision_297" rgba="0.5345 0.7200 0.5184 1.0000" />
+          <geom type="mesh" class="collision" pos="-0.0335 0.198 -0.035" quat="0 -0.707107 0.707107 0" mesh="sus_13_后悬挂末端束缚_1" material="sus_13_后悬挂末端束缚_1_material" group="3" mass="0" name="collision_299" rgba="0.5345 0.7200 0.5184 1.0000" />
+          <geom type="mesh" class="collision" pos="-0.0335 0 -0.0529468" quat="0 -0.707107 0.707107 0" mesh="sus_12_后悬挂压槽_1" material="sus_12_后悬挂压槽_1_material" group="3" mass="0" name="collision_301" rgba="0.5345 0.7200 0.5184 1.0000" />
+          <geom type="mesh" class="collision" pos="-0.0335 -0.164 -0.035" quat="0.707107 0 0 -0.707107" mesh="sus_15_后悬挂末端连接_1" material="sus_15_后悬挂末端连接_1_material" group="3" mass="0" name="collision_303" rgba="0.5345 0.7200 0.5184 1.0000" />
+          <geom type="mesh" class="collision" pos="-0.0335 -0.198 -0.035" quat="0.707107 0 -0 0.707107" mesh="sus_13_后悬挂末端束缚_1" material="sus_13_后悬挂末端束缚_1_material" group="3" mass="0" name="collision_305" rgba="0.5345 0.7200 0.5184 1.0000" />
+          <geom type="mesh" class="collision" pos="-0.0335 0 -0.017" quat="0.707107 0 0 -0.707107" mesh="sus_14_后悬挂压槽_螺纹版_1" material="sus_14_后悬挂压槽_螺纹版_1_material" group="3" mass="0" name="collision_307" rgba="0.5345 0.7200 0.5184 1.0000" />
+          <geom type="mesh" class="collision" pos="0 0 -0.0025" quat="0.623479 -0.333578 -0.623479 -0.333578" mesh="sus_ref1_悬挂用交滚轴承_rau2005cc0p5_1" material="sus_ref1_悬挂用交滚轴承_rau2005cc0p5_1_material" group="3" mass="0" name="collision_309" rgba="0.5345 0.7200 0.5184 1.0000" />
+          <geom type="mesh" class="collision" pos="-0.0515 -0.248 0.0405" quat="0.353553 -0.353553 0.612372 -0.612372" mesh="sus_ref4_电机输入端_1" material="sus_ref4_电机输入端_1_material" group="3" mass="0" name="collision_311" rgba="0.5345 0.7200 0.5184 1.0000" />
+          <geom type="mesh" class="collision" pos="-0.0515 -0.248 0.0405" quat="0.706309 -0.706309 -0.0335712 0.0335712" mesh="sus_ref5_电机输出端_1" material="sus_ref5_电机输出端_1_material" group="3" mass="0" name="collision_313" rgba="0.5345 0.7200 0.5184 1.0000" />
+          <geom type="mesh" class="collision" pos="-0.0515 0.248 0.0405" quat="0.683013 -0.683013 0.183013 -0.183013" mesh="sus_ref4_电机输入端_1" material="sus_ref4_电机输入端_1_material" group="3" mass="0" name="collision_315" rgba="0.5345 0.7200 0.5184 1.0000" />
+          <geom type="mesh" class="collision" pos="-0.0515 0.248 0.0405" quat="0.348867 -0.348867 -0.615054 0.615054" mesh="sus_ref5_电机输出端_1" material="sus_ref5_电机输出端_1_material" group="3" mass="0" name="collision_317" rgba="0.5345 0.7200 0.5184 1.0000" />
           <body name="linkage_wheel_1" pos="-0.0515 -0.248 -0.02" quat="0.985094 -0 -0 0.172018">
             <joint axis="0 0 1" name="wheel_1" type="hinge" />
             <inertial pos="0 0 -0.00985793" mass="0.0272141" fullinertia="3.34248e-06 3.29096e-06 2.74034e-06 0 0 -0" />
-            <geom name="body_08_linkage_wheel_1" type="mesh" mesh="body_08_linkage_wheel_1" group="2" mass="0" rgba="0.792157 0.819608 0.933333 1.0" contype="1" conaffinity="1" friction="1.0 0.005 0.0001" />
+            <geom type="mesh" class="collision" pos="0 -0 -0.084" quat="0 -1 0 -0" mesh="sus_19_磁铁轮架_1" material="wheel_checker_material" group="3" mass="0" name="collision_319" rgba="1 1 1 1" />
+            <geom type="mesh" class="collision" pos="0 0 0" quat="0.5 -0.5 -0.5 -0.5" mesh="sus_16_电机法兰轴_1" material="wheel_checker_material" group="3" mass="0" name="collision_321" rgba="1 1 1 1" />
+            <geom type="mesh" class="collision" pos="-0 0 -0.08" quat="0 0 0.707107 0.707107" mesh="wheel_4" material="wheel_checker_material" group="3" mass="0" name="collision_323" rgba="1 1 1 1" />
+            <geom name="body_08_linkage_wheel_1" type="mesh" mesh="body_08_linkage_wheel_1" group="2" mass="0" rgba="1 1 1 1" contype="0" conaffinity="0" material="wheel_checker_material" />
           </body>
           <body name="linkage_wheel_2" pos="-0.0515 0.248 -0.02" quat="0.0771407 0 0 -0.99702">
             <joint axis="0 0 1" name="wheel_2" type="hinge" />
             <inertial pos="-0 0 -0.00985793" mass="0.0272141" fullinertia="3.34248e-06 3.29096e-06 2.74034e-06 0 0 0" />
-            <geom name="body_09_linkage_wheel_2" type="mesh" mesh="body_09_linkage_wheel_2" group="2" mass="0" rgba="0.898039 0.917647 0.929412 1.0" contype="1" conaffinity="1" friction="1.0 0.005 0.0001" />
+            <geom type="mesh" class="collision" pos="-0 0 0" quat="0.5 -0.5 -0.5 -0.5" mesh="sus_16_电机法兰轴_1" material="wheel_checker_material" group="3" mass="0" name="collision_325" rgba="1 1 1 1" />
+            <geom type="mesh" class="collision" pos="-0 0 -0.084" quat="0 -1 -0 -0" mesh="sus_19_磁铁轮架_1" material="wheel_checker_material" group="3" mass="0" name="collision_327" rgba="1 1 1 1" />
+            <geom type="mesh" class="collision" pos="-0 0 -0.0401" quat="0.707107 -0.707107 -0 -0" mesh="wheel_4" material="wheel_checker_material" group="3" mass="0" name="collision_329" rgba="1 1 1 1" />
+            <geom name="body_09_linkage_wheel_2" type="mesh" mesh="body_09_linkage_wheel_2" group="2" mass="0" rgba="1 1 1 1" contype="0" conaffinity="0" material="wheel_checker_material" />
           </body>
-          <geom name="body_07_suspension_rear_1" type="mesh" mesh="body_07_suspension_rear_1" group="2" mass="0" rgba="0.898039 0.917647 0.929412 1.0" contype="1" conaffinity="1" friction="1.0 0.005 0.0001" />
+          <geom name="body_07_suspension_rear_1" type="mesh" mesh="body_07_suspension_rear_1" group="2" mass="0" rgba="0.5345 0.7200 0.5184 1.0000" contype="0" conaffinity="0" />
         </body>
         <body name="suspension_rear_2" pos="-0.426775 0.0138164 0.0934628" quat="0.5 0.5 0.5 0.5">
           <joint axis="0 0 1" name="suspension_3" type="hinge" />
           <inertial pos="-0.0335596 1.37023e-07 -0.0215615" mass="0.9487" fullinertia="0.030458 0.000544893 0.0306866 -4.7e-09 2.46276e-06 1.8518e-08" />
+          <geom type="mesh" class="collision" pos="-0.0515 -0.248 -0.04" quat="0.517152 -0.517152 -0.482238 0.482238" mesh="sus_ref7_垫圈20_25_2_1" material="sus_ref7_垫圈20_25_2_1_material" group="3" mass="0" name="collision_331" rgba="0.6313 0.5184 0.7200 1.0000" />
+          <geom type="mesh" class="collision" pos="-0.0515 -0.248 -0.0375" quat="0.406879 0.578316 0.406879 -0.578316" mesh="sus_ref1_悬挂用交滚轴承_rau2005cc0p5_1" material="sus_ref1_悬挂用交滚轴承_rau2005cc0p5_1_material" group="3" mass="0" name="collision_333" rgba="0.6313 0.5184 0.7200 1.0000" />
+          <geom type="mesh" class="collision" pos="-0.0613493 -0.239515 -0.002" quat="0.58063 -0.58063 -0.40357 0.40357" mesh="sus_ref11_4_6销子_1" material="sus_ref11_4_6销子_1_material" group="3" mass="0" name="collision_335" rgba="0.6313 0.5184 0.7200 1.0000" />
+          <geom type="mesh" class="collision" pos="-0.0539233 -0.260772 -0.002" quat="0.0591873 -0.0591873 0.704625 -0.704625" mesh="sus_ref11_4_6销子_1" material="sus_ref11_4_6销子_1_material" group="3" mass="0" name="collision_337" rgba="0.6313 0.5184 0.7200 1.0000" />
+          <geom type="mesh" class="collision" pos="-0.0185 -0.21 -0.005" quat="0.5 0.5 0.5 -0.5" mesh="sus_18m_电机架_80mm_1___sus_18_电机架_80mm___chamfer2" material="sus_18m_电机架_80mm_1___sus_18_电机架_80mm___chamfer2_material" group="3" mass="0" name="collision_339" rgba="0.6313 0.5184 0.7200 1.0000" />
+          <geom type="mesh" class="collision" pos="-0.0392273 -0.243713 -0.002" quat="0.639817 -0.639817 0.301055 -0.301055" mesh="sus_ref11_4_6销子_1" material="sus_ref11_4_6销子_1_material" group="3" mass="0" name="collision_341" rgba="0.6313 0.5184 0.7200 1.0000" />
+          <geom type="mesh" class="collision" pos="-0.0515 -0.248 -0.045" quat="0.303961 0.303961 -0.638442 -0.638442" mesh="sus_ref10_垫圈20_30_3_1" material="sus_ref10_垫圈20_30_3_1_material" group="3" mass="0" name="collision_343" rgba="0.6313 0.5184 0.7200 1.0000" />
+          <geom type="mesh" class="collision" pos="-0.0515 0.248 -0.0375" quat="0.517023 -0.482377 -0.517023 -0.482377" mesh="sus_ref1_悬挂用交滚轴承_rau2005cc0p5_1" material="sus_ref1_悬挂用交滚轴承_rau2005cc0p5_1_material" group="3" mass="0" name="collision_345" rgba="0.6313 0.5184 0.7200 1.0000" />
+          <geom type="mesh" class="collision" pos="-0.0642892 0.245668 -0.008" quat="0.701337 0.701337 0.0901494 0.0901494" mesh="sus_ref11_4_6销子_1" material="sus_ref11_4_6销子_1_material" group="3" mass="0" name="collision_347" rgba="0.6313 0.5184 0.7200 1.0000" />
+          <geom type="mesh" class="collision" pos="-0.0515 0.248 -0.042" quat="0.327513 -0.327513 -0.626686 0.626686" mesh="sus_ref10_垫圈20_30_3_1" material="sus_ref10_垫圈20_30_3_1_material" group="3" mass="0" name="collision_349" rgba="0.6313 0.5184 0.7200 1.0000" />
+          <geom type="mesh" class="collision" pos="-0.0185 0.21 -0.005" quat="0.5 0.5 0.5 -0.5" mesh="sus_18_电机架_80mm_1" material="sus_18_电机架_80mm_1_material" group="3" mass="0" name="collision_351" rgba="0.6313 0.5184 0.7200 1.0000" />
+          <geom type="mesh" class="collision" pos="-0.0471248 0.260242 -0.008" quat="0.42874 0.42874 -0.562301 -0.562301" mesh="sus_ref11_4_6销子_1" material="sus_ref11_4_6销子_1_material" group="3" mass="0" name="collision_353" rgba="0.6313 0.5184 0.7200 1.0000" />
+          <geom type="mesh" class="collision" pos="-0.043086 0.23809 -0.008" quat="0.272597 0.272597 0.65245 0.65245" mesh="sus_ref11_4_6销子_1" material="sus_ref11_4_6销子_1_material" group="3" mass="0" name="collision_355" rgba="0.6313 0.5184 0.7200 1.0000" />
+          <geom type="mesh" class="collision" pos="-0.0515 0.248 -0.04" quat="0.407741 -0.407741 -0.577709 0.577709" mesh="sus_ref7_垫圈20_25_2_1" material="sus_ref7_垫圈20_25_2_1_material" group="3" mass="0" name="collision_357" rgba="0.6313 0.5184 0.7200 1.0000" />
+          <geom type="mesh" class="collision" pos="0.0185 0 -0.038" quat="0.5 -0.5 -0.5 -0.5" mesh="sus_17_铁丝压片_1" material="sus_17_铁丝压片_1_material" group="3" mass="0" name="collision_359" rgba="0.6313 0.5184 0.7200 1.0000" />
+          <geom type="mesh" class="collision" pos="-0.0335 0 -0.02" quat="0 -1 0 0" mesh="sus_10_细碳管_600mm_1" material="sus_10_细碳管_600mm_1_material" group="3" mass="0" name="collision_361" rgba="0.6313 0.5184 0.7200 1.0000" />
+          <geom type="mesh" class="collision" pos="-0.0335 -0.164 -0.02" quat="0.707107 0 0 -0.707107" mesh="sus_15_后悬挂末端连接_1" material="sus_15_后悬挂末端连接_1_material" group="3" mass="0" name="collision_363" rgba="0.6313 0.5184 0.7200 1.0000" />
+          <geom type="mesh" class="collision" pos="-0 0 -0.0025" quat="0.186863 -0.681969 -0.186863 -0.681969" mesh="sus_ref1_悬挂用交滚轴承_rau2005cc0p5_1" material="sus_ref1_悬挂用交滚轴承_rau2005cc0p5_1_material" group="3" mass="0" name="collision_365" rgba="0.6313 0.5184 0.7200 1.0000" />
+          <geom type="mesh" class="collision" pos="-0.0462298 0 -0.00732609" quat="0.653281 -0.270598 -0.270598 0.653281" mesh="sus_12_后悬挂压槽_1" material="sus_12_后悬挂压槽_1_material" group="3" mass="0" name="collision_367" rgba="0.6313 0.5184 0.7200 1.0000" />
+          <geom type="mesh" class="collision" pos="-0.0462298 0 -0.0327272" quat="0.270598 -0.653281 -0.653281 0.270598" mesh="sus_12_后悬挂压槽_1" material="sus_12_后悬挂压槽_1_material" group="3" mass="0" name="collision_369" rgba="0.6313 0.5184 0.7200 1.0000" />
+          <geom type="mesh" class="collision" pos="0.0043 0 -0.02" quat="0.707107 0 0 -0.707107" mesh="sus_ref6_补强铁丝_1" material="sus_ref6_补强铁丝_1_material" group="3" mass="0" name="collision_371" rgba="0.6313 0.5184 0.7200 1.0000" />
+          <geom type="mesh" class="collision" pos="-0 0 -0.055" quat="0.5 -0.5 -0.5 -0.5" mesh="sus_11_后悬架主轴_1" material="sus_11_后悬架主轴_1_material" group="3" mass="0" name="collision_373" rgba="0.6313 0.5184 0.7200 1.0000" />
+          <geom type="mesh" class="collision" pos="-0.0335 -0.198 -0.02" quat="0.707107 0 -0 0.707107" mesh="sus_13_后悬挂末端束缚_1" material="sus_13_后悬挂末端束缚_1_material" group="3" mass="0" name="collision_375" rgba="0.6313 0.5184 0.7200 1.0000" />
+          <geom type="mesh" class="collision" pos="-0.0335 -0 -0.00205325" quat="0.707107 0 -0 0.707107" mesh="sus_12_后悬挂压槽_1" material="sus_12_后悬挂压槽_1_material" group="3" mass="0" name="collision_377" rgba="0.6313 0.5184 0.7200 1.0000" />
+          <geom type="mesh" class="collision" pos="-0.0335 0.164 -0.02" quat="0 -0.707107 -0.707107 -0" mesh="sus_15_后悬挂末端连接_1" material="sus_15_后悬挂末端连接_1_material" group="3" mass="0" name="collision_379" rgba="0.6313 0.5184 0.7200 1.0000" />
+          <geom type="mesh" class="collision" pos="-0.0335 0.198 -0.02" quat="0 -0.707107 0.707107 0" mesh="sus_13_后悬挂末端束缚_1" material="sus_13_后悬挂末端束缚_1_material" group="3" mass="0" name="collision_381" rgba="0.6313 0.5184 0.7200 1.0000" />
+          <geom type="mesh" class="collision" pos="-0.0335 0 -0.038" quat="0 -0.707107 -0.707107 -0" mesh="sus_14_后悬挂压槽_螺纹版_1" material="sus_14_后悬挂压槽_螺纹版_1_material" group="3" mass="0" name="collision_383" rgba="0.6313 0.5184 0.7200 1.0000" />
+          <geom type="mesh" class="collision" pos="-0 0 -0.0525" quat="0.333578 0.623479 0.333578 -0.623479" mesh="sus_ref1_悬挂用交滚轴承_rau2005cc0p5_1" material="sus_ref1_悬挂用交滚轴承_rau2005cc0p5_1_material" group="3" mass="0" name="collision_385" rgba="0.6313 0.5184 0.7200 1.0000" />
+          <geom type="mesh" class="collision" pos="-0.0515 -0.248 0.0555" quat="0.353553 -0.353553 0.612372 -0.612372" mesh="sus_ref4_电机输入端_1" material="sus_ref4_电机输入端_1_material" group="3" mass="0" name="collision_387" rgba="0.6313 0.5184 0.7200 1.0000" />
+          <geom type="mesh" class="collision" pos="-0.0515 -0.248 0.0555" quat="0.544612 -0.544612 -0.450997 0.450997" mesh="sus_ref5_电机输出端_1" material="sus_ref5_电机输出端_1_material" group="3" mass="0" name="collision_389" rgba="0.6313 0.5184 0.7200 1.0000" />
+          <geom type="mesh" class="collision" pos="-0.0515 0.248 0.0555" quat="0.296973 -0.296973 -0.641722 0.641722" mesh="sus_ref5_电机输出端_1" material="sus_ref5_电机输出端_1_material" group="3" mass="0" name="collision_391" rgba="0.6313 0.5184 0.7200 1.0000" />
+          <geom type="mesh" class="collision" pos="-0.0515 0.248 0.0555" quat="0.683013 -0.683013 0.183013 -0.183013" mesh="sus_ref4_电机输入端_1" material="sus_ref4_电机输入端_1_material" group="3" mass="0" name="collision_393" rgba="0.6313 0.5184 0.7200 1.0000" />
           <body name="linkage_wheel_3" pos="-0.0515 0.248 -0.005" quat="0.419984 -0 -0 0.907532">
             <joint axis="0 0 1" name="wheel_3" type="hinge" />
             <inertial pos="-0 0 -0.00985793" mass="0.0272141" fullinertia="3.3291e-06 3.30435e-06 2.74034e-06 -2.2595e-08 -0 0" />
-            <geom name="body_11_linkage_wheel_3" type="mesh" mesh="body_11_linkage_wheel_3" group="2" mass="0" rgba="0.690196 0.658824 0.639216 1.0" contype="1" conaffinity="1" friction="1.0 0.005 0.0001" />
+            <geom type="mesh" class="collision" pos="-0.000600801 -0.00101402 -0.04" quat="0.681969 -0.681969 0.186863 -0.186863" mesh="wheel_4" material="wheel_checker_material" group="3" mass="0" name="collision_395" rgba="1 1 1 1" />
+            <geom type="mesh" class="collision" pos="-0 0 -0.084" quat="0 -0.96445 0.264265 0" mesh="sus_19_磁铁轮架_1" material="wheel_checker_material" group="3" mass="0" name="collision_397" rgba="1 1 1 1" />
+            <geom type="mesh" class="collision" pos="-0 0 0" quat="0.350093 -0.614357 -0.350093 -0.614357" mesh="sus_16_电机法兰轴_1" material="wheel_checker_material" group="3" mass="0" name="collision_399" rgba="1 1 1 1" />
+            <geom name="body_11_linkage_wheel_3" type="mesh" mesh="body_11_linkage_wheel_3" group="2" mass="0" rgba="1 1 1 1" contype="0" conaffinity="0" material="wheel_checker_material" />
           </body>
           <body name="linkage_wheel_4" pos="-0.0515 -0.248 -0.005" quat="0.911367 0 0 0.411595">
             <joint axis="0 0 1" name="wheel_4" type="hinge" />
             <inertial pos="-0 0 -0.00985793" mass="0.0272141" fullinertia="3.34248e-06 3.29096e-06 2.74034e-06 0 0 -0" />
-            <geom name="body_12_linkage_wheel_4" type="mesh" mesh="body_12_linkage_wheel_4" group="2" mass="0" rgba="0.690196 0.658824 0.639216 1.0" contype="1" conaffinity="1" friction="1.0 0.005 0.0001" />
+            <geom type="mesh" class="collision" pos="-0 0 -0.08" quat="0 0 0.707107 0.707107" mesh="wheel_4" material="wheel_checker_material" group="3" mass="0" name="collision_401" rgba="1 1 1 1" />
+            <geom type="mesh" class="collision" pos="-0 0 0" quat="0.5 -0.5 -0.5 -0.5" mesh="sus_16_电机法兰轴_1" material="wheel_checker_material" group="3" mass="0" name="collision_403" rgba="1 1 1 1" />
+            <geom type="mesh" class="collision" pos="-0 0 -0.084" quat="0 1 -0 0" mesh="sus_19_磁铁轮架_1" material="wheel_checker_material" group="3" mass="0" name="collision_405" rgba="1 1 1 1" />
+            <geom name="body_12_linkage_wheel_4" type="mesh" mesh="body_12_linkage_wheel_4" group="2" mass="0" rgba="1 1 1 1" contype="0" conaffinity="0" material="wheel_checker_material" />
           </body>
-          <geom name="body_10_suspension_rear_2" type="mesh" mesh="body_10_suspension_rear_2" group="2" mass="0" rgba="0.647059 0.619608 0.588235 1.0" contype="1" conaffinity="1" friction="1.0 0.005 0.0001" />
+          <geom name="body_10_suspension_rear_2" type="mesh" mesh="body_10_suspension_rear_2" group="2" mass="0" rgba="0.6313 0.5184 0.7200 1.0000" contype="0" conaffinity="0" />
         </body>
-        <geom name="body_01_body" type="mesh" mesh="body_01_body" group="2" mass="0" rgba="1.0 1.0 1.0 1.0" contype="1" conaffinity="1" friction="1.0 0.005 0.0001" />
+        <geom name="body_01_body" type="mesh" mesh="body_01_body" group="2" mass="0" rgba="0.5184 0.6232 0.7200 1.0000" contype="0" conaffinity="0" />
+        <freejoint name="floating_base" />
       </body>
     </frame>
   </worldbody>
   <asset>
+    <mesh file="cha_13_轴末端锁_1.stl" />
+    <mesh file="sus_3_前轮悬挂_轮固定63mm_1.stl" />
+    <mesh file="sus_ref7_垫圈20_25_2_1.stl" />
+    <mesh file="cha_10_悬挂补强不锈钢精密管_od15_id12_l65_1.stl" />
+    <mesh file="pla_12_碳纤维中板_1.stl" />
+    <mesh file="sus_6_前轮悬挂_轮轴管_63mm_4.stl" />
+    <mesh file="sus_ref6_补强铁丝_1.stl" />
+    <mesh file="pla_5_机械臂平台前支架_左_1.stl" />
+    <mesh file="sus_ref4_电机输入端_1.stl" />
+    <mesh file="cha_6_底盘后角_1.stl" />
+    <mesh file="pla_4_机械臂平台前支架_右_1.stl" />
+    <mesh file="sus_11_后悬架主轴_1.stl" />
+    <mesh file="sus_5_底盘后角顶盖_type_1_m_m5_1.stl" />
+    <mesh file="pla_8_主平台碳纤维补强_1.stl" />
+    <mesh file="pla_14_6mm碳管x225mm_1.stl" />
+    <mesh file="pla_11_tpu中板架减震管_1.stl" />
+    <mesh file="pla_6_机械臂平台后支架_1.stl" />
+    <mesh file="sus_9_前轮悬挂_中心悬挂_外_1.stl" />
+    <mesh file="pla_ref3_m5垫片_1.stl" />
+    <mesh file="pla_2_碳板支架另一侧_1.stl" />
+    <mesh file="sus_ref9_圆锥滚子轴承_1.stl" />
+    <mesh file="sus_21_前悬架轮轴盖螺纹版_1.stl" />
+    <mesh file="cha_11_悬挂补强不锈钢精密管_od15_id12_l90_1.stl" />
+    <mesh file="sus_7_前轮悬挂_碳管_1.obj" />
+    <mesh file="sus_17_铁丝压片_1.stl" />
+    <mesh file="sus_8_前轮悬挂_中心悬挂_内_1.stl" />
+    <mesh file="cha_8_中碳管压盖_1.stl" />
+    <mesh file="pla_7_机械臂主平台_1.stl" />
+    <mesh file="sus_ref2_磁铁轮_63mm_1.stl" />
+    <mesh file="sus_14_后悬挂压槽_螺纹版_1.stl" />
+    <mesh file="sus_19_磁铁轮架_1.stl" />
+    <mesh file="cha_4_底盘后角顶盖_type_1_1.stl" />
+    <mesh file="sus_ref10_垫圈20_30_3_1.stl" />
+    <mesh file="sus_ref5_电机输出端_1.stl" />
+    <mesh file="pla_9_中板架后连接件_1.stl" />
+    <mesh file="sus_16_电机法兰轴_1.stl" />
+    <mesh file="sus_ref1_悬挂用交滚轴承_rau2005cc0p5_1.stl" />
+    <mesh file="sus_20_底盘后角顶盖_type_2_m_m5螺母版_1.stl" />
+    <mesh file="ele_2_nuc_降压板_1.stl" />
+    <mesh file="linkage_2.stl" />
+    <mesh file="sus_23_前轮轴盖预紧器_1.stl" />
+    <mesh file="pla_13_pla中板补强_1.stl" />
+    <mesh file="sus_ref11_4_6销子_1.stl" />
+    <mesh file="cha_12_悬挂补强不锈钢精密管_od15_id12_l58_1.stl" />
+    <mesh file="pla_3_机械臂平台碳纤维稳定支架_1.stl" />
+    <mesh file="cha_5_底盘后角顶盖_type_2_1.stl" />
+    <mesh file="pla_10_tpu中板架减震球_1.stl" />
+    <mesh file="linkage_1.stl" />
+    <mesh file="pla_ref2_m6垫片_1.stl" />
+    <mesh file="sus_ref12_法兰轴承_20_32_7_1.stl" />
+    <mesh file="sus_1m_前轮悬挂_偏航角固定_内_4___sus_1_前轮悬挂_偏航角固定_内___chamfer1.stl" />
+    <mesh file="pla_1_碳板支架_1.stl" />
+    <mesh file="wheel_4.stl" />
+    <mesh file="sus_22_前悬架轮轴盖通孔版_1.stl" />
+    <mesh file="sus_1_前轮悬挂_偏航角固定_内_1.stl" />
+    <mesh file="sus_10_细碳管_600mm_1.stl" />
+    <mesh file="pla_15_6mm碳管x190mm_1.stl" />
+    <mesh file="cha_2_碳管_420mm_1.stl" />
+    <mesh file="sus_15_后悬挂末端连接_1.stl" />
+    <mesh file="cha_9_悬挂补强不锈钢精密管_od15_id12_l175_1.stl" />
+    <mesh file="cha_1_碳管_800mm_3.stl" />
+    <mesh file="sus_2_前轮悬挂_偏航角固定_外_2.stl" />
+    <mesh file="sus_4_前轮悬挂_偏航角导轴_1.stl" />
+    <mesh file="sus_13_后悬挂末端束缚_1.stl" />
+    <mesh file="sus_18_电机架_80mm_1.stl" />
+    <mesh file="sus_12_后悬挂压槽_1.stl" />
+    <mesh file="sus_18m_电机架_80mm_1___sus_18_电机架_80mm___chamfer2.stl" />
+    <material name="cha_2_碳管_420mm_1_material" rgba="1 1 1 1" />
+    <material name="pla_ref3_m5垫片_1_material" rgba="0.537255 0.34902 0.337255 1" />
+    <material name="cha_9_悬挂补强不锈钢精密管_od15_id12_l175_1_material" rgba="0.647059 0.619608 0.588235 1" />
+    <material name="sus_ref1_悬挂用交滚轴承_rau2005cc0p5_1_material" rgba="0.776471 0.756863 0.737255 1" />
+    <material name="cha_13_轴末端锁_1_material" rgba="0.898039 0.917647 0.929412 1" />
+    <material name="pla_13_pla中板补强_1_material" rgba="1 1 1 1" />
+    <material name="pla_14_6mm碳管x225mm_1_material" rgba="1 1 1 1" />
+    <material name="pla_ref2_m6垫片_1_material" rgba="0.537255 0.34902 0.337255 1" />
+    <material name="pla_3_机械臂平台碳纤维稳定支架_1_material" rgba="0.2 0.2 0.2 1" />
+    <material name="sus_20_底盘后角顶盖_type_2_m_m5螺母版_1_material" rgba="0.792157 0.819608 0.933333 1" />
+    <material name="cha_8_中碳管压盖_1_material" rgba="0.839216 0.466667 0.368627 1" />
+    <material name="pla_1_碳板支架_1_material" rgba="0.898039 0.917647 0.929412 1" />
+    <material name="pla_6_机械臂平台后支架_1_material" rgba="0.898039 0.917647 0.929412 1" />
+    <material name="sus_5_底盘后角顶盖_type_1_m_m5_1_material" rgba="0.792157 0.819608 0.933333 1" />
+    <material name="pla_7_机械臂主平台_1_material" rgba="0.827451 0.827451 0.819608 1" />
+    <material name="cha_11_悬挂补强不锈钢精密管_od15_id12_l90_1_material" rgba="0.647059 0.619608 0.588235 1" />
+    <material name="cha_12_悬挂补强不锈钢精密管_od15_id12_l58_1_material" rgba="0.647059 0.619608 0.588235 1" />
+    <material name="pla_5_机械臂平台前支架_左_1_material" rgba="0.898039 0.917647 0.929412 1" />
+    <material name="pla_12_碳纤维中板_1_material" rgba="1 1 1 1" />
+    <material name="cha_6_底盘后角_1_material" rgba="0.898039 0.917647 0.929412 1" />
+    <material name="ele_2_nuc_降压板_1_material" rgba="1 1 1 1" />
+    <material name="pla_15_6mm碳管x190mm_1_material" rgba="1 1 1 1" />
+    <material name="pla_2_碳板支架另一侧_1_material" rgba="0.898039 0.917647 0.929412 1" />
+    <material name="cha_10_悬挂补强不锈钢精密管_od15_id12_l65_1_material" rgba="0.647059 0.619608 0.588235 1" />
+    <material name="pla_4_机械臂平台前支架_右_1_material" rgba="0.898039 0.917647 0.929412 1" />
+    <material name="cha_4_底盘后角顶盖_type_1_1_material" rgba="0.647059 0.619608 0.588235 1" />
+    <material name="cha_5_底盘后角顶盖_type_2_1_material" rgba="1 0 0 1" />
+    <material name="pla_9_中板架后连接件_1_material" rgba="0.898039 0.917647 0.929412 1" />
+    <material name="pla_8_主平台碳纤维补强_1_material" rgba="0.266667 0.266667 0.266667 1" />
+    <material name="pla_11_tpu中板架减震管_1_material" rgba="0.286275 0.662745 0.329412 1" />
+    <material name="cha_1_碳管_800mm_3_material" rgba="1 1 1 1" />
+    <material name="pla_10_tpu中板架减震球_1_material" rgba="0.286275 0.662745 0.329412 1" />
+    <material name="linkage_2_material" rgba="0.866667 0.909804 1 1" />
+    <material name="linkage_1_material" rgba="0.898039 0.917647 0.929412 1" />
+    <material name="sus_1m_前轮悬挂_偏航角固定_内_4___sus_1_前轮悬挂_偏航角固定_内___chamfer1_material" rgba="0.898039 0.917647 0.929412 1" />
+    <material name="sus_1_前轮悬挂_偏航角固定_内_1_material" rgba="0.898039 0.917647 0.929412 1" />
+    <material name="sus_2_前轮悬挂_偏航角固定_外_2_material" rgba="0.898039 0.917647 0.929412 1" />
+    <material name="sus_9_前轮悬挂_中心悬挂_外_1_material" rgba="0.898039 0.917647 0.929412 1" />
+    <material name="sus_8_前轮悬挂_中心悬挂_内_1_material" rgba="0.898039 0.917647 0.929412 1" />
+    <material name="sus_7_前轮悬挂_碳管_1_material" rgba="1 1 1 1" />
+    <material name="sus_ref9_圆锥滚子轴承_1_material" rgba="0.792157 0.819608 0.933333 1" />
+    <material name="sus_ref12_法兰轴承_20_32_7_1_material" rgba="0.592157 0 0.262745 1" />
+    <material name="sus_4_前轮悬挂_偏航角导轴_1_material" rgba="0.898039 0.917647 0.929412 1" />
+    <material name="sus_3_前轮悬挂_轮固定63mm_1_material" rgba="0.898039 0.917647 0.929412 1" />
+    <material name="sus_ref2_磁铁轮_63mm_1_material" rgba="0.690196 0.658824 0.639216 1" />
+    <material name="sus_22_前悬架轮轴盖通孔版_1_material" rgba="0.898039 0.917647 0.929412 1" />
+    <material name="sus_23_前轮轴盖预紧器_1_material" rgba="0.286275 0.662745 0.329412 1" />
+    <material name="sus_21_前悬架轮轴盖螺纹版_1_material" rgba="0.898039 0.917647 0.929412 1" />
+    <material name="sus_6_前轮悬挂_轮轴管_63mm_4_material" rgba="0.898039 0.917647 0.929412 1" />
+    <material name="sus_ref11_4_6销子_1_material" rgba="0.898039 0.917647 0.929412 1" />
+    <material name="sus_ref10_垫圈20_30_3_1_material" rgba="0.647059 0.619608 0.588235 1" />
+    <material name="sus_ref7_垫圈20_25_2_1_material" rgba="0.647059 0.619608 0.588235 1" />
+    <material name="sus_18m_电机架_80mm_1___sus_18_电机架_80mm___chamfer2_material" rgba="0.792157 0.819608 0.933333 1" />
+    <material name="sus_18_电机架_80mm_1_material" rgba="0.898039 0.917647 0.929412 1" />
+    <material name="sus_17_铁丝压片_1_material" rgba="0.839216 0.466667 0.368627 1" />
+    <material name="sus_10_细碳管_600mm_1_material" rgba="1 1 1 1" />
+    <material name="sus_15_后悬挂末端连接_1_material" rgba="0.898039 0.917647 0.929412 1" />
+    <material name="sus_12_后悬挂压槽_1_material" rgba="0.647059 0.619608 0.588235 1" />
+    <material name="sus_ref6_补强铁丝_1_material" rgba="0.827451 0.666667 0.129412 1" />
+    <material name="sus_11_后悬架主轴_1_material" rgba="0.898039 0.917647 0.929412 1" />
+    <material name="sus_13_后悬挂末端束缚_1_material" rgba="0.898039 0.917647 0.929412 1" />
+    <material name="sus_14_后悬挂压槽_螺纹版_1_material" rgba="0.647059 0.619608 0.588235 1" />
+    <material name="sus_ref4_电机输入端_1_material" rgba="0.792157 0.819608 0.933333 1" />
+    <material name="sus_ref5_电机输出端_1_material" rgba="0.792157 0.819608 0.933333 1" />
+    <material name="sus_19_磁铁轮架_1_material" rgba="0.792157 0.819608 0.933333 1" />
+    <material name="sus_16_电机法兰轴_1_material" rgba="0.898039 0.917647 0.929412 1" />
+    <material name="wheel_4_material" rgba="0.690196 0.658824 0.639216 1" />
     <mesh name="body_01_body" file="body_01_body.obj" />
     <mesh name="body_02_suspension_front" file="body_02_suspension_front.obj" />
     <mesh name="body_03_freedrive_1" file="body_03_freedrive_1.obj" />
@@ -89,7 +426,14 @@
     <mesh name="body_10_suspension_rear_2" file="body_10_suspension_rear_2.obj" />
     <mesh name="body_11_linkage_wheel_3" file="body_11_linkage_wheel_3.obj" />
     <mesh name="body_12_linkage_wheel_4" file="body_12_linkage_wheel_4.obj" />
+    <texture name="wheel_checker" type="cube" builtin="checker" width="256" height="256" rgb1="0.04 0.04 0.04" rgb2="0.95 0.95 0.95" />
+    <material name="wheel_checker_material" texture="wheel_checker" rgba="1 1 1 1" texuniform="false" reflectance="0" shininess="0.1" />
   </asset>
-  <actuator />
+  <actuator>
+    <velocity name="wheel_1_velocity" joint="wheel_1" gear="1" kv="2.0" ctrllimited="true" ctrlrange="-7.85398163397448 7.85398163397448" forcelimited="true" forcerange="-12 12" />
+    <velocity name="wheel_2_velocity" joint="wheel_2" gear="1" kv="2.0" ctrllimited="true" ctrlrange="-7.85398163397448 7.85398163397448" forcelimited="true" forcerange="-12 12" />
+    <velocity name="wheel_3_velocity" joint="wheel_3" gear="1" kv="2.0" ctrllimited="true" ctrlrange="-7.85398163397448 7.85398163397448" forcelimited="true" forcerange="-12 12" />
+    <velocity name="wheel_4_velocity" joint="wheel_4" gear="1" kv="2.0" ctrllimited="true" ctrlrange="-7.85398163397448 7.85398163397448" forcelimited="true" forcerange="-12 12" />
+  </actuator>
   <equality />
 </mujoco>
