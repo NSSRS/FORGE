@@ -14,10 +14,10 @@ if "microsoft" in platform.release().lower() and os.environ.get("GALLIUM_DRIVER"
 
 import mujoco
 import numpy as np
-from magnetic import MagneticAttraction
-from terrain_menu import TerrainMenu
-from spawn_fit import reset_to_spawn
-from velocity_control import set_wheel_rpm, keyboard_rpm
+from forge_sim.magnetic import MagneticAttraction
+from forge_sim.terrain_menu import TerrainMenu
+from forge_sim.spawn_fit import reset_to_spawn
+from forge_sim.velocity_control import set_wheel_rpm, keyboard_rpm
 
 MODEL_DIR = Path(__file__).resolve().parent / "model"
 

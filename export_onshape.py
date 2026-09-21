@@ -15,10 +15,10 @@ from urllib.parse import urlparse
 
 from dotenv import load_dotenv
 import mujoco
-from onshape_compat import prepare_meshes
-from merge_mjcf import merge_model
-from place_on_floor import place_on_floor
-from velocity_control import install_velocity_actuators
+from forge_sim.onshape_compat import prepare_meshes
+from forge_sim.merge_mjcf import merge_model
+from forge_sim.place_on_floor import place_on_floor
+from forge_sim.velocity_control import install_velocity_actuators
 
 ROOT = Path(__file__).resolve().parent
 MODEL = ROOT / "model"
@@ -121,7 +121,7 @@ def main(merge_existing=False, target_faces=10000) -> None:
     with tempfile.TemporaryDirectory(prefix=".export-", dir=MODEL) as folder:
         stage = Path(folder)
         (stage / "config.json").write_text(json.dumps(config, indent=2) + "\n")
-        subprocess.run([sys.executable, str(ROOT / "onshape_compat.py"), str(stage)], cwd=ROOT, check=True)
+        subprocess.run([sys.executable, str(ROOT / "forge_sim" / "onshape_compat.py"), str(stage)], cwd=ROOT, check=True)
         prepare_meshes(stage / "robot.xml")
         shutil.copy2(MODEL / "scene.xml", stage / "scene.xml")
         mujoco.MjModel.from_xml_path(str(stage / "scene.xml"))

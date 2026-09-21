@@ -3,12 +3,12 @@ import unittest
 from pathlib import Path
 import mujoco
 import numpy as np
-from velocity_control import install_velocity_actuators, set_wheel_rpm
+from forge_sim.velocity_control import install_velocity_actuators, set_wheel_rpm
 
 class VelocityTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.model = mujoco.MjModel.from_xml_path(str(Path(__file__).parent / "model/scene.xml"))
+        cls.model = mujoco.MjModel.from_xml_path(str(Path(__file__).resolve().parents[1] / "model/scene.xml"))
 
     def test_saturates_output_torque_in_both_directions(self):
         m=self.model

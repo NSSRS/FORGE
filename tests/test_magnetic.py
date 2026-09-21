@@ -1,7 +1,7 @@
 import unittest
 import mujoco
 import numpy as np
-from magnetic import MagneticAttraction
+from forge_sim.magnetic import MagneticAttraction
 
 class MagneticTests(unittest.TestCase):
     def fixture(self, x):
@@ -42,7 +42,7 @@ class MagneticTests(unittest.TestCase):
 class WallSpawnTests(unittest.TestCase):
     def test_scene_spawns_six_magnets_near_wall_with_free_base(self):
         from pathlib import Path
-        m = mujoco.MjModel.from_xml_path(str(Path(__file__).parent / "model/scene.xml"))
+        m = mujoco.MjModel.from_xml_path(str(Path(__file__).resolve().parents[1] / "model/scene.xml"))
         d = mujoco.MjData(m)
         mujoco.mj_forward(m, d)
         a = MagneticAttraction(m)
@@ -62,9 +62,9 @@ if __name__ == '__main__':
 class MagneticBroadPhaseTests(unittest.TestCase):
     def test_matches_exhaustive_surface_search(self):
         from pathlib import Path
-        from spawn_fit import reset_to_spawn
+        from forge_sim.spawn_fit import reset_to_spawn
         for scene in ("scene.xml", "scene_curved.xml", "scene_bumpy.xml"):
-            path = Path(__file__).parent / "model" / scene
+            path = Path(__file__).resolve().parents[1] / "model" / scene
             m = mujoco.MjModel.from_xml_path(str(path))
             d = mujoco.MjData(m)
             reset_to_spawn(m, d)

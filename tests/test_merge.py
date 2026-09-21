@@ -6,8 +6,8 @@ import unittest
 import mujoco
 import numpy as np
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-from merge_mjcf import body_mesh, merge_model
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from forge_sim.merge_mjcf import body_mesh, merge_model
 
 
 class MergeTests(unittest.TestCase):

@@ -25,7 +25,7 @@ def fit_spawn(path):
     mujoco.mj_forward(model, data)
     surfaces = [i for i in range(model.ngeom)
                 if (mujoco.mj_id2name(model,mujoco.mjtObj.mjOBJ_GEOM,i) or "").startswith("steel_")]
-    from magnetic import MagneticAttraction
+    from forge_sim.magnetic import MagneticAttraction
     wheels = [g for _, _, g in MagneticAttraction(model).pairs]
     robot = list(np.flatnonzero((model.geom_bodyid != 0) &
                  ((model.geom_contype != 0) | (model.geom_conaffinity != 0))))

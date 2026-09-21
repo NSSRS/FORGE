@@ -6,8 +6,8 @@ import xml.etree.ElementTree as ET
 
 import numpy as np
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-from onshape_compat import add_joint_compat
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from forge_sim.onshape_compat import add_joint_compat
 from onshape_to_robot.exporter_mujoco import ExporterMuJoCo
 from onshape_to_robot.robot import Joint
 

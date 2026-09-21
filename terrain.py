@@ -120,7 +120,7 @@ def generate(preset="curved", length=10.0, angle=60.0, width=4.0,
     temporary=MODEL/f".terrain-{preset}.xml"
     try:
         temporary.write_text(xml)
-        from spawn_fit import fit_spawn
+        from forge_sim.spawn_fit import fit_spawn
         fit_spawn(temporary)
         mujoco.MjModel.from_xml_path(str(temporary))
         temporary.replace(path)

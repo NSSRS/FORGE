@@ -5,8 +5,8 @@ import xml.etree.ElementTree as ET
 import numpy as np
 import mujoco
 from terrain import generate, MODEL
-from magnetic import MagneticAttraction
-from spawn_fit import reset_to_spawn
+from forge_sim.magnetic import MagneticAttraction
+from forge_sim.spawn_fit import reset_to_spawn
 
 class TerrainTests(unittest.TestCase):
     def test_presets_preserve_robot_and_spawn_without_overlap(self):
@@ -52,7 +52,7 @@ if __name__=="__main__":unittest.main()
 
 class MenuTests(unittest.TestCase):
     def test_mouse_controls_and_bounds(self):
-        from terrain_menu import TerrainMenu
+        from forge_sim.terrain_menu import TerrainMenu
         menu=TerrainMenu(preset="flat",length=10.,angle=30.,width=4.,
                          bump_diameter=.1,bump_height=.005,tilt=0.,inward=False)
         left,width,row,top=menu.layout(1280,900)

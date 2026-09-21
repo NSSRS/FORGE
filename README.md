@@ -40,13 +40,15 @@ backups are ignored by Git.
 ## Files
 
 - `model/`: XML, local export configuration, and mesh files in `assets/`.
-- Root Python files: export, mesh processing, preview, and regression tests.
+- Root entry points: `preview_sim.py`, `export_onshape.py`, and `terrain.py`.
+- `forge_sim/`: magnetic forces, wheel control, terrain menu, spawn fitting, and CAD processing.
+- `tests/`: regression tests.
 - `setup_sim.sh` and `requirements-sim.txt`: environment setup.
 
 ## Verification
 
 ```bash
-python -m unittest discover -s . -p 'test_*.py' -v
+python -m unittest discover -s tests -p 'test_*.py' -v
 python preview_sim.py --check
 ```
 
@@ -84,7 +86,7 @@ display-free load and 500-step smoke check:
 
 ```bash
 python preview_sim.py --check
-python -m unittest discover -s . -p 'test_*.py' -v
+python -m unittest discover -s tests -p 'test_*.py' -v
 ```
 
 The offline export tests check that failed downloads and invalid MJCF preserve
@@ -270,7 +272,7 @@ Names are resolved to IDs on load; IDs are not hard-coded across CAD exports.
 Other robot parts keep ordinary collision behavior, including existing self contacts.
 
 Run `python preview_sim.py` to enable the force model. The standalone
-`python -m mujoco.viewer` loads the wall but does **not** run `magnetic.py`.
+`python -m mujoco.viewer` loads the wall but does **not** run `forge_sim/magnetic.py`.
 
 The scene's `magnetic_parameters` are demo values: 100 N maximum per wheel,
 0.02 m cutoff, and 0.002 m decay length. For nonnegative surface gap d below
@@ -328,7 +330,7 @@ commands); R resets pose, pauses, and clears all commands. WASD commands latch:
 releasing a key does not stop motion. Press X to stop. Start physics with Space.
 Keyboard control replaces the Control sliders in preview_sim.py.
 
-Tune the bottom parameter block in velocity_control.py: DRIVE_RPM (10), TURN_RPM
+Tune the bottom parameter block in forge_sim/velocity_control.py: DRIVE_RPM (10), TURN_RPM
 (6), WHEEL_SIDES, WHEEL_DIRECTIONS, and WHEEL_RPM_SCALES. All four-entry lists are
 ordered wheel_1 to wheel_4. Current geometry gives robot-left wheels 1/2, right
 wheels 3/4 and direction signs (-1,-1,+1,+1). W points toward the CAD front,
@@ -347,7 +349,7 @@ The steel plate is now 4 m wide by 4 m tall and 20 mm thick. The current robot
 spawn height is retained. Non-wheel bodies have distinct muted colors; wheels
 retain checkerboard textures. Export reapplies the colors automatically.
 
-Edit DRIVE_RPM and TURN_RPM in velocity_control.py for keyboard speed targets,
+Edit DRIVE_RPM and TURN_RPM in forge_sim/velocity_control.py for keyboard speed targets,
 and WHEEL_RPM_SCALES/WHEEL_DIRECTIONS/WHEEL_SIDES for per-wheel tuning; restart
 after editing. RPM means output-shaft revolutions per minute, with rad/s = RPM*pi/30.
 The 75 RPM command cap and 12 Nm torque cap still apply. Actual RPM is measured
@@ -427,7 +429,7 @@ the previous generated scene and the menu reports the reason.
 
 Existing CAD joint limits are respected. Unlimited passive joints get a temporary
 +/-30 degree search bound (not a validated hardware limit); base orientation search
-is +/-20 degrees per axis. These search parameters are in spawn_fit.py. This is
+is +/-20 degrees per axis. These search parameters are in forge_sim/spawn_fit.py. This is
 geometric initialization, not a static-equilibrium or guaranteed-traversal solver.
 
 The result is saved as the terrain_spawn keyframe. preview_sim.py loads it at
