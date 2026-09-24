@@ -4,8 +4,11 @@
 
 ROS 2 Jazzy is installed on the Ubuntu 24.04 NUC. The
 `forge_motor_control` ROS package provides a direct-RPM motor driver node and a
-dead-man keyboard publisher for commissioning. Chassis kinematics, geometry,
-URDF, and autonomous control have not been added.
+dead-man keyboard publisher for commissioning. The same driver and keyboard now support
+[four-wheel differential control](DIFFERENTIAL_DRIVE.md) using the `forge_sim`
+wheel layout. Chassis mode is the default; use `commissioning.yaml` on both
+nodes for the direct-RPM bench mode. The sections below describe
+the unchanged three-motor bench path. URDF and autonomous control remain future work.
 
 The temporary commissioning topic is:
 
@@ -52,7 +55,8 @@ Keyboard terminal:
 sudo bash -lc '
 cd /home/forge2/forge2_ws
 source scripts/ros2_env.sh
-exec ros2 run forge_motor_control forge_keyboard_teleop
+exec ros2 run forge_motor_control forge_keyboard_teleop --ros-args \
+  --params-file src/forge_motor_control/config/commissioning.yaml
 '
 ```
 

@@ -85,6 +85,27 @@ class NativeTests(unittest.TestCase):
         self.assertGreater(self.fake.fake_zeros(), 0)
         with self.assertRaises(MotorError): self.bus.velocity(1, 2)
 
+    def test_chassis_mapping_through_native_four_slot_bridge(self):
+        from pathlib import Path
+        import sys
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src/forge_motor_control"))
+        from forge_motor_control.differential import DifferentialDrive
+
+        self.bus.close()
+        drive = DifferentialDrive(max_velocity_rpm=5)
+        configs = [MotorConfig(i, -180, 180, 5, 1) for i in drive.motor_ids]
+        with MotorBus(configs, interface="forge-test", execute=True, library=self.path) as bus:
+            bus.wait_ready()
+            for forward, yaw in ((0.01, 0), (0, 0.02), (0, -0.02), (0, 0)):
+                targets = drive.mix(forward, yaw)
+                for _ in range(12):
+                    for motor_id, target in zip(drive.motor_ids, targets):
+                        bus.velocity(motor_id, target)
+                    time.sleep(.02)
+                bus.check()
+                for motor_id, target in zip(drive.motor_ids, targets):
+                    self.assertAlmostEqual(bus.state(motor_id).velocity_rpm, target, delta=.11)
+
     def test_renewing_one_does_not_renew_other(self):
         self.bus.velocity(2, 1)
         for _ in range(4):

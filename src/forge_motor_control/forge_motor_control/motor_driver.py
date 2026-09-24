@@ -4,24 +4,29 @@ from __future__ import annotations
 
 import math
 import time
+from dataclasses import fields
 
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import JointState
 from std_msgs.msg import Float64MultiArray
+from geometry_msgs.msg import TwistStamped
 
 from forge_motors import MotorBus, MotorConfig, MotorError
+from .differential import CommandLease, DifferentialDrive
 
 
 class ForgeMotorDriver(Node):
-    """Own one bridge and expose bounded direct-motor RPM commissioning I/O."""
+    """Own one bridge and handle chassis control or direct-RPM commissioning."""
 
     def __init__(self) -> None:
         super().__init__("forge_motor_driver")
         self.declare_parameter("simulate", True)
         self.declare_parameter("execute", False)
         self.declare_parameter("interface", "enp86s0")
-        self.declare_parameter("motor_ids", [1, 2, 3])
+        self.declare_parameter("command_mode", "chassis")
+        self.declare_parameter("mapping_confirmed", False)
+        self.declare_parameter("motor_ids", [1, 2, 3, 4])
         self.declare_parameter("max_velocity_rpm", 30.0)
         self.declare_parameter("max_current_a", 2.0)
         self.declare_parameter("command_timeout_s", 0.20)
@@ -38,6 +43,25 @@ class ForgeMotorDriver(Node):
         if not 0.02 <= self._command_timeout <= 0.20:
             raise ValueError("command_timeout_s must be between 0.02 and 0.20")
 
+        self._command_mode = self.get_parameter("command_mode").value
+        if self._command_mode not in ("chassis", "direct_rpm"):
+            raise ValueError("command_mode must be chassis or direct_rpm")
+        self._lease = None
+        if self._command_mode == "chassis":
+            if not simulate and not self.get_parameter("mapping_confirmed").value:
+                raise ValueError("Chassis hardware requires mapping_confirmed:=true")
+            defaults = DifferentialDrive()
+            geometry = {"motor_ids": self._motor_ids, "max_velocity_rpm": self._max_velocity}
+            for field in fields(defaults):
+                if field.name in geometry:
+                    continue
+                value = getattr(defaults, field.name)
+                self.declare_parameter(field.name, list(value) if isinstance(value, tuple) else value)
+                geometry[field.name] = self.get_parameter(field.name).value
+            self.declare_parameter("command_frame", "base_link")
+            self._lease = CommandLease(DifferentialDrive(**geometry), self._command_timeout,
+                                       self.get_parameter("command_frame").value)
+
         configs = [
             MotorConfig(motor_id, -720.0, 720.0, self._max_velocity, current)
             for motor_id in self._motor_ids
@@ -53,18 +77,25 @@ class ForgeMotorDriver(Node):
         self._closed = False
 
         self._state_publisher = self.create_publisher(JointState, "/joint_states", 10)
+        topic = "/cmd_vel" if self._lease is not None else "/drive/motor_rpm_commands"
         self._command_subscription = self.create_subscription(
-            Float64MultiArray,
-            "/drive/motor_rpm_commands",
-            self._receive_command,
-            1,
-        )
+            TwistStamped if self._lease is not None else Float64MultiArray,
+            topic, self._receive_chassis if self._lease is not None else self._receive_command, 1)
         self._timer = self.create_timer(0.02, self._update)
         mode = "simulation" if simulate else f"hardware on {interface}"
         self.get_logger().info(
-            f"Ready in {mode}; motor IDs={self._motor_ids}; command topic="
-            "/drive/motor_rpm_commands"
+            f"Ready in {mode}; motor IDs={self._motor_ids}; command topic={topic}"
         )
+
+    def _receive_chassis(self, message: TwistStamped) -> None:
+        t = message.twist
+        try:
+            self._lease.receive(
+                (t.linear.x, t.linear.y, t.linear.z, t.angular.x, t.angular.y, t.angular.z),
+                message.header.stamp.sec * 10**9 + message.header.stamp.nanosec,
+                message.header.frame_id, self.get_clock().now().nanoseconds, time.monotonic())
+        except ValueError as error:
+            self.get_logger().error(f"Rejected chassis command: {error}")
 
     def _receive_command(self, message: Float64MultiArray) -> None:
         values = list(message.data)
@@ -96,11 +127,15 @@ class ForgeMotorDriver(Node):
     def _update(self) -> None:
         try:
             self._bus.check()
-            if self._last_command is not None:
+            targets = None
+            if self._lease is not None:
+                targets = self._lease.output(time.monotonic(), self.get_clock().now().nanoseconds)
+            elif self._last_command is not None:
                 stale = (
                     time.monotonic() - self._last_command > self._command_timeout
                 )
                 targets = [0.0] * len(self._motor_ids) if stale else self._targets
+            if targets is not None:
                 for motor_id, target in zip(self._motor_ids, targets):
                     self._bus.velocity(motor_id, target)
             self._publish_state()

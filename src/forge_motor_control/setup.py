@@ -10,7 +10,8 @@ setup(
     data_files=[
         ("share/ament_index/resource_index/packages", ["resource/" + PACKAGE_NAME]),
         ("share/" + PACKAGE_NAME, ["package.xml"]),
-        ("share/" + PACKAGE_NAME + "/config", ["config/commissioning.yaml", "config/fastdds-udp-loopback.xml"]),
+        ("share/" + PACKAGE_NAME + "/config", ["config/commissioning.yaml", "config/chassis.yaml", "config/fastdds-udp-loopback.xml"]),
+        ("share/" + PACKAGE_NAME + "/launch", ["launch/chassis.launch.py"]),
     ],
     install_requires=["setuptools"],
     zip_safe=True,

@@ -1,0 +1,29 @@
+# Geometry/signs: forge_sim 7aa258d. IDs and wiring signs are commissioning
+# assumptions, NOT a measured hardware assignment. See docs/DIFFERENTIAL_DRIVE.md.
+forge_motor_driver:
+  ros__parameters:
+    command_mode: chassis
+    simulate: true
+    execute: false
+    mapping_confirmed: false
+    interface: enp86s0
+    max_current_a: 2.0
+    motor_ids: [1, 2, 3, 4]  # Driver/PDO order: first three CAN1, fourth CAN2.
+    wheel_motor_ids: [1, 2, 3, 4]  # wheel_1, wheel_2, wheel_3, wheel_4
+    wheel_sides: [left, left, right, right]
+    wheel_directions: [-1.0, -1.0, 1.0, 1.0]
+    external_ratios: [1.0, 1.0, 1.0, 1.0]  # Output-shaft turns / wheel turn; NOT 36.
+    wheel_rpm_scales: [1.0, 1.0, 1.0, 1.0]
+    wheel_radius_m: 0.040
+    track_width_m: 0.737
+    max_velocity_rpm: 30.0
+    command_timeout_s: 0.15
+    command_frame: base_link
+
+forge_keyboard_teleop:
+  ros__parameters:
+    command_mode: chassis
+    speed_m_s: 0.02
+    yaw_rate_rad_s: 0.07
+    deadman_timeout_s: 0.15
+    command_frame: base_link

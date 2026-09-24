@@ -1,5 +1,6 @@
 forge_motor_driver:
   ros__parameters:
+    command_mode: direct_rpm
     simulate: true
     execute: false
     interface: enp86s0
@@ -10,6 +11,7 @@ forge_motor_driver:
 
 forge_keyboard_teleop:
   ros__parameters:
+    command_mode: direct_rpm
     motor_count: 3
     speed_rpm: 10.0
     deadman_timeout_s: 0.15

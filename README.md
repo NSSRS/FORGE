@@ -24,9 +24,11 @@ entries 1-3 use CAN1; the fourth uses CAN2:
 | `bus.check()` | Raise on a latched fault |
 
 Both manual driving and future automatic chassis trajectory tracking can use
-this velocity interface. Chassis kinematics, encoder/IMU/camera state estimation,
-steering-aware keyboard mapping, and trajectory tracking are future work. A
-temporary direct-RPM ROS 2 keyboard publisher is available for commissioning;
+this velocity interface. The [differential chassis controller](docs/DIFFERENTIAL_DRIVE.md)
+maps timestamped chassis velocity and WASD teleop to four motor RPM targets using
+the `forge_sim` wheel layout. Hardware mapping still needs commissioning.
+State estimation and trajectory tracking remain future work. The temporary
+three-motor direct-RPM mode remains available in the same keyboard for commissioning;
 see [ROS 2 motor-control status](docs/ROS2_MOTOR_CONTROL_STATUS.md).
 
 Run the independent-motor example without hardware (Python 3.10+):
@@ -73,6 +75,7 @@ Build output, installed packages, and logs are generated locally and untracked.
 | [Workspace](docs/ENCOS_WORKSPACE.md) | Repository layout, native build, and C utility commands |
 | [Python control](docs/PYTHON_CONTROL.md) | Installation, API, command deadlines, and driver limitations |
 | [ROS 2 commissioning](docs/ROS2_MOTOR_CONTROL_STATUS.md) | Topics, keyboard behavior, build/run, and DDS setup |
+| [Differential chassis control](docs/DIFFERENTIAL_DRIVE.md) | Simulation geometry, four-wheel mapping, chassis launch and WASD control |
 | [Bench procedure and record](docs/ENCOS_TEST_BENCH.md) | Wiring, acceptance checks, dated measurements and outcomes |
 | [Protocol reference](docs/ENCOS_BRINGUP.md) | Packet units/encoding, vendor findings, and original bring-up design |
 | [Platform roadmap](docs/ROBOT_PLATFORM_ROADMAP.md) | Planned chassis control, localization, and safety architecture |

@@ -2,6 +2,13 @@
 
 ## Purpose
 
+Implementation update: [differential chassis control](DIFFERENTIAL_DRIVE.md) now
+integrates differential mixing into `forge_motor_driver`, with stamped chassis
+commands and WASD in `forge_keyboard_teleop`, using
+the four driven wheels from `forge_sim`. Geometry is provisional and hardware
+mapping awaits commissioning. Odometry, arbitration, localization and the safety
+supervisor described below remain planned.
+
 This document defines the planned control architecture and staged development of
 the four-motor magnetic wall-climbing welding robot. It is the working roadmap for
 keyboard testing, gamepad operation, autonomous trajectory tracking, localization,
