@@ -1,0 +1,20 @@
+# Three-motor direct-RPM bench: IDs 1/2 CAN1, ID 3 CAN2; no motor 4.
+# Zero-based PDO slots; vacant slot 2 remains empty (DLC=0).
+forge_motor_driver:
+  ros__parameters:
+    command_mode: direct_rpm
+    simulate: true
+    execute: false
+    interface: enp86s0
+    motor_ids: [1, 2, 3]
+    motor_slots: [0, 1, 3]
+    max_velocity_rpm: 5.0
+    max_current_a: 2.0
+    command_timeout_s: 0.20
+
+forge_keyboard_teleop:
+  ros__parameters:
+    command_mode: direct_rpm
+    motor_count: 3
+    speed_rpm: 5.0
+    deadman_timeout_s: 0.15

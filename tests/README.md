@@ -13,11 +13,18 @@ Follow the [Ubuntu build guide](../docs/ENCOS_WORKSPACE.md#build-on-ubuntu);
 - `test_native_driver.py`: real C pthread and ctypes ABI against a fake SOEM bridge;
   transport/feedback failures, motor faults, per-motor leases, ownership, shutdown
   and differential forward/left/right/stop commands through all four PDO slots.
+  Split-bus tests require ID 3 on CAN2, verify slots `[0,1,3]`, reject invalid
+  slot maps, and check that the vacant passage carries no control commands.
 
 The fake library has no raw-socket transport and cannot access motor hardware.
 Native integration cases skip unless `ENCOS_TEST_LIBRARY` names that library;
 CTest sets it automatically. The normal loader uses `libencos_driver.so`, not
 `libencos_driver_test.so`.
+
+The [motor mirror](../docs/MOTOR_MIRROR.md) adds `test_motor_mirror.py` for
+feedback mapping and optional MuJoCo model checks, and `test_ros_motor_mirror.py`
+for the read-only ROS-to-UDP relay. The latter requires ROS and loopback sockets;
+run it on an isolated domain with no hardware publishers.
 
 Portable Python-only tests:
 

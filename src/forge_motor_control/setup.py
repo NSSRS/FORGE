@@ -10,7 +10,7 @@ setup(
     data_files=[
         ("share/ament_index/resource_index/packages", ["resource/" + PACKAGE_NAME]),
         ("share/" + PACKAGE_NAME, ["package.xml"]),
-        ("share/" + PACKAGE_NAME + "/config", ["config/commissioning.yaml", "config/chassis.yaml", "config/fastdds-udp-loopback.xml"]),
+        ("share/" + PACKAGE_NAME + "/config", ["config/commissioning.yaml", "config/chassis.yaml", "config/chassis_bench.yaml", "config/can2_bench.yaml", "config/fastdds-udp-loopback.xml"]),
         ("share/" + PACKAGE_NAME + "/launch", ["launch/chassis.launch.py"]),
     ],
     install_requires=["setuptools"],
@@ -21,6 +21,7 @@ setup(
     license="Proprietary",
     entry_points={
         "console_scripts": [
+            "forge_motor_state_relay = forge_motor_control.motor_state_relay:main",
             "forge_motor_driver = forge_motor_control.motor_driver:main",
             "forge_keyboard_teleop = forge_motor_control.keyboard_teleop:main",
         ],

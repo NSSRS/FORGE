@@ -26,6 +26,7 @@ class ForgeMotorDriver(Node):
         self.declare_parameter("interface", "enp86s0")
         self.declare_parameter("command_mode", "chassis")
         self.declare_parameter("mapping_confirmed", False)
+        self.declare_parameter("bench_omit_motor_id", 0)
         self.declare_parameter("motor_ids", [1, 2, 3, 4])
         self.declare_parameter("max_velocity_rpm", 30.0)
         self.declare_parameter("max_current_a", 2.0)
@@ -34,6 +35,8 @@ class ForgeMotorDriver(Node):
         simulate = bool(self.get_parameter("simulate").value)
         interface = str(self.get_parameter("interface").value)
         self._motor_ids = tuple(int(value) for value in self.get_parameter("motor_ids").value)
+        self.declare_parameter("motor_slots", list(range(len(self._motor_ids))))
+        motor_slots = tuple(self.get_parameter("motor_slots").value)
         self._max_velocity = float(self.get_parameter("max_velocity_rpm").value)
         current = float(self.get_parameter("max_current_a").value)
         self._command_timeout = float(self.get_parameter("command_timeout_s").value)
@@ -62,6 +65,24 @@ class ForgeMotorDriver(Node):
             self._lease = CommandLease(DifferentialDrive(**geometry), self._command_timeout,
                                        self.get_parameter("command_frame").value)
 
+        # Keep all four wheels in the mixer; omit only the explicitly absent
+        # bench motor from transport, readiness, commands and measured states.
+        self._mix_motor_ids = self._motor_ids
+        omitted = self.get_parameter("bench_omit_motor_id").value
+        if type(omitted) is not int or (omitted != 0 and (
+                self._lease is None or omitted not in self._motor_ids)):
+            raise ValueError("bench_omit_motor_id must be 0 or a configured chassis motor ID")
+        if (len(motor_slots) != len(self._motor_ids)
+                or any(type(slot) is not int or not 0 <= slot < 6 for slot in motor_slots)
+                or len(set(motor_slots)) != len(motor_slots)):
+            raise ValueError("motor_slots must contain one unique integer 0-5 per configured motor")
+        if omitted:
+            motor_slots = tuple(slot for motor_id, slot in zip(self._motor_ids, motor_slots)
+                                if motor_id != omitted)
+            self._motor_ids = tuple(i for i in self._motor_ids if i != omitted)
+            self.get_logger().warning(
+                f"Bench chassis test: motor {omitted} omitted; four-wheel mixing retained")
+
         configs = [
             MotorConfig(motor_id, -720.0, 720.0, self._max_velocity, current)
             for motor_id in self._motor_ids
@@ -70,7 +91,7 @@ class ForgeMotorDriver(Node):
             "interface": interface,
             "execute": True,
         }
-        self._bus = MotorBus(configs, **kwargs)
+        self._bus = MotorBus(configs, motor_slots=motor_slots, **kwargs)
         self._bus.wait_ready(timeout=3.0)
         self._targets = [0.0] * len(self._motor_ids)
         self._last_command: float | None = None
@@ -130,6 +151,9 @@ class ForgeMotorDriver(Node):
             targets = None
             if self._lease is not None:
                 targets = self._lease.output(time.monotonic(), self.get_clock().now().nanoseconds)
+                if targets is not None:
+                    by_id = dict(zip(self._mix_motor_ids, targets))
+                    targets = [by_id[i] for i in self._motor_ids]
             elif self._last_command is not None:
                 stale = (
                     time.monotonic() - self._last_command > self._command_timeout

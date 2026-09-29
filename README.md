@@ -12,8 +12,10 @@ Motor-control development for the magnetic wall-climbing welding robot.
 
 Write application logic in Python; the **C11** shared library owns the SOEM
 EtherCAT loop. This is C, not C++. The first interface supports one bridge and
-1-4 unique motor IDs, with independent commands for each motor. Configuration
-entries 1-3 use CAN1; the fourth uses CAN2:
+1-4 unique motor IDs, with independent commands for each motor. By default, configuration
+entries 1-3 use CAN1; the fourth uses CAN2. Explicit `motor_slots` can override
+this routing. The current [three-motor CAN2 bench](docs/CAN2_BENCH.md) uses
+IDs 1/2 on CAN1 and ID 3 on CAN2:
 
 | API | Meaning |
 |---|---|
@@ -80,6 +82,12 @@ Build output, installed packages, and logs are generated locally and untracked.
 | [Protocol reference](docs/ENCOS_BRINGUP.md) | Packet units/encoding, vendor findings, and original bring-up design |
 | [Platform roadmap](docs/ROBOT_PLATFORM_ROADMAP.md) | Planned chassis control, localization, and safety architecture |
 | [Tests](tests/README.md) | Coverage and native/portable test commands |
+
+## Live motor visualization
+
+[Mirror measured motor movement in MuJoCo](docs/MOTOR_MIRROR.md) using the
+`forge_sim` CAD model and a read-only `/joint_states` relay. The current
+three-motor profile marks motor 4 absent and preserves its model for later.
 
 ## Existing bench utilities
 

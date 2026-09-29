@@ -22,6 +22,7 @@
 typedef struct {
     encos_motor_config_t config;
     encos_motor_state_t state;
+    unsigned slot;
     int mode;
     float target, sent_rpm;
     double command_time, feedback_time;
@@ -173,11 +174,16 @@ static void *run(void *context)
             pthread_mutex_unlock(&d->mutex);
             break;
         }
-        out->motor_num = (uint8_t)d->count;
+        /* Motor_Num spans through the highest addressed passage. Unused
+         * records stay empty (DLC=0) after memset above. Do not fill gaps with
+         * queries: their replies can replace an active motor's control ACK. */
+        for (size_t i = 0; i < d->count; ++i)
+            if (out->motor_num <= d->motors[i].slot)
+                out->motor_num = (uint8_t)(d->motors[i].slot + 1);
         for (size_t i = 0; i < d->count; ++i) {
             motor_t *m = &d->motors[i];
             if (!m->mode) {
-                out->motor[i] = encos_make_query_request(m->config.motor_id, 1);
+                out->motor[m->slot] = encos_make_query_request(m->config.motor_id, 1);
             } else {
                 m->ack = m->ack == 2 ? 3 : 2;
                 if (d->fault || m->mode == 2) {
@@ -189,11 +195,11 @@ static void *run(void *context)
                             fminf(step, m->target - m->sent_rpm));
                     }
                     encos_make_servo_velocity_request(m->config.motor_id, m->sent_rpm,
-                        m->config.max_current_a, (uint8_t)m->ack, &out->motor[i]);
+                        m->config.max_current_a, (uint8_t)m->ack, &out->motor[m->slot]);
                 } else {
                     encos_make_servo_position_request(m->config.motor_id, m->target,
                         m->config.max_velocity_rpm, m->config.max_current_a,
-                        (uint8_t)m->ack, &out->motor[i]);
+                        (uint8_t)m->ack, &out->motor[m->slot]);
                 }
             }
         }
@@ -216,12 +222,22 @@ static void *run(void *context)
 encos_driver_t *encos_driver_open(const char *interface_name,
                                 const encos_motor_config_t *config, size_t count)
 {
+    return encos_driver_open_mapped(interface_name, config, count, NULL);
+}
+
+encos_driver_t *encos_driver_open_mapped(const char *interface_name,
+    const encos_motor_config_t *config, size_t count, const uint8_t *slots)
+{
     if (!interface_name || !*interface_name || strlen(interface_name) > 63 ||
         !config || count == 0 || count > MAX_MOTORS) return NULL;
     for (const char *p = interface_name; *p; ++p)
         if (!isalnum((unsigned char)*p) && !strchr("_.:-", *p)) return NULL;
     for (size_t i = 0; i < count; ++i) {
         const encos_motor_config_t *c = &config[i];
+        if (slots) {
+            if (slots[i] >= ENCOS_BRIDGE_CHANNELS) return NULL;
+            for (size_t j = 0; j < i; ++j) if (slots[i] == slots[j]) return NULL;
+        }
         if (c->motor_id == 0 || c->motor_id >= 0x7ff ||
             !isfinite(c->min_position_deg) || !isfinite(c->max_position_deg) ||
             c->min_position_deg >= c->max_position_deg ||
@@ -268,7 +284,10 @@ encos_driver_t *encos_driver_open(const char *interface_name,
     }
     if (ec_slave[0].state != EC_STATE_OPERATIONAL) goto fail;
     d->count = count;
-    for (size_t i = 0; i < count; ++i) d->motors[i].config = config[i];
+    for (size_t i = 0; i < count; ++i) {
+        d->motors[i].config = config[i];
+        d->motors[i].slot = slots ? slots[i] : (unsigned)i;
+    }
     if (pthread_mutex_init(&d->mutex, NULL)) goto fail;
     if (pthread_create(&d->thread, NULL, run, d)) {
         pthread_mutex_destroy(&d->mutex);

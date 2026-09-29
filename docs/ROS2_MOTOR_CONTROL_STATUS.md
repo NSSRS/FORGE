@@ -1,5 +1,9 @@
 # ROS 2 motor-control status
 
+For the current three-motor split-bus setup (IDs 1/2 CAN1, ID 3 CAN2),
+see [CAN2 direct-RPM bench commands](CAN2_BENCH.md) or
+[three-motor W/S/A/D differential testing](DIFFERENTIAL_DRIVE.md#three-motor-differential-bench-motor-4-absent).
+
 ## Current scope
 
 ROS 2 Jazzy is installed on the Ubuntu 24.04 NUC. The
@@ -7,8 +11,9 @@ ROS 2 Jazzy is installed on the Ubuntu 24.04 NUC. The
 dead-man keyboard publisher for commissioning. The same driver and keyboard now support
 [four-wheel differential control](DIFFERENTIAL_DRIVE.md) using the `forge_sim`
 wheel layout. Chassis mode is the default; use `commissioning.yaml` on both
-nodes for the direct-RPM bench mode. The sections below describe
-the unchanged three-motor bench path. URDF and autonomous control remain future work.
+nodes for the original all-CAN1 direct-RPM bench mode. Use `can2_bench.yaml`
+on both nodes for the current split-bus setup. The sections below describe
+the original all-CAN1 three-motor bench path. URDF and autonomous control remain future work.
 
 The temporary commissioning topic is:
 

@@ -9,7 +9,10 @@ static encos_bridge_outputs_t output;
 static encos_bridge_inputs_t input;
 static float position[6], velocity[6];
 static atomic_int bad_wkc, no_feedback, motor_error, controls, zeros, clears;
-static int bad_layout;
+static int bad_layout, split_bus;
+static atomic_int slot_controls[6], slot_frames[6];
+int fake_slot_frames(int slot) { return atomic_load(&slot_frames[slot]); }
+int fake_slot_controls(int slot) { return atomic_load(&slot_controls[slot]); }
 
 void fake_fault(int kind)
 {
@@ -23,6 +26,11 @@ int fake_clears(void) { return atomic_load(&clears); }
 
 int ec_init(const char *name)
 {
+    split_bus = strcmp(name, "forge-test-can2") == 0;
+    for (int i = 0; i < 6; ++i) {
+        atomic_store(&slot_controls[i], 0);
+        atomic_store(&slot_frames[i], 0);
+    }
     bad_layout = strcmp(name, "forge-test-bad-layout") == 0;
     memset(&output, 0, sizeof(output)); memset(&input, 0, sizeof(input));
     memset(position, 0, sizeof(position)); memset(velocity, 0, sizeof(velocity));
@@ -63,12 +71,23 @@ int ec_receive_processdata(int timeout)
     if (!output.motor_num) atomic_fetch_add(&clears, 1);
     for (unsigned i=0; i<output.motor_num; ++i) {
         encos_can_frame_t *f = &output.motor[i], *r = &input.motor[i];
+        if (!f->dlc) continue; /* Empty passage: no CAN data frame to emulate. */
+        atomic_fetch_add(&slot_frames[i], 1);
+        if (split_bus && !((i < 3 && (f->id == 1 || f->id == 2)) ||
+                           (i >= 3 && f->id == 3))) continue;
+        /* Model a bridge keeping only the latest reply for a CAN ID. A
+         * trailing query can replace a control reply for that same motor. */
+        if (split_bus)
+            for (unsigned j = 0; j < i; ++j)
+                if (input.motor[j].id == f->id)
+                    memset(&input.motor[j], 0, sizeof(input.motor[j]));
         r->id = f->id;
         if (f->dlc == 2 && f->data[0] == 0xe0) {
             r->dlc = 6; r->data[0] = 0xa0; r->data[1] = 1;
             put_float(&r->data[2], position[i]);
         } else {
             atomic_fetch_add(&controls, 1);
+            atomic_fetch_add(&slot_controls[i], 1);
             unsigned mode = f->data[0] >> 5;
             unsigned ack = mode == 1 ? (f->data[7] & 3) : (f->data[0] & 3);
             if (mode == 2) {

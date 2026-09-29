@@ -3,8 +3,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
-/* One process-wide SOEM session, up to four motors in configuration order.
- * Contiguous slots 0-2 route to CAN1; slot 3 (fourth motor) routes to CAN2. */
+/* One process-wide SOEM session, up to four motors. The default open uses
+ * configuration order: slots 0-2 CAN1, slot 3 CAN2. Mapped open overrides slots. */
 typedef struct {
     uint16_t motor_id;
     float min_position_deg, max_position_deg;
@@ -22,6 +22,10 @@ typedef struct encos_driver encos_driver_t;
 /* Returns NULL on invalid config/open failure; never issues motion on open. */
 encos_driver_t *encos_driver_open(const char *interface_name,
                                 const encos_motor_config_t *config, size_t count);
+/* Explicit zero-based PDO slots (0-2 CAN1, 3-5 CAN2), unique per motor.
+ * Gaps before the highest slot remain empty (DLC=0). */
+encos_driver_t *encos_driver_open_mapped(const char *interface_name,
+    const encos_motor_config_t *config, size_t count, const uint8_t *slots);
 /* mode 1 position (degrees), mode 2 velocity (RPM). Refresh each active motor
  * within 250 ms, including a stationary position hold. Failure latches globally. */
 int encos_driver_command(encos_driver_t *driver, uint16_t id, int mode, float target);

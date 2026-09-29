@@ -69,13 +69,16 @@ current/gain settings and are not copied into hardware packets.
 
 All per-wheel arrays are ordered wheel_1 through wheel_4. `wheel_motor_ids`
 maps those wheels to physical IDs; `motor_ids` is independently the driver's
-PDO order. The controller reorders its output to match the latter. The first
-three driver entries use CAN1, and the fourth uses CAN2; the number of a motor
+PDO order. The controller reorders its output to match the latter. By default, the first
+three driver entries use CAN1, and the fourth uses CAN2 (overridable through
+`motor_slots`); the number of a motor
 ID does not choose its CAN bus. The driver uses one configuration for wheel mapping, PDO order and RPM
 limits, validated before opening the bridge.
 
 The example IDs and CAD signs are not verified physical wiring assignments.
-Only IDs 1–3 on CAN1 have prior unloaded bench evidence. Confirm wheel-to-ID
+IDs 1–3 have prior unloaded CAN1 bench evidence; motor 3 was also
+operator-confirmed on CAN2 on 2026-09-29 in direct-RPM mode. The full
+four-wheel hardware mapping remains unverified. Confirm wheel-to-ID
 assignment, signs, external gearing, and the fourth CAN2 slot before selecting
 hardware mode. Set `wheel_directions` to the actual protocol sign that drives
 each wheel forward; do not multiply a second CAD sign into it. Preserve
@@ -120,6 +123,55 @@ Use the existing root-account procedure from ROS2_MOTOR_CONTROL_STATUS.md for
 both hardware launch and teleop, sourcing `scripts/ros2_env.sh` inside that
 account. The launch flag acknowledges configuration review; it does not measure
 the wiring. No physical motion was performed as part of this implementation.
+
+## Three-motor differential bench (motor 4 absent)
+
+Use `chassis_bench.yaml` on both the driver and keyboard. It retains the complete
+four-wheel geometry and mixing, but explicitly sets `bench_omit_motor_id: 4`.
+Only IDs 1, 2, 3 are opened, queried, commanded and published in `/joint_states`.
+IDs 1/2 use CAN1 slots 0/1; ID 3 uses CAN2 slot 3. The unused slot stays empty.
+There is no automatic omission of unresponsive motors: a missing active motor
+still causes startup failure or the normal feedback fault.
+
+Stop the previous driver and keyboard before switching profiles. Driver pane:
+
+```bash
+sudo bash -lc '
+cd /home/forge2/forge2_ws
+source scripts/ros2_env.sh
+export ROS_DOMAIN_ID=44
+ros2 launch forge_motor_control chassis.launch.py \
+  config:=/home/forge2/forge2_ws/src/forge_motor_control/config/chassis_bench.yaml \
+  simulate:=false execute:=true mapping_confirmed:=true
+'
+```
+
+Keyboard pane:
+
+```bash
+sudo bash -lc '
+cd /home/forge2/forge2_ws
+source scripts/ros2_env.sh
+export ROS_DOMAIN_ID=44
+ros2 run forge_motor_control forge_keyboard_teleop --ros-args \
+  --params-file src/forge_motor_control/config/chassis_bench.yaml
+'
+```
+
+Keep the existing root/domain-44 `/joint_states` echo pane. W/S requests
+forward/reverse (motor signs `--+` / `++-`); A/D requests left/right pivot
+(`+++` / `---`). The bench keyboard requests 0.08 m/s forward (about 19.1 wheel RPM) and
+0.28 rad/s yaw, with a 20 RPM ceiling. Pivot requests are uniformly limited
+to 20 RPM per motor. These are 4x the previous bench steady-state speeds;
+the native 60 RPM/s slew and watchdogs are unchanged. Release or Space/X requests
+zero speed. Test with secured, unloaded motors; three-motor bench mixing is
+not validation of a complete chassis's physical turning behavior.
+
+When motor 4 returns, set `bench_omit_motor_id: 0` in this profile to require
+all four motors. Its reserved slot 4 is on CAN2; confirm the ID and wheel sign.
+The original `chassis.yaml` remains the default complete four-motor layout
+(IDs 1/2/3 CAN1, ID 4 CAN2), without omission. The `can2_bench.yaml` profile
+remains available for direct-RPM W/S-only testing.
 
 ## Commands, limits and verification
 

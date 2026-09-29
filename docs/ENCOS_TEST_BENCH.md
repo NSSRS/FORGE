@@ -375,3 +375,22 @@ phase-current ceiling per motor, explicit zero-speed commands, and shutdown. A
 fixed 60 RPM/s native slew limits abrupt velocity steps; it is intentionally not
 another ROS/Python tuning parameter. The driver retains feedback, command-age,
 current, temperature, overspeed, and EtherCAT fault checks.
+
+
+### CAN2 bench confirmation (2026-09-29)
+
+The operator confirmed motor 3 working on CAN2 using `can2_bench.yaml` after
+removal of the unused-slot position-query filler. The configured mapping is
+IDs 1/2 on CAN1 (zero-based slots 0/1), ID 3 on CAN2 (slot 3), with slot 2 empty.
+Motor 4 is absent. This profile uses direct-RPM teleop, a 5 RPM ceiling and the
+earlier provisional 2 A phase-current ceiling; it does not enable A/D mixing.
+
+The earlier attempt reached hardware-ready state but latched motor 1's 250 ms
+feedback timeout after commands began. A fake bridge modeling latest-reply
+replacement reproduced that failure with the filler query and passed after
+its removal. No startup pause or watchdog extension was added.
+
+This is an operator-reported functional CAN2 result, not a measured stopping,
+loaded-motion, or host-loss test. No new timing/current measurements or raw CAN
+capture were supplied. Four-wheel differential hardware testing remains pending.
+See [CAN2 bench instructions](CAN2_BENCH.md) for the current commands.

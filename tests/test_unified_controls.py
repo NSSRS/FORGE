@@ -89,6 +89,40 @@ class UnifiedTests(unittest.TestCase):
             driver._update()
         self.assertEqual([c.args[1] for c in self.bus.velocity.call_args_list], [0] * 4)
 
+    def test_bench_omission_keeps_four_wheel_mix_and_filters_by_id(self):
+        # Reorder IDs so omitting motor 4 cannot accidentally shift targets.
+        FakeNode.overrides = {"motor_ids": [4, 3, 1, 2],
+                              "motor_slots": [4, 3, 0, 1], "bench_omit_motor_id": 4}
+        module = self.load("motor_driver")
+        driver = module.ForgeMotorDriver()
+        self.assertEqual(driver.subscriptions, ["/cmd_vel"])
+        configs = self.bus_class.call_args.args[0]
+        self.assertEqual([c.motor_id for c in configs], [3, 1, 2])
+        self.assertEqual(self.bus_class.call_args.kwargs["motor_slots"], (3, 0, 1))
+        for n, (v, w, signs) in enumerate(((.02, 0, (1, -1, -1)),
+                                         (-.02, 0, (-1, 1, 1)),
+                                         (0, .07, (1, 1, 1)),
+                                         (0, -.07, (-1, -1, -1)))):
+            msg = Message()
+            msg.header.stamp.nanosec = n + 1
+            msg.twist.linear.x, msg.twist.angular.z = v, w
+            driver.get_clock = lambda: NS(now=lambda: NS(
+                nanoseconds=10_000_000_100, to_msg=lambda: NS(sec=10, nanosec=100)))
+            self.bus.velocity.reset_mock()
+            with patch.object(module.time, "monotonic", return_value=1):
+                driver._receive_chassis(msg)
+                driver._update()
+            calls = self.bus.velocity.call_args_list
+            self.assertEqual([c.args[0] for c in calls], [3, 1, 2])
+            self.assertTrue(all(c.args[1] * sign > 0 for c, sign in zip(calls, signs)))
+        self.bus.velocity.reset_mock()
+        with patch.object(module.time, "monotonic", return_value=1.21):
+            driver._update()
+        self.assertEqual([c.args for c in self.bus.velocity.call_args_list],
+                         [(3, 0), (1, 0), (2, 0)])
+        state = driver._state_publisher.publish.call_args.args[0]
+        self.assertEqual(state.name, ["motor_3_output", "motor_1_output", "motor_2_output"])
+
     def test_direct_commissioning_uses_only_original_topic(self):
         FakeNode.overrides = {"command_mode": "direct_rpm", "motor_ids": [1, 2, 3]}
         driver = self.load("motor_driver").ForgeMotorDriver()
@@ -100,7 +134,9 @@ class UnifiedTests(unittest.TestCase):
 
     def test_bad_chassis_mapping_and_unconfirmed_hardware_never_open_bus(self):
         for overrides in ({"motor_ids": [1, 2, 3]},
-                          {"simulate": False, "execute": True}, {"command_mode": "typo"}):
+                          {"simulate": False, "execute": True}, {"command_mode": "typo"},
+                          {"bench_omit_motor_id": 99},
+                          {"command_mode": "direct_rpm", "bench_omit_motor_id": 4}):
             FakeNode.overrides = overrides
             with self.subTest(overrides=overrides), self.assertRaises(ValueError):
                 self.load("motor_driver").ForgeMotorDriver()

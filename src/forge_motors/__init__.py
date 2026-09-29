@@ -1,8 +1,9 @@
 """Per-motor ENCOS commands; units are output-shaft degrees, RPM and phase A.
 
 No implicit heartbeat: callers must renew EVERY active motor within 250 ms.
-One MotorBus owns one bridge with 1-4 explicitly identified motors. Configuration
+One MotorBus owns one bridge with 1-4 explicitly identified motors. By default, configuration
 entries 1-3 use CAN1 (slots 0-2); entry 4 uses CAN2 (slot 3).
+Override with motor_slots: explicit zero-based slots 0-2 CAN1, 3-5 CAN2.
 """
 from __future__ import annotations
 
@@ -68,7 +69,7 @@ class _State(ct.Structure):
 
 
 class _Native:
-    def __init__(self, interface, configs, library):
+    def __init__(self, interface, configs, library, motor_slots=None):
         path = library or os.environ.get("FORGE_MOTORS_LIBRARY") or (
             Path(__file__).resolve().parents[2] / "build/encos_query/libencos_driver.so")
         try:
@@ -87,7 +88,17 @@ class _Native:
             f = getattr(self.lib, "encos_driver_" + name)
             f.argtypes, f.restype = args, result
         array = (_Config * len(configs))(*(_Config(**vars(c)) for c in configs))
-        self.handle = self.lib.encos_driver_open(interface.encode(), array, len(array))
+        if motor_slots is None:
+            self.handle = self.lib.encos_driver_open(interface.encode(), array, len(array))
+        else:
+            try:
+                opener = self.lib.encos_driver_open_mapped
+            except AttributeError as error:
+                raise MotorError("Rebuild native driver with ./scripts/build.sh for motor_slots") from error
+            opener.argtypes = [ct.c_char_p, ct.POINTER(_Config), ct.c_size_t, ct.POINTER(ct.c_uint8)]
+            opener.restype = ct.c_void_p
+            slots = (ct.c_uint8 * len(motor_slots))(*motor_slots)
+            self.handle = opener(interface.encode(), array, len(array), slots)
         if not self.handle:
             raise MotorError("Cannot open bridge: check interface/permissions, exclusive ownership, "
                              "one-slave topology and 86-byte OUT / 92-byte IN PDO layout")
@@ -175,10 +186,17 @@ class MotorBus:
     activates its motor. Commands for one motor never refresh another's lease.
     Public methods are serialized so close cannot race a ctypes call.
     """
-    def __init__(self, configs, *, interface=None, simulate=False, execute=False, library=None):
+    def __init__(self, configs, *, interface=None, simulate=False, execute=False,
+                 library=None, motor_slots=None):
         configs = tuple(configs)
         if not 1 <= len(configs) <= 4 or not all(isinstance(c, MotorConfig) for c in configs):
-            raise ValueError("Supply 1-4 MotorConfig objects; the fourth motor uses CAN2")
+            raise ValueError("Supply 1-4 MotorConfig objects")
+        if motor_slots is not None:
+            motor_slots = tuple(motor_slots)
+            if (len(motor_slots) != len(configs)
+                    or any(type(s) is not int or not 0 <= s < 6 for s in motor_slots)
+                    or len(set(motor_slots)) != len(motor_slots)):
+                raise ValueError("motor_slots must contain one unique integer 0-5 per motor")
         self.configs = {c.motor_id: c for c in configs}
         if len(self.configs) != len(configs):
             raise ValueError("Motor IDs must be unique")
@@ -187,7 +205,7 @@ class MotorBus:
         self._lock = threading.RLock()
         self._closed = False
         self._active = set()
-        self._backend = _Sim(configs) if simulate else _Native(interface, configs, library)
+        self._backend = _Sim(configs) if simulate else _Native(interface, configs, library, motor_slots)
 
     def _check(self):
         if self._closed:
@@ -248,7 +266,8 @@ class MotorBus:
             if all(self.state(i).position_deg is not None for i in self.configs):
                 return
             time.sleep(0.01)
-        raise MotorError("Initial position feedback timed out")
+        missing = [i for i in self.configs if self.state(i).position_deg is None]
+        raise MotorError(f"Initial position feedback timed out; missing motor IDs: {missing}")
 
     def stop(self):
         """Request zero speed on all active motors.

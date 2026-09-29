@@ -78,6 +78,57 @@ class NativeTests(unittest.TestCase):
                              simulate=simulate, interface="forge-test", execute=True,
                              library=self.path)
 
+    def test_three_motors_split_can_buses(self):
+        self.bus.close()
+        configs = [MotorConfig(i, -180, 180, 5, 1) for i in (1, 2, 3)]
+        # Fake wiring only answers ID 3 on CAN2: old contiguous layout fails.
+        with MotorBus(configs, interface="forge-test-can2", execute=True,
+                      library=self.path) as bus:
+            with self.assertRaisesRegex(MotorError, r"missing motor IDs: \[3\]"):
+                bus.wait_ready(timeout=.15)
+        with MotorBus(configs, interface="forge-test-can2", execute=True,
+                      library=self.path, motor_slots=[0, 1, 3]) as bus:
+            bus.wait_ready()
+            self.assertEqual(self.fake.fake_controls(), 0)
+            for target in (3, -3, 0):
+                for _ in range(12):
+                    for motor_id in (1, 2, 3):
+                        bus.velocity(motor_id, target)
+                    time.sleep(.02)
+                self.assertAlmostEqual(bus.state(3).velocity_rpm, target, places=2)
+            self.assertEqual(self.fake.fake_slot_controls(2), 0)
+            self.assertEqual(self.fake.fake_slot_frames(2), 0)
+            self.assertEqual(self.fake.fake_slot_frames(4), 0)
+            self.assertGreater(self.fake.fake_slot_controls(3), 0)
+            # Missing feedback must still latch; no watchdog extension.
+            self.fake.fake_fault(2)
+            for _ in range(30):
+                if bus._backend.status():
+                    break
+                try:
+                    for motor_id in (1, 2, 3):
+                        bus.velocity(motor_id, 0)
+                except MotorError:
+                    break
+                time.sleep(.02)
+            self.assertEqual(bus._backend.status(), 3)
+        self.assertGreater(self.fake.fake_clears(), 0)
+
+    def test_invalid_slot_maps(self):
+        self.bus.close()
+        for slots in ([0], [0, 0], [0, 6], [0, -1], [0, True]):
+            with self.subTest(slots=slots), self.assertRaises(ValueError):
+                MotorBus(self.configs, simulate=True, motor_slots=slots)
+        from forge_motors import _Config
+        array = (_Config * 2)(*(_Config(**vars(c)) for c in self.configs))
+        opener = self.fake.encos_driver_open_mapped
+        opener.argtypes = [ctypes.c_char_p, ctypes.POINTER(_Config), ctypes.c_size_t,
+                           ctypes.POINTER(ctypes.c_uint8)]
+        opener.restype = ctypes.c_void_p
+        for slots in ((0, 0), (0, 6)):
+            self.assertFalse(opener(b"forge-test", array, 2,
+                                    (ctypes.c_uint8 * 2)(*slots)))
+
     def test_watchdog_runs_without_python_heartbeat(self):
         self.bus.velocity(1, 2)
         time.sleep(.35)
