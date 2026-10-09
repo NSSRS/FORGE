@@ -16,8 +16,10 @@ Multiple bridges, hybrid mode, torque, brake release and configuration writes
 are not exposed.
 
 Opening sends only position queries. A motor's first command activates it;
-the others remain query-only. Initial position must be available and within
-configured absolute limits before activation.
+the others remain query-only. Fresh initial position must be available before
+activation. Absolute position
+bounds apply to Mode 1; Mode 2 does not require the measured accumulated
+angle to lie within those bounds.
 
 For four motors, supply four `MotorConfig` entries and command each ID separately.
 With the default mapping, the fourth motor must be connected to CAN2 with that
@@ -161,8 +163,10 @@ Both manual and automatic operation can feed `velocity()`:
 1. Keys/joystick -> chassis speed/yaw rate -> wheel RPM.
 2. Reference path/speed plus estimated chassis state -> tracking corrections -> wheel RPM.
 
-Kinematics, keyboard mapping, localization, trajectory tracking and camera/IMU
-fusion are not implemented by this interface. Position mode remains available
+The separate ROS package implements differential kinematics and keyboard/RC
+teleop; see [chassis control](DIFFERENTIAL_DRIVE.md). The standalone MotorBus
+interface does not perform those conversions. Localization, trajectory tracking
+and camera/IMU fusion remain unimplemented. Position mode remains available
 for independent motor-angle experiments.
 
 ## Verification

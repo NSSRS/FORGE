@@ -7,6 +7,13 @@ Follow the [Ubuntu build guide](../docs/ENCOS_WORKSPACE.md#build-on-ubuntu);
 - `test_python_motors.py`: simulation, independent commands, deadlines, validation and cleanup.
 - `test_differential_drive.py`: simulation-derived wheel signs, chassis arcs, RPM
   saturation, motor ordering, timestamp validation and keyboard dead-man stopping.
+- `test_radio_input.py`: raw CSV validation, measured calibration, one-stick mixing,
+  proportional speed, neutral acquisition, source-age expiry and recovery.
+- `test_unified_controls.py`: actual node callbacks with a ROS facade, including
+  chassis-only teleop, calibration rejection and publisher-free radio monitoring.
+- `test_ros_radio.py`: real pseudo-terminal serial input through the radio teleop
+  and ROS chassis simulator, including silence, neutral recovery and USB disconnect.
+  Requires ROS 2 and pyserial; never connects to motor hardware.
 - `test_ros_chassis.py`: real ROS topics through the existing simulated motor
   driver, including upstream publisher loss; skips without ROS 2. Source the ROS
   environment and run on an isolated ROS domain with no hardware or other publishers.
@@ -40,3 +47,10 @@ python -m unittest discover -s tests -p 'test_*.py' -v
 ```
 
 These checks do not validate physical stopping or bridge feedback freshness.
+
+Run the ROS radio integration test on an isolated domain (no hardware processes):
+
+```bash
+source scripts/ros2_env.sh
+ROS_DOMAIN_ID=84 python3 -m unittest discover -s tests -p test_ros_radio.py -v
+```

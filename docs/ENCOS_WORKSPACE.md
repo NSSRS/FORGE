@@ -3,8 +3,9 @@
 Current development: `main` now contains controls only. The physics simulators
 are on `physics-analysis`. The new C11 shared driver and Python per-motor position
 and velocity API are documented in [PYTHON_CONTROL.md](PYTHON_CONTROL.md). Its
-100 Hz loop is separate from the older bench CLI below. Both accept up to four
-motors in configuration order: slots 0-2 use CAN1 and slot 3 uses CAN2.
+100 Hz loop is separate from the older bench CLI below. MotorBus supports
+1-4 motors, with contiguous slots 0-3 by default or explicit `motor_slots`
+for split-bus layouts. The legacy CLI tools have more limited routing, described below.
 
 Ubuntu 24.04 on the Intel NUC. Hardware route: dedicated Ethernet → ENCOS EtherCAT-CAN bridge → classic CAN motors. Begin with one bridge and one motor on CAN1.
 
@@ -14,7 +15,7 @@ Ubuntu 24.04 on the Intel NUC. Hardware route: dedicated Ethernet → ENCOS Ethe
 |---|---|
 | `src/encos_query/` | C11 protocol codec, shared driver, and bench utilities |
 | `src/forge_motors/` | Python API, ctypes binding, and hardware-free simulator |
-| `src/forge_motor_control/` | ROS 2 driver, keyboard publisher, and commissioning config |
+| `src/forge_motor_control/` | ROS 2 driver, keyboard/RC publisher, and chassis configuration |
 | `docs/` | Protocol, bench procedure/results, Python/ROS usage, and platform roadmap |
 | `docs/bench-equipment.example.md` | Redacted equipment-record template |
 | `tests/` | Host-side protocol, simulation, and fake-native-driver tests |
@@ -73,11 +74,16 @@ The project-owned utilities use a pinned public release of SOEM. The private loc
 
 Use `sudo ./build/encos_query/encos_query enp86s0` for automatic discovery when exactly one motor is powered on the CAN bus. It validates the 86-byte output and 92-byte input PDOs, then reads motor ID, position, versions, and CAN timeout. It sends no control, configuration, zeroing, brake, or movement commands.
 
-For two to four powered motors, use their known, unique CAN IDs and avoid broadcast discovery:
+For multiple motors on CAN1, use known, unique CAN IDs and avoid broadcast discovery:
 
 ```bash
-sudo ./build/encos_query/encos_query enp86s0 --motor-ids 1,2,3,4
+sudo ./build/encos_query/encos_query enp86s0 --motor-ids 1,2,3
 ```
+
+`encos_query` sends every request through slot 0/CAN1, even with several IDs.
+It cannot query the current bench motor 3 on CAN2. For that layout use the
+[chassis driver](DIFFERENTIAL_DRIVE.md#three-motor-differential-bench-motor-4-absent)
+without starting a command publisher; startup remains query-only.
 
 ### Assigning duplicate CAN IDs
 
@@ -93,7 +99,10 @@ sudo ./build/encos_query/encos_query enp86s0
 
 Repeat with one isolated motor at a time. Do not use `encos_assign_id` while duplicate IDs share the powered CAN bus.
 
-The bounded motion utility accepts the same explicit ID list. It commands each listed motor through PDO slots 0–3 with a target 1 ms loop, monitors type-2 feedback for every motor, and stops all outputs if any motor exceeds a safety limit. Slot 3 routes to CAN2 according to the bridge guide; four IDs do not mean four motors on CAN1:
+The bounded motion utility accepts the same explicit ID list. It commands each listed motor through PDO slots 0–3 with a target 1 ms loop, monitors type-2 feedback for every motor, and stops all outputs if any motor exceeds a safety limit. Slot 3 routes to CAN2, but this legacy utility sends initial position queries
+through slot 0/CAN1. It is therefore not a working four-motor split-bus
+commissioning path. Use it for the original one-to-three-motor CAN1 bench;
+use mapped MotorBus/ROS for CAN2:
 
 ```bash
 sudo ./build/encos_query/encos_motion enp86s0 2.0 1 --motor-ids 1,2 --execute
@@ -101,7 +110,7 @@ sudo ./build/encos_query/encos_motion enp86s0 2.0 1 --motor-ids 1,2 --execute
 
 The initial profile targets a 1 kHz loop, ramps outward over 2 seconds at a 5 rpm ceiling, holds 0.5 seconds, and returns over 2 seconds. Standard Linux scheduling can add jitter, so treat 1 kHz as a target and inspect the resulting motion/feedback log before relying on it. Start with one motor and 2.0 A only if that phase-current ceiling is approved for the actual motor and fixture. Do not run a multi-motor motion until IDs, termination, direction, clearance, and individual feedback are verified.
 
-For a three-motor verification sequence, after IDs 1, 2, and 3 have individually passed telemetry, run the three motors together, then ID 1, ID 2, and ID 3 in turn. Every stage uses the bounded out-and-return profile and aborts the remaining sequence if a stage fails:
+For the original all-CAN1 three-motor verification sequence, after IDs 1, 2, and 3 have individually passed telemetry, run the three motors together, then ID 1, ID 2, and ID 3 in turn. Every stage uses the bounded out-and-return profile and aborts the remaining sequence if a stage fails:
 
 ```bash
 sudo ./scripts/run_three_motor_sequence.sh enp86s0 2.0 1 --execute

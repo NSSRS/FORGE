@@ -93,7 +93,7 @@ MotorTool is not assumed to work through the EtherCAT bridge. Do not buy USB-CAN
 ## 5. Ubuntu workspace preparation
 
 This workspace is now on the Ubuntu 24.04 NUC at `/home/forge2/forge2_ws`.
-Original vendor files are preserved in `vendor/encos/`; the C example has already been extracted into `src/soem_demo_c/`. Do not extract over the working copy.
+Original vendor files are preserved in `vendor/encos/`; use its README to locate active references. The historical C demo working copy was `src/soem_demo_c/`. Current builds use project-owned code in `src/encos_query/`; no demo extraction is needed.
 
 Install dependencies using the [workspace build guide](ENCOS_WORKSPACE.md#build-on-ubuntu),
 then confirm the host and available interfaces:
@@ -247,9 +247,10 @@ Log run ID, software version, motor/bridge firmware, bus/passage/ID, limits, mon
 
 Once one motor passes, add a second only with power off and a unique ID on that bus. Map every motor to (bridge index, passage, CAN ID). Each bridge supports passages 1-3 on CAN1 and 4-6 on CAN2. One board is sufficient for up to six motor slots, but throughput still needs measurement. Start conservatively and preserve timing headroom.
 
-A temporary ROS 2 Jazzy commissioning layer now publishes direct motor RPM
-commands and `/joint_states`; it is not yet a chassis controller or a
-`ros2_control` hardware interface. Add the production `ros2_control` interface,
+The ROS 2 Jazzy driver now includes differential chassis mixing from
+`/cmd_vel` and publishes `/joint_states`. WASD and single-stick radio input
+share that chassis path. Legacy direct-RPM commissioning remains in the driver;
+a `ros2_control` hardware interface is not implemented. Add the production `ros2_control` interface,
 joint-state/trajectory controllers, and URDF/YAML only after the chassis mapping
 and safety requirements are defined. Those files must include joint axes,
 origins, signs, zero references, travel/velocity/effort limits, and external
@@ -382,7 +383,7 @@ current, temperature, overspeed, and EtherCAT fault checks.
 The operator confirmed motor 3 working on CAN2 using `can2_bench.yaml` after
 removal of the unused-slot position-query filler. The configured mapping is
 IDs 1/2 on CAN1 (zero-based slots 0/1), ID 3 on CAN2 (slot 3), with slot 2 empty.
-Motor 4 is absent. This profile uses direct-RPM teleop, a 5 RPM ceiling and the
+Motor 4 is absent. At the time, this profile used direct-RPM teleop, a 5 RPM ceiling and the
 earlier provisional 2 A phase-current ceiling; it does not enable A/D mixing.
 
 The earlier attempt reached hardware-ready state but latched motor 1's 250 ms
@@ -393,4 +394,6 @@ its removal. No startup pause or watchdog extension was added.
 This is an operator-reported functional CAN2 result, not a measured stopping,
 loaded-motion, or host-loss test. No new timing/current measurements or raw CAN
 capture were supplied. Four-wheel differential hardware testing remains pending.
-See [CAN2 bench instructions](CAN2_BENCH.md) for the current commands.
+Current teleop uses `chassis_bench.yaml` and W/S/A/D (20 RPM ceiling);
+see [CAN2 bench instructions](CAN2_BENCH.md). The old direct-RPM keyboard
+mode is no longer available. This historical result does not validate radio driving.

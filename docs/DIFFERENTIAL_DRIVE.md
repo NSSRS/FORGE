@@ -11,10 +11,13 @@ forge_keyboard_teleop (or one planner)
 
 The driver still owns the bridge, publishes output-shaft `/joint_states`, and
 enforces the existing current, speed, feedback and command protections. No
-EtherCAT work occurs in the keyboard. The same driver and keyboard support
-`command_mode: chassis` (default) or `command_mode: direct_rpm` (the three-motor
-commissioning config). The driver subscribes to only one command topic for the
-selected mode. There is no separate base-controller or chassis-keyboard executable.
+EtherCAT work occurs in the keyboard. The keyboard/RC teleop supports only
+`command_mode: chassis`. Its
+`input_source` selects keyboard, radio, or a read-only radio monitor; see
+[RADIO_CONTROL.md](RADIO_CONTROL.md). The driver retains direct-RPM support
+for legacy automated commissioning, but it is no longer a teleop mode.
+The driver subscribes to only one command topic for the selected mode. There
+is no separate base-controller or chassis-keyboard executable.
 Use only one chassis command publisher; source arbitration is not implemented.
 
 ## Model source and hardware mapping
@@ -119,7 +122,7 @@ ros2 launch forge_motor_control chassis.launch.py \
   simulate:=false execute:=true mapping_confirmed:=true
 ```
 
-Use the existing root-account procedure from ROS2_MOTOR_CONTROL_STATUS.md for
+Use the root-account procedure below for
 both hardware launch and teleop, sourcing `scripts/ros2_env.sh` inside that
 account. The launch flag acknowledges configuration review; it does not measure
 the wiring. No physical motion was performed as part of this implementation.
@@ -171,7 +174,7 @@ When motor 4 returns, set `bench_omit_motor_id: 0` in this profile to require
 all four motors. Its reserved slot 4 is on CAN2; confirm the ID and wheel sign.
 The original `chassis.yaml` remains the default complete four-motor layout
 (IDs 1/2/3 CAN1, ID 4 CAN2), without omission. The `can2_bench.yaml` profile
-remains available for direct-RPM W/S-only testing.
+remains a legacy direct-RPM driver profile; the WASD/RC teleop rejects it.
 
 ## Commands, limits and verification
 

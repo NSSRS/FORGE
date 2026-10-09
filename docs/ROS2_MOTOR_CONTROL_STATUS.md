@@ -1,42 +1,32 @@
 # ROS 2 motor-control status
 
-For the current three-motor split-bus setup (IDs 1/2 CAN1, ID 3 CAN2),
-see [CAN2 direct-RPM bench commands](CAN2_BENCH.md) or
-[three-motor W/S/A/D differential testing](DIFFERENTIAL_DRIVE.md#three-motor-differential-bench-motor-4-absent).
+The active control path is chassis W/S/A/D, using `forge_keyboard_teleop` with
+keyboard or proportional single-stick radio input. Both publish
+`geometry_msgs/msg/TwistStamped` on `/cmd_vel`; `forge_motor_driver` performs
+differential mixing and owns MotorBus, C11/SOEM and the EtherCAT-CAN bridge.
+See [radio calibration](RADIO_CONTROL.md) for ESP32 input.
 
-## Current scope
+## Current bench
 
-ROS 2 Jazzy is installed on the Ubuntu 24.04 NUC. The
-`forge_motor_control` ROS package provides a direct-RPM motor driver node and a
-dead-man keyboard publisher for commissioning. The same driver and keyboard now support
-[four-wheel differential control](DIFFERENTIAL_DRIVE.md) using the `forge_sim`
-wheel layout. Chassis mode is the default; use `commissioning.yaml` on both
-nodes for the original all-CAN1 direct-RPM bench mode. Use `can2_bench.yaml`
-on both nodes for the current split-bus setup. The sections below describe
-the original all-CAN1 three-motor bench path. URDF and autonomous control remain future work.
+`src/forge_motor_control/config/chassis_bench.yaml` configures IDs 1/2 on CAN1
+(slots 0/1) and ID 3 on CAN2 (slot 3). Motor 4 is explicitly absent. Four-wheel
+mixing is retained; only the three present motors are opened and commanded.
+Forward wheel signs are `[-1,-1,+1,+1]` in the configured wheel order.
 
-The temporary commissioning topic is:
+| Setting | Current bench value |
+|---|---|
+| Forward/reverse request | +/-0.08 m/s |
+| Left/right yaw request | +/-0.28 rad/s |
+| Per-motor ceiling | 20 output-shaft RPM |
+| Provisional phase-current ceiling | 2 A per motor |
+| Chassis command lease | 0.15 s |
+| Native velocity slew | 60 RPM/s |
+| Native command lease | 0.25 s |
 
-```text
-/drive/motor_rpm_commands  std_msgs/msg/Float64MultiArray
-```
-
-The array order is motor IDs 1, 2, and 3. The motor driver publishes output-shaft
-position and velocity on `/joint_states`. Positions use radians and velocities
-use radians per second, as required by `sensor_msgs/msg/JointState`.
-
-The keyboard node is a publisher. The hardware node is both a subscriber (RPM
-commands) and a publisher (encoder states). `W` and `S` command all three motors
-in the same protocol direction; Space or `X` stops, and `Q` or Escape exits.
-Nonzero commands expire when key-repeat stops. `A` and `D` are intentionally not
-implemented because left/right kinematics depend on the future robot geometry,
-wheel directions, and transmission configuration.
-
-Terminal input reports key presses but not key releases. To avoid an initial
-motion pulse followed by a deadman stop during Linux's key-repeat delay, the
-teleop waits for the second matching `W` or `S` event before publishing motion.
-Held-key repeat then refreshes commands normally; releasing the key retains the
-0.15-second deadman stop. A single tap does not move the motors.
+The complete four-motor `chassis.yaml` is a different profile: 0.02 m/s,
+0.07 rad/s and a 30 RPM ceiling. Use the same selected profile for teleop and
+driver. Combined forward/turn requests are scaled together to fit the motor
+ceiling. Physical wheel assignments and signs still need commissioning.
 
 ## Build and run
 
@@ -47,55 +37,45 @@ colcon --log-base logs/colcon build --base-paths src/forge_motor_control \
   --build-base build/ros2 --install-base install/ros2 --symlink-install
 ```
 
-Hardware driver terminal:
+For the current four-pane bench workflow, see [motor visualization](MOTOR_MIRROR.md):
+`./scripts/run_motor_test.sh --simulate` runs without motor hardware;
+`./scripts/run_motor_test.sh` starts the configured hardware session.
+For separate driver and teleop terminals, use the commands in
+[differential bench testing](DIFFERENTIAL_DRIVE.md#three-motor-differential-bench-motor-4-absent).
+Radio input replaces the keyboard process; never run both publishers together.
+The launcher still selects keyboard input by default.
 
-```bash
-cd /home/forge2/forge2_ws
-sudo ./scripts/run_ros_motor_driver.sh --execute
-```
+W/S request forward/reverse; A/D request left/right pivots. Space/X requests zero;
+Q/Escape requests zero and exits. Terminal input has no key-release event, so a
+second matching key event starts motion and key-repeat renews it. Release stops
+the request after 0.15 s. Radio input instead uses continuously proportional
+axes, with both axes of one stick controlling the entire chassis.
 
-Keyboard terminal:
+The driver publishes `/joint_states`: output-shaft position in radians and
+velocity in radians/second, named `motor_<id>_output`. It stays query-only until
+its first valid command. Chassis messages require a fresh nonzero timestamp,
+`frame_id=base_link`, and only linear.x/angular.z nonzero. Source expiry requests
+zero speed; native fault handling is a separate layer. Neither promises an
+instantaneous mechanical stop or holding brake.
 
-```bash
-sudo bash -lc '
-cd /home/forge2/forge2_ws
-source scripts/ros2_env.sh
-exec ros2 run forge_motor_control forge_keyboard_teleop --ros-args \
-  --params-file src/forge_motor_control/config/commissioning.yaml
-'
-```
+Hardware needs root for raw EtherCAT. On this host, mixed root/non-root DDS
+payload delivery was unreliable despite discovery succeeding. Use the same
+root account, `scripts/ros2_env.sh`, and ROS domain 44 for hardware driver and
+teleop. Simulation can run as the normal user on an isolated domain.
 
-To test the ROS motor driver without the keyboard node, leave the driver running
-and execute the guarded automatic publisher in a second terminal:
+## Legacy commissioning and evidence
 
-```bash
-sudo bash -lc '
-cd /home/forge2/forge2_ws
-source scripts/ros2_env.sh
-./scripts/run_ros_motor_command_test.py --execute --rpm 5
-'
-```
+The driver retains `command_mode: direct_rpm` on
+`/drive/motor_rpm_commands` (`std_msgs/msg/Float64MultiArray`) for the existing
+automated commissioning tools. `commissioning.yaml` and `can2_bench.yaml` are
+legacy driver-only profiles. `run_ros_motor_driver.sh` still selects the former;
+`run_ros_motor_command_test.py` publishes direct RPM and cannot drive a chassis
+mode subscriber. These are not the current WASD/RC workflow, and the teleop
+explicitly rejects direct-RPM mode.
 
-It requires fresh `/joint_states` data before moving, publishes equal targets
-for motors 1-3 for exactly two seconds, then publishes zero for one second and
-requires all three reported speeds to fall below 0.5 RPM. The default is +5 RPM;
-signed values up to +/-30 RPM are accepted.
-
-The hardware driver stays query-only until its first valid RPM message. If
-messages stop for 0.20 seconds, it commands zero RPM. The native 0.25-second
-command lease and the verified motor-side 500 ms CAN timeout remain additional
-stop layers.
-
-The driver needs root for raw EtherCAT access. On this host, Fast DDS endpoint
-discovery crosses the root/non-root boundary but payload delivery is unreliable,
-even with UDP-only loopback configuration. Run the temporary commissioning
-driver, automatic publisher, and keyboard teleop under the same root account.
-
-## Bench results and limitations
-
-The secured, unloaded three-motor path passed bounded native Python velocity,
-automatic ROS command/feedback, and keyboard commissioning tests. The complete
-[2026-09-16 commissioning record](ENCOS_TEST_BENCH.md#commissioning-record-2026-09-16)
-preserves the initial fault, subsequent diagnosis, measured values, firmware
-discrepancy, operator decision about unknown brake status, and test limits.
-Loaded stopping and host-loss behavior remain unverified.
+The [2026-09-16 bench record](ENCOS_TEST_BENCH.md#commissioning-record-2026-09-16)
+preserves the fault investigation and bounded unloaded motor tests. The
+[2026-09-29 CAN2 result](ENCOS_TEST_BENCH.md#can2-bench-confirmation-2026-09-29)
+is operator-confirmed. Those historical results are not radio, complete chassis,
+loaded-stop or host-loss validation. URDF, odometry, trajectory tracking,
+command-source arbitration and a safety supervisor remain future work.

@@ -24,9 +24,11 @@ and joint limits will later be supplied as XML. Prefer ROS URDF with Xacro where
 parameters or repeated structures are needed. Hardware limits that affect safe
 operation must also live in reviewed configuration rather than relying only on URDF.
 
-The implemented direct-RPM commissioning interface is documented in
-[ROS 2 motor control](ROS2_MOTOR_CONTROL_STATUS.md). The chassis interfaces and
-keyboard mapping below are planned; dated hardware evidence lives in the
+The current chassis interface and keyboard/RC teleop are documented in
+[ROS 2 motor control](ROS2_MOTOR_CONTROL_STATUS.md) and
+[radio control](RADIO_CONTROL.md). The architecture below describes the target
+system; unimplemented responsibilities and interfaces are proposals, not
+current node capabilities. There is no command mux or safety supervisor yet; dated hardware evidence lives in the
 [bench record](ENCOS_TEST_BENCH.md#commissioning-record-2026-09-16).
 
 ## System architecture
@@ -70,7 +72,8 @@ This node wraps the existing Python interface. Python calls the C11 shared libra
 through `ctypes`; a native worker owns the SOEM EtherCAT loop. ROS and Python must
 not perform individual EtherCAT cycles.
 
-Responsibilities:
+Target responsibilities (the current ROS node accepts velocity commands and
+publishes position/velocity only; native MotorBus also supports position mode):
 
 - Open and exclusively own the dedicated EtherCAT interface.
 - Map four configured motors to bridge slots and CAN buses.
@@ -117,9 +120,9 @@ stable. The early Python ROS node remains useful for commissioning and experimen
 
 ### `forge_base_controller`
 
-The base controller accepts `geometry_msgs/TwistStamped`, applies chassis limits,
-and converts linear and angular chassis velocity into four wheel RPM targets.
-It also converts encoder positions into wheel odometry.
+Differential mixing of `geometry_msgs/TwistStamped` into wheel RPM is already
+implemented inside `forge_motor_driver`; there is no separate base-controller
+executable. A future extraction may add wheel odometry, which is not implemented.
 
 Its model will be completed from the robot XML and supporting configuration:
 
@@ -136,18 +139,20 @@ Its model will be completed from the robot XML and supporting configuration:
 Keyboard and gamepad nodes publish timestamped chassis velocity commands. They do
 not contain motor IDs, gear ratios, or ENCOS packets.
 
-Initial keyboard mapping:
+Implemented keyboard mapping:
 
 | Input | Action |
 |---|---|
 | W / S | Forward / reverse request |
 | A / D | Left / right turn request |
-| Shift | Reduced precision-speed profile |
-| Space | Normal controlled stop |
-| Escape | Disarm request |
+| Space / X | Zero-speed request |
+| Q / Escape | Zero-speed request and exit |
 
-The gamepad uses the same output interface, with stick dead zones, speed scaling,
-input filtering, a held dead-man control, and controller-disconnect detection.
+The implemented ESP32 radio input uses the same executable and output interface:
+one calibrated stick sets forward speed and turn rate, with a center dead zone,
+neutral acquisition and serial freshness checks. RF failsafe validation, a held
+dead-man control, generic gamepad support and precision-speed profiles remain
+future work. Keyboard release is detected through key-repeat expiry.
 
 ### `forge_command_mux`
 
@@ -433,12 +438,12 @@ Future XML/configuration should provide:
 
 ## Immediate next milestone
 
-The NUC-to-bridge-to-three-motor commissioning path is now working on the
-secured unloaded bench, including native Python and temporary ROS 2 direct-RPM
-control. Next, collect the four-wheel geometry, motor direction/assignment,
-external gearing, brake details, and model-specific limits, then implement and
-validate a simulated four-motor chassis with steering-aware keyboard
-teleoperation, command arbitration, limits, and the safety state machine. The
-simulation should consume the same robot XML/YAML and ROS command interfaces
-intended for the physical system. In parallel, complete controlled host/link-loss
-and loaded stopping tests before chassis motion.
+Differential mixing, simulated chassis tests, WASD teleop and a read-only
+MuJoCo motor-feedback viewer are implemented. The three-motor bench uses
+IDs 1/2 on CAN1 and ID 3 on CAN2, with motor 4 explicitly omitted.
+Single-stick radio input now shares the WASD command path; measure its channel
+assignments/endpoints and verify RF-loss behavior before physical commissioning.
+Next confirm the complete physical wheel mapping, external gearing, brake
+details and model-specific limits, and implement command arbitration and the
+safety supervisor. Controlled host/link-loss and loaded stopping tests remain
+outstanding. Software simulation results do not establish those hardware properties.

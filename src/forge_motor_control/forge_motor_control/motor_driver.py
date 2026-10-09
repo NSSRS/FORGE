@@ -31,6 +31,9 @@ class ForgeMotorDriver(Node):
         self.declare_parameter("max_velocity_rpm", 30.0)
         self.declare_parameter("max_current_a", 2.0)
         self.declare_parameter("command_timeout_s", 0.20)
+        self.declare_parameter("log_motor_targets", False)
+        self._log_motor_targets = self.get_parameter("log_motor_targets").value
+        self._last_target_log = -math.inf
 
         simulate = bool(self.get_parameter("simulate").value)
         interface = str(self.get_parameter("interface").value)
@@ -160,6 +163,13 @@ class ForgeMotorDriver(Node):
                 )
                 targets = [0.0] * len(self._motor_ids) if stale else self._targets
             if targets is not None:
+                if self._log_motor_targets:
+                    now = time.monotonic()
+                    if now - self._last_target_log >= 0.1:
+                        self.get_logger().info("MotorBus targets (RPM): " + ", ".join(
+                            f"ID {motor_id}={target:+.3f}"
+                            for motor_id, target in zip(self._motor_ids, targets)))
+                        self._last_target_log = now
                 for motor_id, target in zip(self._motor_ids, targets):
                     self._bus.velocity(motor_id, target)
             self._publish_state()

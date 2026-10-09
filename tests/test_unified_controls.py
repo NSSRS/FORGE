@@ -89,6 +89,30 @@ class UnifiedTests(unittest.TestCase):
             driver._update()
         self.assertEqual([c.args[1] for c in self.bus.velocity.call_args_list], [0] * 4)
 
+    def test_target_log_matches_bus_calls_after_mixing_and_expiry(self):
+        FakeNode.overrides = {"log_motor_targets": True, "bench_omit_motor_id": 4,
+                              "max_velocity_rpm": 20.0}
+        module = self.load("motor_driver")
+        driver = module.ForgeMotorDriver()
+        logger = Mock()
+        driver.get_logger = lambda: logger
+        driver._update()
+        logger.info.assert_not_called()  # Query-only has no target yet.
+        msg = Message()
+        msg.twist.linear.x, msg.twist.angular.z = .08, .28
+        with patch.object(module.time, "monotonic", return_value=1):
+            driver._receive_chassis(msg)
+            driver._update()
+        expected = "MotorBus targets (RPM): " + ", ".join(
+            f"ID {call.args[0]}={call.args[1]:+.3f}"
+            for call in self.bus.velocity.call_args_list)
+        logger.info.assert_called_once_with(expected)
+        self.assertEqual(len(self.bus.velocity.call_args_list), 3)
+        with patch.object(module.time, "monotonic", return_value=1.21):
+            driver._update()
+        logger.info.assert_called_with(
+            "MotorBus targets (RPM): ID 1=+0.000, ID 2=+0.000, ID 3=+0.000")
+
     def test_bench_omission_keeps_four_wheel_mix_and_filters_by_id(self):
         # Reorder IDs so omitting motor 4 cannot accidentally shift targets.
         FakeNode.overrides = {"motor_ids": [4, 3, 1, 2],
@@ -151,8 +175,13 @@ class UnifiedTests(unittest.TestCase):
         self.assertEqual((msg.twist.linear.x, msg.twist.angular.z), (0.02, 0.07))
         self.assertIn("a", keyboard._keys.commands)
         FakeNode.overrides = {"command_mode": "direct_rpm"}
-        keyboard = module.KeyboardTeleop()
-        self.assertEqual(keyboard.publications, ["/drive/motor_rpm_commands"])
-        keyboard.publish((5.0, 0.0))
-        self.assertEqual(keyboard._publisher.publish.call_args.args[0].data, [5.0] * 3)
-        self.assertNotIn("a", keyboard._keys.commands)
+        with self.assertRaisesRegex(ValueError, "chassis/WASD only"):
+            module.KeyboardTeleop()
+
+    def test_radio_requires_calibration_and_monitor_has_no_publisher(self):
+        FakeNode.overrides = {"input_source": "radio"}
+        with self.assertRaises(ValueError):
+            self.load("keyboard_teleop").KeyboardTeleop()
+        FakeNode.overrides = {"input_source": "radio_monitor"}
+        monitor = self.load("keyboard_teleop").KeyboardTeleop()
+        self.assertEqual(monitor.publications, [])

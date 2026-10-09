@@ -1,70 +1,24 @@
-# Three-motor CAN2 bench
+# Three-motor CAN2 chassis bench
 
-Use `config/can2_bench.yaml` in the ROS package for IDs 1 and 2 on CAN1 and
-ID 3 on CAN2. Motor 4 is absent. This is direct-RPM commissioning, not a
-three-wheel differential chassis. For W/S/A/D testing with motor 4 absent, use
-[the differential bench profile](DIFFERENTIAL_DRIVE.md#three-motor-differential-bench-motor-4-absent).
-The default four-wheel chassis profile is unchanged.
+The current control profile is `src/forge_motor_control/config/chassis_bench.yaml`:
+IDs 1/2 on CAN1, ID 3 on CAN2, and motor 4 explicitly omitted. Use W/S/A/D or
+one proportional radio stick through the same chassis command path.
 
-Stop existing driver and keyboard processes. Power off before moving motor 3's
-CAN harness to CAN2; verify termination on both separate buses. Keep the motors
-secured and unloaded, with the hardware stop available. The profile uses a
-5 RPM ceiling and the earlier provisional 2 A phase-current limit.
+- [Driver and W/S/A/D commands](DIFFERENTIAL_DRIVE.md#three-motor-differential-bench-motor-4-absent)
+- [ESP32 radio input and calibration](RADIO_CONTROL.md)
+- [Four-pane motor test and MuJoCo feedback](MOTOR_MIRROR.md)
 
-Rebuild from `/home/forge2/forge2_ws`:
+The current bench requests 0.08 m/s forward/reverse and 0.28 rad/s yaw, with a
+20 RPM per-motor ceiling and the provisional 2 A phase-current ceiling. Initial
+position feedback from all three present motors is required at startup. Motor 4
+is never synthesized or silently removed after a fault.
 
-```bash
-./scripts/build.sh
-source /opt/ros/jazzy/setup.bash
-colcon --log-base logs/colcon build --base-paths src/forge_motor_control \
-  --build-base build/ros2 --install-base install/ros2 --symlink-install
-```
-
-Driver pane (query-only until a command arrives):
-
-```bash
-sudo bash -lc '
-cd /home/forge2/forge2_ws
-source scripts/ros2_env.sh
-export ROS_DOMAIN_ID=44
-ros2 run forge_motor_control forge_motor_driver --ros-args \
-  --params-file src/forge_motor_control/config/can2_bench.yaml \
-  -p simulate:=false -p execute:=true
-'
-```
-
-Feedback pane:
-
-```bash
-sudo bash -lc '
-cd /home/forge2/forge2_ws
-source scripts/ros2_env.sh
-export ROS_DOMAIN_ID=44
-ros2 topic echo /joint_states sensor_msgs/msg/JointState
-'
-```
-
-Successful startup requires initial positions for all three motors. Check for
-`motor_3_output` feedback before starting teleop. Initial velocity can be absent
-while query-only; position feedback is the startup criterion.
-
-Keyboard pane:
-
-```bash
-sudo bash -lc '
-cd /home/forge2/forge2_ws
-source scripts/ros2_env.sh
-export ROS_DOMAIN_ID=44
-ros2 run forge_motor_control forge_keyboard_teleop --ros-args \
-  --params-file src/forge_motor_control/config/can2_bench.yaml
-'
-```
-
-Hold W/S to request +5/-5 RPM on **all three motors**, release to request a stop.
-A/D are not enabled in direct-RPM mode. Space/X requests zero speed; it is not a
-hardware emergency stop. Verify motor 3 physically moves and stops as expected.
-On 2026-09-29, the operator confirmed motor 3 working on CAN2 after the
-empty-slot fix. See the [bench record](ENCOS_TEST_BENCH.md#can2-bench-confirmation-2026-09-29).
+`can2_bench.yaml` remains a legacy direct-RPM driver profile with a 5 RPM ceiling.
+It was used for the operator-confirmed 2026-09-29 CAN2 test; the teleop no longer
+accepts it. The historical result remains in the
+[bench record](ENCOS_TEST_BENCH.md#can2-bench-confirmation-2026-09-29).
+Stop previous driver and teleop processes before changing profiles. Power off
+before moving CAN wiring and verify termination on each separate bus.
 
 ## Slot routing
 
@@ -86,4 +40,4 @@ confirmed motor 3 working on CAN2; no raw CAN capture was supplied to establish
 the exact firmware reply-replacement behavior.
 
 `encos_query` currently sends through slot 0/CAN1, even with several IDs listed;
-it cannot verify ID 3 on CAN2. Use the query-only startup above instead.
+it cannot verify ID 3 on CAN2. Use the chassis driver startup linked above before starting any teleop publisher.

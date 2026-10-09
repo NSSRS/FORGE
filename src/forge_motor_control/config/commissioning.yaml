@@ -1,3 +1,4 @@
+# Legacy direct-RPM driver profile; teleop uses chassis_bench.yaml.
 forge_motor_driver:
   ros__parameters:
     command_mode: direct_rpm
@@ -8,10 +9,3 @@ forge_motor_driver:
     max_velocity_rpm: 30.0
     max_current_a: 2.0
     command_timeout_s: 0.20
-
-forge_keyboard_teleop:
-  ros__parameters:
-    command_mode: direct_rpm
-    motor_count: 3
-    speed_rpm: 10.0
-    deadman_timeout_s: 0.15

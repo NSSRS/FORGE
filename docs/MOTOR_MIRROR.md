@@ -23,7 +23,9 @@ cd /home/forge2/forge2_ws
 ```
 
 This opens a separate Terminator window with driver, W/S/A/D keyboard, feedback
-relay and viewer panes. MuJoCo opens its own graphical window. The launcher
+relay and viewer panes. MuJoCo opens its own graphical window. The launcher uses keyboard input; to replace it with ESP32 single-stick input,
+use the separate-terminal procedure in [radio control](RADIO_CONTROL.md).
+The launcher
 asks for your sudo password once (or uses an existing valid authentication);
 the three hardware panes attach to that authenticated session. MuJoCo and
 Terminator remain under your normal desktop account. No sudoers changes or

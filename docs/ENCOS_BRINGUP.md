@@ -185,7 +185,8 @@ Convert radians/degrees at the protocol boundary. ENCOS feedback is already outp
 
 ### Supplier SOEM C demo inspection (historical)
 
-The local supplier archive is preserved outside Git at `src/soem_demo_c/`.
+The active supplier archive is indexed in `vendor/encos/README.md`, outside
+Git. `src/soem_demo_c/` was the historical extracted working-copy location.
 Its `app/main.c` hardcodes `EtherCAT_Init("ens33")`; it has no interface
 command-line argument. The inspected CMake files produce
 `build/soem_demo_c/app/master_stack_test` and have no `slaveinfo` target.
