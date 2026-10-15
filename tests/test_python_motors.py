@@ -1,7 +1,8 @@
+import source_paths  # source-checkout package imports
 import math
 import unittest
 from unittest.mock import patch
-from forge_motors import MotorBus, MotorConfig, MotorError, _Sim
+from motors import MotorBus, MotorConfig, MotorError, _Sim
 
 
 class Clock:
@@ -96,7 +97,7 @@ class MotorTests(unittest.TestCase):
         self.assertTrue(b._closed)
 
     def test_hardware_requires_explicit_execution(self):
-        with patch("forge_motors._Native") as native:
+        with patch("motors._Native") as native:
             with self.assertRaises(ValueError): MotorBus([config()], interface="eth0")
             with self.assertRaises(ValueError): MotorBus([config()], execute=True)
             native.assert_not_called()

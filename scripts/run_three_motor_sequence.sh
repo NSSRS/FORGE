@@ -8,7 +8,7 @@ if [[ $# -ne 4 || "$4" != "--execute" ]]; then
 fi
 
 workspace_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-motion="$workspace_dir/build/encos_query/encos_motion"
+motion="$workspace_dir/build/encos_driver/encos_motion"
 if [[ ! -x "$motion" ]]; then
   echo "Missing $motion. Run ./scripts/build.sh first." >&2
   exit 1

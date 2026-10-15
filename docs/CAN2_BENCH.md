@@ -1,6 +1,6 @@
 # Three-motor CAN2 chassis bench
 
-The current control profile is `src/forge_motor_control/config/chassis_bench.yaml`:
+The current control profile is `src/bringup/config/chassis_bench.yaml`:
 IDs 1/2 on CAN1, ID 3 on CAN2, and motor 4 explicitly omitted. Use W/S/A/D or
 one proportional radio stick through the same chassis command path.
 

@@ -1,14 +1,14 @@
 # ROS 2 motor-control status
 
-The active control path is chassis W/S/A/D, using `forge_keyboard_teleop` with
+The active control path is chassis W/S/A/D, using `keyboard_teleop` with
 keyboard or proportional single-stick radio input. Both publish
-`geometry_msgs/msg/TwistStamped` on `/cmd_vel`; `forge_motor_driver` performs
+`geometry_msgs/msg/TwistStamped` on `/cmd_vel`; `motor_driver` performs
 differential mixing and owns MotorBus, C11/SOEM and the EtherCAT-CAN bridge.
 See [radio calibration](RADIO_CONTROL.md) for ESP32 input.
 
 ## Current bench
 
-`src/forge_motor_control/config/chassis_bench.yaml` configures IDs 1/2 on CAN1
+`src/bringup/config/chassis_bench.yaml` configures IDs 1/2 on CAN1
 (slots 0/1) and ID 3 on CAN2 (slot 3). Motor 4 is explicitly absent. Four-wheel
 mixing is retained; only the three present motors are opened and commanded.
 Forward wheel signs are `[-1,-1,+1,+1]` in the configured wheel order.
@@ -33,7 +33,7 @@ ceiling. Physical wheel assignments and signs still need commissioning.
 ```bash
 cd /home/forge2/forge2_ws
 source /opt/ros/jazzy/setup.bash
-colcon --log-base logs/colcon build --base-paths src/forge_motor_control \
+colcon --log-base logs/colcon build --base-paths src \
   --build-base build/ros2 --install-base install/ros2 --symlink-install
 ```
 
@@ -79,3 +79,15 @@ preserves the fault investigation and bounded unloaded motor tests. The
 is operator-confirmed. Those historical results are not radio, complete chassis,
 loaded-stop or host-loss validation. URDF, odometry, trajectory tracking,
 command-source arbitration and a safety supervisor remain future work.
+
+## IMU sensor node
+
+The independent `imu` package provides `/imu` via `./scripts/run_imu.sh`, reading the
+HWT9052 directly from Ubuntu serial. It publishes `/imu/data_raw` (Imu),
+`/imu/data_rpy` (Vector3Stamped, x/y/z = roll/pitch/yaw in radians), and
+`/imu/mag` (MagneticField, tesla). Standard Imu orientation is currently marked
+unavailable pending coordinate-frame validation. The launcher defaults to
+domain 42; match domains explicitly when integrating with other robot nodes.
+The standalone `scripts/read_imu.py` prints degrees but publishes no topics.
+Only one reader should own the IMU port. See [IMU setup](IMU_SETUP.md) for the
+complete interface and verified status. Neither reader starts calibration.

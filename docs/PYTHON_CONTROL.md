@@ -2,7 +2,7 @@
 
 ## Architecture
 
-`forge_motors.MotorBus` uses standard-library `ctypes` to load the C11
+`motors.MotorBus` uses standard-library `ctypes` to load the C11
 `libencos_driver.so`. A C pthread owns SOEM exchanges at a target 100 Hz on a
 monotonic schedule; Python updates command buffers. This is not hard real time.
 
@@ -52,7 +52,7 @@ These values are simulation examples, not hardware-approved settings:
 
 ```python
 import time
-from forge_motors import MotorBus, MotorConfig
+from motors import MotorBus, MotorConfig
 
 configs = [
     MotorConfig(motor_id=1, min_position_deg=-180, max_position_deg=180,

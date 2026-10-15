@@ -54,7 +54,7 @@ sudo bash -lc '
 cd /home/forge2/forge2_ws
 source scripts/ros2_env.sh
 export ROS_DOMAIN_ID=44
-ros2 run forge_motor_control forge_motor_state_relay
+ros2 run visualization motor_state_relay
 '
 ```
 
@@ -118,7 +118,7 @@ STALE; it is never fabricated from another motor or the requested command.
 cd /home/forge2/forge2_ws
 ./scripts/setup_motor_viewer.sh
 source /opt/ros/jazzy/setup.bash
-colcon --log-base logs/colcon build --base-paths src/forge_motor_control \
+colcon --log-base logs/colcon build --base-paths src \
   --build-base build/ros2 --install-base install/ros2 --symlink-install
 ```
 

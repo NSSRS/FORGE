@@ -1,0 +1,18 @@
+# Measured Pocket RIGHT stick, operator readings 2026-10-09.
+# Overlay after chassis_bench.yaml. Select radio input explicitly at launch.
+keyboard_teleop:
+  ros__parameters:
+    input_source: radio_monitor
+    serial_port: /dev/serial/by-id/usb-1a86_USB_Serial-if00-port0
+    radio_timeout_s: 0.15
+    radio_deadzone: 0.05
+    forward_channel: 2
+    forward_min: 174
+    forward_center: 992
+    forward_max: 1811
+    forward_sign: 1
+    turn_channel: 1
+    turn_min: 174
+    turn_center: 992
+    turn_max: 1811
+    turn_sign: -1  # Lower raw value means left, hence positive ROS yaw.

@@ -1,0 +1,18 @@
+# Overlay AFTER chassis_bench.yaml (or your chosen chassis profile).
+# Default is read-only; measure the two axes of ONE physical stick first.
+keyboard_teleop:
+  ros__parameters:
+    input_source: radio_monitor
+    serial_port: ""  # Rediscover /dev/serial/by-id/...; close Arduino Serial Monitor.
+    radio_timeout_s: 0.15
+    radio_deadzone: 0.05
+    forward_channel: 0  # CH1..CH16; 0 intentionally prevents radio driving.
+    forward_min: -1
+    forward_center: -1
+    forward_max: -1
+    forward_sign: 1     # Up must produce positive linear.x.
+    turn_channel: 0
+    turn_min: -1
+    turn_center: -1
+    turn_max: -1
+    turn_sign: 1        # Left must produce positive angular.z.

@@ -93,7 +93,7 @@ MotorTool is not assumed to work through the EtherCAT bridge. Do not buy USB-CAN
 ## 5. Ubuntu workspace preparation
 
 This workspace is now on the Ubuntu 24.04 NUC at `/home/forge2/forge2_ws`.
-Original vendor files are preserved in `vendor/encos/`; use its README to locate active references. The historical C demo working copy was `src/soem_demo_c/`. Current builds use project-owned code in `src/encos_query/`; no demo extraction is needed.
+Original vendor files are preserved in `vendor/encos/`; use its README to locate active references. The historical C demo working copy was `src/soem_demo_c/`. Current builds use project-owned code in `src/encos_driver/`; no demo extraction is needed.
 
 Install dependencies using the [workspace build guide](ENCOS_WORKSPACE.md#build-on-ubuntu),
 then confirm the host and available interfaces:
@@ -141,7 +141,7 @@ Keep the NUC awake during tests; disable automatic suspend in Ubuntu Power setti
 
 Follow [Build on Ubuntu](ENCOS_WORKSPACE.md#build-on-ubuntu). The build produces
 `encos_query`, `encos_assign_id`, `encos_motion`, and `libencos_driver.so` under
-`build/encos_query/`, then runs the hardware-free tests. The interface is supplied
+`build/encos_driver/`, then runs the hardware-free tests. The interface is supplied
 at runtime; no supplier source edits are needed.
 
 The [historical supplier-demo inspection](ENCOS_BRINGUP.md#supplier-soem-c-demo-inspection-historical)
@@ -154,7 +154,7 @@ to bridge IN, power the bridge at 5 V, and check the link with
 `sudo ethtool "$ENCOS_IFACE"`. From the workspace, run:
 
 ```bash
-sudo ./build/encos_query/encos_query "$ENCOS_IFACE"
+sudo ./build/encos_driver/encos_query "$ENCOS_IFACE"
 ```
 
 The current query-only utility validates one slave and the 86-byte output /
@@ -323,7 +323,7 @@ deprecated `ROS_LOCALHOST_ONLY` variable.
 Fast DDS may report the root driver's endpoints as `_NODE_NAME_UNKNOWN_`, so
 `ros2 node list` is not a reliable liveness check for this temporary
 commissioning arrangement. `scripts/ros2_env.sh` loads
-`src/forge_motor_control/config/fastdds-udp-loopback.xml`, which restricts DDS to loopback and disables
+`src/bringup/config/fastdds-udp-loopback.xml`, which restricts DDS to loopback and disables
 data sharing, but this did not make mixed-account payload delivery reliable.
 
 The guarded native Python test subsequently passed with motors 1, 2, and 3 at a

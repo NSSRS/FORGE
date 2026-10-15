@@ -1,9 +1,10 @@
 """Exercise the real C thread and ctypes ABI against a test-only fake bridge."""
+import source_paths  # source-checkout package imports
 import ctypes
 import os
 import time
 import unittest
-from forge_motors import MotorBus, MotorConfig, MotorError
+from motors import MotorBus, MotorConfig, MotorError
 
 
 @unittest.skipUnless(os.environ.get("ENCOS_TEST_LIBRARY"), "requires C fake-bridge test library")
@@ -66,7 +67,7 @@ class NativeTests(unittest.TestCase):
                     self.assertGreater(bus.state(3).velocity_rpm, 0)
                     self.assertLess(bus.state(4).position_deg, 0)
                 if not simulate:
-                    from forge_motors import _Config
+                    from motors import _Config
                     five = configs + [MotorConfig(5, -180, 180, 5, 1)]
                     array = (_Config * 5)(*(_Config(**vars(c)) for c in five))
                     handle = bus._backend.lib.encos_driver_open(b"forge-test", array, 5)
@@ -119,7 +120,7 @@ class NativeTests(unittest.TestCase):
         for slots in ([0], [0, 0], [0, 6], [0, -1], [0, True]):
             with self.subTest(slots=slots), self.assertRaises(ValueError):
                 MotorBus(self.configs, simulate=True, motor_slots=slots)
-        from forge_motors import _Config
+        from motors import _Config
         array = (_Config * 2)(*(_Config(**vars(c)) for c in self.configs))
         opener = self.fake.encos_driver_open_mapped
         opener.argtypes = [ctypes.c_char_p, ctypes.POINTER(_Config), ctypes.c_size_t,
@@ -139,8 +140,8 @@ class NativeTests(unittest.TestCase):
     def test_chassis_mapping_through_native_four_slot_bridge(self):
         from pathlib import Path
         import sys
-        sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src/forge_motor_control"))
-        from forge_motor_control.differential import DifferentialDrive
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src/motor_control"))
+        from motor_control.differential import DifferentialDrive
 
         self.bus.close()
         drive = DifferentialDrive(max_velocity_rpm=5)

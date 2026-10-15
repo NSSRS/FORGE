@@ -13,7 +13,7 @@ export ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
 # Fast DDS data sharing. Mixed root/non-root delivery is not reliable on this
 # host, so run communicating hardware nodes under the same account.
 unset FASTDDS_BUILTIN_TRANSPORTS
-export FASTRTPS_DEFAULT_PROFILES_FILE="$forge_workspace_dir/install/ros2/forge_motor_control/share/forge_motor_control/config/fastdds-udp-loopback.xml"
+export FASTRTPS_DEFAULT_PROFILES_FILE="$forge_workspace_dir/install/ros2/bringup/share/bringup/config/fastdds-udp-loopback.xml"
 export FASTDDS_DEFAULT_PROFILES_FILE="$FASTRTPS_DEFAULT_PROFILES_FILE"
 export RMW_FASTRTPS_USE_QOS_FROM_XML=1
 unset forge_workspace_dir

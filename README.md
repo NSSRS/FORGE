@@ -1,8 +1,8 @@
-# FORGE motor controls
+# FORGE robot controls
 
-Motor-control development for the magnetic wall-climbing welding robot.
+Motor control, IMU acquisition, teleoperation, and visualization for the magnetic wall-climbing welding robot.
 
-- **`main`**: ENCOS C11 driver/utilities, Python interface, and ROS 2 commissioning package.
+- **`main`**: ENCOS C11 driver/utilities, Python motor API, and ROS 2 motor, IMU, teleoperation, visualization, and bringup packages.
 - **[`physics-analysis`](https://github.com/NSSRS/FORGE/tree/physics-analysis)**:
   thermal/magnetic adhesion and suspension/wheel/terrain simulators, preserved
   from the former `main` at `324d21e`.
@@ -60,24 +60,40 @@ ROS 2 nodes, teleoperation, localization, trajectory tracking, and ESTOP archite
 
 ```text
 src/
-  encos_query/          C11 driver, protocol codec, and bench utilities
-  forge_motors/         Standalone Python API and simulator
-  forge_motor_control/  ROS 2 package metadata, configuration, and Python module
-docs/                   Guides, equipment template, and bench results
-scripts/                Build/run helpers and simulation example
-tests/                  Protocol, Python, and fake-bridge tests
+  encos_driver/    C11 EtherCAT driver, protocol and bench utilities
+  motors/          Python motor API, simulator and native commissioning
+  motor_control/   ROS motor driver, chassis mixing and ROS commissioning
+  imu/             ROS IMU node, serial protocol and terminal reader
+  teleop/          Keyboard and radio command input
+  visualization/   Measured-state relay, mirror model and MuJoCo viewer
+  bringup/         System launch files, shared profiles and pane/session manager
+scripts/           Thin launch wrappers and build/setup helpers
+tests/             Protocol, simulator, ROS and fake-hardware verification
+docs/              Architecture, setup and commissioning documentation
 ```
 
-The ROS package's inner `forge_motor_control/` is its importable Python module;
-the outer directory contains `package.xml`, setuptools metadata, and resources.
+Each ROS package has an inner Python module of the same name; its outer
+directory contains `package.xml`, setuptools metadata, and resources.
 Build output, installed packages, and logs are generated locally and untracked.
+
+## IMU sensor
+
+The HWT9052 high-precision Modbus IMU has been read through native Ubuntu serial
+in WSL 2. Use `./scripts/run_imu.sh` for the ROS node or
+`python3 scripts/read_imu.py` for standalone terminal output; run one at a time.
+ROS topics are `/imu/data_raw`, `/imu/data_rpy` (roll/pitch/yaw in radians), and
+`/imu/mag`. See [IMU setup and interface](docs/IMU_SETUP.md) for USB attachment,
+permissions, message fields, calibration limits, and validation. Robot-frame
+orientation and pose-estimator integration remain future work.
 
 ## Documentation
 
 | Guide | Contents |
 |---|---|
+| [Source organization](docs/SOURCE_LAYOUT.md) | Package ownership, script placement, and generated build folders |
 | [Workspace](docs/ENCOS_WORKSPACE.md) | Repository layout, native build, and C utility commands |
 | [Python control](docs/PYTHON_CONTROL.md) | Installation, API, command deadlines, and driver limitations |
+| [IMU setup](docs/IMU_SETUP.md) | Native serial, standalone/ROS readers, topics, units, calibration and fusion status |
 | [ROS 2 commissioning](docs/ROS2_MOTOR_CONTROL_STATUS.md) | Topics, keyboard behavior, build/run, and DDS setup |
 | [Radio control](docs/RADIO_CONTROL.md) | ESP32 serial input, single-stick calibration, and proportional WASD control |
 | [Differential chassis control](docs/DIFFERENTIAL_DRIVE.md) | Simulation geometry, four-wheel mapping, chassis launch and WASD control |
@@ -116,3 +132,14 @@ attempts zero-speed commands on timeout/fault/close, then clears its outputs.
 That is not a verified mechanical stop: cached bridge feedback and bridge behavior
 after host loss still require bench verification. Motor/fixture limits must
 be supplied explicitly; no model-specific safe settings are assumed.
+
+## Package migration
+
+Package and executable names now omit `forge_`. Examples:
+`ros2 run motor_control motor_driver`, `ros2 run teleop keyboard_teleop`,
+`ros2 run visualization motor_state_relay`, `ros2 run imu imu`, and
+`ros2 launch bringup chassis.launch.py`. Node names and YAML keys were updated
+together; ROS topic names are unchanged. Start a fresh terminal and rebuild
+before using the renamed packages. Source `scripts/ros2_env.sh` for the shared
+configuration and source-tree `motors` API. Native library output is now under
+`build/encos_driver/`. See [source organization](docs/SOURCE_LAYOUT.md).

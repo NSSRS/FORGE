@@ -1,4 +1,5 @@
 """Exercise actual node callbacks with a minimal ROS facade and no hardware."""
+import source_paths  # source-checkout package imports
 import importlib.util
 from pathlib import Path
 import sys
@@ -6,7 +7,7 @@ from types import SimpleNamespace as NS
 import unittest
 from unittest.mock import Mock, patch
 
-PACKAGE = Path(__file__).resolve().parents[1] / "src/forge_motor_control"
+PACKAGE = Path(__file__).resolve().parents[1] / "src/motor_control"
 sys.path.insert(0, str(PACKAGE))
 
 
@@ -59,14 +60,15 @@ class UnifiedTests(unittest.TestCase):
         self.facade = patch.dict(sys.modules, modules)
         self.facade.start()
         self.addCleanup(self.facade.stop)
-        self.bus_class = patch("forge_motors.MotorBus").start()
+        self.bus_class = patch("motors.MotorBus").start()
         self.addCleanup(patch.stopall)
         self.bus = self.bus_class.return_value
         self.bus.state.return_value = NS(position_deg=0.0, velocity_rpm=0.0)
 
     def load(self, name):
+        package = 'teleop' if name == 'keyboard_teleop' else 'motor_control'
         spec = importlib.util.spec_from_file_location(
-            "forge_motor_control._test_" + name, PACKAGE / "forge_motor_control" / (name + ".py"))
+            package + "._test_" + name, PACKAGE.parent / package / package / (name + ".py"))
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         return module

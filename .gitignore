@@ -27,3 +27,6 @@ Thumbs.db
 # Legacy local paths: keep private records and old build output untracked.
 /ros2_ws/
 /config/bench-equipment.md
+
+# Default colcon discovery logs.
+/log/

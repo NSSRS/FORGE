@@ -1,6 +1,6 @@
 # Pocket single-stick chassis control
 
-`forge_keyboard_teleop` now accepts `input_source:=keyboard`, `radio`, or
+`keyboard_teleop` now accepts `input_source:=keyboard`, `radio`, or
 `radio_monitor`. Keyboard and radio share the same `/cmd_vel` TwistStamped
 publisher and chassis speed parameters. No virtual key presses or joystick
 emulation are needed. The driver handles all wheel mixing and RPM limits.
@@ -61,7 +61,7 @@ Run the read-only monitor, replacing the path with the actual port:
 ```bash
 cd /home/forge2/forge2_ws
 source scripts/ros2_env.sh
-ros2 run forge_motor_control forge_keyboard_teleop --ros-args \
+ros2 run teleop keyboard_teleop --ros-args \
   -p input_source:=radio_monitor -p serial_port:=/dev/serial/by-id/ACTUAL_DEVICE
 ```
 
@@ -75,7 +75,7 @@ only one axis at a time and record all four axes to distinguish the two sticks:
 | Right up/down | measure | measure | measure | measure | measure |
 | Right left/right | measure | measure | measure | measure | measure |
 
-Copy `src/forge_motor_control/config/radio.yaml` to a local calibration file.
+Copy `src/bringup/config/radio.yaml` to a local calibration file.
 Set `serial_port`, and fill `forward_*` and `turn_*` from the same physical stick.
 Channels are numbered 1..16. Set each sign so up produces positive forward and
 left produces positive yaw. `radio` mode refuses the placeholder calibration.
@@ -97,8 +97,8 @@ Stop the monitor before opening the same USB device. In the driver terminal:
 cd /home/forge2/forge2_ws
 source scripts/ros2_env.sh
 export ROS_DOMAIN_ID=42
-ros2 launch forge_motor_control chassis.launch.py \
-  config:=/home/forge2/forge2_ws/src/forge_motor_control/config/chassis_bench.yaml
+ros2 launch bringup chassis.launch.py \
+  config:=/home/forge2/forge2_ws/src/bringup/config/chassis_bench.yaml
 ```
 
 In the radio terminal, replace the calibration path:
@@ -107,8 +107,8 @@ In the radio terminal, replace the calibration path:
 cd /home/forge2/forge2_ws
 source scripts/ros2_env.sh
 export ROS_DOMAIN_ID=42
-ros2 run forge_motor_control forge_keyboard_teleop --ros-args \
-  --params-file src/forge_motor_control/config/chassis_bench.yaml \
+ros2 run teleop keyboard_teleop --ros-args \
+  --params-file src/bringup/config/chassis_bench.yaml \
   --params-file /absolute/path/to/calibrated-radio.yaml -p input_source:=radio
 ```
 
@@ -161,8 +161,8 @@ optional target logging:
 cd /home/forge2/forge2_ws
 source scripts/ros2_env.sh
 export ROS_DOMAIN_ID=42
-ros2 run forge_motor_control forge_motor_driver --ros-args \
-  --params-file src/forge_motor_control/config/chassis_bench.yaml \
+ros2 run motor_control motor_driver --ros-args \
+  --params-file src/bringup/config/chassis_bench.yaml \
   -p simulate:=true -p execute:=false -p log_motor_targets:=true
 ```
 
@@ -189,7 +189,7 @@ the simulator's measured velocity can take longer because it models the
 
 ## Measured Pocket right-stick profile (2026-10-09)
 
-`src/forge_motor_control/config/radio_pocket.yaml` records the operator's
+`src/bringup/config/radio_pocket.yaml` records the operator's
 measurements: CH2 forward/reverse and CH1 steering, both minimum 174, center
 992, maximum 1811. Forward sign is +1; steering sign is -1 because moving
 left decreases CH1. The 5% dead zone covers the observed center variation

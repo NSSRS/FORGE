@@ -1,12 +1,13 @@
 """Measured feedback mapping, independent of graphics and motor hardware."""
+import source_paths  # source-checkout package imports
 import importlib.util
 from pathlib import Path
 import sys
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / 'src/forge_motor_control'))
-from forge_motor_control.motor_mirror import MotorMirror
+sys.path.insert(0, str(ROOT / 'src/motor_control'))
+from visualization.motor_mirror import MotorMirror
 
 CONFIG = dict(wheel_motor_ids=[1, 2, 3, 4], wheel_directions=[-1, -1, 1, 1],
               external_ratios=[1, 1, 1, 1], bench_omit_motor_id=4)

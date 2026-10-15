@@ -1,11 +1,12 @@
 """Real ROS topic integration, automatically enabled on the Jazzy host."""
+import source_paths  # source-checkout package imports
 import importlib.util
 from pathlib import Path
 import sys
 import time
 import unittest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src/forge_motor_control"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src/motor_control"))
 
 
 @unittest.skipUnless(importlib.util.find_spec("rclpy"), "requires ROS 2 Jazzy")
@@ -23,12 +24,12 @@ class RosChassisTests(unittest.TestCase):
         from geometry_msgs.msg import TwistStamped
         from sensor_msgs.msg import JointState
         from std_msgs.msg import Float64MultiArray
-        from forge_motor_control.motor_driver import ForgeMotorDriver
+        from motor_control.motor_driver import ForgeMotorDriver
 
         # All hardware execution is explicitly disabled, even if environment differs.
         args = ["--ros-args"]
         if bench:
-            config = Path(__file__).resolve().parents[1] / "src/forge_motor_control/config/chassis_bench.yaml"
+            config = Path(__file__).resolve().parents[1] / "src/bringup/config/chassis_bench.yaml"
             args += ["--params-file", str(config)]
         args += ["-p", "simulate:=true", "-p", "execute:=false"]
         rclpy.init(args=args)

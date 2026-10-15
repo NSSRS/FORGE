@@ -1,4 +1,5 @@
 """Real ROS subscription to loopback UDP, using synthetic measured feedback only."""
+import source_paths  # source-checkout package imports
 import importlib.util
 import json
 from pathlib import Path
@@ -7,7 +8,7 @@ import sys
 import time
 import unittest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src/forge_motor_control'))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src/motor_control'))
 
 
 @unittest.skipUnless(importlib.util.find_spec('rclpy'), 'requires ROS 2')
@@ -17,7 +18,7 @@ class RelayTests(unittest.TestCase):
         from rclpy.node import Node
         from rclpy.executors import SingleThreadedExecutor
         from sensor_msgs.msg import JointState
-        from forge_motor_control.motor_state_relay import MotorStateRelay
+        from visualization.motor_state_relay import MotorStateRelay
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as receiver:
             receiver.bind(('127.0.0.1', 0)); receiver.setblocking(False)
             port = receiver.getsockname()[1]

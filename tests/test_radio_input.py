@@ -1,11 +1,12 @@
 """Hardware-free ESP32 stream, calibration, and command-loss regression tests."""
+import source_paths  # source-checkout package imports
 from pathlib import Path
 import sys
 import unittest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src/forge_motor_control'))
-from forge_motor_control.radio_input import Axis, RadioCommand, parse_channels
-from forge_motor_control.differential import DifferentialDrive
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src/motor_control'))
+from teleop.radio_input import Axis, RadioCommand, parse_channels
+from motor_control.differential import DifferentialDrive
 
 
 def row(forward=1000, turn=1000, age=0, other=1000):

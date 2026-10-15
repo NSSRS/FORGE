@@ -1,4 +1,5 @@
 """Single-auth terminal session tests; only synthetic child programs are run."""
+import source_paths  # source-checkout package imports
 import os
 from pathlib import Path
 import socket
@@ -45,10 +46,10 @@ class LauncherTests(unittest.TestCase):
                      "print('PID='+str(os.getpid()),flush=True); "
                      "print('ECHO='+input(),flush=True); time.sleep(60)")
             code = ('import sys,os; sys.path.insert(0,sys.argv[1]); '
-                    'from motor_test_session import serve; '
+                    'from bringup.motor_test_session import serve; '
                     'serve(sys.argv[2], {"keyboard":[sys.executable,"-u","-c",sys.argv[4]]}, '
                     'os.getuid(),int(sys.argv[3]))')
-            server = subprocess.Popen([sys.executable, '-c', code, str(ROOT/'scripts'),
+            server = subprocess.Popen([sys.executable, '-c', code, str(ROOT/'src/bringup'),
                                        folder, str(read_fd), child], pass_fds=(read_fd,),
                                       stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             os.close(read_fd)

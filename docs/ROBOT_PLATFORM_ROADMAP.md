@@ -1,10 +1,21 @@
 # FORGE robot platform development roadmap
 
+## IMU implementation update — 2026-10-15
+
+HWT9052 serial acquisition and a ROS sensor node are implemented and tested
+with physical readings in Ubuntu 24.04 / WSL 2. The interface is
+`/imu/data_raw`, `/imu/data_rpy`, and `/imu/mag`; see [IMU setup](IMU_SETUP.md).
+Nine-axis is the intended operating mode, but its register value has not yet
+been verified. Startup does not trigger calibration. Robot mounting transforms,
+orientation convention validation, uncertainty characterization, and fusion
+with wheel odometry/other localization sources are still pending. This sensor
+integration does not complete the state-estimation milestones below.
+
 ## Purpose
 
 Implementation update: [differential chassis control](DIFFERENTIAL_DRIVE.md) now
-integrates differential mixing into `forge_motor_driver`, with stamped chassis
-commands and WASD in `forge_keyboard_teleop`, using
+integrates differential mixing into `motor_driver`, with stamped chassis
+commands and WASD in `keyboard_teleop`, using
 the four driven wheels from `forge_sim`. Geometry is provisional and hardware
 mapping awaits commissioning. Odometry, arbitration, localization and the safety
 supervisor described below remain planned.
@@ -19,8 +30,11 @@ gamepad, and autonomous control differ only in how they generate a requested cha
 velocity. The chassis controller converts that request into four wheel commands,
 and the existing native ENCOS driver handles the EtherCAT/CAN timing.
 
-Robot geometry, linkage properties, mass, inertia, sensor poses, collision geometry,
-and joint limits will later be supplied as XML. Prefer ROS URDF with Xacro where
+An existing MuJoCo MJCF model supplies geometry for the motor viewer; see
+[MOTOR_MIRROR.md](MOTOR_MIRROR.md). This checkout has no ROS URDF/Xacro package
+or validated IMU/camera mounting transforms. Extend and validate robot geometry,
+linkage properties, mass, inertia, sensor poses, collision geometry, and joint limits
+for the ROS description. Prefer ROS URDF with Xacro where
 parameters or repeated structures are needed. Hardware limits that affect safe
 operation must also live in reviewed configuration rather than relying only on URDF.
 
@@ -66,7 +80,7 @@ flowchart TD
 
 ## Control and ROS 2 nodes
 
-### `forge_motor_driver`
+### `motor_driver`
 
 This node wraps the existing Python interface. Python calls the C11 shared library
 through `ctypes`; a native worker owns the SOEM EtherCAT loop. ROS and Python must
@@ -118,10 +132,10 @@ Services or lifecycle transitions:
 The final ROS integration should use `ros2_control` when its hardware boundary is
 stable. The early Python ROS node remains useful for commissioning and experiments.
 
-### `forge_base_controller`
+### `base_controller`
 
 Differential mixing of `geometry_msgs/TwistStamped` into wheel RPM is already
-implemented inside `forge_motor_driver`; there is no separate base-controller
+implemented inside `motor_driver`; there is no separate base-controller
 executable. A future extraction may add wheel odometry, which is not implemented.
 
 Its model will be completed from the robot XML and supporting configuration:
@@ -154,7 +168,7 @@ neutral acquisition and serial freshness checks. RF failsafe validation, a held
 dead-man control, generic gamepad support and precision-speed profiles remain
 future work. Keyboard release is detected through key-repeat expiry.
 
-### `forge_command_mux`
+### `command_mux`
 
 Only one motion source controls the chassis at a time. Each command carries a source,
 timestamp, and expiry. Proposed priority is:
@@ -198,7 +212,7 @@ and smooth, reflective, repetitive, dark, or arc-lit surfaces may reduce trackin
 quality. The estimator must consume camera quality/status and reject degraded data.
 Known workpiece markers or surveyed features are the preferred global reference.
 
-### `forge_trajectory_tracker`
+### `trajectory_tracker`
 
 The automatic controller consumes a time-parameterized reference containing desired
 position, orientation, and process speed. It compares the reference with the fused
@@ -437,6 +451,10 @@ Future XML/configuration should provide:
 - Proposed safety relay, contactor/STO, physical ESTOP, and brake circuitry.
 
 ## Immediate next milestone
+
+IMU serial acquisition and sensor topics are implemented; mounting validation and
+state estimation remain pending. See [source ownership](SOURCE_LAYOUT.md) for the
+current package boundaries.
 
 Differential mixing, simulated chassis tests, WASD teleop and a read-only
 MuJoCo motor-feedback viewer are implemented. The three-motor bench uses

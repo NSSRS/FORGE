@@ -1,12 +1,12 @@
 # Differential chassis control
 
-Differential control is integrated into the existing `forge_motor_driver`.
-The existing `forge_keyboard_teleop` handles both straight motion and turning:
+Differential control is integrated into the existing `motor_driver`.
+The existing `keyboard_teleop` handles both straight motion and turning:
 
 ```text
-forge_keyboard_teleop (or one planner)
+keyboard_teleop (or one planner)
   -> /cmd_vel [geometry_msgs/TwistStamped]
-  -> forge_motor_driver (differential mixing + command watchdog) -> MotorBus -> C11/SOEM -> EtherCAT/CAN -> ENCOS Mode 2
+  -> motor_driver (differential mixing + command watchdog) -> MotorBus -> C11/SOEM -> EtherCAT/CAN -> ENCOS Mode 2
 ```
 
 The driver still owns the bridge, publishes output-shaft `/joint_states`, and
@@ -93,10 +93,10 @@ On the Ubuntu ROS 2 Jazzy host, from the hardware checkout:
 
 ```bash
 source /opt/ros/jazzy/setup.bash
-colcon --log-base logs/colcon build --base-paths src/forge_motor_control \
+colcon --log-base logs/colcon build --base-paths src \
   --build-base build/ros2 --install-base install/ros2 --symlink-install
 source scripts/ros2_env.sh
-ros2 launch forge_motor_control chassis.launch.py
+ros2 launch bringup chassis.launch.py
 ```
 
 This starts the four-motor Python simulator, not MuJoCo or physical motors.
@@ -104,7 +104,7 @@ In another terminal in the same checkout/account:
 
 ```bash
 source scripts/ros2_env.sh
-ros2 run forge_motor_control forge_keyboard_teleop
+ros2 run teleop keyboard_teleop
 ```
 
 Hold W/S for forward/reverse, A/D for left/right pivot. Space/X stops; Q/Escape
@@ -117,7 +117,7 @@ pass `--ros-args --params-file /absolute/path/chassis.yaml` to the keyboard too.
 For reviewed hardware mapping, use the same launch with an edited config:
 
 ```bash
-ros2 launch forge_motor_control chassis.launch.py \
+ros2 launch bringup chassis.launch.py \
   config:=/absolute/path/chassis.yaml \
   simulate:=false execute:=true mapping_confirmed:=true
 ```
@@ -143,8 +143,8 @@ sudo bash -lc '
 cd /home/forge2/forge2_ws
 source scripts/ros2_env.sh
 export ROS_DOMAIN_ID=44
-ros2 launch forge_motor_control chassis.launch.py \
-  config:=/home/forge2/forge2_ws/src/forge_motor_control/config/chassis_bench.yaml \
+ros2 launch bringup chassis.launch.py \
+  config:=/home/forge2/forge2_ws/src/bringup/config/chassis_bench.yaml \
   simulate:=false execute:=true mapping_confirmed:=true
 '
 ```
@@ -156,8 +156,8 @@ sudo bash -lc '
 cd /home/forge2/forge2_ws
 source scripts/ros2_env.sh
 export ROS_DOMAIN_ID=44
-ros2 run forge_motor_control forge_keyboard_teleop --ros-args \
-  --params-file src/forge_motor_control/config/chassis_bench.yaml
+ros2 run teleop keyboard_teleop --ros-args \
+  --params-file src/bringup/config/chassis_bench.yaml
 '
 ```
 

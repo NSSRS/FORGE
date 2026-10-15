@@ -1,12 +1,13 @@
 """Hardware-free acceptance tests for simulation-to-ENCOS chassis mapping."""
+import source_paths  # source-checkout package imports
 from dataclasses import replace
 import math
 from pathlib import Path
 import sys
 import unittest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src/forge_motor_control"))
-from forge_motor_control.differential import CommandLease, DifferentialDrive, KeyboardCommand
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src/motor_control"))
+from motor_control.differential import CommandLease, DifferentialDrive, KeyboardCommand
 
 
 class DifferentialTests(unittest.TestCase):

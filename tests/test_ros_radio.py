@@ -1,4 +1,5 @@
 """Real serial PTY -> radio node -> ROS chassis simulator; never opens motor hardware."""
+import source_paths  # source-checkout package imports
 import importlib.util
 import os
 from pathlib import Path
@@ -8,7 +9,7 @@ import time
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / 'src/forge_motor_control'))
+sys.path.insert(0, str(ROOT / 'src/motor_control'))
 
 
 @unittest.skipUnless(importlib.util.find_spec('rclpy') and importlib.util.find_spec('serial'),
@@ -21,13 +22,13 @@ class RosRadioTests(unittest.TestCase):
         from rclpy.node import Node
         from sensor_msgs.msg import JointState
         from geometry_msgs.msg import TwistStamped
-        from forge_motor_control.motor_driver import ForgeMotorDriver
+        from motor_control.motor_driver import ForgeMotorDriver
 
         master, slave = pty.openpty()
         process = None
         nodes = []
         rclpy.init(args=['--ros-args', '--params-file',
-                        str(ROOT / 'src/forge_motor_control/config/chassis_bench.yaml'),
+                        str(ROOT / 'src/bringup/config/chassis_bench.yaml'),
                         '-p', 'simulate:=true', '-p', 'execute:=false'])
         executor = SingleThreadedExecutor()
         try:
@@ -39,10 +40,10 @@ class RosRadioTests(unittest.TestCase):
             for node in nodes:
                 executor.add_node(node)
             env = dict(os.environ)
-            env['PYTHONPATH'] = str(ROOT / 'src/forge_motor_control') + os.pathsep + env.get('PYTHONPATH', '')
-            args = [sys.executable, '-c', 'from forge_motor_control.keyboard_teleop import main; main()',
+            env['PYTHONPATH'] = str(ROOT / 'src/motor_control') + os.pathsep + env.get('PYTHONPATH', '')
+            args = [sys.executable, '-c', 'from teleop.keyboard_teleop import main; main()',
                     '--ros-args', '--params-file',
-                    str(ROOT / 'src/forge_motor_control/config/chassis_bench.yaml'),
+                    str(ROOT / 'src/bringup/config/chassis_bench.yaml'),
                     '-p', 'input_source:=radio', '-p', f'serial_port:={os.ttyname(slave)}']
             for prefix, channel in [('forward', 1), ('turn', 2)]:
                 for field, value in [('channel', channel), ('min', 200), ('center', 1000), ('max', 1800)]:

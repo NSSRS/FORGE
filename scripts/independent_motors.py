@@ -1,6 +1,6 @@
 """Simulation only: independently command two motors through the public API."""
 import time
-from forge_motors import MotorBus, MotorConfig
+from motors import MotorBus, MotorConfig
 
 configs = [MotorConfig(i, -180, 180, 5, 1) for i in (1, 2)]
 with MotorBus(configs, simulate=True) as bus:

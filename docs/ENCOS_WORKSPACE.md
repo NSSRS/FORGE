@@ -13,14 +13,16 @@ Ubuntu 24.04 on the Intel NUC. Hardware route: dedicated Ethernet → ENCOS Ethe
 
 | Path | Purpose |
 |---|---|
-| `src/encos_query/` | C11 protocol codec, shared driver, and bench utilities |
-| `src/forge_motors/` | Python API, ctypes binding, and hardware-free simulator |
-| `src/forge_motor_control/` | ROS 2 driver, keyboard/RC publisher, and chassis configuration |
+| `src/encos_driver/` | C11 protocol codec, shared driver, and bench utilities |
+| `src/motors/` | Python API, ctypes binding, and hardware-free simulator |
+| `src/motor_control/` | ROS motor driver and chassis mixing |
+| `src/imu/`, `src/teleop/`, `src/visualization/` | Independent sensor, command input and display packages |
+| `src/bringup/` | Shared profiles, launch files and session manager |
 | `docs/` | Protocol, bench procedure/results, Python/ROS usage, and platform roadmap |
 | `docs/bench-equipment.example.md` | Redacted equipment-record template |
 | `tests/` | Host-side protocol, simulation, and fake-native-driver tests |
 | `scripts/` | Build/ROS helpers, Python simulation example, and guarded commissioning commands |
-| `build/` | Generated native (`encos_query/`) and ROS (`ros2/`) build output |
+| `build/` | Generated native (`encos_driver/`), ROS (`ros2/`), and viewer (`motor_viewer/`) assets |
 | `logs/` | Generated hardware recordings and colcon logs (untracked; create when needed) |
 | `install/ros2/` | Generated ROS package installation (untracked) |
 | `tmp/` | Temporary files, including existing PDF extracts |
@@ -29,22 +31,27 @@ The local `vendor/` folder holds the supplier material used during bench work. I
 
 ## Updating from the previous layout
 
-The source folders formerly named `python/` and `ros2_ws/src/` are now under
-`src/`. The simulation example is `scripts/independent_motors.py`, and the DDS
-profile belongs to the ROS package's `config/` directory. Public Python imports
-and ROS executable names are unchanged.
+The current source ownership is documented in [source organization](SOURCE_LAYOUT.md).
+`src/encos_query` is now `src/encos_driver`; the native binary `encos_query`
+keeps its name. `forge_motors` is now the Python module `motors`.
+The former `forge_motor_control` package is split into `motor_control`,
+`teleop`, `visualization`, and `bringup`; IMU acquisition lives in `imu`.
+ROS executable and node names omit `forge_`; topic names are unchanged.
+Shared launch files and YAML/DDS profiles live in `src/bringup/`.
 
-After pulling this reorganization, rebuild the ROS package using the
-[updated command](ROS2_MOTOR_CONTROL_STATUS.md#build-and-run), then start a fresh
-terminal and source `scripts/ros2_env.sh`. The new build/install paths avoid
-reusing colcon caches or symlinks that point to the former source location.
+Start a fresh Ubuntu terminal, run `./scripts/build.sh`, rebuild the five ROS
+packages using the [ROS build command](ROS2_MOTOR_CONTROL_STATUS.md#build-and-run),
+and source `scripts/ros2_env.sh`. Native output is `build/encos_driver/`;
+ROS output is `build/ros2/` and `install/ros2/`. Do not source old installations.
 For an existing editable Python installation, rerun `python -m pip install -e .`
-with that environment's interpreter. For source-tree use, set `PYTHONPATH=src`.
+with that environment's interpreter. For source-tree API use, set `PYTHONPATH=src`.
 
+Obsolete `build/encos_query`, `build/ros2-before-rename`, and
+`install/ros2-before-rename` outputs were removed from the development workspace.
+The ignored source backup remains `tmp/before-package-reorganization.tar.gz`.
 If a local `config/bench-equipment.md` exists, move it to
 `docs/bench-equipment.md`; both paths remain ignored to protect local records.
-Existing `ros2_ws/` build artifacts remain ignored and are no longer used.
-The native C build path is unchanged. Create `logs/` locally when saving runs.
+Create `logs/` locally when saving runs.
 
 ## Build on Ubuntu
 
@@ -63,7 +70,7 @@ From this workspace:
 
 The helper fetches pinned public upstream SOEM v1.4.0 on the first run and builds
 `encos_query`, `encos_assign_id`, `encos_motion`, and `libencos_driver.so` under
-`build/encos_query/`. It then runs C protocol and Python/native integration tests
+`build/encos_driver/`. It then runs C protocol and Python/native integration tests
 against a fake bridge; no motor hardware is accessed. See [test coverage and
 portable checks](../tests/README.md), [Python installation](PYTHON_CONTROL.md#build-and-install),
 and the separate [ROS 2 build](ROS2_MOTOR_CONTROL_STATUS.md#build-and-run).
@@ -72,12 +79,12 @@ and the separate [ROS 2 build](ROS2_MOTOR_CONTROL_STATUS.md#build-and-run).
 
 The project-owned utilities use a pinned public release of SOEM. The private local supplier distribution remains outside the repository.
 
-Use `sudo ./build/encos_query/encos_query enp86s0` for automatic discovery when exactly one motor is powered on the CAN bus. It validates the 86-byte output and 92-byte input PDOs, then reads motor ID, position, versions, and CAN timeout. It sends no control, configuration, zeroing, brake, or movement commands.
+Use `sudo ./build/encos_driver/encos_query enp86s0` for automatic discovery when exactly one motor is powered on the CAN bus. It validates the 86-byte output and 92-byte input PDOs, then reads motor ID, position, versions, and CAN timeout. It sends no control, configuration, zeroing, brake, or movement commands.
 
 For multiple motors on CAN1, use known, unique CAN IDs and avoid broadcast discovery:
 
 ```bash
-sudo ./build/encos_query/encos_query enp86s0 --motor-ids 1,2,3
+sudo ./build/encos_driver/encos_query enp86s0 --motor-ids 1,2,3
 ```
 
 `encos_query` sends every request through slot 0/CAN1, even with several IDs.
@@ -91,10 +98,10 @@ The ID-change command is addressed through CAN ID `0x7FF` but matches the **old 
 
 ```bash
 # With only the second motor connected and powered:
-sudo ./build/encos_query/encos_assign_id enp86s0 1 2 --execute
+sudo ./build/encos_driver/encos_assign_id enp86s0 1 2 --execute
 
 # Power-cycle it, then verify only that motor:
-sudo ./build/encos_query/encos_query enp86s0
+sudo ./build/encos_driver/encos_query enp86s0
 ```
 
 Repeat with one isolated motor at a time. Do not use `encos_assign_id` while duplicate IDs share the powered CAN bus.
@@ -105,7 +112,7 @@ commissioning path. Use it for the original one-to-three-motor CAN1 bench;
 use mapped MotorBus/ROS for CAN2:
 
 ```bash
-sudo ./build/encos_query/encos_motion enp86s0 2.0 1 --motor-ids 1,2 --execute
+sudo ./build/encos_driver/encos_motion enp86s0 2.0 1 --motor-ids 1,2 --execute
 ```
 
 The initial profile targets a 1 kHz loop, ramps outward over 2 seconds at a 5 rpm ceiling, holds 0.5 seconds, and returns over 2 seconds. Standard Linux scheduling can add jitter, so treat 1 kHz as a target and inspect the resulting motion/feedback log before relying on it. Start with one motor and 2.0 A only if that phase-current ceiling is approved for the actual motor and fixture. Do not run a multi-motor motion until IDs, termination, direction, clearance, and individual feedback are verified.

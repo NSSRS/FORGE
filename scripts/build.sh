@@ -7,6 +7,6 @@ for tool in cmake gcc g++ make; do
     exit 1
   fi
 done
-cmake -S "$workspace_dir/src/encos_query" -B "$workspace_dir/build/encos_query" -DCMAKE_BUILD_TYPE=RelWithDebInfo
-cmake --build "$workspace_dir/build/encos_query" --parallel 2
-ctest --test-dir "$workspace_dir/build/encos_query" --output-on-failure
+cmake -S "$workspace_dir/src/encos_driver" -B "$workspace_dir/build/encos_driver" -DCMAKE_BUILD_TYPE=RelWithDebInfo
+cmake --build "$workspace_dir/build/encos_driver" --parallel 2
+ctest --test-dir "$workspace_dir/build/encos_driver" --output-on-failure
