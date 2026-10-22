@@ -3,6 +3,7 @@
 import argparse
 import json
 import math
+import os
 from pathlib import Path
 import socket
 import sys
@@ -119,6 +120,13 @@ def main():
     if not 1024 <= args.port <= 65535:
         parser.error('port must be 1024-65535')
     import yaml
+    # GLFW's native Wayland path can hang during passive-viewer startup on the
+    # NUC desktop. Select its X11 backend before MuJoCo initializes GLFW.
+    if not args.check and not args.snapshot and os.environ.get('DISPLAY'):
+        os.environ.setdefault('PYGLFW_LIBRARY_VARIANT', 'x11')
+        import glfw
+        if os.environ['PYGLFW_LIBRARY_VARIANT'] == 'x11' and hasattr(glfw, 'PLATFORM_X11'):
+            glfw.init_hint(glfw.PLATFORM, glfw.PLATFORM_X11)
     import mujoco
     config = yaml.safe_load(args.config.read_text())['motor_driver']['ros__parameters']
     projection = Projection(args.scene, config)

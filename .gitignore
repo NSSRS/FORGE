@@ -30,3 +30,6 @@ Thumbs.db
 
 # Default colcon discovery logs.
 /log/
+
+# Local graphics-driver diagnostic output.
+/MUJOCO_LOG.TXT

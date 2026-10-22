@@ -64,6 +64,7 @@ src/
   motors/          Python motor API, simulator and native commissioning
   motor_control/   ROS motor driver, chassis mixing and ROS commissioning
   imu/             ROS IMU node, serial protocol and terminal reader
+  stereo_cam/      Orbbec RGB/depth/stereo IR integration and stream checks
   teleop/          Keyboard and radio command input
   visualization/   Measured-state relay, mirror model and MuJoCo viewer
   bringup/         System launch files, shared profiles and pane/session manager
@@ -85,6 +86,23 @@ ROS topics are `/imu/data_raw`, `/imu/data_rpy` (roll/pitch/yaw in radians), and
 `/imu/mag`. See [IMU setup and interface](docs/IMU_SETUP.md) for USB attachment,
 permissions, message fields, calibration limits, and validation. Robot-frame
 orientation and pose-estimator integration remain future work.
+
+## Stereo camera
+
+The Orbbec Gemini 338Le uses the official ROS 2 driver through the `stereo_cam`
+package. Run `./scripts/setup_stereo_cam.sh`, then `./scripts/run_stereo_cam.sh`.
+See [camera setup](docs/STEREO_CAM_SETUP.md) for networking, RGB/depth/IR topics,
+filters, calibration, and the current RGB-only 60 FPS video diagnostic profile.
+
+## Combined system test
+
+Use [the full-system bench guide](docs/FULL_SYSTEM_TEST.md) to launch the IMU,
+camera, calibrated Pocket controller and three-motor driver together.
+`bash scripts/run_system_test.sh` starts the **actual three-motor bench**, asking
+for sudo when needed, with the saved IMU/ESP32 ports and Pocket right stick.
+Use `bash scripts/run_system_test.sh simulate:=true` for simulated motors.
+The camera window shows RGB at a requested 60 FPS with received-FPS and CPU/RAM
+diagnostics. Video reception still needs optimization.
 
 ## Documentation
 

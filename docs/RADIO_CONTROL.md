@@ -1,5 +1,11 @@
 # Pocket single-stick chassis control
 
+For the combined sensor/Pocket bench session, run `bash scripts/run_system_test.sh`.
+This convenient command now starts **actual motors** on the commissioned
+three-motor bench and requests sudo when needed. Use `simulate:=true` for
+simulated motors. See [full-system setup](FULL_SYSTEM_TEST.md) for saved ports,
+limits, viewer behavior, and the RGB-only 60 FPS diagnostic profile.
+
 `keyboard_teleop` now accepts `input_source:=keyboard`, `radio`, or
 `radio_monitor`. Keyboard and radio share the same `/cmd_vel` TwistStamped
 publisher and chassis speed parameters. No virtual key presses or joystick

@@ -16,7 +16,7 @@ Ubuntu 24.04 on the Intel NUC. Hardware route: dedicated Ethernet → ENCOS Ethe
 | `src/encos_driver/` | C11 protocol codec, shared driver, and bench utilities |
 | `src/motors/` | Python API, ctypes binding, and hardware-free simulator |
 | `src/motor_control/` | ROS motor driver and chassis mixing |
-| `src/imu/`, `src/teleop/`, `src/visualization/` | Independent sensor, command input and display packages |
+| `src/imu/`, `src/stereo_cam/`, `src/teleop/`, `src/visualization/` | Independent sensor, command input and display packages |
 | `src/bringup/` | Shared profiles, launch files and session manager |
 | `docs/` | Protocol, bench procedure/results, Python/ROS usage, and platform roadmap |
 | `docs/bench-equipment.example.md` | Redacted equipment-record template |
@@ -39,7 +39,7 @@ The former `forge_motor_control` package is split into `motor_control`,
 ROS executable and node names omit `forge_`; topic names are unchanged.
 Shared launch files and YAML/DDS profiles live in `src/bringup/`.
 
-Start a fresh Ubuntu terminal, run `./scripts/build.sh`, rebuild the five ROS
+Start a fresh Ubuntu terminal, run `./scripts/build.sh`, rebuild the six ROS
 packages using the [ROS build command](ROS2_MOTOR_CONTROL_STATUS.md#build-and-run),
 and source `scripts/ros2_env.sh`. Native output is `build/encos_driver/`;
 ROS output is `build/ros2/` and `install/ros2/`. Do not source old installations.

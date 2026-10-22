@@ -9,6 +9,7 @@ Native Linux is the deployment target. The ROS Python packages use ament_python:
 | motors | Non-ROS Python motor API and its simulator; editable installation via root pyproject.toml |
 | motor_control | ROS driver, chassis mixing, bounded ROS commissioning |
 | imu | Independent IMU serial protocol, CLI and ROS node |
+| stereo_cam | Orbbec camera integration, RGB/depth viewer with CPU/RAM/FPS overlay, and bounded image/calibration check |
 | teleop | Keyboard/radio command generation; uses motor_control command helpers |
 | visualization | Read-only relay and measured-state MuJoCo display |
 | bringup | Shared YAML/DDS profiles, ROS launch files, four-pane session manager |
@@ -61,7 +62,7 @@ they intentionally locate model downloads/config relative to this workspace.
 | --- | --- |
 | `build/encos_driver/` | CMake objects, native utilities, shared libraries, and tests |
 | `build/encos_driver/_deps/soem-src/` | Pinned SOEM dependency source used by the native build |
-| `build/ros2/` | Colcon build products for the five ROS packages |
+| `build/ros2/` | Colcon build products for the six ROS packages |
 | `build/motor_viewer/` | Downloaded MuJoCo model and viewer Python environment |
 | `install/ros2/` | Installed ROS executables, resources, and environment setup |
 | `logs/` | Colcon and local run logs |
@@ -76,5 +77,10 @@ The source snapshot remains locally at `tmp/before-package-reorganization.tar.gz
 
 The existing MuJoCo MJCF model comes from the pinned simulation branch and is
 used by the motor viewer. This checkout has no ROS URDF/Xacro description package.
-IMU mounting transforms, camera descriptions, and IMU/vision displays are not
-implemented yet. The IMU publishes sensor readings; it is not a pose estimator.
+Robot-to-IMU and robot-to-camera mounting transforms are not implemented yet.
+The stereo camera driver supplies its internal optical transforms and image
+streams; see [camera setup](STEREO_CAM_SETUP.md). The IMU publishes sensor readings; it is not a pose estimator.
+
+The convenient combined command `bash scripts/run_system_test.sh` defaults to
+actual motors on the commissioned bench; add `simulate:=true` for simulation.
+Current camera defaults are RGB-only 1280x800/60 FPS pending video-flow tuning.

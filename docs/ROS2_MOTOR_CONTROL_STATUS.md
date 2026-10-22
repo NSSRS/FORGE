@@ -1,5 +1,11 @@
 # ROS 2 motor-control status
 
+For the combined sensor/Pocket bench session, run `bash scripts/run_system_test.sh`.
+This convenient command now starts **actual motors** on the commissioned
+three-motor bench and requests sudo when needed. Use `simulate:=true` for
+simulated motors. See [full-system setup](FULL_SYSTEM_TEST.md) for saved ports,
+limits, viewer behavior, and the RGB-only 60 FPS diagnostic profile.
+
 The active control path is chassis W/S/A/D, using `keyboard_teleop` with
 keyboard or proportional single-stick radio input. Both publish
 `geometry_msgs/msg/TwistStamped` on `/cmd_vel`; `motor_driver` performs

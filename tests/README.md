@@ -7,6 +7,11 @@ skip when those dependencies are unavailable; a passing CTest run alone does
 not establish that those optional cases ran.
 
 - `encos_protocol_test.c`: query/position/velocity codec vectors and malformed frames.
+- `test_imu_viewer.py`: orientation rotation, invalid/replayed/stale sample rejection.
+- `test_system_test_wrapper.py`: hardware-default elevation, explicit simulation, and CLI override checks using stub commands (no motor access).
+- `test_system_test_launch.py`: physical-motor confirmation, separate Ethernet and serial-port guards.
+- `test_stereo_cam_network.py`: camera interface selection and non-destructive subnet setup.
+- `test_stereo_cam.py`: camera launch argument forwarding and CLI override checks (requires ROS launch).
 - `test_imu_transport.py`: Modbus frames, checksums, signed readings and IMU unit conversions.
 - `test_motor_test_session.py`: pane/session lifecycle behavior.
 - `source_paths.py`: adds the reorganized source packages for test imports.

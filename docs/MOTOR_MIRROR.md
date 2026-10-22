@@ -1,5 +1,11 @@
 # Live motor feedback in MuJoCo
 
+For the combined sensor/Pocket bench session, run `bash scripts/run_system_test.sh`.
+This convenient command now starts **actual motors** on the commissioned
+three-motor bench and requests sudo when needed. Use `simulate:=true` for
+simulated motors. See [full-system setup](FULL_SYSTEM_TEST.md) for saved ports,
+limits, viewer behavior, and the RGB-only 60 FPS diagnostic profile.
+
 This read-only viewer projects `/joint_states` encoder measurements onto the
 existing `forge_sim` CAD wheel joints. MuJoCo is used because that branch already
 provides MJCF and meshes; no Gazebo model conversion is required.
@@ -11,6 +17,14 @@ hardware driver -> /joint_states -> read-only ROS relay -> loopback UDP -> MuJoC
 The viewer has no motor-command publisher and never opens EtherCAT. Closing it
 or the relay does not stop the driver or change its watchdog behavior. Stop
 motion using the keyboard/driver and the existing physical stop procedure.
+
+## Combined system test
+
+The [combined launcher](FULL_SYSTEM_TEST.md) now starts this same motor relay
+and model by default, together with the camera and a separate IMU orientation
+window. It forwards the selected chassis configuration to the model. In that
+combined session, closing **any** viewer shuts down the entire test; the
+standalone viewer behavior described below remains unchanged.
 
 ## Open all four panes together
 

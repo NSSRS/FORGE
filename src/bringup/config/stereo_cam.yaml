@@ -1,0 +1,51 @@
+# Vendor launch arguments, not a ROS node parameter file. CLI overrides win.
+# RGB-only 60 FPS diagnostic profile; depth/IR settings retained for re-enabling.
+camera_name: stereo_cam
+serial_number: ''
+usb_port: ''
+net_device_ip: ''
+net_device_port: 8090
+enumerate_net_device: true
+enable_color: true
+enable_depth: false
+enable_left_ir: false
+enable_right_ir: false
+color_width: 1280
+color_height: 800
+color_fps: 60
+depth_width: 848
+depth_height: 530
+depth_fps: 60
+left_ir_width: 848
+left_ir_height: 530
+left_ir_fps: 60
+right_ir_width: 848
+right_ir_height: 530
+right_ir_fps: 60
+enable_frame_sync: false
+# Disable alignment during the RGB-only transport test.
+depth_registration: false
+align_mode: SW
+publish_tf: true
+enable_point_cloud: false
+enable_colored_point_cloud: false
+color_qos: sensor_data
+depth_qos: sensor_data
+left_ir_qos: sensor_data
+right_ir_qos: sensor_data
+# Keep invalid pixels visible and avoid temporal lag until bench evaluation.
+enable_decimation_filter: false
+decimation_filter_scale: 2
+enable_threshold_filter: false
+threshold_filter_min: 200
+threshold_filter_max: 5000
+enable_spatial_filter: false
+enable_temporal_filter: false
+enable_hole_filling_filter: false
+enable_color_auto_exposure: true
+enable_ir_auto_exposure: true
+color_exposure: -1
+ir_exposure: -1
+# The existing HWT9052 remains the robot IMU. Camera IMU support is model-dependent.
+enable_accel: false
+enable_gyro: false
