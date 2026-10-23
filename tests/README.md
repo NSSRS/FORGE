@@ -84,3 +84,15 @@ build/motor_viewer/venv/bin/python -m unittest discover -s tests -p test_motor_m
 `test_camera_frame_buffer.py` checks latest-image replacement and bounded telemetry
 when the GUI falls behind. Live ROS callback and display rates are shown in the
 camera window; see `docs/STEREO_CAM_SETUP.md` for the measurement boundaries.
+
+Seam edge detection uses synthetic geometry tests and an isolated ROS image test:
+
+```bash
+source scripts/ros2_env.sh
+source scripts/camera_env.sh
+ROS_DOMAIN_ID=91 python3 -m unittest discover -s tests -p 'test_seam_edges*.py' -v
+```
+
+The ROS test requires the installed `seam_detection` package. It starts only the
+detector and synthetic publisher, never camera acquisition or motor control.
+These tests do not establish real-weld recognition or millimeter accuracy.

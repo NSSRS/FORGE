@@ -65,6 +65,7 @@ src/
   motor_control/   ROS motor driver, chassis mixing and ROS commissioning
   imu/             ROS IMU node, serial protocol and terminal reader
   stereo_cam/      Orbbec RGB/depth/stereo IR integration and stream checks
+  seam_detection/  Observation-only RGB joint edge detection
   teleop/          Keyboard and radio command input
   visualization/   Measured-state relay, mirror model and MuJoCo viewer
   bringup/         System launch files, shared profiles and pane/session manager
@@ -93,6 +94,10 @@ The Orbbec Gemini 338Le uses the official ROS 2 driver through the `stereo_cam`
 package. Run `./scripts/setup_stereo_cam.sh`, then `./scripts/run_stereo_cam.sh`.
 See [camera setup](docs/STEREO_CAM_SETUP.md) for networking, RGB/depth/IR topics,
 filters, calibration, and the RGB-only 30 FPS default and optional 60 FPS streams.
+
+For observation-only joint edge detection on the RGB stream, run
+`bash scripts/run_seam_edges.sh`. See [seam edge detection](docs/SEAM_EDGE_DETECTION.md)
+for the live controls, ROS output images, and pixel-only measurement limits.
 
 ## Combined system test
 

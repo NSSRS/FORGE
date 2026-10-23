@@ -1,0 +1,15 @@
+# Experimental edge detection; requires verification on actual weld joints.
+seam_edges:
+  ros__parameters:
+    input_topic: /stereo_cam/color/image_raw
+    show_video: true
+    processing_fps: 30.0
+    processing_width: 640
+    # Fractions of the full image: left, top, right, bottom. R selects a new ROI.
+    roi: [0.2, 0.2, 0.8, 0.95]
+    canny_low: 50
+    canny_high: 150
+    # Horizontal separation at processing resolution, NOT millimeters.
+    min_width_px: 8
+    max_width_px: 140
+    max_angle_deg: 40.0

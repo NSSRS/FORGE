@@ -252,3 +252,10 @@ both have carrier, pass `camera_interface:=...`. Combined motor bringup retains
 the USB camera adapter and built-in EtherCAT mapping. After testing the camera
 on the built-in port, deactivate its camera NetworkManager profile before
 reconnecting the motor bridge; hardware launch rejects a motor port with IPv4.
+
+## Joint edge observation
+
+Use `bash scripts/run_seam_edges.sh` alongside the existing RGB driver for
+an edge map and candidate centerline. It shares the camera-only DDS profile
+and domain without opening the device again. See [seam edge detection](SEAM_EDGE_DETECTION.md)
+for ROI selection, threshold controls and current limitations.

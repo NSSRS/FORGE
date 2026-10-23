@@ -10,6 +10,7 @@ Native Linux is the deployment target. The ROS Python packages use ament_python:
 | motor_control | ROS driver, chassis mixing, bounded ROS commissioning |
 | imu | Independent IMU serial protocol, CLI and ROS node |
 | stereo_cam | Orbbec camera integration, RGB/depth viewer with CPU/RAM/FPS overlay, and bounded image/calibration check |
+| seam_detection | RGB joint edge candidates and annotated/edge images; no motor output |
 | teleop | Keyboard/radio command generation; uses motor_control command helpers |
 | visualization | Read-only relay and measured-state MuJoCo display |
 | bringup | Shared YAML/DDS profiles, ROS launch files, four-pane session manager |
@@ -17,7 +18,8 @@ Native Linux is the deployment target. The ROS Python packages use ament_python:
 The motor simulator remains with motors because it substitutes for hardware.
 Full physics simulation and source CAD/MJCF remain in the separate simulation
 checkout/branch; viewer setup downloads the pinned model into ignored build/.
-No empty description, vision, or localization package has been created.
+The seam_detection package contains the initial image-space edge detector.
+No empty description or localization package has been created.
 
 ## Scripts audit
 
@@ -62,7 +64,7 @@ they intentionally locate model downloads/config relative to this workspace.
 | --- | --- |
 | `build/encos_driver/` | CMake objects, native utilities, shared libraries, and tests |
 | `build/encos_driver/_deps/soem-src/` | Pinned SOEM dependency source used by the native build |
-| `build/ros2/` | Colcon build products for the six ROS packages |
+| `build/ros2/` | Colcon build products for the seven ROS packages |
 | `build/motor_viewer/` | Downloaded MuJoCo model and viewer Python environment |
 | `install/ros2/` | Installed ROS executables, resources, and environment setup |
 | `logs/` | Colcon and local run logs |
