@@ -1,5 +1,5 @@
 # Vendor launch arguments, not a ROS node parameter file. CLI overrides win.
-# RGB-only 60 FPS diagnostic profile; depth/IR settings retained for re-enabling.
+# RGB-only 30 FPS default; enable depth/IR and override rates as needed.
 camera_name: stereo_cam
 serial_number: ''
 usb_port: ''
@@ -12,18 +12,18 @@ enable_left_ir: false
 enable_right_ir: false
 color_width: 1280
 color_height: 800
-color_fps: 60
+color_fps: 30
 depth_width: 848
 depth_height: 530
-depth_fps: 60
+depth_fps: 30
 left_ir_width: 848
 left_ir_height: 530
-left_ir_fps: 60
+left_ir_fps: 30
 right_ir_width: 848
 right_ir_height: 530
-right_ir_fps: 60
+right_ir_fps: 30
 enable_frame_sync: false
-# Disable alignment during the RGB-only transport test.
+# Enable alignment explicitly when an RGB-D consumer needs registered depth.
 depth_registration: false
 align_mode: SW
 publish_tf: true

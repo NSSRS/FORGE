@@ -92,7 +92,7 @@ orientation and pose-estimator integration remain future work.
 The Orbbec Gemini 338Le uses the official ROS 2 driver through the `stereo_cam`
 package. Run `./scripts/setup_stereo_cam.sh`, then `./scripts/run_stereo_cam.sh`.
 See [camera setup](docs/STEREO_CAM_SETUP.md) for networking, RGB/depth/IR topics,
-filters, calibration, and the current RGB-only 60 FPS video diagnostic profile.
+filters, calibration, and the RGB-only 30 FPS default and optional 60 FPS streams.
 
 ## Combined system test
 
@@ -101,8 +101,9 @@ camera, calibrated Pocket controller and three-motor driver together.
 `bash scripts/run_system_test.sh` starts the **actual three-motor bench**, asking
 for sudo when needed, with the saved IMU/ESP32 ports and Pocket right stick.
 Use `bash scripts/run_system_test.sh simulate:=true` for simulated motors.
-The camera window shows RGB at a requested 60 FPS with received-FPS and CPU/RAM
-diagnostics. Video reception still needs optimization.
+The camera window shows RGB at a requested 30 FPS with received-FPS and CPU/RAM
+diagnostics. Camera-only wrappers use shared-memory DDS for smooth local video;
+the combined motor launch retains its existing transport settings.
 
 ## Documentation
 

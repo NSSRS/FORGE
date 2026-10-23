@@ -45,13 +45,26 @@ all profile argument names were also checked against that 2.9.3 binary package.
 Verify launch options if using a different driver release. The upstream source
 and its graphics/description assets remain unchanged and outside project source.
 
+## Persistent NUC camera connection
+
+The NUC now has a saved NetworkManager profile `FORGE-camera`, bound to USB
+adapter MAC `00:0E:C8:A2:20:28` / `enx000ec8a22028`, with automatic connection
+and static address `192.168.1.100/24`. It has no gateway or DNS and never installs
+a default route. This restores the address after reboot/reconnection without
+manual `ip address add` commands. Wi-Fi and the EtherCAT port are unchanged.
+The camera remains at `192.168.1.10`. This is host configuration, not a setting
+installed by pulling the repository on another computer.
+
 ## Automatic network preparation
 
 Every `ros2 launch bringup stereo_cam.launch.py` (including the Bash wrapper)
 prepares the commissioned Ethernet connection before starting the driver:
 - Detects carrier on `enp86s0` or `enx000ec8a22028`.
-- Assigns temporary host address `192.168.1.100/24` if missing; sudo may ask
-  for your password in the launch terminal.
+- Uses the saved host address when present. Otherwise, NetworkManager activates
+  a dedicated `FORGE-camera-<interface>` profile with `192.168.1.100/24`, no
+  default route, and autoconnect disabled. The launcher selects it each time;
+  no manual IP command is needed on this NUC. Hosts without NetworkManager
+  retain the temporary-address sudo fallback.
 - Removes that exact address from the other port only if it is disconnected.
 - Pings camera `192.168.1.10` three times, stopping launch if it is unreachable.
 
@@ -66,17 +79,18 @@ commissioned host ports; it is not a general network manager.
 
 ## Streams and verification
 
-The default namespace is `/stereo_cam`. The current diagnostic profile enables
-only color at 1280x800/60 FPS. Depth and both IR streams, frame synchronization,
-and software depth alignment are disabled to isolate video transport issues.
+The default namespace is `/stereo_cam`. The default profile enables
+only color at 1280x800/30 FPS. Depth, both IR streams, frame synchronization,
+and software depth alignment are opt-in to control processing and bandwidth.
 Each enabled stream publishes `image_raw` and `camera_info`; subscribers must
-accept best-effort delivery. Depth/IR settings remain 848x530/60 FPS for explicit
+accept best-effort delivery. Depth/IR settings remain 848x530/30 FPS for explicit
 re-enabling. Check calibration and rectify IR images before stereo estimation.
 
 In a second terminal, use the same domain as the wrapper:
 
 ```bash
 source scripts/ros2_env.sh
+source scripts/camera_env.sh
 export ROS_DOMAIN_ID=42
 ros2 run stereo_cam check_camera --timeout 10 --streams color
 ros2 topic list
@@ -140,14 +154,19 @@ by this package.
 ## Validation status
 
 The connected Gemini 338Le (serial CHL5663000HZ, firmware 1.8.17) has
-streamed live RGB/depth/IR on the USB Gigabit Ethernet adapter. The operator
-has run sensors together with motor teleop. Four streams at 60 FPS produced
-thousands of RTP packet-sequence warnings and visibly lagging/cut-off video.
-The RGB-only backend subsequently reported about 59.7–60.2 FPS. Viewer latency
-and sustained delivery still need optimization; this does not establish a
-specific network, camera, or host root cause. Calibration remains unvalidated.
-Launch-contract, network-preparation, synthetic stream/calibration checks and
-image-conversion checks have passed; these are not localization validation.
+streamed live RGB/depth/IR. The operator previously ran sensors with motor
+teleop and has confirmed smooth camera-only RGB/depth viewing after the DDS fix.
+An isolated RGB 1280x800/60 FPS subscriber measured 59.97 callbacks/s with
+32.5 ms maximum gap, compared with 10.55 callbacks/s before the transport fix.
+Host-wide UDP receive-buffer errors increased by 10,649 in the earlier test
+and did not increase during the corrected test. SDK/pre-publication rates
+were already about 59.9 FPS, locating the observed loss downstream of acquisition.
+
+These are short measurements on this NUC, not a sustained 60 FPS guarantee
+for every stream. A heavier simultaneous RGB/depth/cloud test with extra
+measurement subscribers reached only about 37/17/17 FPS. The combined motor
+launch has not been revalidated with this camera-only DDS profile. Calibration,
+localization and robot-frame extrinsics remain unvalidated.
 
 ## Optional depth preview
 
@@ -168,13 +187,68 @@ single-core saturation. RAM usage is MemTotal minus MemAvailable (reclaimable
 cache is not counted as unavailable memory). The overlay remains live while
 waiting for images or showing a stale frame.
 
+## ROS transport and image display
 
-## Current diagnostic mode: RGB only at 60 FPS
+Camera-only wrappers source `scripts/camera_env.sh` after `scripts/ros2_env.sh`
+and use domain 42 by default. The installed bringup profile
+`fastdds-camera-shm.xml` provides a 64 MiB shared-memory transport and loopback
+UDP, with synchronous publication and data sharing disabled. Driver and viewers
+must run under the same account. Shared-memory transport avoids passing large
+local image messages through the congested UDP path; this is not end-to-end
+zero-copy. The camera-to-NUC Ethernet acquisition path is unchanged.
 
-After packet-sequence warnings with four 60 FPS streams, the shared profile
-now enables only RGB at 1280x800/60 FPS. Depth, both IR streams, frame sync,
-and depth alignment are disabled for this test. The default window shows RGB,
-with CPU/RAM, received frames in the last second, and time since the last frame.
-The viewer keeps only the latest queued image to avoid accumulating stale video.
-These diagnostics measure viewer reception, not sensor exposure latency.
-Depth colorization remains available when depth is re-enabled explicitly.
+Jazzy's `ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST` injects additional transports.
+The camera environment uses `SUBNET` so XML owns that choice; its UDP whitelist
+still restricts traffic to loopback. The combined motor launch keeps its existing
+UDP profile and domain 44. Do not source the camera environment for motor bringup.
+For direct camera-only ROS commands, source both environment scripts and set
+domain 42 as in the verification example above.
+
+The viewer uses a dedicated ROS executor thread with best-effort, depth-one QoS.
+Its callback retains only the newest image and bounded arrival timestamps.
+Conversion, depth colorization, overlays and GUI updates run on the main thread;
+slow display never creates an unbounded image queue. Python threads still share
+the GIL. The display defaults to a 30 FPS cap; `--display-fps 60` raises it.
+
+The footer reports **ROS subscriber callbacks** and **new images submitted to the
+GUI** in the trailing second. Neither is sensor acquisition FPS or monitor refresh.
+“Since callback” measures the age of the latest image's reception, not end-to-end
+camera latency. CPU/RAM and stale-frame warnings remain enabled. Temporary plots,
+CSV recording and standalone benchmark code have been removed.
+
+## RGB, depth and point clouds at 60 FPS
+
+Start one driver, then open viewers in separate terminals:
+
+```bash
+cd ~/forge2_ws
+bash scripts/run_stereo_cam.sh show_video:=false color_fps:=60 enable_depth:=true depth_fps:=60 enable_point_cloud:=true
+```
+
+```bash
+cd ~/forge2_ws
+bash scripts/view_stereo_cam.sh --display-fps 60
+```
+
+```bash
+cd ~/forge2_ws
+bash scripts/view_stereo_cam.sh --topic /stereo_cam/depth/image_raw --display-fps 60
+```
+
+These overrides leave the shared 30 FPS RGB-only defaults unchanged. The
+uncolored point cloud is `/stereo_cam/depth/points`; use a PointCloud2 display
+in RViz2, with best-effort QoS and the cloud's frame as the fixed frame. Launch
+RViz2 with the same account, domain and camera environment. Cloud production
+may be demand-driven, so enable a subscriber when checking it. The image windows
+do not render 3D clouds. IR and depth alignment remain off unless enabled.
+
+Close Orbbec Viewer and any previous camera driver before launching: only one
+process can control the device. A control-access conflict is not an image-viewer
+problem. Closing an image window stops that subscriber; Ctrl+C in the driver's
+terminal stops acquisition. Do this before switching Ethernet ports.
+
+Camera-only launch selects the sole connected commissioned Ethernet port. If
+both have carrier, pass `camera_interface:=...`. Combined motor bringup retains
+the USB camera adapter and built-in EtherCAT mapping. After testing the camera
+on the built-in port, deactivate its camera NetworkManager profile before
+reconnecting the motor bridge; hardware launch rejects a motor port with IPv4.

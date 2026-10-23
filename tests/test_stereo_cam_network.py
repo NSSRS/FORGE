@@ -47,5 +47,38 @@ class CameraNetworkTests(unittest.TestCase):
                                    'enx000ec8a22028')[0], 'enx000ec8a22028')
 
 
+class CameraProfileTests(unittest.TestCase):
+    def test_new_profile_has_no_default_route_or_autoconnect(self):
+        from unittest.mock import patch
+        from types import SimpleNamespace
+        from stereo_cam.network import activate_camera_profile
+        with patch('stereo_cam.network.subprocess.run', return_value=SimpleNamespace(returncode=10)) as run:
+            activate_camera_profile('enp86s0', '192.168.1.100/24')
+        commands = [call.args[0] for call in run.call_args_list]
+        self.assertIn('add', commands[1])
+        self.assertEqual(commands[1][commands[1].index('connection.autoconnect')+1], 'no')
+        self.assertEqual(commands[1][commands[1].index('ipv4.never-default')+1], 'yes')
+        self.assertIn('up', commands[2])
+
+    def test_reuse_matching_profile_without_modification(self):
+        from unittest.mock import patch
+        from types import SimpleNamespace
+        from stereo_cam.network import activate_camera_profile
+        with patch('stereo_cam.network.subprocess.run', return_value=SimpleNamespace(
+                returncode=0, stdout='enp86s0\n192.168.1.100/24\n')) as run:
+            activate_camera_profile('enp86s0', '192.168.1.100/24')
+        self.assertEqual(run.call_count, 2)
+
+    def test_conflicting_profile_is_not_activated(self):
+        from unittest.mock import patch
+        from types import SimpleNamespace
+        from stereo_cam.network import activate_camera_profile
+        with patch('stereo_cam.network.subprocess.run', return_value=SimpleNamespace(
+                returncode=0, stdout='other-port\n10.0.0.1/24\n')) as run:
+            with self.assertRaises(RuntimeError):
+                activate_camera_profile('enp86s0', '192.168.1.100/24')
+        self.assertEqual(run.call_count, 1)
+
+
 if __name__ == '__main__':
     unittest.main()

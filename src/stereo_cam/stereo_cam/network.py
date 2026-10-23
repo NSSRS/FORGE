@@ -2,6 +2,7 @@
 import ipaddress
 import json
 import subprocess
+import shutil
 
 CAMERA_PORTS = ('enp86s0', 'enx000ec8a22028')
 
@@ -50,6 +51,30 @@ def network_plan(interfaces, interface, host_address, camera_ip):
     return interface, commands
 
 
+def activate_camera_profile(interface, host_address):
+    """Activate a dedicated saved profile, without changing the motor profile.
+
+    Autoconnect is off: camera-only launch selects this profile after link and
+    subnet checks. The desktop's NetworkManager policy permits setup without sudo.
+    """
+    name = f'FORGE-camera-{interface}'
+    result = subprocess.run(
+        ['nmcli', '-g', 'connection.interface-name,ipv4.addresses',
+         'connection', 'show', name], capture_output=True, text=True, timeout=10)
+    if result.returncode == 0:
+        if result.stdout.strip().splitlines() != [interface, host_address]:
+            raise RuntimeError(f'{name} does not match the expected camera port/address')
+    else:
+        subprocess.run([
+            'nmcli', 'connection', 'add', 'type', 'ethernet', 'con-name', name,
+            'ifname', interface, 'connection.autoconnect', 'no',
+            'ipv4.method', 'manual', 'ipv4.addresses', host_address,
+            'ipv4.never-default', 'yes', 'ipv6.method', 'disabled',
+        ], check=True, timeout=15)
+    subprocess.run(['nmcli', '--wait', '10', 'connection', 'up', name,
+                    'ifname', interface], check=True, timeout=15)
+
+
 def prepare_network(interface='auto', host_address='192.168.1.100/24',
                     camera_ip='192.168.1.10'):
     result = subprocess.run(['ip', '-j', 'address', 'show'], check=True,
@@ -58,10 +83,14 @@ def prepare_network(interface='auto', host_address='192.168.1.100/24',
                                        host_address, camera_ip)
     for command in commands:
         print(f'Preparing camera network: {" ".join(command)}', flush=True)
+        if command[:3] == ['ip', 'address', 'add'] and shutil.which('nmcli'):
+            activate_camera_profile(interface, host_address)
+            continue
         result = subprocess.run(['sudo', *command])
         if result.returncode:
             raise RuntimeError('Camera network setup needs sudo authentication in this terminal; '
                                'the camera driver has not been started')
+    print(f'Camera port selected: {interface}', flush=True)
     print(f'Checking camera {camera_ip} on {interface}...', flush=True)
     result = subprocess.run(['ping', '-n', '-c', '3', '-W', '1', '-I', interface, camera_ip],
                             timeout=6)

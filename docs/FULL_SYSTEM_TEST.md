@@ -87,8 +87,10 @@ bash scripts/run_system_test.sh simulate:=true imu_port:="$IMU_PORT" radio_port:
 ```
 
 This explicit simulation command uses ROS domain 44 and three windows:
-- Camera RGB video at a requested 1280x800/60 FPS, with CPU/RAM and received FPS.
-  Current transport diagnostic profile disables depth/IR, alignment, and frame sync.
+- Camera RGB video at a requested 1280x800/30 FPS, with CPU/RAM and received FPS.
+  The default profile disables depth/IR, alignment, and frame sync.
+  The standalone camera shared-memory DDS fix does not change this combined
+  launch's transport; see `STEREO_CAM_SETUP.md` for separate camera viewing.
   The checker requires RGB by default; pass `--include-depth` when depth is enabled.
 - IMU orientation: vendor roll/pitch/yaw, an illustrative 3D body and sensor axes,
   with WAITING/LIVE/STALE indication. The shaded body uses a right-handed

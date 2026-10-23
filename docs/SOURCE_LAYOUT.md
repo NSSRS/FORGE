@@ -83,4 +83,7 @@ streams; see [camera setup](STEREO_CAM_SETUP.md). The IMU publishes sensor readi
 
 The convenient combined command `bash scripts/run_system_test.sh` defaults to
 actual motors on the commissioned bench; add `simulate:=true` for simulation.
-Current camera defaults are RGB-only 1280x800/60 FPS pending video-flow tuning.
+Camera defaults are RGB-only 1280x800/30 FPS, with optional 60 FPS streams.
+Camera-only wrappers source `scripts/camera_env.sh` to select bringup's installed
+`fastdds-camera-shm.xml`; combined motor transport remains unchanged. The image
+viewer uses `stereo_cam/frame_buffer.py` for bounded latest-image delivery.

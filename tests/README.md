@@ -80,3 +80,7 @@ run with the viewer environment after `./scripts/setup_motor_viewer.sh`:
 build/motor_viewer/venv/bin/python -m unittest discover -s tests -p test_motor_mirror.py
 ./scripts/run_motor_viewer.sh --check
 ```
+
+`test_camera_frame_buffer.py` checks latest-image replacement and bounded telemetry
+when the GUI falls behind. Live ROS callback and display rates are shown in the
+camera window; see `docs/STEREO_CAM_SETUP.md` for the measurement boundaries.

@@ -4,7 +4,7 @@ For the combined sensor/Pocket bench session, run `bash scripts/run_system_test.
 This convenient command now starts **actual motors** on the commissioned
 three-motor bench and requests sudo when needed. Use `simulate:=true` for
 simulated motors. See [full-system setup](FULL_SYSTEM_TEST.md) for saved ports,
-limits, viewer behavior, and the RGB-only 60 FPS diagnostic profile.
+limits, viewer behavior, and the RGB-only 30 FPS default and camera-only shared-memory transport.
 
 The active control path is chassis W/S/A/D, using `keyboard_teleop` with
 keyboard or proportional single-stick radio input. Both publish
