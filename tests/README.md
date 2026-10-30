@@ -96,3 +96,15 @@ ROS_DOMAIN_ID=91 python3 -m unittest discover -s tests -p 'test_seam_edges*.py' 
 The ROS test requires the installed `seam_detection` package. It starts only the
 detector and synthetic publisher, never camera acquisition or motor control.
 These tests do not establish real-weld recognition or millimeter accuracy.
+
+## Damiao arm
+
+`damiao_arm_test.c` verifies the portable firmware codec, leases, feedback loss,
+fault reset, rollover, CAN failure and framed USB protocol. `test_damiao_arm.py`
+checks the host profile/protocol and drives the real C firmware through fake CAN
+for six joints. `bash scripts/build.sh` includes both. No test opens motor hardware.
+See [arm implementation](../docs/DAMIAO_ARM.md) for the separate STM32 build.
+
+The native Damiao round-trip test covers both selected bus maps and checks 50
+control frames per joint over 100 ms of simulated MCU time (500 Hz). This does
+not measure wire utilization, CAN arbitration latency or physical motor response.

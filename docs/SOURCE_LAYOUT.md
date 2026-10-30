@@ -6,7 +6,9 @@ Native Linux is the deployment target. The ROS Python packages use ament_python:
 | Directory | Responsibility |
 | --- | --- |
 | encos_driver | C11 EtherCAT/SOEM driver and native utilities; built with CMake |
-| motors | Non-ROS Python motor API and its simulator; editable installation via root pyproject.toml |
+| motors | ENCOS chassis API/simulator and separate Damiao USB arm API; editable installation via root pyproject.toml |
+| damiao_firmware | Portable C11 arm controller and STM32H723 MC02 board firmware; independent build |
+| robot_description | Chassis/arm motor inventories and Xacro macros with explicit geometry inputs |
 | motor_control | ROS driver, chassis mixing, bounded ROS commissioning |
 | imu | Independent IMU serial protocol, CLI and ROS node |
 | stereo_cam | Orbbec camera integration, RGB/depth viewer with CPU/RAM/FPS overlay, and bounded image/calibration check |
@@ -19,7 +21,7 @@ The motor simulator remains with motors because it substitutes for hardware.
 Full physics simulation and source CAD/MJCF remain in the separate simulation
 checkout/branch; viewer setup downloads the pinned model into ignored build/.
 The seam_detection package contains the initial image-space edge detector.
-No empty description or localization package has been created.
+The robot_description package now contains motor inventories and Xacro macros; localization remains unimplemented.
 
 ## Scripts audit
 
@@ -78,7 +80,7 @@ The source snapshot remains locally at `tmp/before-package-reorganization.tar.gz
 ## Robot descriptions and displays
 
 The existing MuJoCo MJCF model comes from the pinned simulation branch and is
-used by the motor viewer. This checkout has no ROS URDF/Xacro description package.
+used by the motor viewer. The robot_description package now provides motor Xacro macros, but no calibrated full-robot URDF; see [Damiao arm](DAMIAO_ARM.md).
 Robot-to-IMU and robot-to-camera mounting transforms are not implemented yet.
 The stereo camera driver supplies its internal optical transforms and image
 streams; see [camera setup](STEREO_CAM_SETUP.md). The IMU publishes sensor readings; it is not a pose estimator.

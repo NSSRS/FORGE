@@ -1,4 +1,4 @@
-"""Per-motor ENCOS commands; units are output-shaft degrees, RPM and phase A.
+"""Chassis-only ENCOS commands; units are output-shaft degrees, RPM and phase A.
 
 No implicit heartbeat: callers must renew EVERY active motor within 250 ms.
 One MotorBus owns one bridge with 1-4 explicitly identified motors. By default, configuration

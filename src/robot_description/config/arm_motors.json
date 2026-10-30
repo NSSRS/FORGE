@@ -1,0 +1,128 @@
+{
+  "schema_version": 1,
+  "role": "arm",
+  "manufacturer": "Damiao",
+  "controller": "DM-MC02",
+  "transport": "forge_usb_cdc_v1",
+  "hardware_confirmed": false,
+  "joint_order_confirmed": false,
+  "baud_rate": 1000000,
+  "joints": [
+    {
+      "name": "arm_joint_1",
+      "model": "DM-J8009P-2EC",
+      "hardware_revision": "V1.1",
+      "bus": 1,
+      "can_id": 1,
+      "feedback_id": 17,
+      "limits": {
+        "lower_rad": null,
+        "upper_rad": null,
+        "speed_rad_s": null,
+        "torque_nm": null,
+        "kp": null,
+        "kd": null
+      },
+      "direction": null,
+      "zero_offset_rad": null
+    },
+    {
+      "name": "arm_joint_2",
+      "model": "DM-J4340P-2EC",
+      "hardware_revision": "V1.1",
+      "bus": 2,
+      "can_id": 2,
+      "feedback_id": 18,
+      "limits": {
+        "lower_rad": null,
+        "upper_rad": null,
+        "speed_rad_s": null,
+        "torque_nm": null,
+        "kp": null,
+        "kd": null
+      },
+      "direction": null,
+      "zero_offset_rad": null
+    },
+    {
+      "name": "arm_joint_3",
+      "model": "DM-J4340P-2EC",
+      "hardware_revision": "V1.1",
+      "bus": 2,
+      "can_id": 3,
+      "feedback_id": 19,
+      "limits": {
+        "lower_rad": null,
+        "upper_rad": null,
+        "speed_rad_s": null,
+        "torque_nm": null,
+        "kp": null,
+        "kd": null
+      },
+      "direction": null,
+      "zero_offset_rad": null
+    },
+    {
+      "name": "arm_joint_4",
+      "model": "DM-J4310P-2EC",
+      "hardware_revision": "V1.1 (user label; unverified)",
+      "bus": 2,
+      "can_id": 4,
+      "feedback_id": 20,
+      "limits": {
+        "lower_rad": null,
+        "upper_rad": null,
+        "speed_rad_s": null,
+        "torque_nm": null,
+        "kp": null,
+        "kd": null
+      },
+      "direction": null,
+      "zero_offset_rad": null,
+      "manual_revision": "V1.3; not a hardware revision"
+    },
+    {
+      "name": "arm_joint_5",
+      "model": "DM-J4310P-2EC",
+      "hardware_revision": "V1.1 (user label; unverified)",
+      "bus": 2,
+      "can_id": 5,
+      "feedback_id": 21,
+      "limits": {
+        "lower_rad": null,
+        "upper_rad": null,
+        "speed_rad_s": null,
+        "torque_nm": null,
+        "kp": null,
+        "kd": null
+      },
+      "direction": null,
+      "zero_offset_rad": null,
+      "manual_revision": "V1.3; not a hardware revision"
+    },
+    {
+      "name": "arm_joint_6",
+      "model": "DM-J4310P-2EC",
+      "hardware_revision": "V1.1 (user label; unverified)",
+      "bus": 2,
+      "can_id": 6,
+      "feedback_id": 22,
+      "limits": {
+        "lower_rad": null,
+        "upper_rad": null,
+        "speed_rad_s": null,
+        "torque_nm": null,
+        "kp": null,
+        "kd": null
+      },
+      "direction": null,
+      "zero_offset_rad": null,
+      "manual_revision": "V1.3; not a hardware revision"
+    }
+  ],
+  "wiring_plan": "temporary_two_bus",
+  "wiring_plan_confirmed": true,
+  "hardware_tested": false,
+  "can_frame_format": "classic_11bit",
+  "can_update_hz": 500
+}

@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>robot_description</name><version>0.1.0</version>
+  <description>FORGE chassis and arm inventories and motor visual macros</description>
+  <maintainer email="forge@example.invalid">FORGE developers</maintainer>
+  <license>Proprietary</license><buildtool_depend>ament_python</buildtool_depend>
+  <exec_depend>xacro</exec_depend>
+  <export><build_type>ament_python</build_type></export>
+</package>

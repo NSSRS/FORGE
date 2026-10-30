@@ -2,6 +2,12 @@
 
 Motor control, IMU acquisition, teleoperation, and visualization for the magnetic wall-climbing welding robot.
 
+ENCOS motors are the **chassis** actuators. The six Damiao motors are **arm**
+actuators controlled by a DM-MC02 over USB. See [Damiao arm implementation and
+commissioning](docs/DAMIAO_ARM.md) for firmware builds, the separate host/ROS
+interface, motor descriptions, manufacturer manuals and outstanding hardware mapping.
+
+- **[`nathan`](https://github.com/NSSRS/FORGE/tree/nathan)**: Damiao arm firmware, descriptions, host interface, and [ST-LINK commissioning handoff](docs/DAMIAO_ARM.md#bench-handoff--2026-10-30); hardware validation pending.
 - **`main`**: ENCOS C11 driver/utilities, Python motor API, and ROS 2 motor, IMU, teleoperation, visualization, and bringup packages.
 - **[`physics-analysis`](https://github.com/NSSRS/FORGE/tree/physics-analysis)**:
   thermal/magnetic adhesion and suspension/wheel/terrain simulators, preserved
@@ -60,7 +66,9 @@ ROS 2 nodes, teleoperation, localization, trajectory tracking, and ESTOP archite
 
 ```text
 src/
-  encos_driver/    C11 EtherCAT driver, protocol and bench utilities
+  encos_driver/    ENCOS chassis C11 EtherCAT driver and bench utilities
+  damiao_firmware/ DM-MC02 arm firmware, USB protocol and watchdogs
+  robot_description/ Chassis/arm inventories and motor Xacro macros
   motors/          Python motor API, simulator and native commissioning
   motor_control/   ROS motor driver, chassis mixing and ROS commissioning
   imu/             ROS IMU node, serial protocol and terminal reader

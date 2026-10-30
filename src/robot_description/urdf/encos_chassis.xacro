@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <!-- ENCOS remains chassis-only. No unmeasured motor casing/inertia is invented. -->
+  <xacro:macro name="encos_chassis_joint" params="name parent child xyz rpy axis velocity effort">
+    <link name="${child}"/>
+    <joint name="${name}" type="continuous">
+      <parent link="${parent}"/><child link="${child}"/>
+      <origin xyz="${xyz}" rpy="${rpy}"/><axis xyz="${axis}"/>
+      <limit velocity="${velocity}" effort="${effort}"/>
+    </joint>
+  </xacro:macro>
+</robot>

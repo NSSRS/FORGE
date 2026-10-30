@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <!-- Visual envelopes from vendor manuals. These are NOT collision meshes or inertias.
+       Joint origin, axis and limits must come from the actual arm CAD/calibration. -->
+  <xacro:macro name="damiao_arm_joint" params="name parent child model xyz rpy axis lower upper velocity effort">
+    <xacro:property name="dimensions" value="${dict([('DM-J8009P-2EC',[0.049,0.0617]), ('DM-J4340P-2EC',[0.0285,0.0565]), ('DM-J4310P-2EC',[0.0285,0.04905])])}"/>
+    <link name="${child}">
+      <visual>
+        <geometry><cylinder radius="${dimensions[model][0]}" length="${dimensions[model][1]}"/></geometry>
+        <material name="damiao_arm"><color rgba="0.18 0.24 0.30 1"/></material>
+      </visual>
+    </link>
+    <joint name="${name}" type="revolute">
+      <parent link="${parent}"/><child link="${child}"/>
+      <origin xyz="${xyz}" rpy="${rpy}"/><axis xyz="${axis}"/>
+      <limit lower="${lower}" upper="${upper}" velocity="${velocity}" effort="${effort}"/>
+    </joint>
+  </xacro:macro>
+</robot>

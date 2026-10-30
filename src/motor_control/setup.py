@@ -6,5 +6,5 @@ setup(
     install_requires=["setuptools"], zip_safe=True,
     maintainer="FORGE developers", maintainer_email="forge@example.invalid",
     description="ROS motor driver, differential chassis mixing, and bounded commissioning", license="Proprietary",
-    entry_points={"console_scripts": ['motor_driver = motor_control.motor_driver:main']},
+    entry_points={"console_scripts": ['motor_driver = motor_control.motor_driver:main', 'arm_driver = motor_control.arm_driver:main']},
 )

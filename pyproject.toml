@@ -5,8 +5,11 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "motors"
 version = "0.1.0"
-description = "Python control of the FORGE ENCOS C driver"
+description = "FORGE ENCOS chassis and Damiao MC02 arm control"
 requires-python = ">=3.10"
+
+[project.optional-dependencies]
+arm = ["pyserial>=3.5"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
