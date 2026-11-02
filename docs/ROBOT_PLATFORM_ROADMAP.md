@@ -31,8 +31,9 @@ velocity. The chassis controller converts that request into four wheel commands,
 and the existing native ENCOS driver handles the EtherCAT/CAN timing.
 
 An existing MuJoCo MJCF model supplies geometry for the motor viewer; see
-[MOTOR_MIRROR.md](MOTOR_MIRROR.md). This checkout has no ROS URDF/Xacro package
-or validated IMU/camera mounting transforms. Extend and validate robot geometry,
+[MOTOR_MIRROR.md](MOTOR_MIRROR.md). This checkout has a robot_description package with inventories and Xacro macros,
+but no completed full-robot MoveIt description. The current chassis/arm MJCF
+and posing tools are documented in ONSHAPE_ARM_PREVIEW.md. Validated IMU/camera mounting transforms are still missing. Extend and validate robot geometry,
 linkage properties, mass, inertia, sensor poses, collision geometry, and joint limits
 for the ROS description. Prefer ROS URDF with Xacro where
 parameters or repeated structures are needed. Hardware limits that affect safe

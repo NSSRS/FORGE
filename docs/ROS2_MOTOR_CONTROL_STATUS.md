@@ -83,7 +83,7 @@ The [2026-09-16 bench record](ENCOS_TEST_BENCH.md#commissioning-record-2026-09-1
 preserves the fault investigation and bounded unloaded motor tests. The
 [2026-09-29 CAN2 result](ENCOS_TEST_BENCH.md#can2-bench-confirmation-2026-09-29)
 is operator-confirmed. Those historical results are not radio, complete chassis,
-loaded-stop or host-loss validation. URDF, odometry, trajectory tracking,
+loaded-stop or host-loss validation. A complete planning-ready URDF, odometry, trajectory tracking,
 command-source arbitration and a safety supervisor remain future work.
 
 ## IMU sensor node

@@ -208,3 +208,10 @@ sends forward/left/right/stop mappings through the actual C worker and fake
 four-slot bridge. `test_ros_chassis.py` exercises real topic delivery and motor
 feedback with `simulate=true`; it skips when ROS 2 is absent. Run that test on
 an isolated ROS domain with no hardware driver or other command publishers.
+
+
+Current nathan model compatibility: the Onshape chassis names are mapped back to
+wheel_1..wheel_6 during integration. The four drive signs and side assignments
+are retained. The current preview defaults are 60 forward / 30 turn RPM;
+historical values above describe their referenced revision, not today's keyboard
+speed. The new arm and DOF1 zero offset do not modify chassis hardware profiles.

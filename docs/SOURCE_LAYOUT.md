@@ -18,8 +18,10 @@ Native Linux is the deployment target. The ROS Python packages use ament_python:
 | bringup | Shared YAML/DDS profiles, ROS launch files, four-pane session manager |
 
 The motor simulator remains with motors because it substitutes for hardware.
-Full physics simulation and source CAD/MJCF remain in the separate simulation
-checkout/branch; viewer setup downloads the pinned model into ignored build/.
+Full simulation and the current chassis/arm MJCF now live in this nathan checkout:
+root preview/export entry points, forge_sim/ helpers, and model/ assets.
+The read-only wheel viewer retains a pinned old-model default; --local-model
+selects a snapshot of this checkout. See ONSHAPE_ARM_PREVIEW.md.
 The seam_detection package contains the initial image-space edge detector.
 The robot_description package now contains motor inventories and Xacro macros; localization remains unimplemented.
 
@@ -66,7 +68,7 @@ they intentionally locate model downloads/config relative to this workspace.
 | --- | --- |
 | `build/encos_driver/` | CMake objects, native utilities, shared libraries, and tests |
 | `build/encos_driver/_deps/soem-src/` | Pinned SOEM dependency source used by the native build |
-| `build/ros2/` | Colcon build products for the seven ROS packages |
+| `build/ros2/` | Colcon build products for the eight ROS packages |
 | `build/motor_viewer/` | Downloaded MuJoCo model and viewer Python environment |
 | `install/ros2/` | Installed ROS executables, resources, and environment setup |
 | `logs/` | Colcon and local run logs |
@@ -79,8 +81,9 @@ The source snapshot remains locally at `tmp/before-package-reorganization.tar.gz
 
 ## Robot descriptions and displays
 
-The existing MuJoCo MJCF model comes from the pinned simulation branch and is
-used by the motor viewer. The robot_description package now provides motor Xacro macros, but no calibrated full-robot URDF; see [Damiao arm](DAMIAO_ARM.md).
+The current full-robot MJCF lives in model/ and is used by the root preview tools.
+The motor viewer uses a pinned historical snapshot by default, or an explicitly
+selected local-model snapshot; both are compatible with its wheel-only projection. The robot_description package now provides motor Xacro macros, but no calibrated full-robot URDF; see [Damiao arm](DAMIAO_ARM.md).
 Robot-to-IMU and robot-to-camera mounting transforms are not implemented yet.
 The stereo camera driver supplies its internal optical transforms and image
 streams; see [camera setup](STEREO_CAM_SETUP.md). The IMU publishes sensor readings; it is not a pose estimator.

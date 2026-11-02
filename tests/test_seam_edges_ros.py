@@ -6,6 +6,10 @@ import sys
 import time
 import unittest
 
+import importlib.util
+if any(importlib.util.find_spec(name) is None for name in ("numpy","rclpy","cv_bridge","sensor_msgs")):
+    raise unittest.SkipTest("requires ROS 2 and camera environment")
+
 import numpy as np
 import rclpy
 from cv_bridge import CvBridge

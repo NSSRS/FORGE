@@ -10,3 +10,5 @@
 - ROS packages are motor_control, imu, stereo_cam, seam_detection, teleop, visualization, bringup, and robot_description. Shared launch/config belongs to bringup; scripts are wrappers/setup only. See docs/SOURCE_LAYOUT.md.
 
 - ENCOS motors are chassis motors; Damiao motors are arm motors on the independent DM-MC02 USB/CAN path. See `docs/DAMIAO_ARM.md` for firmware builds, wiring, and commissioning status. Hardware testing and flashing remain pending; do not treat software tests as motor validation.
+
+- Current nathan also owns root MuJoCo preview/export tools, forge_sim/ and model/. Read docs/ONSHAPE_ARM_PREVIEW.md before changing model coordinates, viewers or collision rules. Preserve D3 closure and simulation-vs-hardware coordinate separation. Validate tests/test_model_compatibility.py plus relevant magnetic/terrain/actuator tests. Never commit .env, model/config.json or .sim-backups/.

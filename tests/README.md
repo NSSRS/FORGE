@@ -1,4 +1,4 @@
-# Controls and sensor tests
+# Controls, sensors, and robot-model tests
 
 Follow the [Ubuntu build guide](../docs/ENCOS_WORKSPACE.md#build-on-ubuntu);
 `./scripts/build.sh` builds the native driver and runs CTest, including Python
@@ -108,3 +108,24 @@ See [arm implementation](../docs/DAMIAO_ARM.md) for the separate STM32 build.
 The native Damiao round-trip test covers both selected bus maps and checks 50
 control frames per joint over 100 ms of simulated MCU time (500 Hz). This does
 not measure wire utilization, CAN arbitration latency or physical motor response.
+
+
+## Current chassis and arm MJCF
+
+Use the root .venv with requirements-sim.txt for simulation tests. The dedicated
+model tests skip when optional simulation dependencies are unavailable.
+Generate terrain scenes before the collision broad-phase tests:
+
+```bash
+.venv/bin/python preview_sim.py --terrain curved --check
+.venv/bin/python preview_sim.py --terrain bumpy --check
+.venv/bin/python -m unittest discover -s tests -p test_model_compatibility.py -v
+.venv/bin/python -m unittest discover -s tests -p test_magnetic.py -v
+.venv/bin/python -m unittest discover -s tests -p test_velocity_control.py -v
+.venv/bin/python -m unittest discover -s tests -p test_terrain.py -v
+```
+
+The full model has 20 joints, ten actuators and one D3 connect closure.
+Model compatibility tests cover default joint angles/targets, the rebased D1,
+static D3 solving, and wheel-feedback projection without changing arm/base pose.
+See [model guide](../docs/ONSHAPE_ARM_PREVIEW.md) for remaining physical limitations.

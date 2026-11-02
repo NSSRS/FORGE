@@ -7,8 +7,8 @@ simulated motors. See [full-system setup](FULL_SYSTEM_TEST.md) for saved ports,
 limits, viewer behavior, and the RGB-only 30 FPS default and camera-only shared-memory transport.
 
 This read-only viewer projects `/joint_states` encoder measurements onto the
-existing `forge_sim` CAD wheel joints. MuJoCo is used because that branch already
-provides MJCF and meshes; no Gazebo model conversion is required.
+stable wheel_1 through wheel_4 CAD joints. The default model remains the pinned
+forge_sim snapshot; the current nathan full-robot model is also supported.
 
 ```text
 hardware driver -> /joint_states -> read-only ROS relay -> loopback UDP -> MuJoCo
@@ -106,7 +106,8 @@ as the driver and only one `/joint_states` source.
 - Mouse orbit and zoom work. The viewer has no W/S/A/D motor control; keep focus
   on the existing teleop terminal to drive.
 
-The chassis, suspension and passive wheels retain the initial model pose.
+The chassis, suspension, arm and passive wheels retain the saved terrain_spawn
+keyframe when present, otherwise the model reference pose.
 No measured chassis pose, ground motion, contact simulation, torque/current or
 temperature is claimed: `/joint_states` currently contains motor positions and
 velocities only. Wheel encoders do not measure wall slip or global robot motion.
@@ -156,3 +157,15 @@ The tests cover named mapping, direction/ratio conversion, omitted/missing
 motors, malformed/replayed/stale packets, restart baselines, actual MuJoCo joint
 projection with a fixed base, and real ROS-to-loopback delivery of synthetic
 feedback. They do not command hardware. Use an isolated ROS domain for tests.
+
+
+## Select the current nathan model
+
+`bash scripts/setup_motor_viewer.sh --local-model` copies scene.xml, robot.xml
+and assets into build/motor_viewer/model. It does not copy Onshape credentials.
+Rerun after CAD exports. Alternatively pass
+`--scene /home/ns_wsl/forge_ws/FORGE-nathan/model/scene.xml`
+to run_motor_viewer.sh after setting up its environment.
+The four wheel names/signs remain compatible. Arm joints are frozen at the saved
+default pose, not driven by Damiao feedback. Do not use this viewer as the full
+physics simulator or as evidence of arm hardware mapping.

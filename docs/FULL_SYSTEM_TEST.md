@@ -211,3 +211,12 @@ with physical motor teleop. Video reception still needs optimization: four
 60 FPS camera streams produced repeated RTP packet-sequence warnings; the
 RGB-only camera backend subsequently reported approximately 60 FPS. This is
 not a measurement of end-to-end display latency.
+
+
+## Model selection on nathan
+
+The combined test still uses build/motor_viewer/model/scene.xml. Setup defaults
+to the historical pinned model; opt into the new chassis/arm snapshot with
+`bash scripts/setup_motor_viewer.sh --local-model`. The mirror preserves its
+saved spawn but only applies wheel feedback. Static arm posing and dynamic
+simulation are separate root entry points; see ONSHAPE_ARM_PREVIEW.md.

@@ -13,6 +13,15 @@ flashed or commissioned. The user opened the STM32 USB port with the diagnostic
 script, but the FORGE handshake timed out. Do not assume the board is already
 running this project's USB protocol. See the dated handoff below.
 
+## Relationship to the MuJoCo arm model
+
+The nathan checkout now contains a six-drive arm MJCF and a D3 rod-loop solver.
+See [model guide](ONSHAPE_ARM_PREVIEW.md). Simulation joint names, default poses
+and DOF1 zero rebasing do not establish physical motor order, encoder signs,
+encoder zeros, torque limits or calibration. No simulation-to-ArmBus coordinate
+adapter or arm-feedback visualization is implemented. The following hardware
+commissioning restrictions remain applicable.
+
 ## Verified manufacturer references
 
 Retrieved 2026-10-30 from Damiao's `dmBots` repositories:

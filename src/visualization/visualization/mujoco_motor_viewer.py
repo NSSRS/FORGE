@@ -20,6 +20,10 @@ class Projection:
         self.mj = mujoco
         self.model = mujoco.MjModel.from_xml_path(str(scene))
         self.data = mujoco.MjData(self.model)
+        key=mujoco.mj_name2id(self.model,mujoco.mjtObj.mjOBJ_KEY,'terrain_spawn')
+        if key>=0:
+            mujoco.mj_resetDataKeyframe(self.model,self.data,key)
+        self.initial_qpos=self.data.qpos.copy()
         self.mirror = MotorMirror(config)
         self.joints = [self.model.joint(f'wheel_{i}').id for i in range(1, 5)]
         if any(self.model.jnt_type[j] != mujoco.mjtJoint.mjJNT_HINGE for j in self.joints):
@@ -34,7 +38,7 @@ class Projection:
         m, d = self.model, self.data
         # No mj_step: measured joints are authoritative; unmeasured base and
         # suspension remain at their initial pose, with no invented odometry.
-        d.qpos[:] = m.qpos0
+        d.qpos[:] = self.initial_qpos
         d.qvel[:] = 0
         d.ctrl[:] = 0
         for index, (joint, state) in enumerate(zip(self.joints, self.mirror.wheels)):

@@ -1,4 +1,4 @@
-# FORGE robot controls
+# FORGE robot controls and simulation
 
 Motor control, IMU acquisition, teleoperation, and visualization for the magnetic wall-climbing welding robot.
 
@@ -7,12 +7,33 @@ actuators controlled by a DM-MC02 over USB. See [Damiao arm implementation and
 commissioning](docs/DAMIAO_ARM.md) for firmware builds, the separate host/ROS
 interface, motor descriptions, manufacturer manuals and outstanding hardware mapping.
 
-- **[`nathan`](https://github.com/NSSRS/FORGE/tree/nathan)**: Damiao arm firmware, descriptions, host interface, and [ST-LINK commissioning handoff](docs/DAMIAO_ARM.md#bench-handoff--2026-10-30); hardware validation pending.
+- **[`nathan`](https://github.com/NSSRS/FORGE/tree/nathan)**: Damiao arm firmware, descriptions, host interface, and [ST-LINK commissioning handoff](docs/DAMIAO_ARM.md#bench-handoff--2026-10-30); hardware validation pending. Also includes the integrated Onshape chassis/arm MJCF, static posing and full MuJoCo simulation.
 - **`main`**: ENCOS C11 driver/utilities, Python motor API, and ROS 2 motor, IMU, teleoperation, visualization, and bringup packages.
 - **[`physics-analysis`](https://github.com/NSSRS/FORGE/tree/physics-analysis)**:
   thermal/magnetic adhesion and suspension/wheel/terrain simulators, preserved
   from the former `main` at `324d21e`.
 - **`encos-motor-workspace`**: preserved earlier combined workspace.
+
+## Robot model and preview
+
+See [model setup, coordinates, collisions and compatibility](docs/ONSHAPE_ARM_PREVIEW.md).
+From this checkout, create .venv and install requirements-sim.txt, then:
+
+```bash
+.venv/bin/python preview_native.py --renderer gpu
+```
+
+This is static posing: click Simulation > Pause to enable Joint sliders.
+D3's passive linkage follows kinematically; no physics steps run.
+For full physics, magnets, WASD driving, terrain and telemetry:
+
+```bash
+GALLIUM_DRIVER=d3d12 MESA_D3D12_DEFAULT_ADAPTER_NAME=NVIDIA .venv/bin/python preview_sim.py
+```
+
+The default arm angles are [0, 0.0942, -0.44, 0, -0.188, 0] radians.
+Only DOF1's zero was rebased. These are not calibrated hardware encoder coordinates.
+MoveIt/Mink integration remains future work.
 
 ## Python motion interface
 
@@ -34,7 +55,7 @@ IDs 1/2 on CAN1 and ID 3 on CAN2:
 Both manual driving and future automatic chassis trajectory tracking can use
 this velocity interface. The [differential chassis controller](docs/DIFFERENTIAL_DRIVE.md)
 maps timestamped chassis velocity and WASD teleop to four motor RPM targets using
-the `forge_sim` wheel layout. Hardware mapping still needs commissioning.
+the preserved four-driven-wheel simulation layout. Hardware mapping still needs commissioning.
 State estimation and trajectory tracking remain future work. Teleoperation now
 uses chassis W/S/A/D only, with keyboard or proportional
 single-stick radio input in the same executable. See
@@ -65,6 +86,10 @@ ROS 2 nodes, teleoperation, localization, trajectory tracking, and ESTOP archite
 ## Repository layout
 
 ```text
+model/             Integrated full-robot MJCF, meshes, spawn and scene templates
+forge_sim/         Geometry, magnets, wheel controls, terrain fitting and arm closure
+preview_native.py  Static native Joint-panel posing
+preview_sim.py     Full dynamic preview
 src/
   encos_driver/    ENCOS chassis C11 EtherCAT driver and bench utilities
   damiao_firmware/ DM-MC02 arm firmware, USB protocol and watchdogs
@@ -137,7 +162,9 @@ the combined motor launch retains its existing transport settings.
 ## Live motor visualization
 
 [Mirror measured motor movement in MuJoCo](docs/MOTOR_MIRROR.md) using the
-`forge_sim` CAD model and a read-only `/joint_states` relay. The current
+pinned historical CAD snapshot by default and a read-only `/joint_states` relay.
+Use `scripts/setup_motor_viewer.sh --local-model` to select the new full robot;
+only wheel feedback is displayed, and arm joints remain at their saved pose. The current
 three-motor profile marks motor 4 absent and preserves its model for later.
 
 ## Existing bench utilities
