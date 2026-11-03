@@ -129,3 +129,24 @@ The full model has 20 joints, ten actuators and one D3 connect closure.
 Model compatibility tests cover default joint angles/targets, the rebased D1,
 static D3 solving, and wheel-feedback projection without changing arm/base pose.
 See [model guide](../docs/ONSHAPE_ARM_PREVIEW.md) for remaining physical limitations.
+
+
+### Current Damiao bench regressions
+
+Position–velocity is the only bench motion mode. The14 Python tests cover
+host/firmware round trips, wrong mode readback, speed/gain rejection, simulated
+target completion and stalls, delayed enable, restoration, watchdogs and both
+six-joint bus maps. Two CTest targets cover codec/state machine/USB framing
+and CAN completion/abort. The general MIT codec remains for the separate
+production interface; obsolete MIT bench variants are removed.
+
+```bash
+cmake -S src/damiao_firmware -B build/damiao_tests
+cmake --build build/damiao_tests
+ctest --test-dir build/damiao_tests --output-on-failure
+PYTHONPATH=src python3 -m unittest discover -s tests -p test_damiao_arm.py -v
+```
+
+Hardware evidence and remaining model/unit tests are in
+[arm commissioning](../docs/DAMIAO_ARM.md) and the
+[description handoff](../src/robot_description/ARM_COMMISSIONING.md).

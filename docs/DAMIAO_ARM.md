@@ -1,26 +1,136 @@
-# Damiao arm and ENCOS chassis
+# Damiao arm commissioning
 
-FORGE now has two separate motor paths:
+ENCOS motors are chassis actuators. Damiao motors are arm actuators on a
+separate DM-MC02 controller: Python on the NUC → USB CDC → C11 firmware on
+STM32H723 → classic CAN at 1 Mbps. We implement the CAN protocol in FORGE;
+the official Python USB2CAN SDK is a reference, not a library loaded by MC02.
 
-- **Chassis:** existing ENCOS motors → ENCOS EtherCAT-CAN bridge → `encos_driver`
-  and `motors.MotorBus`. Existing chassis profiles, IDs, units and commands stay valid.
-- **Arm:** 1 × DM-J8009P-2EC V1.1, 2 × DM-J4340P-2EC V1.1,
-  3 × DM-J4310P-2EC (user label V1.1) → DM-MC02 → USB CDC →
-  `motors.arm.ArmBus` or the separate ROS `arm_driver`.
+## Verified hardware result — 2026-11-03
 
-This implementation is built and tested without physical motor motion. It is not
-flashed or commissioned. The user opened the STM32 USB port with the diagnostic
-script, but the FORGE handshake timed out. Do not assume the board is already
-running this project's USB protocol. See the dated handoff below.
+One secured, unloaded **DM-J4340P-2EC V1.1**, alone on **CAN2**, command ID 1,
+feedback ID 0, completed the position–velocity test:
 
-## Relationship to the MuJoCo arm model
+| Item | Observed result |
+| --- | --- |
+| Requested / final relative angle | +45° / +44.83° (0.17° error) |
+| Movement onset | Visible by first 0.25 s log sample |
+| Commanded maximum speed | 0.1 rad/s (5.73°/s) |
+| Final settling | Within1° and <=0.03 rad/s for 0.3 s, around 9.5 s |
+| Largest printed torque sample | 0.554 Nm; sampled output is not a peak capture |
+| Exit | Disable acknowledged; original CTRL_MODE=1 restored and verified |
+| Measured protocol ranges | PMAX12.5 rad, VMAX10 rad/s, TMAX28 Nm |
+| Existing damping factor | 4; internal motor gains unchanged |
 
-The nathan checkout now contains a six-drive arm MJCF and a D3 rod-loop solver.
-See [model guide](ONSHAPE_ARM_PREVIEW.md). Simulation joint names, default poses
-and DOF1 zero rebasing do not establish physical motor order, encoder signs,
-encoder zeros, torque limits or calibration. No simulation-to-ArmBus coordinate
-adapter or arm-feedback visualization is implemented. The following hardware
-commissioning restrictions remain applicable.
+This validates one bench unit/move, not loaded-arm operation, all six motors,
+bus loading, joint calibration or the ROS arm driver. Hardware revision V1.1
+is distinct from manual V1.4. The motor's internal firmware version has not
+been recorded. The 4310P hardware V1.1 label remains unverified.
+
+## Current bench test
+
+Only `scripts/test_dm_4340_bench.py` is the supported motion commissioning
+entry point. It is fixed to the discovered CAN2/ID 1/feedback0 4340P and its
+measured ranges. Do not run it unchanged for an 8009P or 4310P.
+
+The superseded MIT bench ramps and their firmware enable path have been
+removed. General MIT codec/profile support remains for the separate,
+hardware-unvalidated six-joint interface; it is not the validated bench mode.
+The initial disabled probe can still read a motor currently in MIT mode.
+
+The script verifies identity, ranges and positive damping, writes/reads back
+volatile TIMEOUT=2000 (100 ms), obtains fresh disabled feedback, writes
+CTRL_MODE=2 while disabled/stationary, independently reads it back, and probes
+again. It preloads the current position before enable confirmation, then sends
+the target directly using CAN ID 0x101 and two little-endian float32 values:
+position radians and maximum speed rad/s. There is no host ten-second ramp or
+MIT gain command. Success requires the target and settling criteria above.
+Original mode is restored after acknowledged disable; no zeroing, gain tuning,
+parameter-save, ID changes or motor firmware updates occur.
+
+Limits: +45° target; host travel window(-0.14,target+0.14) rad relative to start;
+MCU window[-0.15,target+0.15]; commanded speed 0.1 rad/s; measured speed stop
+0.3 rad/s host and0.36 rad/s MCU; absolute measured torque stop 3 Nm in both;
+80°C MCU temperature stop; host deadline 12 s and MCU deadline 15 s.
+The 3 Nm value is a **reactive feedback stop, not a hard torque/current clamp**.
+Motor timeout 100 ms, host command lease 150 ms, firmware feedback timeout 100 ms
+and host feedback-age check 80 ms are independent. MCU targets 500 Hz CAN updates.
+CAN transmit completion/abort, bus-off, USB loss and hardware watchdog protect
+against stale commands. No automatic fault clear, re-enable or gravity hold.
+
+### Build, flash, run
+
+From the repository root, fetch/build as described below. Keep motor PSU off
+while flashing or resetting MC02. Keep the motor secured and output travel free.
+
+```bash
+# Set this to your installed STM32CubeProgrammer CLI:
+STM32CLI="/path/to/STM32CubeProgrammer/bin/STM32_Programmer_CLI"
+sudo "$STM32CLI" -c port=SWD freq=240 mode=NORMAL reset=SWrst \
+  -w "$PWD/build/dm_mc02/forge_arm.elf" -v -rst
+```
+
+On the commissioning NUC, the installed CLI is
+`/home/forge2/Documents/Codex/2026-10-30/read/tools/STM32CubeProgrammer/bin/STM32_Programmer_CLI`.
+The original 1 MiB flash backup is locally stored under
+`build/dm_mc02/backups/mc02-before-forge-20261103-170007.bin`; do not commit
+backups, SDK caches or build artifacts.
+
+Turn motor PSU on, then:
+
+```bash
+python3 scripts/check_dm_mc02.py --port /dev/ttyACM0
+python3 scripts/test_dm_4340_bench.py --port /dev/ttyACM0 --execute
+```
+
+The optional `--mode pos-vel --degrees 45` flags remain accepted for previous
+commands. `--mode mit` is rejected. Default is the validated +45° position–velocity
+test. Exit 0 means target reached and cleanup completed; exit 1 means incomplete
+motion/settling; exit 2 means a failure. Inspect disable/mode-restoration messages.
+If restoration fails, turn motor PSU off and power-cycle before retrying.
+
+**Reset MC02 between tests:** previous configuration remains in MCU RAM even
+when Python exits. With motor PSU off:
+
+```bash
+sudo "$STM32CLI" -c port=SWD freq=240 mode=NORMAL reset=SWrst -rst
+```
+
+Then power the motor and run again. Command 9 rejection before enable can mean
+previous configuration or a latched fault, not motor failure. A reset requires
+no reflash. Script/logging changes within existing firmware capabilities need
+no flash; firmware/guard/protocol changes do. This cleanup removes the obsolete
+MIT bench firmware entry point, so flash the rebuilt image to remove it on MCU.
+
+### Read-only discovery
+
+After a fresh MCU reset, with only the intended motor on the selected powered
+bus, run (does not enable or write parameters):
+
+```bash
+python3 scripts/discover_dm_motor.py --port /dev/ttyACM0 --bus 2
+```
+
+USB handshake alone does not verify CAN. Solid green motor LED means enabled;
+solid red means disabled; flashing red indicates a fault. Preserve the exact
+ID, reply ID, mode, timeout and PMAX/VMAX/TMAX results before adapting any test.
+
+## Next development work
+
+See [robot-description commissioning handoff](../src/robot_description/ARM_COMMISSIONING.md).
+Next: individually discover and test the 8009P on CAN1, a 4310P, the remaining 4340P
+and other 4310Ps. Generalize the bench transport only after recording each
+motor's ranges/IDs and validating model-specific limits. Do not infer ranges
+from torque ratings, reuse3 Nm for every model, or mark six-axis profiles as
+confirmed from one successful bench move.
+
+## Why the old test was removed
+
+Experimental MIT Kp2/Kd1 position ramps showed about 4 s delay before breakaway
+near 0.6 Nm and final angles around32° instead of45°. Raising the feedback trip
+threshold to 3 Nm did not fix low-stiffness tracking error. The position–velocity
+run above moved promptly and reached the target using the motor's existing
+loops. Historical code is available in Git; old operational instructions are
+intentionally replaced by this single supported workflow.
 
 ## Verified manufacturer references
 
@@ -33,20 +143,6 @@ Retrieved 2026-10-30 from Damiao's `dmBots` repositories:
 | J4310P | [English user manual V1.3, 2026-09-14](https://github.com/dmBots/DM-J4310P-2EC/blob/9e728c9a42b498380ae43964636b3d66d01f42c7/manual/DM-J4310P-2EC%20Geared%20Motor%20User%20Manual%20V1.3%202026-09-14.pdf) | Rated 3.5 Nm, peak 12.5 Nm; no separately titled hardware V1.1 manual found |
 | MC02 | [Manufacturer repository at pinned revision](https://github.com/dmBots/DM-MC02/tree/d65a3688981405dc205f628f1a026bde8cf8303e) | `manual/` contains board manual V1.1; USB/CAN examples supply STM32H723 support |
 
-The motor manuals' CAN communication and register-map chapters define the
-codec. In the J4340P manual these are printed pages 13–21; timeout units are
-explained in the configuration section. CAN is standard 11-bit classic CAN,
-nominally 1 Mbps. MIT packets carry p16/v12/kp12/kd12/t12; gains map to
-0–500 and 0–5. Position/velocity/torque ranges are configurable, not inferred
-from rated or peak torque. Feedback has a status nibble, position, velocity,
-torque, MOS temperature and rotor temperature. MIT mode is CTRL_MODE=1.
-
-Firmware reads PMAX/VMAX/TMAX (registers 21/22/23), CTRL_MODE (10), and TIMEOUT
-(9). It does not write motor parameters, clear faults, change IDs, save zeros,
-calibrate encoders or update motor firmware. TIMEOUT is 50 microseconds/count;
-a value in 1–3000 is required (up to 150 ms). Configure that with the vendor
-tool before commissioning. The driver limits command IDs to 1–15 so the ID fits
-the feedback nibble, and requires distinct feedback IDs 16–2046.
 
 ## Hardware mapping and power
 
@@ -167,200 +263,37 @@ the arm supported: disabling torque is **not** a mechanical brake or a
 validated gravity hold. Firmware restart/host loss is designed to remove
 commands; the motor's own configured timeout is essential if the MCU hangs.
 
-## Host and ROS interfaces
+## Production arm interface and simulation boundary
 
-Install the optional host dependency with `pip install -e '.[arm]'` or the
-system `python3-serial` package. `ArmBus(port=...)` performs a version/rate handshake
-only; the host rejects older firmware that does not report 500 Hz. It uses an exclusive serial port and never refreshes commands in a
-background thread. Each command applies to one of six zero-based slots.
+The six-slot `ArmBus.configure()` / ROS `arm_driver` path remains MIT-based and
+has software coverage only. It requires explicit `hardware_confirmed` and
+`joint_order_confirmed`, populated limits, unique IDs and suitable timeouts.
+Do not use the bench result to enable those template profiles. Position–velocity
+is currently a fixed single-motor bench feature, not multi-axis ROS support.
+Raw shaft radians/rad/s/Nm are used. Simulation joint names/default poses and
+DOF1 zero rebasing are not measured physical signs/zeros or joint mapping.
+See [model documentation](ONSHAPE_ARM_PREVIEW.md). No arm coordinate adapter
+or synchronized feedback implementation is implied by this bench test.
 
-1. Load a confirmed profile with `configure(profile_path)`.
-2. Call `probe(slot)` on each slot; poll `state(slot)` until `registers == 31`.
-   Probing only reads registers. A missing bit means the range, mode, timeout
-   or communication configuration is unsuitable.
-3. Explicitly call `stop()` with the arm supported. It sends disable frames
-   until each configured motor acknowledges disabled status. Obtain fresh
-   position feedback from `state()`. There is no automatic motor-fault clear.
-4. Within 100 ms of disabled feedback, call `command(slot, measured_position,
-   velocity=0, kp=..., kd=..., torque=0)` then `enable(slot)`. Position must be
-   within 0.05 rad of feedback. Prepare/enable each slot promptly; stale data
-   requires another explicit disabled-feedback request.
-5. Supply fresh bounded commands for every enabled slot, typically at 50 Hz.
-   Firmware targets 500 Hz CAN transmission while their 150 ms leases remain valid.
-   This is repeated transmission of fresh host targets, not 500 Hz host trajectory
-   generation or USB feedback delivery.
-6. `stop()` or `close()` requests torque disable. Verify status acknowledgements;
-   USB ACK means accepted by the board, not mechanically stopped.
+## Firmware protocol and validation
 
-No operational gain/travel example is supplied because the fixture and arm
-geometry have not been established. `torque_nm` bounds feedforward torque and
-sets a measured-torque trip threshold (120%); it is not a hard clamp on the
-combined Kp/Kd/torque controller output. Set motor-side current limits and
-validate gains for the actual mechanism. Feedback position, speed, torque and
-80°C temperature checks trip the whole arm. Timeout, CAN enqueue failure,
-bus-off or USB overflow/disconnect likewise disable the arm and latch a fault.
-A reset requires disabled acknowledgements and then fresh parameter probing.
-There is no automatic restart after faults.
-
-ROS build:
-
-```bash
-source /opt/ros/jazzy/setup.bash
-colcon --log-base logs/colcon build --base-paths src --build-base build/ros2 --install-base install/ros2 --symlink-install --packages-select robot_description motor_control bringup
-source scripts/ros2_env.sh
-ros2 launch bringup arm.launch.py execute:=true port:=/dev/serial/by-id/YOUR_MC02 profile:=/absolute/path/to/confirmed_arm.json
-```
-
-The launch defaults to refusing hardware execution. It does not participate in
-`system_test.launch.py`, so existing chassis teleoperation does not enable the arm.
-
-- `/arm/command`: `sensor_msgs/JointState`, exactly the configured six names,
-  all position/velocity/effort arrays present, fresh increasing stamp (<100 ms).
-  Units are raw shaft rad/rad/s/Nm; gains come from the confirmed profile.
-- `/arm/joint_states`: fresh measured shaft state, distinct from chassis state.
-  Samples are polled sequentially and checked for freshness; they are not a
-  simultaneous six-axis hardware snapshot or a calibrated robot-frame estimate.
-- `/arm_driver/enable`: `std_srvs/Trigger`, requires a fresh complete command
-  and fresh disabled feedback. It never synthesizes a target or restarts a fault.
-- `/arm_driver/disable`: explicit torque-disable request; also obtains disabled
-  feedback during commissioning.
-- `/arm_driver/reset`: reset board latch after disable acknowledgements and
-  re-read all motor parameters. Does not clear motor error codes.
-
-ROS message expiry is checked in the host; the independent MCU lease still
-expires if ROS or USB stalls. This is a basic bounded command interface, not
-MoveIt, trajectory planning, inverse kinematics or a gravity-compensated controller.
-
-## Robot description boundaries
-
-The new `robot_description` package installs both motor inventories and
-`damiao_motor.xacro` / `encos_chassis.xacro` macros. Damiao visuals use documented
-casing dimensions. Origins, axes and limits are required macro arguments.
-No link lengths, collision geometry, inertias or full arm kinematic chain are
-invented. Supply actual CAD/joint transforms to assemble a calibrated robot
-URDF. Existing chassis MuJoCo visualization remains unchanged.
-
-## Tests and commissioning still needed
-
-`bash scripts/build.sh` now includes the portable arm C tests. Source
-`scripts/ros2_env.sh` first for the existing ROS integration tests; set
-`ROS_DOMAIN_ID` to an isolated test domain. CTest now preserves the sourced
-Python paths instead of hiding ROS modules. Targeted checks:
+64-byte CRC-framed USB v1; HELLO identity FORGE-MC02/1 and update rate 500 Hz.
+Capability bits0–3 cover diagnostics/bench/fault details/confirmed enable;
+bit 7 covers position–velocity. Bits4–6 and type13 were retired with experimental
+MIT bench motion. Type12 is disabled MIT-mode probing only; type14 prepares
+position–velocity bench; type15 writes mode 1/2 only with fresh stationary
+acknowledged-disabled bench feedback. Mode writes invalidate old commands and
+mode verification; enable requires a matching fresh probe. Normal profile
+commands cannot replace bench configuration or enable its MIT probe path.
 
 ```bash
 cmake -S src/damiao_firmware -B build/damiao_tests
 cmake --build build/damiao_tests
 ctest --test-dir build/damiao_tests --output-on-failure
-PYTHONPATH=src python3 -m unittest discover -s tests -p 'test_damiao_arm.py' -v
+PYTHONPATH=src python3 -m unittest discover -s tests -p test_damiao_arm.py -v
 ```
 
-Tests include a Python-to-real-C-firmware round trip through fake CAN, all six
-motors, USB CRC/fragmentation/replay rejection, invalid limits, feedback faults,
-command expiry, timer rollover and fault reset. These do not establish electrical
-wiring, physical CAN timing, actual USB enumeration, mechanical limits, loaded
-stopping, or MCU reset behavior on this board. A board flash, register discovery,
-and supported/unloaded commissioning remain necessary.
-
-Before that step, identify the connected port, CAN wiring, actual motor IDs and
-feedback IDs, motor firmware/hardware/voltage variants, joint order and fixture.
-The J4310P manual V1.3 is a document revision, not proof of hardware V1.1.
-No non-P J4310 manual is substituted.
-
-## Bench handoff — 2026-10-30
-
-An ST-LINK/V2 has been purchased and is awaiting delivery. No board flash,
-motor enable, test spin, or physical CAN timing measurement has been completed.
-Development is on the `nathan` branch; `main` is left unchanged.
-
-Actual bench wiring currently differs from the six-motor plans above:
-
-- One J4340P on MC02 CAN2 through the GH1.25 H/L connector.
-- Motor powered independently by a 24 V PSU through XT30.
-- MC02 powered/connected through USB-C; no SWD probe connected yet.
-
-The user ran `python3 scripts/check_dm_mc02.py --port /dev/ttyACM0` with and
-without the USB dongle. Both attempts enumerated an STM32 Virtual COM Port and
-ended with `MC02 response timeout; firmware command leases are not refreshed`.
-`lsusb -d 0483:` showed `0483:5740`, the virtual COM device, not the USB DFU
-bootloader. Removing the dongle did not resolve the handshake. This confirms
-USB enumeration and port opening, but does not identify the installed firmware.
-The script sends identity/status requests only; neither attempt enabled a motor.
-
-The reported beep from a button is consistent with the manufacturer's ALL demo:
-its USER-button task toggles the buzzer. That observation is not a firmware
-version check. The board has separate USER and RESET buttons. The manual does
-not prescribe a first-use activation or a button sequence to enable our USB
-protocol. No BOOT0 pads have been bridged; that is not part of the selected SWD
-procedure.
-
-### When the ST-LINK/V2 arrives
-
-The MC02 manual V1.1, printed page 7, documents ST-Link/J-Link SWD programming.
-A genuine ST-LINK/V2 supports STM32 SWD. Small third-party sticks sold under
-that name can have different pin layouts: use signal labels, not a guessed
-connector orientation.
-
-1. Turn off the motor PSU and initially disconnect motor CAN2. Connect wiring
-   with power removed. Keep this first step limited to the controller.
-2. Connect the probe to the MC02 **SWD** connector using the table below.
-   Power the MC02 through USB-C and connect the ST-LINK to the PC by USB.
-3. In STM32CubeProgrammer, select ST-LINK, SWD, initially 400 kHz, then Connect.
-   Confirm identification as STM32H723 and a target reference near 3.3 V.
-4. If readable, save the existing internal flash from `0x08000000`, length
-   `0x100000` (1 MiB), as a local backup. Do not change read protection or option
-   bytes just to force a backup. Keep device backups out of Git.
-5. Build with the commands above. Program `build/dm_mc02/forge_arm.elf`, enable
-   verification, and reset the board after programming. The ELF contains its
-   load addresses; a raw `.bin` instead requires start address `0x08000000`.
-6. Run the diagnostic below. Require a successful FORGE version/rate handshake
-   reporting 500 Hz before moving on to CAN commissioning.
-
-| MC02 SWD pin | Signal | Probe connection |
-| --- | --- | --- |
-| 1 | VCC 3.3 V | Genuine probe target-voltage reference (VTref) |
-| 2 | GND | GND |
-| 3 | SWCLK / PA14 | SWCLK |
-| 4 | SWDIO / PA13 | SWDIO |
-
-A clone's pin labelled `3.3V` may be a **power output**, not VTref. Do not connect
-that output to the already USB-powered board. Verify the actual probe pinout;
-connect SWDIO, SWCLK and common ground, with voltage-reference wiring according
-to that probe's documentation. The MC02 four-pin SWD connector has no NRST pin.
-
-```bash
-python3 scripts/check_dm_mc02.py --port /dev/ttyACM0
-```
-
-Use the actual enumerated port if its name changes. This script is the next
-script to run after flashing; it does not spin the motor. Flashing replaces
-MC02 controller firmware, not firmware inside the Damiao motor.
-
-### Remaining motor commissioning
-
-Before a first spin, establish the single 4340P's actual command and feedback
-IDs, MIT mode, PMAX/VMAX/TMAX, timeout, current limits, secure unloaded mounting,
-permitted travel and gains. Check CAN termination and ground reference. The
-checked-in profiles deliberately have unset operating limits and unconfirmed
-IDs/order; do not set confirmation flags merely to bypass validation.
-
-The current public `ArmBus.configure()` and ROS command interface require a
-complete six-joint profile. A dedicated single-motor motion runner is **not yet
-provided**; do not use the six-joint launch as a one-motor spin test. Firmware
-can configure individual slots, but a bounded bench runner and confirmed limits
-are still needed before enabling the one connected motor. The identity/status
-check above is ready for the controller-only step while awaiting that setup.
-
-References: [MC02 manual directory](https://github.com/dmBots/DM-MC02/tree/d65a3688981405dc205f628f1a026bde8cf8303e/manual),
-[manufacturer USER button task](https://github.com/dmBots/DM-MC02/blob/d65a3688981405dc205f628f1a026bde8cf8303e/examples/CtrBoard-H7_ALL/App/key_task.c),
-[ST-LINK/V2](https://www.st.com/en/development-tools/st-link-v2.html),
-and [STM32CubeProgrammer](https://www.st.com/en/development-tools/stm32cubeprog.html).
-
-### Validation at handoff
-
-On 2026-10-30, `scripts/build.sh` passed both ENCOS CTest targets (the Python
-suite ran 111 tests, with one optional test skipped) and the portable Damiao C
-suite. `motor_control`, `robot_description`, and `bringup` built with ROS Jazzy.
-The STM32H723 ELF/bin rebuilt successfully with Arm GCC 13.2.1; vendor USB code
-emits unused-parameter warnings. These are software checks only. Generated SDK,
-build products and local test logs are excluded from Git; rebuild the ELF from
-this branch before flashing.
+Coverage includes CAN packing, mode write/readback mismatch, delayed enable,
+wrong-mode/gain/speed rejection, simulated target completion and stall,
+restoration, leases, feedback loss, torque stops, framing and transmit abort.
+Tests do not substitute for hardware commissioning of the remaining motors.

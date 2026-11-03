@@ -9,6 +9,6 @@
 
 - ROS packages are motor_control, imu, stereo_cam, seam_detection, teleop, visualization, bringup, and robot_description. Shared launch/config belongs to bringup; scripts are wrappers/setup only. See docs/SOURCE_LAYOUT.md.
 
-- ENCOS motors are chassis motors; Damiao motors are arm motors on the independent DM-MC02 USB/CAN path. See `docs/DAMIAO_ARM.md` for firmware builds, wiring, and commissioning status. Hardware testing and flashing remain pending; do not treat software tests as motor validation.
+- ENCOS motors are chassis; Damiao motors are arm actuators on DM-MC02 USB/CAN. Read docs/DAMIAO_ARM.md and src/robot_description/ARM_COMMISSIONING.md before arm work. On 2026-11-03 one CAN2/ID 1/feedback0 J4340P reached44.83 degrees of45 in position–velocity mode; disable and mode restoration verified. Old MIT bench motion is removed. Next: 8009P, 4310P and remaining units individually, then multi-bus validation. Six-axis profiles/ROS and loaded-arm operation remain unvalidated; preserve null calibration and false confirmation flags.
 
 - Current nathan also owns root MuJoCo preview/export tools, forge_sim/ and model/. Read docs/ONSHAPE_ARM_PREVIEW.md before changing model coordinates, viewers or collision rules. Preserve D3 closure and simulation-vs-hardware coordinate separation. Validate tests/test_model_compatibility.py plus relevant magnetic/terrain/actuator tests. Never commit .env, model/config.json or .sim-backups/.

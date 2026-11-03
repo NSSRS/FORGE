@@ -16,14 +16,14 @@ static bool dispatch(arm_wire *w,uint32_t now,uint8_t *out) {
     uint8_t type=w->buffer[3], *p=w->buffer+8; unsigned i=p[0];
     uint32_t seq=u32(w->buffer+4); arm_controller *a=w->arm;
     memset(out,0,64); memcpy(out,w->buffer,8); out[3]|=0x80; bool ok=false;
-    if(type==1 && !active(a)) { w->session=true; w->sequence=seq; memcpy(out+9,"FORGE-MC02/1",12); put32(out+21,1000u/ARM_CONTROL_PERIOD_MS); ok=true; }
+    if(type==1 && !active(a)) { w->session=true; w->sequence=seq; memcpy(out+9,"FORGE-MC02/1",12); put32(out+21,1000u/ARM_CONTROL_PERIOD_MS); put32(out+25,143); ok=true; }
     else if(type==6) { arm_stop(a); ok=true; } /* stop always accepted, including replay */
     else if(w->session && seq>w->sequence) {
         w->sequence=seq;
         if(type==2) {
             arm_config c={.bus=p[1],.id=u16(p+2),.feedback_id=u16(p+4),.lo=f32(p+6),.hi=f32(p+10),
                 .speed=f32(p+14),.torque=f32(p+18),.kp=f32(p+22),.kd=f32(p+26)};
-            ok=arm_configure(a,i,&c);
+            ok=!a->bench && arm_configure(a,i,&c);
         } else if(type==3) ok=arm_probe(a,i);
         else if(type==4) { dm_command c={f32(p+1),f32(p+5),f32(p+9),f32(p+13),f32(p+17)}; ok=arm_set(a,i,&c,now); }
         else if(type==5) ok=arm_enable(a,i,now);
@@ -34,7 +34,21 @@ static bool dispatch(arm_wire *w,uint32_t now,uint8_t *out) {
             put32(out+16,j->feedback_seen?now-j->feedback_at:UINT32_MAX);
             putf(out+20,j->p); putf(out+24,j->v); putf(out+28,j->t);
             putf(out+32,j->range.p); putf(out+36,j->range.v); putf(out+40,j->range.t);
+            out[44]=a->fault_reason; out[45]=a->fault_status; out[46]=a->fault_slot; out[47]=j->enable_confirmed?1:0;
+            put32(out+48,a->fault_command_age); put32(out+52,a->fault_feedback_age); put32(out+56,a->fault_at);
         } else if(type==8) ok=arm_reset(a);
+        else if(type==9) ok=arm_read_register(a,p[0],u16(p+1),p[3],now);
+        else if(type==11) ok=arm_bench_timeout(a,now);
+        else if(type==12) ok=arm_prepare_bench(a,f32(p),f32(p+4));
+        /* Type 13 and capability bits 4..6 retired with experimental MIT bench motion. */
+        else if(type==14) ok=arm_prepare_posvel(a,f32(p),f32(p+4));
+        else if(type==15) ok=arm_bench_mode(a,p[0],now);
+        else if(type==10) {
+            arm_diagnostic *q=&a->diagnostic; ok=true;
+            out[9]=q->state; out[10]=q->bus; out[11]=q->id; out[12]=q->id>>8;
+            out[13]=q->reg; out[14]=q->feedback_id; out[15]=q->feedback_id>>8;
+            put32(out+16,q->value);
+        }
     }
     out[8]=ok?0:1; put32(out+60,wire_crc(out,60)); return true;
 }

@@ -1,5 +1,6 @@
 #include "board.h"
 #include "wire.h"
+#include "tx_wait.h"
 #include "main.h"
 #include "usbd_cdc_if.h"
 #include "usb_device.h"
@@ -22,6 +23,13 @@ void forge_usb_receive(const uint8_t *data,uint32_t n) {
         rx[head]=data[i]; __DMB(); head=next;
     }
 }
+typedef struct { FDCAN_HandleTypeDef *can; uint32_t mask; } tx_context;
+static uint32_t tx_now(void *ctx) { (void)ctx; return HAL_GetTick(); }
+static bool tx_pending(void *ctx) { tx_context *t=ctx; return (t->can->Instance->TXBRP & t->mask)!=0; }
+static bool tx_sent(void *ctx) { tx_context *t=ctx; return (t->can->Instance->TXBTO & t->mask)!=0; }
+static void tx_cancel(void *ctx) { tx_context *t=ctx; (void)HAL_FDCAN_AbortTxRequest(t->can,t->mask); }
+static void tx_halt(void *ctx) { tx_context *t=ctx; (void)HAL_FDCAN_Stop(t->can); }
+static const tx_wait_ops tx_ops={tx_now,tx_pending,tx_sent,tx_cancel,tx_halt};
 static bool send_can(void *ctx,uint8_t bus,uint16_t id,const uint8_t *d,uint8_t n) {
     (void)ctx;
     FDCAN_TxHeaderTypeDef h={0};
@@ -29,13 +37,17 @@ static bool send_can(void *ctx,uint8_t bus,uint16_t id,const uint8_t *d,uint8_t 
     h.DataLength=(n==4)?FDCAN_DLC_BYTES_4:FDCAN_DLC_BYTES_8;
     h.ErrorStateIndicator=FDCAN_ESI_ACTIVE; h.BitRateSwitch=FDCAN_BRS_OFF;
     h.FDFormat=FDCAN_CLASSIC_CAN; h.TxEventFifoControl=FDCAN_NO_TX_EVENTS;
-    return HAL_FDCAN_AddMessageToTxFifoQ(&can[bus-1],&h,(uint8_t *)d)==HAL_OK;
+    FDCAN_HandleTypeDef *controller=&can[bus-1];
+    if(HAL_FDCAN_AddMessageToTxFifoQ(controller,&h,(uint8_t *)d)!=HAL_OK) return false;
+    tx_context tx={controller,HAL_FDCAN_GetLatestTxFifoQRequestBuffer(controller)};
+    return tx_wait(&tx_ops,&tx,2u);
 }
 static void init_can(unsigned i) {
     FDCAN_HandleTypeDef *h=&can[i];
     h->Instance=i==0?FDCAN1:i==1?FDCAN2:FDCAN3;
     h->Init.FrameFormat=FDCAN_FRAME_CLASSIC; h->Init.Mode=FDCAN_MODE_NORMAL;
-    h->Init.AutoRetransmission=DISABLE; /* do not retain stale torque commands on bus failure */
+    /* Retry arbitration loss; each frame has a bounded completion/cancellation deadline. */
+    h->Init.AutoRetransmission=ENABLE;
     /* HSE=24 MHz, PLL M=2,N=40,Q=4 => 120 MHz CAN clock; 120 tq => 1 Mbps. */
     h->Init.NominalPrescaler=1; h->Init.NominalSyncJumpWidth=20;
     h->Init.NominalTimeSeg1=99; h->Init.NominalTimeSeg2=20;
@@ -70,10 +82,10 @@ void forge_init(void) {
 }
 void forge_poll(void) {
     uint32_t now=HAL_GetTick();
-    if(overflow) { arm.fault=true; arm_stop(&arm); tail=head; wire.used=0; overflow=false; }
+    if(overflow) { arm_fault(&arm,12,255,now); tail=head; wire.used=0; overflow=false; }
     for(unsigned i=0;i<3;i++) {
         FDCAN_ProtocolStatusTypeDef status;
-        if(HAL_FDCAN_GetProtocolStatus(&can[i],&status)!=HAL_OK || status.BusOff) { arm.fault=true; arm_stop(&arm); }
+        if(HAL_FDCAN_GetProtocolStatus(&can[i],&status)!=HAL_OK || status.BusOff) { arm_fault(&arm,13,255,now); }
         /* Bounded drain so receive flooding cannot starve the command watchdog. */
         for(unsigned n=0;n<24 && HAL_FDCAN_GetRxFifoFillLevel(&can[i],FDCAN_RX_FIFO0);n++) {
             FDCAN_RxHeaderTypeDef h; uint8_t d[8];
@@ -86,7 +98,7 @@ void forge_poll(void) {
     bool connected=hUsbDeviceHS.dev_state==USBD_STATE_CONFIGURED && cdc;
     if(!connected) {
         bool running=false; for(unsigned i=0;i<6;i++) running|=arm.joints[i].enabled;
-        if(running) { arm.fault=true; arm_stop(&arm); }
+        if(running) { arm_fault(&arm,14,255,now); }
         pending=false; in_flight=false; tail=head; wire.used=0; wire.session=false;
     } else {
         if(in_flight && cdc->TxState==0) in_flight=false;

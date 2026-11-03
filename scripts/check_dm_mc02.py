@@ -30,6 +30,8 @@ def main():
                 age = 'none' if state.age_ms == 0xffffffff else f'{state.age_ms} ms'
                 print(f'  slot {slot}: registers={state.registers}/31, enabled={state.enabled}, '
                       f'fault={state.fault}, status={state.status}, feedback_age={age}')
+                if state.fault:
+                    print(f'    {state.fault_detail()}')
             print('USB connection verified. This does not discover or verify the CAN2 motor ID.')
         return 0
     except (OSError, RuntimeError, serial.SerialException) as exc:

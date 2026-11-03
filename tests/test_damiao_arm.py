@@ -65,6 +65,13 @@ class ArmTests(unittest.TestCase):
         self.assertTrue(usb.closed)
         self.assertEqual([kind for kind,_ in usb.sent],[1])
 
+    def test_discovery_requires_capability_without_can_commands(self):
+        usb=FakeUSB()
+        with ArmBus(transport=usb) as bus:
+            with self.assertRaisesRegex(RuntimeError, 'updated ELF'):
+                bus.read_register(2, 1, 8)
+        self.assertEqual([kind for kind,_ in usb.sent], [1])
+
     def test_crc_and_wire(self):
         packet=frame(4,123,b'test'); self.assertEqual(len(packet),64)
         self.assertEqual(decode(packet)[:2],(4,123))
@@ -84,6 +91,110 @@ class NativeTransport(FakeUSB):
 
 
 class NativeRoundTrip(unittest.TestCase):
+    def test_posvel_mode_readback_mismatch_blocks_enable(self):
+        with ArmBus(transport=NativeTransport(self.lib)) as bus:
+            bus.set_bench_timeout(); bus.prepare_bench(-.15,.94)
+            bus.probe(0)
+            for _ in range(10): bus.state(0)
+            bus.stop(); state=bus.state(0)
+            self.lib.fake_ignore_mode_write(1)
+            with self.assertRaisesRegex(RuntimeError,'readback mismatch'):
+                bus.set_bench_mode(2)
+            bus.prepare_bench(-.15,.94,posvel=True)
+            bus.probe(0)
+            for _ in range(10): state=bus.state(0)
+            self.assertNotEqual(state.registers,31)
+            with self.assertRaises(RuntimeError): bus.enable(0)
+            self.assertEqual(self.lib.fake_posvel_commands(),0)
+
+    def test_posvel_commands_and_watchdog(self):
+        with ArmBus(transport=NativeTransport(self.lib)) as bus:
+            bus.set_bench_timeout(); bus.prepare_bench(-.15,.94)
+            bus.probe(0)
+            for _ in range(10): bus.state(0)
+            bus.stop(); bus.state(0); bus.set_bench_mode(2)
+            bus.prepare_bench(-.15,.94,posvel=True)
+            bus.probe(0)
+            for _ in range(10): bus.state(0)
+            bus.stop(); state=bus.state(0)
+            with self.assertRaises(RuntimeError): bus.command(0,state.position,velocity=.11)
+            with self.assertRaises(RuntimeError): bus.command(0,state.position,velocity=.1,kp=2)
+            bus.command(0,state.position,velocity=.1); bus.enable(0)
+            self.assertTrue(bus.state(0).enabled)
+            with self.assertRaises(RuntimeError): bus.set_bench_mode(1)
+            with self.assertRaises(RuntimeError): bus.read_register(2,1,10)
+            self.lib.fake_advance(160)
+            state=bus.state(0)
+            self.assertTrue(state.fault)
+            self.assertEqual(state.fault_reason,1)
+            self.assertFalse(state.enabled)
+            self.assertGreater(self.lib.fake_posvel_commands(),0)
+            self.assertEqual(self.lib.fake_invalid_commands(),0)
+
+    def test_posvel_runner_reaches_target_and_restores_mode(self):
+        self._bench_runner(120, motion=True)
+
+    def test_posvel_stall_is_not_success_and_restores_mode(self):
+        self._bench_runner(120)
+
+    def _bench_runner(self, enable_delay, motion=False):
+        import contextlib
+        import importlib.util
+        import io
+        from types import SimpleNamespace
+        from unittest.mock import patch
+        path=Path(__file__).resolve().parents[1]/'scripts/test_dm_4340_bench.py'
+        spec=importlib.util.spec_from_file_location('bench_runner',path)
+        runner=importlib.util.module_from_spec(spec); spec.loader.exec_module(runner)
+        bus=ArmBus(transport=NativeTransport(self.lib))
+        self.lib.fake_set_enable_delay(enable_delay)
+        self.lib.fake_set_motion(int(motion))
+        clock=SimpleNamespace(monotonic=lambda:self.lib.fake_now()/1000.,
+                              sleep=lambda seconds:self.lib.fake_advance(int(seconds*1000)))
+        output=io.StringIO()
+        with patch.object(runner,'time',clock), patch.object(runner,'ArmBus',lambda _:bus), \
+             patch('sys.argv',['bench','--execute','--degrees','45']), contextlib.redirect_stdout(output):
+            self.assertEqual(runner.main(),0 if motion else 1)
+        self.assertIn('Motor enabled confirmed',output.getvalue())
+        self.assertIn('Motor disable acknowledged',output.getvalue())
+        self.assertIn('Target reached' if motion else 'little/no motion',output.getvalue())
+        self.assertEqual(self.lib.fake_mode(),1)
+        self.assertEqual(self.lib.fake_mode_writes(),2)
+        self.assertGreater(self.lib.fake_posvel_commands(),0)
+        self.assertEqual(self.lib.fake_invalid_commands(),0)
+        self.assertTrue(bus.closed)
+
+    def test_fault_snapshot_survives_stop(self):
+        with ArmBus(transport=NativeTransport(self.lib)) as bus:
+            bus.set_bench_timeout(); bus.prepare_bench(-.15,.15); bus.probe(0)
+            for _ in range(10): bus.state(0)
+            bus.stop(); state=bus.state(0)
+            bus.set_bench_mode(2); bus.prepare_bench(-.15,.94,posvel=True); bus.probe(0)
+            for _ in range(10): bus.state(0)
+            bus.stop(); state=bus.state(0)
+            bus.command(0,state.position,velocity=.1); bus.enable(0)
+            self.lib.fake_advance(160)
+            state=bus.state(0)
+            self.assertTrue(state.fault)
+            self.assertEqual(state.fault_reason,1)
+            self.assertEqual(state.fault_status,1)
+            self.assertGreaterEqual(state.fault_command_age_ms,150)
+            self.assertIn('lease expired',state.fault_detail())
+            bus.stop()
+            self.assertEqual(bus.state(0).fault_reason,1)
+
+    def test_read_only_discovery(self):
+        with ArmBus(transport=NativeTransport(self.lib)) as bus:
+            self.assertTrue(bus.capabilities & 1)
+            self.assertEqual(bus.read_register(2, 1, 8), (0, 1))
+            self.assertEqual(bus.read_register(2, 1, 7), (0, 0))
+            self.assertIsNone(bus.read_register(2, 2, 8))
+            self.assertFalse(bus.configured)
+            for slot in range(6):
+                state = bus.state(slot)
+                self.assertFalse(state.enabled or state.stopping)
+            with self.assertRaises(ValueError): bus.read_register(2, 1, 0x55)
+
     @classmethod
     def setUpClass(cls):
         import ctypes

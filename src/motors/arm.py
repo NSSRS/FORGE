@@ -12,6 +12,12 @@ import time
 import zlib
 
 MAGIC = b'\xa5\x5a'
+FAULT_REASONS = {0: 'not recorded', 1: 'host command lease expired', 2: 'CAN feedback expired',
+                 3: 'motor did not stay enabled', 4: 'command encoding rejected',
+                 5: 'CAN transmit queue failure', 6: 'motor reported an error',
+                 7: 'position limit', 8: 'speed limit', 9: 'measured torque limit',
+                 10: 'bench duration cutoff', 11: 'temperature limit',
+                 12: 'USB receive overflow', 13: 'CAN bus-off/status failure', 14: 'USB disconnected'}
 
 
 def frame(kind, sequence, payload=b''):
@@ -43,6 +49,22 @@ class ArmState:
     pmax: float
     vmax: float
     tmax: float
+    fault_reason: int = 0
+    fault_status: int = 0
+    fault_slot: int = 0
+    enable_flags: int = 0
+    fault_command_age_ms: int = 0
+    fault_feedback_age_ms: int = 0
+    fault_at_ms: int = 0
+
+    @property
+    def enable_confirmed(self):
+        return bool(self.enable_flags & 1)
+
+    def fault_detail(self):
+        return (f'{FAULT_REASONS.get(self.fault_reason, "unknown fault")} (code={self.fault_reason}, '
+                f'slot={self.fault_slot}, motor status at fault={self.fault_status}, '
+                f'command age={self.fault_command_age_ms} ms, feedback age={self.fault_feedback_age_ms} ms)')
 
 
 class ArmBus:
@@ -55,11 +77,13 @@ class ArmBus:
         self.lock = threading.Lock()
         self.buffer = bytearray()
         self.configured = False
+        self.bench = False
         self.closed = False
         try:
             reply = self._request(1)
             if not reply[1:].startswith(b'FORGE-MC02/1'):
                 raise RuntimeError('The USB device is not running FORGE MC02 firmware')
+            self.capabilities = struct.unpack_from("<I", reply, 17)[0]
             self.update_hz = struct.unpack_from('<I', reply, 13)[0]
             if self.update_hz != 500:
                 raise RuntimeError('MC02 firmware does not report the required 500 Hz update rate; rebuild/flash the matching image')
@@ -94,6 +118,73 @@ class ArmBus:
                         raise RuntimeError(f'MC02 rejected command {kind}; check configuration, state and watchdogs')
                     return result
             raise TimeoutError('MC02 response timeout; firmware command leases are not refreshed')
+
+    def read_register(self, bus, motor_id, register):
+        """Read one whitelisted register without configuring, enabling or stopping motors.
+
+        Return (reply_CAN_ID, raw_uint32), or None if no matching reply arrived.
+        Requires no configured joints, or new firmware and a freshly disabled bench motor.
+        """
+        if not self.capabilities & 1:
+            raise RuntimeError('Firmware lacks read-only CAN discovery; flash the updated ELF first')
+        if (type(bus) is not int or bus not in (1, 2, 3) or
+                type(motor_id) is not int or not 0 <= motor_id < 0x7ff or
+                type(register) is not int or register not in (7, 8, 9, 10, 21, 22, 23, 31)):
+            raise ValueError('invalid diagnostic bus, ID or register')
+        if self.configured and not (self.bench and self.capabilities & 128):
+            raise RuntimeError('Discovery requires a fresh MCU reset with no configured joints')
+        self._request(9, struct.pack('<BHB', bus, motor_id, register))
+        return self._diagnostic_result(bus, motor_id, register)
+
+    def _diagnostic_result(self, bus, motor_id, register):
+        deadline = time.monotonic() + 0.5
+        while time.monotonic() < deadline:
+            p = self._request(10)
+            status, rx_bus, rx_motor, rx_reg, feedback_id, value = struct.unpack_from('<BBHBHI', p, 1)
+            if (rx_bus, rx_motor, rx_reg) != (bus, motor_id, register):
+                raise RuntimeError('Diagnostic response does not match the requested motor/register')
+            if status == 2:
+                return feedback_id, value
+            if status == 3:
+                return None
+            if status == 4:
+                raise RuntimeError('MC02 could not queue the CAN read request; reset and check the bus')
+            if status != 1:
+                raise RuntimeError('Unexpected diagnostic state')
+            time.sleep(0.01)
+        raise TimeoutError('MC02 diagnostic did not finish')
+
+    def set_bench_timeout(self):
+        """Set CAN2/ID1 TIMEOUT to 100 ms in RAM; verify ACK and independent readback."""
+        if not self.capabilities & 2 or self.configured:
+            raise RuntimeError('Bench firmware and a fresh controller reset are required')
+        self._request(11)
+        if self._diagnostic_result(2, 1, 9) != (0, 2000):
+            raise RuntimeError('Bench timeout write was not acknowledged on feedback ID 0')
+        if self.read_register(2, 1, 9) != (0, 2000):
+            raise RuntimeError('Bench timeout readback failed; no motion permitted')
+
+    def prepare_bench(self, lower, upper, *, posvel=False):
+        """Fixed CAN2/ID1/feedback0 bench configuration; wide limits cannot enable."""
+        if not self.capabilities & 2:
+            raise RuntimeError('Flash the updated bench-capable firmware first')
+        if not all(math.isfinite(v) for v in (lower, upper)) or not -12.5 <= lower < upper <= 12.5:
+            raise ValueError('Invalid bench bounds')
+        if posvel and not self.capabilities & 128:
+            raise RuntimeError('Flash the position-velocity firmware first')
+        self._request(14 if posvel else 12, struct.pack('<2f', lower, upper))
+        self.configured = True
+        self.bench = True
+
+    def set_bench_mode(self, mode):
+        """Volatile CAN2/ID1 mode write; firmware requires fresh disabled feedback."""
+        if not self.capabilities & 128 or mode not in (1, 2) or not self.bench:
+            raise RuntimeError('Position-velocity bench firmware and disabled bench motor required')
+        self._request(15, bytes([mode]))
+        if self._diagnostic_result(2, 1, 10) != (0, mode):
+            raise RuntimeError('Mode write was not acknowledged')
+        if self.read_register(2, 1, 10) != (0, mode):
+            raise RuntimeError('Mode readback mismatch; no enable permitted')
 
     def configure(self, profile):
         """Load a measured hardware profile; deliberately rejects the shipped template."""
@@ -156,7 +247,7 @@ class ArmBus:
 
     def state(self, slot):
         p=self._request(7,self._slot(slot))
-        return ArmState(*struct.unpack_from('<7BI6f',p,1))
+        return ArmState(*struct.unpack_from('<7BI6f',p,1), *struct.unpack_from('<4B3I',p,36))
 
     def reset_fault(self):
         """Requires acknowledged disabled motors; re-probing is needed afterwards."""
