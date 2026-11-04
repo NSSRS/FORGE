@@ -212,11 +212,8 @@ with physical motor teleop. Video reception still needs optimization: four
 RGB-only camera backend subsequently reported approximately 60 FPS. This is
 not a measurement of end-to-end display latency.
 
+## Full-robot motor overview
 
-## Model selection on nathan
-
-The combined test still uses build/motor_viewer/model/scene.xml. Setup defaults
-to the historical pinned model; opt into the new chassis/arm snapshot with
-`bash scripts/setup_motor_viewer.sh --local-model`. The mirror preserves its
-saved spawn but only applies wheel feedback. Static arm posing and dynamic
-simulation are separate root entry points; see ONSHAPE_ARM_PREVIEW.md.
+The model pane uses src/robot_description/mujoco/scene.xml directly. Run scripts/setup_motor_viewer.sh
+for its Python environment. Only measured wheel feedback is projected; the arm
+and suspension preserve the saved scene pose. See ONSHAPE_ARM_PREVIEW.md.

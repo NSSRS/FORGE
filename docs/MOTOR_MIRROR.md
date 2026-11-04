@@ -7,8 +7,8 @@ simulated motors. See [full-system setup](FULL_SYSTEM_TEST.md) for saved ports,
 limits, viewer behavior, and the RGB-only 30 FPS default and camera-only shared-memory transport.
 
 This read-only viewer projects `/joint_states` encoder measurements onto the
-stable wheel_1 through wheel_4 CAD joints. The default model remains the pinned
-forge_sim snapshot; the current nathan full-robot model is also supported.
+stable wheel_1 through wheel_4 CAD joints in the current full chassis/arm model.
+The default scene is src/robot_description/mujoco/scene.xml in this checkout.
 
 ```text
 hardware driver -> /joint_states -> read-only ROS relay -> loopback UDP -> MuJoCo
@@ -137,10 +137,9 @@ colcon --log-base logs/colcon build --base-paths src \
   --build-base build/ros2 --install-base install/ros2 --symlink-install
 ```
 
-The helper extracts only `model/` from `forge_sim` commit
-`7aa258d7105f1c088bb059556a06899433d30cab` into ignored `build/motor_viewer/` and
-installs that branch's pinned MuJoCo 3.13.0 in a local virtual environment. It
-does not switch branches or download Onshape credentials/exporter dependencies.
+The helper installs MuJoCo 3.13.0 in build/motor_viewer/venv.
+It reads the full robot directly from src/robot_description/mujoco/; it does not fetch historical
+branches, copy models, or download Onshape credentials/exporter dependencies.
 The system PyYAML comes from the existing ROS environment. A desktop OpenGL
 session is needed for the interactive window.
 
@@ -161,10 +160,10 @@ feedback. They do not command hardware. Use an isolated ROS domain for tests.
 
 ## Select the current nathan model
 
-`bash scripts/setup_motor_viewer.sh --local-model` copies scene.xml, robot.xml
-and assets into build/motor_viewer/model. It does not copy Onshape credentials.
-Rerun after CAD exports. Alternatively pass
-`--scene /home/ns_wsl/forge_ws/FORGE-nathan/model/scene.xml`
+The full robot is now the default, with no snapshot setup option. Existing
+build/motor_viewer/model snapshots are ignored. Restart the viewer after CAD
+exports. To explicitly select a scene, pass
+`--scene /path/to/FORGE/src/robot_description/mujoco/scene.xml`
 to run_motor_viewer.sh after setting up its environment.
 The four wheel names/signs remain compatible. Arm joints are frozen at the saved
 default pose, not driven by Damiao feedback. Do not use this viewer as the full

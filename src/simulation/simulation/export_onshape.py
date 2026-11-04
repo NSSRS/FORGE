@@ -1,25 +1,28 @@
+"""Export Onshape CAD into the shared robot_description model."""
 from pathlib import Path
 import json, os, subprocess, sys, tempfile, shutil
 from datetime import datetime
 from dotenv import load_dotenv
-ROOT=Path(__file__).resolve().parent
-sys.path.insert(0,str(ROOT))
-from forge_sim.onshape_compat import prepare_meshes
+from simulation.paths import MODEL_DIR, source_workspace
+from simulation.onshape_compat import prepare_meshes
 import mujoco
 import numpy as np
 import xml.etree.ElementTree as ET
 from stl import mesh as stl_mesh
 
 def main():
-    load_dotenv(ROOT/'.env')
-    model=ROOT/'model'
+    import argparse
+    argparse.ArgumentParser(description=__doc__).parse_args()
+    ROOT=source_workspace()
+    load_dotenv(ROOT/'src/simulation/.env')
+    model=MODEL_DIR
     config=json.loads((model/'config.json').read_text())
     config['joint_properties']={'*':{'actuated':False}}
     with tempfile.TemporaryDirectory(prefix='.export-',dir=model) as folder:
         stage=Path(folder)
         (stage/'config.json').write_text(json.dumps(config))
-        subprocess.run([sys.executable,'-u',str(ROOT/'forge_sim/onshape_compat.py'),str(stage)],check=True,cwd=ROOT)
-        raw=ROOT/'.sim-backups'/('raw-'+datetime.now().strftime('%Y%m%d-%H%M%S'))
+        subprocess.run([sys.executable,'-u',str(Path(__file__).with_name('onshape_compat.py')),str(stage)],check=True,cwd=ROOT)
+        raw=ROOT/'build/simulation/backups'/('raw-'+datetime.now().strftime('%Y%m%d-%H%M%S'))
         raw.mkdir(parents=True)
         shutil.copy2(stage/'robot.xml',raw/'robot.xml')
         shutil.copytree(stage/'assets',raw/'assets')
@@ -40,12 +43,12 @@ def main():
         print('Omitted zero-thickness preview meshes:',len(omitted),flush=True)
         shutil.copy2(stage/'robot.xml',stage/'cad_robot.xml')
         shutil.copy2(model/'scene_template.xml',stage/'scene.xml')
-        from integrate_sim import prepare
+        from simulation.integrate_sim import prepare
         prepare(stage)
         m=mujoco.MjModel.from_xml_path(str(stage/'scene.xml'))
         d=mujoco.MjData(m); mujoco.mj_forward(m,d)
         print('Validated:',m.nbody,'bodies,',m.njnt,'joints,',m.neq,'equalities',flush=True)
-        backup=ROOT/'.sim-backups'/datetime.now().strftime('%Y%m%d-%H%M%S')
+        backup=ROOT/'build/simulation/backups'/datetime.now().strftime('%Y%m%d-%H%M%S')
         backup.mkdir(parents=True)
         moved, installed = [], []
         try:

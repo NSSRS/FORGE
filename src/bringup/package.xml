@@ -20,5 +20,6 @@
   <exec_depend>imu</exec_depend>
   <exec_depend>stereo_cam</exec_depend>
   <exec_depend>seam_detection</exec_depend>
+  <exec_depend>robot_description</exec_depend>
   <export><build_type>ament_python</build_type></export>
 </package>

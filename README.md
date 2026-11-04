@@ -7,7 +7,7 @@ actuators controlled by a DM-MC02 over USB. See [Damiao arm implementation and
 commissioning](docs/DAMIAO_ARM.md) for firmware builds, the separate host/ROS
 interface, motor descriptions, manufacturer manuals and outstanding hardware mapping.
 
-- **[`nathan`](https://github.com/NSSRS/FORGE/tree/nathan)**: Damiao arm firmware, descriptions, host interface, and [validated single-4340P bench workflow](docs/DAMIAO_ARM.md#current-bench-test); remaining motors and loaded-arm validation pending. Also includes the integrated Onshape chassis/arm MJCF, static posing and full MuJoCo simulation.
+- **[`nathan`](https://github.com/NSSRS/FORGE/tree/nathan)**: Damiao arm firmware, descriptions, host interface, and [validated single-4340P bench workflow](docs/DAMIAO_ARM.md#previously-validated-4340p-bench-test); remaining motors and loaded-arm validation pending. Also includes the integrated Onshape chassis/arm MJCF, static posing and full MuJoCo simulation under `src/simulation/`.
 - **`main`**: ENCOS C11 driver/utilities, Python motor API, and ROS 2 motor, IMU, teleoperation, visualization, and bringup packages.
 - **[`physics-analysis`](https://github.com/NSSRS/FORGE/tree/physics-analysis)**:
   thermal/magnetic adhesion and suspension/wheel/terrain simulators, preserved
@@ -36,10 +36,10 @@ The six-axis JSON profiles and ROS arm interface are not hardware-validated.
 ## Robot model and preview
 
 See [model setup, coordinates, collisions and compatibility](docs/ONSHAPE_ARM_PREVIEW.md).
-From this checkout, create .venv and install requirements-sim.txt, then:
+From this checkout, create .venv and install src/simulation/requirements.txt, then:
 
 ```bash
-.venv/bin/python preview_native.py --renderer gpu
+.venv/bin/python scripts/preview_native.py --renderer gpu
 ```
 
 This is static posing: click Simulation > Pause to enable Joint sliders.
@@ -47,7 +47,7 @@ D3's passive linkage follows kinematically; no physics steps run.
 For full physics, magnets, WASD driving, terrain and telemetry:
 
 ```bash
-GALLIUM_DRIVER=d3d12 MESA_D3D12_DEFAULT_ADAPTER_NAME=NVIDIA .venv/bin/python preview_sim.py
+GALLIUM_DRIVER=d3d12 MESA_D3D12_DEFAULT_ADAPTER_NAME=NVIDIA .venv/bin/python scripts/preview_sim.py
 ```
 
 The default arm angles are [0, 0.0942, -0.44, 0, -0.188, 0] radians.
@@ -105,25 +105,22 @@ ROS 2 nodes, teleoperation, localization, trajectory tracking, and ESTOP archite
 ## Repository layout
 
 ```text
-model/             Integrated full-robot MJCF, meshes, spawn and scene templates
-forge_sim/         Geometry, magnets, wheel controls, terrain fitting and arm closure
-preview_native.py  Static native Joint-panel posing
-preview_sim.py     Full dynamic preview
 src/
   encos_driver/    ENCOS chassis C11 EtherCAT driver and bench utilities
   damiao_firmware/ DM-MC02 arm firmware, USB protocol and watchdogs
-  robot_description/ Chassis/arm inventories and motor Xacro macros
-  motors/          Python motor API, simulator and native commissioning
-  motor_control/   ROS motor driver, chassis mixing and ROS commissioning
-  imu/             ROS IMU node, serial protocol and terminal reader
-  stereo_cam/      Orbbec RGB/depth/stereo IR integration and stream checks
-  seam_detection/  Observation-only RGB joint edge detection
-  teleop/          Keyboard and radio command input
-  visualization/   Measured-state relay, mirror model and MuJoCo viewer
-  bringup/         System launch files, shared profiles and pane/session manager
-scripts/           Thin launch wrappers and build/setup helpers
-tests/             Protocol, simulator, ROS and fake-hardware verification
-docs/              Architecture, setup and commissioning documentation
+  robot_description/ Shared MJCF/meshes, chassis/arm inventories and motor Xacro macros
+  simulation/     MuJoCo previews, CAD integration, terrain and simulation controls
+  motors/         Python motor API, simulator and native commissioning
+  motor_control/  ROS motor driver, chassis mixing and ROS commissioning
+  imu/            ROS IMU node, serial protocol and terminal reader
+  stereo_cam/     Orbbec RGB/depth/stereo IR integration and stream checks
+  seam_detection/ Observation-only RGB joint edge detection
+  teleop/         Keyboard and radio command input
+  visualization/  Measured-state relay, mirror model and MuJoCo viewer
+  bringup/        System launch files, shared profiles and pane/session manager
+scripts/          Thin launch wrappers and build/setup helpers
+tests/            Protocol, simulator, ROS and fake-hardware verification
+docs/             Architecture, setup and commissioning documentation
 ```
 
 Each ROS package has an inner Python module of the same name; its outer
@@ -181,9 +178,9 @@ the combined motor launch retains its existing transport settings.
 ## Live motor visualization
 
 [Mirror measured motor movement in MuJoCo](docs/MOTOR_MIRROR.md) using the
-pinned historical CAD snapshot by default and a read-only `/joint_states` relay.
-Use `scripts/setup_motor_viewer.sh --local-model` to select the new full robot;
-only wheel feedback is displayed, and arm joints remain at their saved pose. The current
+full robot in `src/robot_description/mujoco/` and a read-only `/joint_states`
+relay. Run `scripts/setup_motor_viewer.sh` once for its environment. Only wheel
+feedback is displayed, and arm joints remain at their saved pose. The current
 three-motor profile marks motor 4 absent and preserves its model for later.
 
 ## Existing bench utilities

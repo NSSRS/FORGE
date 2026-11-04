@@ -22,9 +22,10 @@ def reset_to_spawn(model, data):
 
 
 def apply_initial_arm_pose(model,data):
-    config=Path(__file__).resolve().parents[1]/'model/initial_pose.json'
+    from simulation.paths import MODEL_DIR
+    config=MODEL_DIR/'initial_pose.json'
     if not config.exists():return
-    from forge_sim.arm_closure import ArmClosure
+    from simulation.arm_closure import ArmClosure
     closure=ArmClosure(model,data) if mujoco.mj_name2id(model,mujoco.mjtObj.mjOBJ_JOINT,'b4_arm_d3')>=0 else None
     for name,angle in json.loads(config.read_text())['joint_angles_rad'].items():
         joint=mujoco.mj_name2id(model,mujoco.mjtObj.mjOBJ_JOINT,name)
@@ -43,7 +44,7 @@ def fit_spawn(path):
     mujoco.mj_forward(model, data)
     surfaces = [i for i in range(model.ngeom)
                 if (mujoco.mj_id2name(model,mujoco.mjtObj.mjOBJ_GEOM,i) or "").startswith("steel_")]
-    from forge_sim.magnetic import MagneticAttraction
+    from simulation.magnetic import MagneticAttraction
     wheels = [g for _, _, g in MagneticAttraction(model).pairs]
     robot = list(np.flatnonzero((model.geom_bodyid != 0) &
                  ((model.geom_contype != 0) | (model.geom_conaffinity != 0))))

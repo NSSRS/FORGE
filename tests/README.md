@@ -112,13 +112,13 @@ not measure wire utilization, CAN arbitration latency or physical motor response
 
 ## Current chassis and arm MJCF
 
-Use the root .venv with requirements-sim.txt for simulation tests. The dedicated
+Use the root .venv with src/simulation/requirements.txt for simulation tests. The dedicated
 model tests skip when optional simulation dependencies are unavailable.
 Generate terrain scenes before the collision broad-phase tests:
 
 ```bash
-.venv/bin/python preview_sim.py --terrain curved --check
-.venv/bin/python preview_sim.py --terrain bumpy --check
+.venv/bin/python scripts/preview_sim.py --terrain curved --check
+.venv/bin/python scripts/preview_sim.py --terrain bumpy --check
 .venv/bin/python -m unittest discover -s tests -p test_model_compatibility.py -v
 .venv/bin/python -m unittest discover -s tests -p test_magnetic.py -v
 .venv/bin/python -m unittest discover -s tests -p test_velocity_control.py -v
@@ -160,3 +160,11 @@ Coverage includes both bus topologies, signed excursions/returns, factory reply
 ID 0, model ranges, group enable, wrong identity/mode, stalls, missing feedback,
 speed/torque/lease trips, restoration and immutable unconfirmed templates.
 See [the test guide](../docs/DAMIAO_MOTOR_TESTS.md) for physical commissioning.
+
+## Full-robot modeling compatibility
+
+With src/simulation/requirements.txt installed, run model_compatibility, motor_overview_models,
+body_colors, magnetic, terrain, velocity_control and motor_mirror test modules.
+The overview test uses synthetic named feedback across flat, curved and bumpy
+full-robot scenes; it verifies status overlays and frozen arm/base coordinates.
+No motor hardware or ROS runtime is needed for those tests.

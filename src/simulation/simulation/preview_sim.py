@@ -14,14 +14,14 @@ if "microsoft" in platform.release().lower() and os.environ.get("GALLIUM_DRIVER"
 
 import mujoco
 import numpy as np
-from forge_sim.magnetic import MagneticAttraction
-from forge_sim.terrain_menu import TerrainMenu
-from forge_sim.spawn_fit import reset_to_spawn
-from forge_sim.velocity_control import set_wheel_rpm, keyboard_rpm
+from simulation.magnetic import MagneticAttraction
+from simulation.terrain_menu import TerrainMenu
+from simulation.spawn_fit import reset_to_spawn
+from simulation.velocity_control import set_wheel_rpm, keyboard_rpm
 
 ARM_DRIVES = ('b2_arm_d1','b3_arm_d2','b4_arm_d3','b5_arm_d4','b6_arm_d5','b7_arm_d6')
 
-MODEL_DIR = Path(__file__).resolve().parent / "model"
+from simulation.paths import MODEL_DIR
 
 
 def check_scene(scene: Path, steps: int = 500, wheel_rpm=None) -> mujoco.MjModel:
@@ -124,7 +124,7 @@ def main() -> None:
     parser.add_argument("--collision-debug", action="store_true", help="Show collision hulls and contacts")
     args = parser.parse_args()
     if args.terrain != "flat":
-        from terrain import generate
+        from simulation.terrain import generate
         args.scene = generate(args.terrain, args.arc_length, args.arc_angle, args.plate_width,
                               args.bump_diameter, args.bump_height, args.tilt, args.inward,
                               bump_spacing=args.bump_spacing, bump_track_spacing=args.bump_track_spacing)
@@ -182,7 +182,7 @@ def main() -> None:
 
     def apply_terrain():
         nonlocal model, data, magnets, scene, context, running, accumulator, previous
-        from terrain import generate
+        from simulation.terrain import generate
         try:
             path = MODEL_DIR / "scene.xml" if menu.values["preset"] == "flat" else generate(**menu.values)
             new_model = mujoco.MjModel.from_xml_path(str(path))

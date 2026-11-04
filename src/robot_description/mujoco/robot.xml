@@ -109,6 +109,7 @@
         <geom type="mesh" class="collision" pos="-0 0.0427 0.07" quat="0 -0 -0 -1" mesh="8009_rau_5005_000_1__8009_rau_5005_000__5" material="8009_rau_5005_000_1__8009_rau_5005_000__5_material" group="3" mass="0" name="collision_181" />
         <geom type="mesh" class="collision" pos="-0 0.0427 0.07" quat="0 -0 -0 -1" mesh="8009_rau_5005_000_1__8009_rau_5005_000__6" material="8009_rau_5005_000_1__8009_rau_5005_000__6_material" group="3" mass="0" name="collision_183" />
         <body name="b2_suspension_left_2" pos="0.356 0 0" quat="0.5 -0.5 -0.5 0.5">
+          <joint axis="0 0 1" name="suspension_1" type="hinge" />
           <inertial pos="-0.0330576 0.000250081 -0.0345767" mass="0.917446" fullinertia="0.0286754 0.000524411 0.0289055 -0.000213094 -2.18781e-05 1.83953e-07" />
           <geom type="mesh" class="collision" pos="-0 -0 0" quat="0.498104 0.501889 0.498104 -0.501889" mesh="sus_11_后悬架主轴_1" material="sus_11_后悬架主轴_1_material" group="3" mass="0" name="collision_185" />
           <geom type="mesh" class="collision" pos="-0.0462284 0.000349923 -0.0222728" quat="0.650804 0.269572 -0.27162 -0.655749" mesh="sus_12_后悬挂压槽_1" material="sus_12_后悬挂压槽_1_material" group="3" mass="0" name="collision_187" />
@@ -131,6 +132,7 @@
           <geom type="mesh" class="collision" pos="-0.0496214 0.248383 0.0405" quat="0.682315 -0.682315 0.185596 -0.185596" mesh="sus_ref4_电机输入端_1" material="sus_ref4_电机输入端_1_material" group="3" mass="0" name="collision_221" />
           <geom type="mesh" class="collision" pos="-0.0496214 0.248383 0.0405" quat="0.699011 -0.699011 -0.106695 0.106695" mesh="sus_ref5_电机输出端_1" material="sus_ref5_电机输出端_1_material" group="3" mass="0" name="collision_223" />
           <body name="linkage_wheel_1" pos="-0.0533757 -0.247603 -0.02" quat="0.998688 -0 -0 0.0512053">
+            <joint axis="0 0 1" name="wheel_1" type="hinge" />
             <inertial pos="-0 -0 -0.018244" mass="0.0399775" fullinertia="1.1183e-05 1.11315e-05 4.72322e-06 0 -0 0" />
             <geom type="mesh" class="collision" pos="-0 0 -0.08" quat="0 0 0.707107 0.707107" mesh="sus_ref8_磁铁轮_80mm_1" material="sus_ref8_磁铁轮_80mm_1_material" group="3" mass="0" name="collision_225" />
             <geom type="mesh" class="collision" pos="0 0.013 0.003" quat="0.509387 -0.509387 -0.490433 0.490433" mesh="sus_ref11_4_6销子_1" material="sus_ref11_4_6销子_1_material" group="3" mass="0" name="collision_227" />
@@ -141,9 +143,10 @@
             <geom type="mesh" class="collision" pos="-0 -0 -0.035" quat="0.434252 -0.434252 -0.558055 0.558055" mesh="sus_ref7_垫圈20_25_2_1" material="sus_ref7_垫圈20_25_2_1_material" group="3" mass="0" name="collision_237" />
             <geom type="mesh" class="collision" pos="-0 0 -0.084" quat="0 -1 0 -0" mesh="sus_19_磁铁轮架_1" material="sus_19_磁铁轮架_1_material" group="3" mass="0" name="collision_239" />
             <geom type="mesh" class="collision" pos="-0 -0 0" quat="0.5 -0.5 -0.5 -0.5" mesh="sus_16_电机法兰轴_1" material="sus_16_电机法兰轴_1_material" group="3" mass="0" name="collision_241" />
-            <geom name="body_03_linkage_wheel_1" type="mesh" mesh="body_03_linkage_wheel_1" group="2" mass="0" rgba="0.690196 0.658824 0.639216 1.0" contype="0" conaffinity="0" material="wheel_checker_material" />
+            <geom name="body_03_linkage_wheel_1" type="mesh" mesh="body_03_linkage_wheel_1" group="2" mass="0" rgba="0.772549 0.701961 0.607843 1" contype="0" conaffinity="0" material="body_color_linkage_wheel_1" />
           </body>
           <body name="linkage_wheel_2" pos="-0.0496214 0.248383 -0.02" quat="0.988551 0 -0 0.15089">
+            <joint axis="0 0 1" name="wheel_2" type="hinge" />
             <inertial pos="-0 -0 -0.018244" mass="0.0399775" fullinertia="1.1183e-05 1.11315e-05 4.72322e-06 0 -0 0" />
             <geom type="mesh" class="collision" pos="0 -0 -0.04" quat="0.707107 -0.707107 -0 -0" mesh="sus_ref8_磁铁轮_80mm_1" material="sus_ref8_磁铁轮_80mm_1_material" group="3" mass="0" name="collision_243" />
             <geom type="mesh" class="collision" pos="-0 -0 -0.037" quat="0.307595 -0.307595 -0.636699 0.636699" mesh="sus_ref10_垫圈20_30_3_1" material="sus_ref10_垫圈20_30_3_1_material" group="3" mass="0" name="collision_245" />
@@ -154,11 +157,12 @@
             <geom type="mesh" class="collision" pos="0 0 0" quat="0.5 -0.5 -0.5 -0.5" mesh="sus_16_电机法兰轴_1" material="sus_16_电机法兰轴_1_material" group="3" mass="0" name="collision_255" />
             <geom type="mesh" class="collision" pos="0 0.013 -0.003" quat="0.698146 0.698146 0.112213 0.112213" mesh="sus_ref11_4_6销子_1" material="sus_ref11_4_6销子_1_material" group="3" mass="0" name="collision_257" />
             <geom type="mesh" class="collision" pos="0.0112583 -0.0065 -0.003" quat="0.446253 0.446253 -0.548506 -0.548506" mesh="sus_ref11_4_6销子_1" material="sus_ref11_4_6销子_1_material" group="3" mass="0" name="collision_259" />
-            <geom name="body_04_linkage_wheel_2" type="mesh" mesh="body_04_linkage_wheel_2" group="2" mass="0" rgba="0.690196 0.658824 0.639216 1.0" contype="0" conaffinity="0" material="wheel_checker_material" />
+            <geom name="body_04_linkage_wheel_2" type="mesh" mesh="body_04_linkage_wheel_2" group="2" mass="0" rgba="0.749020 0.611765 0.580392 1" contype="0" conaffinity="0" material="body_color_linkage_wheel_2" />
           </body>
-          <geom name="body_02_b2_suspension_left_2" type="mesh" mesh="body_02_b2_suspension_left_2" group="2" mass="0" rgba="0.898039 0.917647 0.929412 1.0" contype="0" conaffinity="0" />
+          <geom name="body_02_b2_suspension_left_2" type="mesh" mesh="body_02_b2_suspension_left_2" group="2" mass="0" rgba="0.725490 0.639216 0.549020 1" contype="0" conaffinity="0" />
         </body>
         <body name="b2_suspension_right_3" pos="-0.356 0 0" quat="0.5 0.5 0.5 0.5">
+          <joint axis="0 0 1" name="suspension_2" type="hinge" />
           <inertial pos="-0.032987 0.00217285 -0.0210269" mass="0.917446" fullinertia="0.0285546 0.000643608 0.0289055 -0.00184638 1.1641e-05 -7.48434e-07" />
           <geom type="mesh" class="collision" pos="-0.0461298 0.00303836 -0.00732609" quat="0.674408 -0.279349 -0.261555 0.631449" mesh="sus_12_后悬挂压槽_1" material="sus_12_后悬挂压槽_1_material" group="3" mass="0" name="collision_261" />
           <geom type="mesh" class="collision" pos="-0.022649 0.165847 -0.02" quat="0 0.729974 0.683475 0" mesh="sus_15_后悬挂末端连接_1" material="sus_15_后悬挂末端连接_1_material" group="3" mass="0" name="collision_263" />
@@ -181,6 +185,7 @@
           <geom type="mesh" class="collision" pos="-0.067688 -0.244079 0.0555" quat="0.557936 -0.557936 -0.434405 0.434405" mesh="sus_ref5_电机输出端_1" material="sus_ref5_电机输出端_1_material" group="3" mass="0" name="collision_297" />
           <geom type="mesh" class="collision" pos="-0.067688 -0.244079 0.0555" quat="0.333228 -0.333228 0.623666 -0.623666" mesh="sus_ref4_电机输入端_1" material="sus_ref4_电机输入端_1_material" group="3" mass="0" name="collision_299" />
           <body name="linkage_wheel_3" pos="-0.0350893 0.250849 -0.005" quat="0.447101 -0 -0 0.894483">
+            <joint axis="0 0 1" name="wheel_3" type="hinge" />
             <inertial pos="-0 0 -0.018244" mass="0.0399775" fullinertia="1.1183e-05 1.11315e-05 4.72322e-06 0 -0 0" />
             <geom type="mesh" class="collision" pos="-0 0 -0.0325" quat="0.0392373 0.706017 -0.0392373 0.706017" mesh="sus_ref1_悬挂用交滚轴承_rau2005cc0p5_1" material="sus_ref1_悬挂用交滚轴承_rau2005cc0p5_1_material" group="3" mass="0" name="collision_301" />
             <geom type="mesh" class="collision" pos="0 0.013 -0.003" quat="0.518474 0.518474 -0.480816 -0.480816" mesh="sus_ref11_4_6销子_1" material="sus_ref11_4_6销子_1_material" group="3" mass="0" name="collision_303" />
@@ -191,9 +196,10 @@
             <geom type="mesh" class="collision" pos="-0.0112583 -0.0065 -0.003" quat="0.675636 0.675636 0.208604 0.208604" mesh="sus_ref11_4_6销子_1" material="sus_ref11_4_6销子_1_material" group="3" mass="0" name="collision_313" />
             <geom type="mesh" class="collision" pos="0 0 -0.035" quat="0.70481 -0.70481 -0.0569487 0.0569487" mesh="sus_ref7_垫圈20_25_2_1" material="sus_ref7_垫圈20_25_2_1_material" group="3" mass="0" name="collision_315" />
             <geom type="mesh" class="collision" pos="0 -0 -0.04" quat="0.707107 -0.707107 -0 -0" mesh="sus_ref8_磁铁轮_80mm_1" material="sus_ref8_磁铁轮_80mm_1_material" group="3" mass="0" name="collision_317" />
-            <geom name="body_06_linkage_wheel_3" type="mesh" mesh="body_06_linkage_wheel_3" group="2" mass="0" rgba="0.776471 0.756863 0.737255 1.0" contype="0" conaffinity="0" material="wheel_checker_material" />
+            <geom name="body_06_linkage_wheel_3" type="mesh" mesh="body_06_linkage_wheel_3" group="2" mass="0" rgba="0.580392 0.701961 0.717647 1" contype="0" conaffinity="0" material="body_color_linkage_wheel_3" />
           </body>
           <body name="linkage_wheel_4" pos="-0.067688 -0.244079 -0.005" quat="0.78904 0 0 0.614341">
+            <joint axis="0 0 1" name="wheel_4" type="hinge" />
             <inertial pos="-0 0 -0.018244" mass="0.0399775" fullinertia="1.1183e-05 1.11315e-05 4.72322e-06 0 0 0" />
             <geom type="mesh" class="collision" pos="-0 0 -0.084" quat="0 -1 0 -0" mesh="sus_19_磁铁轮架_1" material="sus_19_磁铁轮架_1_material" group="3" mass="0" name="collision_319" />
             <geom type="mesh" class="collision" pos="-0.0112583 -0.0065 0.003" quat="0.239836 -0.239836 -0.665191 0.665191" mesh="sus_ref11_4_6销子_1" material="sus_ref11_4_6销子_1_material" group="3" mass="0" name="collision_321" />
@@ -204,11 +210,12 @@
             <geom type="mesh" class="collision" pos="0 0.013 0.003" quat="0.69599 -0.69599 -0.124891 0.124891" mesh="sus_ref11_4_6销子_1" material="sus_ref11_4_6销子_1_material" group="3" mass="0" name="collision_331" />
             <geom type="mesh" class="collision" pos="-0 0 -0.035" quat="0.67107 -0.67107 -0.222855 0.222855" mesh="sus_ref7_垫圈20_25_2_1" material="sus_ref7_垫圈20_25_2_1_material" group="3" mass="0" name="collision_333" />
             <geom type="mesh" class="collision" pos="-0.004 -0 -0.08" quat="0 0 -0.707107 -0.707107" mesh="sus_ref8_磁铁轮_80mm_1" material="sus_ref8_磁铁轮_80mm_1_material" group="3" mass="0" name="collision_335" />
-            <geom name="body_07_linkage_wheel_4" type="mesh" mesh="body_07_linkage_wheel_4" group="2" mass="0" rgba="0.792157 0.819608 0.933333 1.0" contype="0" conaffinity="0" material="wheel_checker_material" />
+            <geom name="body_07_linkage_wheel_4" type="mesh" mesh="body_07_linkage_wheel_4" group="2" mass="0" rgba="0.572549 0.647059 0.733333 1" contype="0" conaffinity="0" material="body_color_linkage_wheel_4" />
           </body>
-          <geom name="body_05_b2_suspension_right_3" type="mesh" mesh="body_05_b2_suspension_right_3" group="2" mass="0" rgba="0.647059 0.619608 0.588235 1.0" contype="0" conaffinity="0" />
+          <geom name="body_05_b2_suspension_right_3" type="mesh" mesh="body_05_b2_suspension_right_3" group="2" mass="0" rgba="0.552941 0.666667 0.647059 1" contype="0" conaffinity="0" />
         </body>
         <body name="suspension_3" pos="-6e-05 0 0.417" quat="0 0.707107 -0.707107 0">
+          <joint axis="0 0 1" name="suspension_3" type="hinge" />
           <inertial pos="-0.00357076 -0.000311768 -0.0295923" mass="0.976788" fullinertia="0.0217199 0.000585757 0.0218674 0.0018586 -6.52909e-05 -5.68836e-06" />
           <geom type="mesh" class="collision" pos="-0.0066385 -0.171226 -0.0255" quat="0.675669 0 -0 0.737205" mesh="sus_2_前轮悬挂_偏航角固定_外_2" material="sus_2_前轮悬挂_偏航角固定_外_2_material" group="3" mass="0" name="collision_337" />
           <geom type="mesh" class="collision" pos="0.00434708 -0.0498107 -0.00425" quat="0.521282 0.521282 -0.47777 -0.47777" mesh="sus_5_底盘后角顶盖_type_1_m_m5_1" material="sus_5_底盘后角顶盖_type_1_m_m5_1_material" group="3" mass="0" name="collision_339" />
@@ -226,12 +233,14 @@
           <geom type="mesh" class="collision" pos="0.0269519 -0.308826 -0.0255" quat="0.47777 -0.521282 0.47777 0.521282" mesh="sus_1m_前轮悬挂_偏航角固定_内_4___sus_1_前轮悬挂_偏航角固定_内___chamfer1" material="sus_1m_前轮悬挂_偏航角固定_内_4___sus_1_前轮悬挂_偏航角固定_内___chamfer1_material" group="3" mass="0" name="collision_363" />
           <geom type="mesh" class="collision" pos="-0.0147801 0.169356 -0.0255" quat="0.47777 -0.521282 0.47777 0.521282" mesh="sus_1_前轮悬挂_偏航角固定_内_1" material="sus_1_前轮悬挂_偏航角固定_内_1_material" group="3" mass="0" name="collision_365" />
           <body name="freedrive_1" pos="-0.0166894 -0.234338 -0.0505" quat="0.0307677 -0.706437 -0.0307677 -0.706437">
+            <joint axis="0 0 1" name="freedrive_1" type="hinge" />
             <inertial pos="0.00461607 0.000714264 0.052833" mass="0.075674" fullinertia="7.03756e-05 6.21758e-05 2.86759e-05 1.19233e-06 -1.09508e-05 -1.55767e-06" />
             <geom type="mesh" class="collision" pos="-0 5.62685e-05 -0.0025" quat="0.5 -0.5 -0.5 -0.5" mesh="sus_ref1_悬挂用交滚轴承_rau2005cc0p5_1" material="sus_ref1_悬挂用交滚轴承_rau2005cc0p5_1_material" group="3" mass="0" name="collision_367" />
             <geom type="mesh" class="collision" pos="-0 5.62685e-05 0.03025" quat="0.134641 0.134641 0.69417 0.69417" mesh="sus_ref9_圆锥滚子轴承_1" material="sus_ref9_圆锥滚子轴承_1_material" group="3" mass="0" name="collision_369" />
             <geom type="mesh" class="collision" pos="-0 5.62685e-05 0.044" quat="0.463492 -0.463492 -0.534018 0.534018" mesh="sus_3_前轮悬挂_轮固定63mm_1" material="sus_3_前轮悬挂_轮固定63mm_1_material" group="3" mass="0" name="collision_371" />
             <geom type="mesh" class="collision" pos="-0 5.62685e-05 -0.005" quat="0.463492 0.463492 0.534018 0.534018" mesh="sus_4_前轮悬挂_偏航角导轴_1" material="sus_4_前轮悬挂_偏航角导轴_1_material" group="3" mass="0" name="collision_373" />
             <body name="linkage_wheel_5" pos="0.0213393 0.0275826 0.0955" quat="0.0498694 -0.0498694 0.705346 -0.705346">
+              <joint axis="0 0 1" name="wheel_5" type="hinge" />
               <inertial pos="-7.45242e-05 -9.25638e-05 0.0239833" mass="0.0868962" fullinertia="4.73035e-05 4.7279e-05 1.23248e-05 -5.3389e-08 3.346e-09 4.156e-09" />
               <geom type="mesh" class="collision" pos="-0 0 0.055" quat="0 0.084184 0.99645 -0" mesh="sus_22_前悬架轮轴盖通孔版_1" material="sus_22_前悬架轮轴盖通孔版_1_material" group="3" mass="0" name="collision_375" />
               <geom type="mesh" class="collision" pos="-0 -0 -0.0075" quat="0.376608 -0.59847 -0.376608 -0.59847" mesh="sus_23_前轮轴盖预紧器_1" material="sus_23_前轮轴盖预紧器_1_material" group="3" mass="0" name="collision_377" />
@@ -240,17 +249,19 @@
               <geom type="mesh" class="collision" pos="-0 -0 -0.0065" quat="0.532604 0 -0 -0.846365" mesh="sus_21_前悬架轮轴盖螺纹版_1" material="sus_21_前悬架轮轴盖螺纹版_1_material" group="3" mass="0" name="collision_383" />
               <geom type="mesh" class="collision" pos="-0 -0 0.0405" quat="0 0.943113 -0.332474 0" mesh="sus_6_前轮悬挂_轮轴管_63mm_4" material="sus_6_前轮悬挂_轮轴管_63mm_4_material" group="3" mass="0" name="collision_385" />
               <geom type="mesh" class="collision" pos="0.000465677 -0.000218895 0.0085" quat="0.235094 0.235094 0.666881 0.666881" mesh="sus_ref2_磁铁轮_63mm_1" material="sus_ref2_磁铁轮_63mm_1_material" group="3" mass="0" name="collision_387" />
-              <geom name="body_10_linkage_wheel_5" type="mesh" mesh="body_10_linkage_wheel_5" group="2" mass="0" rgba="0.898039 0.917647 0.929412 1.0" contype="0" conaffinity="0" material="wheel_checker_material" />
+              <geom name="body_10_linkage_wheel_5" type="mesh" mesh="body_10_linkage_wheel_5" group="2" mass="0" rgba="0.729412 0.658824 0.749020 1" contype="0" conaffinity="0" material="body_color_linkage_wheel_5" />
             </body>
-            <geom name="body_09_freedrive_1" type="mesh" mesh="body_09_freedrive_1" group="2" mass="0" rgba="0.776471 0.756863 0.737255 1.0" contype="0" conaffinity="0" />
+            <geom name="body_09_freedrive_1" type="mesh" mesh="body_09_freedrive_1" group="2" mass="0" rgba="0.721569 0.623529 0.662745 1" contype="0" conaffinity="0" />
           </body>
           <body name="b3_wheel_linkage_6" pos="-0.0570304 0.227905 -0.0505" quat="0.706437 -0.0307677 0.706437 0.0307677">
+            <joint axis="0 0 1" name="freedrive_2" type="hinge" />
             <inertial pos="-0.00374528 0.0027774 0.052833" mass="0.075674" fullinertia="6.75148e-05 6.50365e-05 2.86759e-05 -4.08599e-06 8.88268e-06 -6.59124e-06" />
             <geom type="mesh" class="collision" pos="0 0 0.044" quat="0.317806 -0.317806 0.631664 -0.631664" mesh="sus_3_前轮悬挂_轮固定63mm_1" material="sus_3_前轮悬挂_轮固定63mm_1_material" group="3" mass="0" name="collision_389" />
             <geom type="mesh" class="collision" pos="0 0 -0.0025" quat="0.5 0.5 0.5 -0.5" mesh="sus_ref1_悬挂用交滚轴承_rau2005cc0p5_1" material="sus_ref1_悬挂用交滚轴承_rau2005cc0p5_1_material" group="3" mass="0" name="collision_391" />
             <geom type="mesh" class="collision" pos="-0 -0 -0.005" quat="0.317806 0.317806 -0.631664 -0.631664" mesh="sus_4_前轮悬挂_偏航角导轴_1" material="sus_4_前轮悬挂_偏航角导轴_1_material" group="3" mass="0" name="collision_393" />
             <geom type="mesh" class="collision" pos="0 0 0.03025" quat="0.691367 0.691367 -0.148362 -0.148362" mesh="sus_ref9_圆锥滚子轴承_1" material="sus_ref9_圆锥滚子轴承_1_material" group="3" mass="0" name="collision_395" />
             <body name="linkage_wheel_6" pos="-0.0345276 -0.00457247 0.0955" quat="0.671377 -0.671377 0.221931 -0.221931">
+              <joint axis="0 0 1" name="wheel_6" type="hinge" />
               <inertial pos="6.64518e-05 9.85194e-05 0.0239833" mass="0.0868962" fullinertia="4.73126e-05 4.727e-05 1.23248e-05 -5.0171e-08 -2.983e-09 -4.423e-09" />
               <geom type="mesh" class="collision" pos="0 0 0.0405" quat="0 0.29237 0.956305 0" mesh="sus_6_前轮悬挂_轮轴管_63mm_4" material="sus_6_前轮悬挂_轮轴管_63mm_4_material" group="3" mass="0" name="collision_397" />
               <geom type="mesh" class="collision" pos="0 -0 0.055" quat="0 0.724946 0.688805 -0" mesh="sus_22_前悬架轮轴盖通孔版_1" material="sus_22_前悬架轮轴盖通孔版_1_material" group="3" mass="0" name="collision_399" />
@@ -259,11 +270,11 @@
               <geom type="mesh" class="collision" pos="0 -0 -0.0065" quat="0.63845 -0 0 -0.769663" mesh="sus_21_前悬架轮轴盖螺纹版_1" material="sus_21_前悬架轮轴盖螺纹版_1_material" group="3" mass="0" name="collision_405" />
               <geom type="mesh" class="collision" pos="0 -0 0.002" quat="0.5 -0.5 -0.5 -0.5" mesh="sus_ref12_法兰轴承_20_32_7_1" material="sus_ref12_法兰轴承_20_32_7_1_material" group="3" mass="0" name="collision_407" />
               <geom type="mesh" class="collision" pos="0.000346559 -0.000380351 0.0085" quat="0.67621 0.67621 -0.206737 -0.206737" mesh="sus_ref2_磁铁轮_63mm_1" material="sus_ref2_磁铁轮_63mm_1_material" group="3" mass="0" name="collision_409" />
-              <geom name="body_12_linkage_wheel_6" type="mesh" mesh="body_12_linkage_wheel_6" group="2" mass="0" rgba="0.898039 0.917647 0.929412 1.0" contype="0" conaffinity="0" material="wheel_checker_material" />
+              <geom name="body_12_linkage_wheel_6" type="mesh" mesh="body_12_linkage_wheel_6" group="2" mass="0" rgba="0.698039 0.737255 0.627451 1" contype="0" conaffinity="0" material="body_color_linkage_wheel_6" />
             </body>
-            <geom name="body_11_b3_wheel_linkage_6" type="mesh" mesh="body_11_b3_wheel_linkage_6" group="2" mass="0" rgba="0.898039 0.917647 0.929412 1.0" contype="0" conaffinity="0" />
+            <geom name="body_11_b3_wheel_linkage_6" type="mesh" mesh="body_11_b3_wheel_linkage_6" group="2" mass="0" rgba="0.650980 0.701961 0.592157 1" contype="0" conaffinity="0" />
           </body>
-          <geom name="body_08_suspension_3" type="mesh" mesh="body_08_suspension_3" group="2" mass="0" rgba="0.898039 0.917647 0.929412 1.0" contype="0" conaffinity="0" />
+          <geom name="body_08_suspension_3" type="mesh" mesh="body_08_suspension_3" group="2" mass="0" rgba="0.643137 0.600000 0.705882 1" contype="0" conaffinity="0" />
         </body>
         <body name="b2_arm_d1" pos="-0 0.0427 0.07" quat="0.17064292187511079 0.17064292187511079 -0.68620791503954903 0.68620791503954903">
           <joint axis="0 0 1" name="b2_arm_d1" type="hinge" damping="0.1" armature="0.01" />
@@ -332,18 +343,18 @@
               <geom type="mesh" class="collision" pos="0 -0 -0" quat="0 1 0 0" mesh="arm_d3_1_摇臂_1" material="arm_d3_1_摇臂_1_material" group="3" mass="0" name="collision_521" />
               <geom type="mesh" class="collision" pos="0.018516 0.0570201 -0.01" quat="0.310927 0.310927 -0.635078 -0.635078" mesh="arm_d2_ref1_m4球头螺丝_1" material="arm_d2_ref1_m4球头螺丝_1_material" group="3" mass="0" name="collision_523" />
               <body name="b4_1_arm_rod_d3" pos="0.018516 0.0570201 -0.0005" quat="0.310927 -0.310927 0.635078 -0.635078">
-                <joint axis="0 0 1" name="b4_1_arm_rod_d3" type="ball" damping="0.1" armature="0.01" />
+                <joint axis="0 0 1" name="b4_1_arm_rod_d3" type="ball" />
                 <inertial pos="-0.0249158 0.000168772 0.0704928" mass="0.0175703" fullinertia="2.59146e-05 2.91456e-05 3.27939e-06 -8.6217e-08 9.14255e-06 2.4405e-07" />
                 <geom type="mesh" class="collision" pos="-0.0499844 -0.00199994 0.141414" quat="0.16906 -0.000826505 0.985596 0.00436752" mesh="arm_d2_ref2_m4球头箍_1" material="arm_d2_ref2_m4球头箍_1_material" group="3" mass="0" name="collision_525" />
                 <geom type="mesh" class="collision" pos="2.07063e-06 -0.00066664 -5.55317e-06" quat="0.985596 0.00436752 -0.16906 0.000826505" mesh="arm_d2_ref2_m4球头箍_1" material="arm_d2_ref2_m4球头箍_1_material" group="3" mass="0" name="collision_527" />
                 <geom type="mesh" class="collision" pos="-0.0482395 -0.000453334 0.136477" quat="0.390809 -0.716861 0.27158 0.509532" mesh="arm_d2_ref4_m4不锈钢拉杆140mm_1" material="arm_d2_ref4_m4不锈钢拉杆140mm_1_material" group="3" mass="0" name="collision_529" />
                 <site group="3" name="closing_b4_2_arm_rod_d3_2" pos="-0.049989 -0.0005 0.141427" quat="0.00436752 -0.985596 -0.000826505 -0.16906" />
-                <geom name="body_16_b4_1_arm_rod_d3" type="mesh" mesh="body_16_b4_1_arm_rod_d3" group="2" mass="0" rgba="0.839216 0.466667 0.368627 1.0" contype="0" conaffinity="0" />
+                <geom name="body_16_b4_1_arm_rod_d3" type="mesh" mesh="body_16_b4_1_arm_rod_d3" group="2" mass="0" rgba="0.764706 0.721569 0.560784 1" contype="0" conaffinity="0" />
               </body>
-              <geom name="body_15_l3_arm_linkage_d3" type="mesh" mesh="body_15_l3_arm_linkage_d3" group="2" mass="0" rgba="0.568627 0.568627 0.588235 1.0" contype="0" conaffinity="0" />
+              <geom name="body_15_l3_arm_linkage_d3" type="mesh" mesh="body_15_l3_arm_linkage_d3" group="2" mass="0" rgba="0.596078 0.678431 0.588235 1" contype="0" conaffinity="0" />
             </body>
             <body name="b4_2_arm_d3" pos="0.149836 0.00700682 -0" quat="0 0.997737 -0.0672428 -0">
-              <joint axis="0 0 1" name="b4_2_arm_d3" type="hinge" damping="0.1" armature="0.01" />
+              <joint axis="0 0 1" name="b4_2_arm_d3" type="hinge" />
               <inertial pos="0.0169712 -0.00815119 0.0196461" mass="0.116253" fullinertia="0.000105253 4.31519e-05 0.000130562 3.29131e-05 -6.43505e-06 6.31228e-06" />
               <geom type="mesh" class="collision" pos="0 0 0.0055" quat="1 0 0 0" mesh="arm_d3_3_小臂轴承销子_1" material="arm_d3_3_小臂轴承销子_1_material" group="3" mass="0" name="collision_531" />
               <geom type="mesh" class="collision" pos="0 0 0.01475" quat="1 0 0 0" mesh="arm_d3_5_小臂_1" material="arm_d3_5_小臂_1_material" group="3" mass="0" name="collision_533" />
@@ -488,19 +499,20 @@
                     <geom type="mesh" class="collision" pos="-0 -0.019 0.105" quat="0.707107 -0 -0.707107 0" mesh="arm_d6_ref2_焊枪apw503_45度_1__ebom_freeparts_1_solid1" material="arm_d6_ref2_焊枪apw503_45度_1__ebom_freeparts_1_solid1_material" group="3" mass="0" name="collision_791" />
                     <geom type="mesh" class="collision" pos="-0 -0.019 0.105" quat="0.707107 -0 -0.707107 0" mesh="arm_d6_ref2_焊枪apw503_45度_1" material="arm_d6_ref2_焊枪apw503_45度_1_material" group="3" mass="0" name="collision_793" />
                     <geom type="mesh" class="collision" pos="-0 -0.019 0.105" quat="0.707107 -0 -0.707107 0" mesh="arm_d6_ref2_焊枪apw503_45度_1__ebom_freeparts_1_solid3" material="arm_d6_ref2_焊枪apw503_45度_1__ebom_freeparts_1_solid3_material" group="3" mass="0" name="collision_795" />
-                    <geom name="body_20_l6_arm_linkage_d6" type="mesh" mesh="body_20_l6_arm_linkage_d6" group="2" mass="0" rgba="0.898039 0.917647 0.929412 1.0" contype="0" conaffinity="0" />
+                    <geom name="body_20_l6_arm_linkage_d6" type="mesh" mesh="body_20_l6_arm_linkage_d6" group="2" mass="0" rgba="0.615686 0.709804 0.760784 1" contype="0" conaffinity="0" />
                   </body>
-                  <geom name="body_19_l5_arm_linkage_d5" type="mesh" mesh="body_19_l5_arm_linkage_d5" group="2" mass="0" rgba="0.568627 0.568627 0.588235 1.0" contype="0" conaffinity="0" />
+                  <geom name="body_19_l5_arm_linkage_d5" type="mesh" mesh="body_19_l5_arm_linkage_d5" group="2" mass="0" rgba="0.560784 0.678431 0.650980 1" contype="0" conaffinity="0" />
                 </body>
-                <geom name="body_18_l4_arm_linkage_d4" type="mesh" mesh="body_18_l4_arm_linkage_d4" group="2" mass="0" rgba="0.568627 0.568627 0.588235 1.0" contype="0" conaffinity="0" />
+                <geom name="body_18_l4_arm_linkage_d4" type="mesh" mesh="body_18_l4_arm_linkage_d4" group="2" mass="0" rgba="0.741176 0.615686 0.639216 1" contype="0" conaffinity="0" />
               </body>
-              <geom name="body_17_b4_2_arm_d3" type="mesh" mesh="body_17_b4_2_arm_d3" group="2" mass="0" rgba="0.568627 0.568627 0.588235 1.0" contype="0" conaffinity="0" />
+              <geom name="body_17_b4_2_arm_d3" type="mesh" mesh="body_17_b4_2_arm_d3" group="2" mass="0" rgba="0.666667 0.615686 0.717647 1" contype="0" conaffinity="0" />
             </body>
-            <geom name="body_14_b3_arm_d2" type="mesh" mesh="body_14_b3_arm_d2" group="2" mass="0" rgba="0.898039 0.917647 0.929412 1.0" contype="0" conaffinity="0" />
+            <geom name="body_14_b3_arm_d2" type="mesh" mesh="body_14_b3_arm_d2" group="2" mass="0" rgba="0.737255 0.631373 0.545098 1" contype="0" conaffinity="0" />
           </body>
-          <geom name="body_13_b2_arm_d1" type="mesh" mesh="body_13_b2_arm_d1" group="2" mass="0" rgba="0.568627 0.568627 0.588235 1.0" contype="0" conaffinity="0" />
+          <geom name="body_13_b2_arm_d1" type="mesh" mesh="body_13_b2_arm_d1" group="2" mass="0" rgba="0.545098 0.623529 0.705882 1" contype="0" conaffinity="0" />
         </body>
-        <geom name="body_01_body" type="mesh" mesh="body_01_body" group="2" mass="0" rgba="0.866667 0.909804 1.0 1.0" contype="0" conaffinity="0" />
+        <geom name="body_01_body" type="mesh" mesh="body_01_body" group="2" mass="0" rgba="0.529412 0.576471 0.615686 1" contype="0" conaffinity="0" />
+        <freejoint name="floating_base" />
       </body>
     </frame>
   </worldbody>
@@ -815,9 +827,26 @@
     <mesh name="body_18_l4_arm_linkage_d4" file="body_18_l4_arm_linkage_d4.obj" />
     <mesh name="body_19_l5_arm_linkage_d5" file="body_19_l5_arm_linkage_d5.obj" />
     <mesh name="body_20_l6_arm_linkage_d6" file="body_20_l6_arm_linkage_d6.obj" />
-    <texture name="wheel_checker" type="cube" builtin="checker" width="256" height="256" rgb1="0.04 0.04 0.04" rgb2="0.95 0.95 0.95" />
-    <material name="wheel_checker_material" texture="wheel_checker" rgba="1 1 1 1" />
+    <texture name="wheel_checker" type="cube" builtin="checker" width="256" height="256" rgb1="0.5 0.5 0.5" rgb2="0.9 0.9 0.9" />
+    <material name="body_color_linkage_wheel_1" texture="wheel_checker" rgba="0.772549 0.701961 0.607843 1" specular="0.1" shininess="0.1" />
+    <material name="body_color_linkage_wheel_2" texture="wheel_checker" rgba="0.749020 0.611765 0.580392 1" specular="0.1" shininess="0.1" />
+    <material name="body_color_linkage_wheel_3" texture="wheel_checker" rgba="0.580392 0.701961 0.717647 1" specular="0.1" shininess="0.1" />
+    <material name="body_color_linkage_wheel_4" texture="wheel_checker" rgba="0.572549 0.647059 0.733333 1" specular="0.1" shininess="0.1" />
+    <material name="body_color_linkage_wheel_5" texture="wheel_checker" rgba="0.729412 0.658824 0.749020 1" specular="0.1" shininess="0.1" />
+    <material name="body_color_linkage_wheel_6" texture="wheel_checker" rgba="0.698039 0.737255 0.627451 1" specular="0.1" shininess="0.1" />
   </asset>
+  <actuator>
+    <velocity name="wheel_1_velocity" joint="wheel_1" gear="1" kv="2.0" ctrllimited="true" ctrlrange="-7.85398163397448 7.85398163397448" forcelimited="true" forcerange="-12 12" />
+    <velocity name="wheel_2_velocity" joint="wheel_2" gear="1" kv="2.0" ctrllimited="true" ctrlrange="-7.85398163397448 7.85398163397448" forcelimited="true" forcerange="-12 12" />
+    <velocity name="wheel_3_velocity" joint="wheel_3" gear="1" kv="2.0" ctrllimited="true" ctrlrange="-7.85398163397448 7.85398163397448" forcelimited="true" forcerange="-12 12" />
+    <velocity name="wheel_4_velocity" joint="wheel_4" gear="1" kv="2.0" ctrllimited="true" ctrlrange="-7.85398163397448 7.85398163397448" forcelimited="true" forcerange="-12 12" />
+    <position name="b2_arm_d1_target" joint="b2_arm_d1" kp="50" kv="5" ctrllimited="true" ctrlrange="-1.570796 1.570796" />
+    <position name="b3_arm_d2_target" joint="b3_arm_d2" kp="50" kv="5" ctrllimited="true" ctrlrange="-1.570796 1.570796" />
+    <position name="b4_arm_d3_target" joint="b4_arm_d3" kp="50" kv="5" ctrllimited="true" ctrlrange="-1.570796 1.570796" />
+    <position name="b5_arm_d4_target" joint="b5_arm_d4" kp="50" kv="5" ctrllimited="true" ctrlrange="-1.570796 1.570796" />
+    <position name="b6_arm_d5_target" joint="b6_arm_d5" kp="50" kv="5" ctrllimited="true" ctrlrange="-1.570796 1.570796" />
+    <position name="b7_arm_d6_target" joint="b7_arm_d6" kp="50" kv="5" ctrllimited="true" ctrlrange="-1.570796 1.570796" />
+  </actuator>
   <equality>
     <connect site1="closing_b4_2_arm_rod_d3_1" site2="closing_b4_2_arm_rod_d3_2" />
   </equality>
@@ -825,15 +854,4 @@
     <exclude body1="b2_arm_d1" body2="l3_arm_linkage_d3" />
     <exclude body1="b4_1_arm_rod_d3" body2="b4_2_arm_d3" />
   </contact>
-  <option gravity="0 0 0" timestep="0.001" integrator="implicitfast" iterations="100">
-    <flag contact="disable" />
-  </option>
-  <actuator>
-    <position name="b2_arm_d1_target" joint="b2_arm_d1" kp="20" kv="2" ctrllimited="true" ctrlrange="-0.5 0.5" />
-    <position name="b3_arm_d2_target" joint="b3_arm_d2" kp="20" kv="2" ctrllimited="true" ctrlrange="-0.5 0.5" />
-    <position name="b4_arm_d3_target" joint="b4_arm_d3" kp="20" kv="2" ctrllimited="true" ctrlrange="-0.5 0.5" />
-    <position name="b5_arm_d4_target" joint="b5_arm_d4" kp="20" kv="2" ctrllimited="true" ctrlrange="-0.5 0.5" />
-    <position name="b6_arm_d5_target" joint="b6_arm_d5" kp="20" kv="2" ctrllimited="true" ctrlrange="-0.5 0.5" />
-    <position name="b7_arm_d6_target" joint="b7_arm_d6" kp="20" kv="2" ctrllimited="true" ctrlrange="-0.5 0.5" />
-  </actuator>
 </mujoco>

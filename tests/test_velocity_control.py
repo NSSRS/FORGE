@@ -1,18 +1,21 @@
+import source_paths  # source-checkout package imports
+from robot_description.paths import model_directory
+MODEL_DIR = model_directory()
 import importlib.util
 import unittest
 if any(importlib.util.find_spec(name) is None for name in ('mujoco','numpy','scipy')):
-    raise unittest.SkipTest('requires simulation environment: pip install -r requirements-sim.txt')
+    raise unittest.SkipTest('requires simulation environment: pip install -r src/simulation/requirements.txt')
 import tempfile
 import unittest
 from pathlib import Path
 import mujoco
 import numpy as np
-from forge_sim.velocity_control import install_velocity_actuators, set_wheel_rpm
+from simulation.velocity_control import install_velocity_actuators, set_wheel_rpm
 
 class VelocityTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.model = mujoco.MjModel.from_xml_path(str(Path(__file__).resolve().parents[1] / "model/scene.xml"))
+        cls.model = mujoco.MjModel.from_xml_path(str(MODEL_DIR / "scene.xml"))
 
     def test_saturates_output_torque_in_both_directions(self):
         m=self.model

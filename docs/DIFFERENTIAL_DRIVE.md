@@ -23,7 +23,7 @@ Use only one chassis command publisher; source arbitration is not implemented.
 ## Model source and hardware mapping
 
 Read against `main` at `7cc4cf0` and `forge_sim` at `7aa258d`.
-The source is `forge_sim/velocity_control.py` and `model/robot.xml`, not the
+The source is `src/simulation/simulation/velocity_control.py` and `src/robot_description/mujoco/robot.xml`, not the
 older placeholder at `de5130d`. The source code currently sets DRIVE_RPM=60 and
 TURN_RPM=30; older README examples still say 10 and 6. Hardware defaults here
 are lower commissioning settings, not copied simulation speed requests.

@@ -5,10 +5,11 @@ import xml.etree.ElementTree as ET
 from datetime import datetime
 import mujoco
 import numpy as np
-from forge_sim.merge_mjcf import merge_model
-from forge_sim.place_on_floor import place_on_floor
-from forge_sim.velocity_control import install_velocity_actuators
-ROOT=Path(__file__).resolve().parent
+from simulation.merge_mjcf import merge_model
+from simulation.body_colors import apply_body_colors
+from simulation.place_on_floor import place_on_floor
+from simulation.velocity_control import install_velocity_actuators
+from simulation.paths import MODEL_DIR, source_workspace
 DRIVES=['b2_arm_d1','b3_arm_d2','b4_arm_d3','b5_arm_d4','b6_arm_d5','b7_arm_d6']
 def prepare(folder):
     tree=ET.parse(folder/'robot.xml'); root=tree.getroot()
@@ -25,7 +26,7 @@ def prepare(folder):
     place_on_floor(folder)
     tree=ET.parse(folder/'robot.xml'); root=tree.getroot()
     # Rebase motor coordinates while preserving the aligned physical pose.
-    pose_path=ROOT/'model/initial_pose.json'
+    pose_path=MODEL_DIR/'initial_pose.json'
     offsets=json.loads(pose_path.read_text()).get('joint_zero_offsets_rad',{}) if pose_path.exists() else {}
     for name,angle in offsets.items():
         for body in root.findall('.//worldbody//body'):
@@ -51,31 +52,28 @@ def prepare(folder):
         if j is None: raise ValueError('Missing drive '+name)
         j.set('damping','0.1');j.set('armature','0.01')
         ET.SubElement(actuators,'position',name=name+'_target',joint=name,kp='50',kv='5',ctrllimited='true',ctrlrange=j.get('range','-1.570796 1.570796'))
-    # Existing wheel appearance, preserving independent per-part contact geometry.
-    asset=root.find('asset')
-    ET.SubElement(asset,'texture',name='wheel_checker',type='cube',builtin='checker',width='256',height='256',rgb1='0.04 0.04 0.04',rgb2='0.95 0.95 0.95')
-    ET.SubElement(asset,'material',name='wheel_checker_material',texture='wheel_checker',rgba='1 1 1 1')
-    for i in range(1,7):
-        for g in root.findall(f".//body[@name='linkage_wheel_{i}']/geom"):
-            if g.get('group')=='2':g.set('material','wheel_checker_material')
+    apply_body_colors(root)
     contact=ET.SubElement(root,'contact')
     for a,b in [('b2_arm_d1','l3_arm_linkage_d3'),('b4_1_arm_rod_d3','b4_2_arm_d3')]:
         ET.SubElement(contact,'exclude',body1=a,body2=b)
     ET.indent(tree);tree.write(folder/'robot.xml',encoding='utf-8',xml_declaration=True)
-    from forge_sim.spawn_fit import fit_spawn
+    from simulation.spawn_fit import fit_spawn
     fit_spawn(folder/'scene.xml')
     (folder/'simulation_name_map.json').write_text(json.dumps(mapping,indent=2))
     m=mujoco.MjModel.from_xml_path(str(folder/'scene.xml'))
     assert m.njnt==20 and m.neq==1 and m.nu==10,(m.njnt,m.neq,m.nu)
 def main():
-    model=ROOT/'model'
+    import argparse
+    argparse.ArgumentParser(description=__doc__).parse_args()
+    ROOT=source_workspace()
+    model=MODEL_DIR
     with tempfile.TemporaryDirectory(prefix='.export-integration-',dir=model) as temp:
         folder=Path(temp)
         shutil.copy2(model/'cad_robot.xml',folder/'robot.xml')
         shutil.copy2(model/'scene_template.xml',folder/'scene.xml')
         shutil.copytree(model/'assets',folder/'assets')
         prepare(folder)
-        backup=ROOT/'.sim-backups'/('integration-'+datetime.now().strftime('%Y%m%d-%H%M%S'))
+        backup=ROOT/'build/simulation/backups'/('integration-'+datetime.now().strftime('%Y%m%d-%H%M%S'))
         backup.mkdir(parents=True)
         moved=[];installed=[]
         try:

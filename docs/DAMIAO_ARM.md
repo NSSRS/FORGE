@@ -124,7 +124,7 @@ ID, reply ID, mode, timeout and PMAX/VMAX/TMAX results before adapting any test.
 See [robot-description commissioning handoff](../src/robot_description/ARM_COMMISSIONING.md).
 Next: individually discover and test the 8009P on CAN1, a 4310P, the remaining 4340P
 and other 4310Ps. The routed bench transport is now prepared; record each
-motor's ranges/IDs and validating model-specific limits. Do not infer ranges
+motor's ranges/IDs and validate model-specific limits. Do not infer ranges
 from torque ratings, reuse3 Nm for every model, or mark six-axis profiles as
 confirmed from one successful bench move.
 
