@@ -32,7 +32,16 @@ does not validate motor torque ratings, loaded motion or full-arm control.
   P-series motors have twoXT30(2+2) connectors. CAN3pins1/2 are5V/GND, not motor
   power; pins3/4 areH/L. Use separately rated motor power and bus-end termination.
 
-## Next developer steps
+## Prepared test tooling (2026-11-04)
+
+The routed host/MCU implementation is now available in `scripts/test_dm_arm.py`.
+See [single/full-arm commands](../../docs/DAMIAO_MOTOR_TESTS.md) and `bench_*.json`
+templates. These use position-velocity mode, preserve CAN1 for the 8009P alone,
+read actual ranges and restore modes. No additional hardware validation or
+calibration is claimed; all new template identity/fixture flags remain false.
+
+## Original next developer steps (2026-11-03; items 2/3 now implemented)
+
 
 1. Save read-only discovery for the 8009P alone on CAN1 and first 4310P alone on
    its intended bus. Record exact model/revision, unit label, bus, command/reply

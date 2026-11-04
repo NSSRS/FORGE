@@ -1,5 +1,10 @@
 # Damiao arm commissioning
 
+**2026-11-04 software update:** [individual 8009P/4310P/4340P and six-motor
+test guide](DAMIAO_MOTOR_TESTS.md) adds routed position-velocity bench tests.
+8009P remains alone on CAN1. These new paths have software verification only;
+the 4340P hardware evidence below remains the physical commissioning baseline.
+
 ENCOS motors are chassis actuators. Damiao motors are arm actuators on a
 separate DM-MC02 controller: Python on the NUC → USB CDC → C11 firmware on
 STM32H723 → classic CAN at 1 Mbps. We implement the CAN protocol in FORGE;
@@ -26,10 +31,10 @@ bus loading, joint calibration or the ROS arm driver. Hardware revision V1.1
 is distinct from manual V1.4. The motor's internal firmware version has not
 been recorded. The 4310P hardware V1.1 label remains unverified.
 
-## Current bench test
+## Previously validated 4340P bench test
 
-Only `scripts/test_dm_4340_bench.py` is the supported motion commissioning
-entry point. It is fixed to the discovered CAN2/ID 1/feedback0 4340P and its
+`scripts/test_dm_4340_bench.py` preserves the physically tested 4340P workflow.
+For new units and full-arm tests use `scripts/test_dm_arm.py` and the guide above. It is fixed to the discovered CAN2/ID 1/feedback0 4340P and its
 measured ranges. Do not run it unchanged for an 8009P or 4310P.
 
 The superseded MIT bench ramps and their firmware enable path have been
@@ -118,7 +123,7 @@ ID, reply ID, mode, timeout and PMAX/VMAX/TMAX results before adapting any test.
 
 See [robot-description commissioning handoff](../src/robot_description/ARM_COMMISSIONING.md).
 Next: individually discover and test the 8009P on CAN1, a 4310P, the remaining 4340P
-and other 4310Ps. Generalize the bench transport only after recording each
+and other 4310Ps. The routed bench transport is now prepared; record each
 motor's ranges/IDs and validating model-specific limits. Do not infer ranges
 from torque ratings, reuse3 Nm for every model, or mark six-axis profiles as
 confirmed from one successful bench move.
@@ -269,7 +274,7 @@ The six-slot `ArmBus.configure()` / ROS `arm_driver` path remains MIT-based and
 has software coverage only. It requires explicit `hardware_confirmed` and
 `joint_order_confirmed`, populated limits, unique IDs and suitable timeouts.
 Do not use the bench result to enable those template profiles. Position–velocity
-is currently a fixed single-motor bench feature, not multi-axis ROS support.
+now has routed single/six-motor bench tests, separate from multi-axis ROS support.
 Raw shaft radians/rad/s/Nm are used. Simulation joint names/default poses and
 DOF1 zero rebasing are not measured physical signs/zeros or joint mapping.
 See [model documentation](ONSHAPE_ARM_PREVIEW.md). No arm coordinate adapter
@@ -297,3 +302,15 @@ Coverage includes CAN packing, mode write/readback mismatch, delayed enable,
 wrong-mode/gain/speed rejection, simulated target completion and stall,
 restoration, leases, feedback loss, torque stops, framing and transmit abort.
 Tests do not substitute for hardware commissioning of the remaining motors.
+
+### Routed bench protocol extension (2026-11-04)
+
+Capability bit 8 adds type 16 (slot, bus, command ID, feedback ID, model, mode,
+lo/hi/speed/torque), type 17 (guarded slot mode/timeout write), and type 18
+(group-enable mask). Model codes 1/2/3 mean 8009P/4340P/4310P. The MCU checks
+CAN1 isolation, routing uniqueness, finite limits, fresh stationary disable,
+matching probes and narrow enable bounds. Group enable validates every selected
+slot before the first enable transmission. Mode/timeout writes invalidate old
+commands and verification; enable requires a fresh probe. Fault cleanup can
+restore mode only after stationary disable; the fault latch remains set. Legacy
+fixed 4340P commands remain supported and cannot replace a routed session.

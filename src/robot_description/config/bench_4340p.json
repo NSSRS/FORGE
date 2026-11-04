@@ -1,0 +1,25 @@
+{
+  "fixture_confirmed": false,
+  "motors": [
+    {
+      "unit": "4340P-unit-1",
+      "model": "4340P",
+      "bus": 2,
+      "can_id": null,
+      "feedback_id": null,
+      "identity_confirmed": false,
+      "individual_test_passed": false,
+      "ranges": {
+        "pmax": null,
+        "vmax": null,
+        "tmax": null
+      },
+      "lower_rad": null,
+      "upper_rad": null,
+      "speed_rad_s": 0.05,
+      "speed_trip_rad_s": 0.15,
+      "torque_trip_nm": null,
+      "delta_degrees": 5
+    }
+  ]
+}

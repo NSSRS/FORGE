@@ -186,6 +186,58 @@ class ArmBus:
         if self.read_register(2, 1, 10) != (0, mode):
             raise RuntimeError('Mode readback mismatch; no enable permitted')
 
+    def prepare_routed_bench(self, slot, motor, lower, upper, mode):
+        """Configure one explicit P-series test slot; requires firmware capability 8."""
+        if not self.capabilities & 256:
+            raise RuntimeError('Flash the routed arm-test firmware first (capability 0x100)')
+        self._slot(slot)
+        models = {'8009P': 1, '4340P': 2, '4310P': 3}
+        model = models[motor['model']]
+        bus, can_id, feedback_id = (motor[k] for k in ('bus', 'can_id', 'feedback_id'))
+        if (type(bus) is not int or bus not in (1, 2, 3) or
+                type(can_id) is not int or not 1 <= can_id <= 15 or
+                type(feedback_id) is not int or not (feedback_id == 0 or 16 <= feedback_id < 0x7ff) or
+                (model == 1) != (bus == 1) or mode not in (1, 2)):
+            raise ValueError('Invalid routed bench identity/mode; 8009P alone belongs on CAN1')
+        speed, torque = motor['speed_trip_rad_s'], motor['torque_trip_nm']
+        if (not all(math.isfinite(v) for v in (lower, upper, speed, torque)) or
+                not -12.5 <= lower < upper <= 12.5 or not .03 <= speed <= .3 or not .01 <= torque <= 3):
+            raise ValueError('Invalid routed bench limits')
+        # Mark cleanup responsibility BEFORE transmission: the ACK may be lost.
+        self.configured = self.bench = True
+        if not hasattr(self, 'bench_routes'):
+            self.bench_routes = {}
+        self.bench_routes[slot] = (bus, can_id, feedback_id)
+        self._request(16, struct.pack('<BBHHBB4f', slot, bus, can_id, feedback_id,
+                                     model, mode, lower, upper, speed, torque))
+
+    def enable_bench_group(self, slots):
+        """MCU validates every slot before enabling any; feedback confirmation is separate."""
+        mask = 0
+        if not self.capabilities & 256:
+            raise RuntimeError('Routed bench firmware required')
+        for slot in slots:
+            self._slot(slot)
+            mask |= 1 << slot
+        if not mask:
+            raise ValueError('No slots selected')
+        self._request(18, bytes([mask]))
+
+    def write_routed_bench(self, slot, register, value):
+        """Volatile TIMEOUT=100ms or CTRL_MODE=1/2; requires fresh disabled feedback."""
+        self._slot(slot)
+        if not self.capabilities & 256 or slot not in getattr(self, 'bench_routes', {}):
+            raise RuntimeError('No routed bench slot configured')
+        if not ((register == 9 and value == 2000) or (register == 10 and value in (1, 2))):
+            raise ValueError('Only bench timeout and mode writes are permitted')
+        bus, can_id, feedback_id = self.bench_routes[slot]
+        self._request(17, struct.pack('<BBI', slot, register, value))
+        if self._diagnostic_result(bus, can_id, register) != (feedback_id, value):
+            raise RuntimeError('Bench register write was not acknowledged by the selected motor')
+        if self.read_register(bus, can_id, register) != (feedback_id, value):
+            raise RuntimeError('Bench register readback mismatch')
+
+
     def configure(self, profile):
         """Load a measured hardware profile; deliberately rejects the shipped template."""
         if isinstance(profile, (str, bytes)) or hasattr(profile, '__fspath__'):

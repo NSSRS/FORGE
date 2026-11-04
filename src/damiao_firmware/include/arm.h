@@ -16,7 +16,7 @@ typedef bool (*arm_send_fn)(void *, uint8_t, uint16_t, const uint8_t *, uint8_t)
 typedef struct {
     arm_config cfg; dm_range range; dm_command cmd;
     float p, v, t; uint32_t feedback_at, command_at, enabled_at;
-    uint8_t registers, status, mos, rotor, probe_index;
+    uint8_t registers, status, mos, rotor, probe_index, bench_mode, model;
     bool configured, probing, feedback_seen, command_seen, enabled, stopping, enable_confirmed;
 } arm_joint;
 /* Diagnostics: unconfigured bus or fresh, acknowledged-disabled bench motor. */
@@ -29,10 +29,12 @@ typedef struct {
     arm_joint joints[ARM_COUNT]; arm_send_fn send; void *context;
     uint8_t fault_reason, fault_status, fault_slot;
     uint32_t fault_command_age, fault_feedback_age, fault_at;
-    bool fault, bench, bench_posvel; uint32_t last_tick, bench_enabled_at;
+    bool fault, bench, bench_posvel, routed_bench; uint32_t last_tick, bench_enabled_at;
 } arm_controller;
 bool dm_pack(const dm_range *, const dm_command *, uint8_t out[8]);
 void arm_init(arm_controller *, arm_send_fn, void *);
+bool arm_prepare_routed(arm_controller *, unsigned, const arm_config *, uint8_t, uint8_t);
+bool arm_routed_write(arm_controller *, unsigned, uint8_t, uint32_t, uint32_t);
 bool arm_bench_timeout(arm_controller *, uint32_t);
 bool arm_prepare_bench(arm_controller *, float, float);
 bool arm_prepare_posvel(arm_controller *, float, float);
@@ -42,6 +44,7 @@ bool arm_read_register(arm_controller *, uint8_t, uint16_t, uint8_t, uint32_t);
 bool arm_configure(arm_controller *, unsigned, const arm_config *);
 bool arm_probe(arm_controller *, unsigned);
 bool arm_set(arm_controller *, unsigned, const dm_command *, uint32_t);
+bool arm_enable_group(arm_controller *, uint8_t, uint32_t);
 bool arm_enable(arm_controller *, unsigned, uint32_t);
 void arm_stop(arm_controller *);
 void arm_fault(arm_controller *, uint8_t, unsigned, uint32_t);

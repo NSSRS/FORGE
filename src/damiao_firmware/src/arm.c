@@ -26,12 +26,15 @@ bool dm_pack_posvel(float p,float v,uint8_t d[8]) {
     for(unsigned k=0;k<8;k++) d[k]=(uint8_t)(words[k/4]>>(8*(k%4)));
     return true;
 }
+static bool posvel(const arm_controller *a,const arm_joint *j) {
+    return a->routed_bench ? j->bench_mode==2 : a->bench_posvel;
+}
 static bool pack_command(arm_controller *a,arm_joint *j,const dm_command *c,uint8_t d[8]) {
-    if(a->bench_posvel) return c->kp==0 && c->kd==0 && c->t==0 && dm_pack_posvel(c->p,c->v,d);
+    if(posvel(a,j)) return c->kp==0 && c->kd==0 && c->t==0 && dm_pack_posvel(c->p,c->v,d);
     return dm_pack(&j->range,c,d);
 }
 static uint16_t command_id(arm_controller *a,arm_joint *j) {
-    return j->cfg.id+(a->bench_posvel?0x100:0);
+    return j->cfg.id+(posvel(a,j)?0x100:0);
 }
 void arm_init(arm_controller *a, arm_send_fn send, void *context) {
     memset(a,0,sizeof(*a)); a->send=send; a->context=context;
@@ -43,7 +46,7 @@ static bool busy(const arm_controller *a) {
 /* Mode writes and post-configuration reads require a fresh disabled ACK. */
 static bool bench_disabled(arm_controller *a,uint32_t now) {
     arm_joint *j=&a->joints[0];
-    if(!a->bench || busy(a) || !j->configured || j->probing || !j->feedback_seen ||
+    if(a->routed_bench || !a->bench || busy(a) || !j->configured || j->probing || !j->feedback_seen ||
        now-j->feedback_at>=ARM_FEEDBACK_MS || j->status!=0 || fabsf(j->v)>0.03f) return false;
     for(unsigned i=1;i<ARM_COUNT;i++) if(a->joints[i].configured) return false;
     return true;
@@ -56,11 +59,54 @@ bool arm_bench_mode(arm_controller *a,uint8_t mode,uint32_t now) {
     if(!a->send(a->context,2,0x7ff,d,8)) a->diagnostic.state=4;
     return true;
 }
+/* Routed bench uses explicit per-slot identity/mode; no register traffic while active. */
+static bool routed_disabled(arm_controller *a,unsigned i,uint32_t now) {
+    if(!a->routed_bench || i>=ARM_COUNT || busy(a)) return false;
+    for(unsigned k=0;k<ARM_COUNT;k++) if(a->joints[k].probing) return false;
+    arm_joint *j=&a->joints[i];
+    return j->configured && j->feedback_seen && now-j->feedback_at<ARM_FEEDBACK_MS &&
+        j->status==0 && fabsf(j->v)<=0.03f;
+}
+bool arm_prepare_routed(arm_controller *a,unsigned i,const arm_config *c,uint8_t model,uint8_t mode) {
+    if(i>=ARM_COUNT || a->fault || busy(a) || a->diagnostic.state==1 ||
+       (a->bench && !a->routed_bench) || model<1 || model>3 || (mode!=1 && mode!=2) ||
+       (model==1 ? c->bus!=1 : c->bus==1) ||
+       !bounded(c->lo,-12.5f,12.5f) || !bounded(c->hi,-12.5f,12.5f) ||
+       !bounded(c->speed,0.03f,0.3f) || !bounded(c->torque,0.01f,3.0f) || c->kp!=0 || c->kd!=0) return false;
+    for(unsigned k=0;k<ARM_COUNT;k++) if(a->joints[k].configured) {
+        if(!a->routed_bench || a->joints[k].probing) return false;
+        if(k!=i && c->bus==1 && a->joints[k].cfg.bus==1) return false;
+        /* Reconfiguration may narrow bounds/change verified mode, never reroute a live session. */
+        if(k==i && (a->joints[k].cfg.bus!=c->bus || a->joints[k].cfg.id!=c->id ||
+           a->joints[k].cfg.feedback_id!=c->feedback_id || a->joints[k].model!=model)) return false;
+    }
+    bool old_bench=a->bench, old_routed=a->routed_bench;
+    a->bench=true; a->routed_bench=true;
+    if(!arm_configure(a,i,c)) { a->bench=old_bench; a->routed_bench=old_routed; return false; }
+    a->joints[i].bench_mode=mode; a->joints[i].model=model;
+    return true;
+}
+bool arm_routed_write(arm_controller *a,unsigned i,uint8_t reg,uint32_t value,uint32_t now) {
+    /* Even after a fault, allow restoration only after acknowledged stationary disable. */
+    if(a->diagnostic.state==1 || !routed_disabled(a,i,now) ||
+       !((reg==9 && value==2000) || (reg==10 && (value==1 || value==2)))) return false;
+    arm_joint *j=&a->joints[i];
+    j->registers &= ~(reg==9?16u:8u); j->command_seen=false;
+    a->diagnostic=(arm_diagnostic){.state=1,.bus=j->cfg.bus,.id=j->cfg.id,.reg=reg,.opcode=0x55,.started=now};
+    uint8_t d[8]={(uint8_t)j->cfg.id,0,0x55,reg,0,0,0,0};
+    for(unsigned k=0;k<4;k++) d[4+k]=(uint8_t)(value>>(8*k));
+    if(!a->send(a->context,j->cfg.bus,0x7ff,d,8)) a->diagnostic.state=4;
+    return true;
+}
 bool arm_read_register(arm_controller *a,uint8_t bus,uint16_t id,uint8_t reg,uint32_t now) {
-    if(a->fault || bus<1 || bus>3 || id>=0x7ff || a->diagnostic.state==1) return false;
+    if((a->fault && !a->routed_bench) || bus<1 || bus>3 || id>=0x7ff || a->diagnostic.state==1) return false;
     if(reg!=7 && reg!=8 && reg!=9 && reg!=10 && reg!=21 && reg!=22 && reg!=23 && reg!=31) return false;
-    for(unsigned i=0;i<ARM_COUNT;i++) if(a->joints[i].configured &&
-        !(bus==2 && id==1 && bench_disabled(a,now))) return false;
+    bool configured=false, allowed=false;
+    for(unsigned i=0;i<ARM_COUNT;i++) if(a->joints[i].configured) {
+        configured=true;
+        if(a->joints[i].cfg.bus==bus && a->joints[i].cfg.id==id && routed_disabled(a,i,now)) allowed=true;
+    }
+    if(configured && !allowed && !(bus==2 && id==1 && bench_disabled(a,now))) return false;
     arm_diagnostic *q=&a->diagnostic;
     *q=(arm_diagnostic){.state=1,.bus=bus,.reg=reg,.opcode=0x33,.id=id,.started=now};
     uint8_t d[4]={(uint8_t)id,(uint8_t)(id>>8),0x33,reg};
@@ -77,7 +123,7 @@ bool arm_bench_timeout(arm_controller *a,uint32_t now) {
     return true;
 }
 bool arm_prepare_bench(arm_controller *a,float lo,float hi) {
-    if(a->fault || busy(a) || a->diagnostic.state==1 ||
+    if(a->routed_bench || a->fault || busy(a) || a->diagnostic.state==1 ||
        !bounded(lo,-12.5f,12.5f) || !bounded(hi,-12.5f,12.5f) || lo>=hi) return false;
     for(unsigned i=0;i<ARM_COUNT;i++) if(a->joints[i].configured && !(a->bench && i==0)) return false;
     a->bench=true; a->bench_posvel=false;
@@ -94,7 +140,7 @@ bool arm_prepare_posvel(arm_controller *a,float lo,float hi) {
 bool arm_configure(arm_controller *a, unsigned i, const arm_config *c) {
     if(a->diagnostic.state==1) return false;
     if(i>=ARM_COUNT || busy(a) || c->bus<1 || c->bus>3 || c->id<1 || c->id>15 ||
-       (c->feedback_id<16 && !(a->bench && i==0 && c->bus==2 && c->id==1 && c->feedback_id==0)) || c->feedback_id>=0x7ff || !isfinite(c->lo)||!isfinite(c->hi)||c->lo>=c->hi ||
+       (c->feedback_id<16 && !(a->routed_bench && c->feedback_id==0) && !(a->bench && i==0 && c->bus==2 && c->id==1 && c->feedback_id==0)) || c->feedback_id>=0x7ff || !isfinite(c->lo)||!isfinite(c->hi)||c->lo>=c->hi ||
        !positive(c->speed)||!positive(c->torque)||!bounded(c->kp,0,500)||!bounded(c->kd,0,5)) return false;
     for(unsigned j=0;j<ARM_COUNT;j++) if(j!=i && a->joints[j].configured && a->joints[j].cfg.bus==c->bus &&
         (a->joints[j].cfg.id==c->id || a->joints[j].cfg.feedback_id==c->feedback_id)) return false;
@@ -102,7 +148,7 @@ bool arm_configure(arm_controller *a, unsigned i, const arm_config *c) {
     return true;
 }
 bool arm_probe(arm_controller *a,unsigned i) {
-    if(i>=ARM_COUNT || busy(a) || !a->joints[i].configured) return false;
+    if(i>=ARM_COUNT || a->diagnostic.state==1 || busy(a) || !a->joints[i].configured) return false;
     arm_joint *j=&a->joints[i]; j->registers=0; j->probing=true; j->probe_index=0;
     j->command_seen=false; j->feedback_seen=false; return true;
 }
@@ -143,20 +189,25 @@ bool arm_set(arm_controller *a,unsigned i,const dm_command *c,uint32_t now) {
        !bounded(c->t,-j->cfg.torque,j->cfg.torque)||!bounded(c->kp,0,j->cfg.kp)||!bounded(c->kd,0,j->cfg.kd)||
        !pack_command(a,j,c,d)) return false;
     if(j->enabled && !j->enable_confirmed &&
-       (c->p!=j->cmd.p || c->v!=(a->bench_posvel?j->cmd.v:0) || c->t!=0 || c->kp!=j->cmd.kp || c->kd!=j->cmd.kd)) return false;
-    if(a->bench_posvel && fabsf(c->p-j->p)>1.0f) return false;
+       (c->p!=j->cmd.p || c->v!=(posvel(a,j)?j->cmd.v:0) || c->t!=0 || c->kp!=j->cmd.kp || c->kd!=j->cmd.kd)) return false;
+    if(posvel(a,j) && fabsf(c->p-j->p)>1.0f) return false;
     j->cmd=*c; j->command_at=now; j->command_seen=true; return true;
 }
-bool arm_enable(arm_controller *a,unsigned i,uint32_t now) {
+static bool can_enable(arm_controller *a,unsigned i,uint32_t now) {
     if(i>=ARM_COUNT || a->fault || a->diagnostic.state==1) return false;
     /* Keep register polling out of the loaded control bus. */
     for(unsigned k=0;k<ARM_COUNT;k++) if(a->joints[k].probing) return false;
     arm_joint *j=&a->joints[i];
     if(!j->configured || j->enabled || j->stopping || j->registers!=31 || !j->command_seen ||
        now-j->command_at>=ARM_LEASE_MS || !j->feedback_seen || now-j->feedback_at>=ARM_FEEDBACK_MS ||
-       j->status!=0 || fabsf(j->cmd.p-j->p)>0.05f || (!a->bench_posvel && j->cmd.v!=0) || j->cmd.t!=0) return false;
+       j->status!=0 || fabsf(j->cmd.p-j->p)>0.05f || (!posvel(a,j) && j->cmd.v!=0) || j->cmd.t!=0) return false;
     /* Wide initial bench configuration can probe position but cannot enable. */
-    if(a->bench && (!a->bench_posvel || i!=0 || j->cfg.hi-j->cfg.lo>1.1f)) return false;
+    if(a->bench && (!posvel(a,j) || (!a->routed_bench && i!=0) || j->cfg.hi-j->cfg.lo>1.1f)) return false;
+    return true;
+}
+bool arm_enable(arm_controller *a,unsigned i,uint32_t now) {
+    if(!can_enable(a,i,now)) return false;
+    arm_joint *j=&a->joints[i];
     /* Preload a bounded command while disabled before enabling. */
     uint8_t d[8]; if(!pack_command(a,j,&j->cmd,d)) return false;
     if(!a->send(a->context,j->cfg.bus,command_id(a,j),d,8)) { arm_fault(a,5,i,now); return false; }
@@ -166,9 +217,18 @@ bool arm_enable(arm_controller *a,unsigned i,uint32_t now) {
     if(a->bench) a->bench_enabled_at=now;
     j->enabled=true; j->enabled_at=now; return true;
 }
+bool arm_enable_group(arm_controller *a,uint8_t mask,uint32_t now) {
+    if(!a->routed_bench || mask==0 || (mask & ~63u)) return false;
+    /* Validate every selected slot before sending the first enable frame. */
+    for(unsigned i=0;i<ARM_COUNT;i++) if((mask & (1u<<i)) && !can_enable(a,i,now)) return false;
+    for(unsigned i=0;i<ARM_COUNT;i++) if((mask & (1u<<i)) && !arm_enable(a,i,now)) {
+        arm_fault(a,5,i,now); return false;
+    }
+    return true;
+}
 void arm_tick(arm_controller *a,uint32_t now) {
     if(a->diagnostic.state==1 && now-a->diagnostic.started>=100u) a->diagnostic.state=3;
-    if(a->bench && a->joints[0].enabled && now-a->bench_enabled_at>=15000u) { arm_fault(a,10,0,now); return; }
+    if(a->bench && !a->routed_bench && a->joints[0].enabled && now-a->bench_enabled_at>=15000u) { arm_fault(a,10,0,now); return; }
     if(now-a->last_tick<ARM_CONTROL_PERIOD_MS) return;
     a->last_tick=now;
     for(unsigned i=0;i<ARM_COUNT;i++) {
@@ -182,6 +242,7 @@ void arm_tick(arm_controller *a,uint32_t now) {
             if(j->registers==31) j->probing=false;
         }
         if(!j->enabled) continue;
+        if(a->routed_bench && now-j->enabled_at>=15000u) { arm_fault(a,10,i,now); return; }
         if(!j->command_seen || now-j->command_at>=ARM_LEASE_MS) { arm_fault(a,1,i,now); return; }
         if(!j->feedback_seen || now-j->feedback_at>=ARM_FEEDBACK_MS) { arm_fault(a,2,i,now); return; }
         if(!j->enable_confirmed && now-j->enabled_at>=ARM_ENABLE_CONFIRM_MS) { arm_fault(a,3,i,now); return; }
@@ -209,7 +270,7 @@ void arm_receive(arm_controller *a,uint8_t bus,uint16_t id,const uint8_t *d,uint
             case 21: if(positive(f) && f<=1000 && j->cfg.lo>=-f && j->cfg.hi<=f) { j->range.p=f; j->registers|=1; } break;
             case 22: if(positive(f) && f<=10000 && j->cfg.speed<=f) { j->range.v=f; j->registers|=2; } break;
             case 23: if(positive(f) && f<=10000 && j->cfg.torque<=f) { j->range.t=f; j->registers|=4; } break;
-            case 10: if(u==(a->bench_posvel?2u:1u)) j->registers|=8; break;
+            case 10: if(u==(posvel(a,j)?2u:1u)) j->registers|=8; break;
             case 9: if(u>0 && u<=3000) j->registers|=16; break; /* 50 us/count: at most 150 ms */
             default: break;
             }
@@ -231,8 +292,8 @@ void arm_receive(arm_controller *a,uint8_t bus,uint16_t id,const uint8_t *d,uint
         j->feedback_at=now; j->feedback_seen=true;
         if(j->enabled) {
             if(!bounded(j->p,j->cfg.lo,j->cfg.hi)) arm_fault(a,7,i,now);
-            else if(fabsf(j->v)>j->cfg.speed*1.2f) arm_fault(a,8,i,now);
-            else if(fabsf(j->t)>j->cfg.torque*(a->bench_posvel?1.0f:1.2f)) arm_fault(a,9,i,now);
+            else if(fabsf(j->v)>j->cfg.speed*(a->routed_bench?1.0f:1.2f)) arm_fault(a,8,i,now);
+            else if(fabsf(j->t)>j->cfg.torque*(posvel(a,j)?1.0f:1.2f)) arm_fault(a,9,i,now);
             else if(j->mos>=80||j->rotor>=80) arm_fault(a,11,i,now);
         }
         return;

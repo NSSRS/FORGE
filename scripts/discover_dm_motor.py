@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
 from motors.arm import ArmBus
 
 REGISTERS = ((7, 'MST_ID'), (8, 'ESC_ID'), (9, 'TIMEOUT'), (10, 'CTRL_MODE'),
-             (21, 'PMAX'), (22, 'VMAX'), (23, 'TMAX'))
+             (21, 'PMAX'), (22, 'VMAX'), (23, 'TMAX'), (31, 'Deta'))
 
 
 def main():

@@ -221,3 +221,12 @@ together; ROS topic names are unchanged. Start a fresh terminal and rebuild
 before using the renamed packages. Source `scripts/ros2_env.sh` for the shared
 configuration and source-tree `motors` API. Native library output is now under
 `build/encos_driver/`. See [source organization](docs/SOURCE_LAYOUT.md).
+
+## Damiao arm motor tests
+
+[8009P, 4310P and full-arm test preparation](docs/DAMIAO_MOTOR_TESTS.md) provides
+individual outward/return and six-motor sequential/concurrent tests through
+`scripts/test_dm_arm.py`. CAN1 is reserved for the 8009P alone. Rebuild/flash
+matching MC02 firmware and fill the deliberately unconfirmed bench plans from
+measured hardware before execution. The previous 4340P result remains the only
+physical arm-motor validation; these new paths have software coverage.

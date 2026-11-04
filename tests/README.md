@@ -150,3 +150,13 @@ PYTHONPATH=src python3 -m unittest discover -s tests -p test_damiao_arm.py -v
 Hardware evidence and remaining model/unit tests are in
 [arm commissioning](../docs/DAMIAO_ARM.md) and the
 [description handoff](../src/robot_description/ARM_COMMISSIONING.md).
+
+### Routed P-series and six-motor bench
+
+`test_damiao_bench.py` adds an independent six-motor CAN plant, exercising the
+real C firmware with the shared host runner. Run both Damiao suites with
+`PYTHONPATH=src python3 -m unittest discover -s tests -p 'test_damiao*.py' -v`.
+Coverage includes both bus topologies, signed excursions/returns, factory reply
+ID 0, model ranges, group enable, wrong identity/mode, stalls, missing feedback,
+speed/torque/lease trips, restoration and immutable unconfirmed templates.
+See [the test guide](../docs/DAMIAO_MOTOR_TESTS.md) for physical commissioning.
