@@ -12,7 +12,8 @@ import xml.etree.ElementTree as ET
 import numpy as np
 import mujoco
 
-MODEL = Path(__file__).resolve().parent / "model"
+from simulation.paths import MODEL_DIR
+MODEL = MODEL_DIR
 
 def fmt(values):
     return " ".join(f"{v:.10g}" for v in values)
@@ -120,7 +121,7 @@ def generate(preset="curved", length=10.0, angle=60.0, width=4.0,
     temporary=MODEL/f".terrain-{preset}.xml"
     try:
         temporary.write_text(xml)
-        from forge_sim.spawn_fit import fit_spawn
+        from simulation.spawn_fit import fit_spawn
         fit_spawn(temporary)
         mujoco.MjModel.from_xml_path(str(temporary))
         temporary.replace(path)
@@ -129,7 +130,7 @@ def generate(preset="curved", length=10.0, angle=60.0, width=4.0,
     print(f"Terrain: {path.name}; radius={radius:.3f} m; {count} panels; {bump_count} bumps")
     return path
 
-if __name__=="__main__":
+def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument("preset",choices=["curved","bumpy"])
     p.add_argument("--length",type=float,default=10)
@@ -142,3 +143,7 @@ if __name__=="__main__":
     p.add_argument("--tilt",type=float,default=0)
     p.add_argument("--inward",action="store_true")
     a=p.parse_args();generate(**vars(a))
+
+
+if __name__ == "__main__":
+    main()

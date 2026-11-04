@@ -1,5 +1,7 @@
 """Measured feedback mapping, independent of graphics and motor hardware."""
 import source_paths  # source-checkout package imports
+from robot_description.paths import model_directory
+MODEL_DIR = model_directory()
 import importlib.util
 from pathlib import Path
 import sys
@@ -73,12 +75,12 @@ class MirrorTests(unittest.TestCase):
 
 
 @unittest.skipUnless(importlib.util.find_spec('mujoco') and
-                     (ROOT / 'model/scene.xml').exists(), 'requires MuJoCo and the current model')
+                     (MODEL_DIR / 'scene.xml').exists(), 'requires MuJoCo and the current model')
 class MujocoProjectionTests(unittest.TestCase):
     def test_measured_joint_projection_and_frozen_base(self):
         spec = importlib.util.spec_from_file_location('viewer_test', ROOT / 'scripts/mujoco_motor_viewer.py')
         module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
-        projection = module.Projection(ROOT / 'model/scene.xml', CONFIG)
+        projection = module.Projection(MODEL_DIR / 'scene.xml', CONFIG)
         initial = projection.data.qpos.copy()
         projection.mirror.accept(packet(), 10)
         projection.mirror.accept(packet(10.1, 101, [0., 1., 4.]), 10.1)

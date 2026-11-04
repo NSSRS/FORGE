@@ -4,12 +4,12 @@ import argparse, time, os
 import xml.etree.ElementTree as ET
 import numpy as np
 import mujoco
-from forge_sim.spawn_fit import apply_initial_arm_pose
-ROOT=Path(__file__).resolve().parent
+from simulation.spawn_fit import apply_initial_arm_pose
+from simulation.paths import MODEL_DIR
 DRIVES=['b2_arm_d1','b3_arm_d2','b4_arm_d3','b5_arm_d4','b6_arm_d5','b7_arm_d6']
 PASSIVE=['b4_1_arm_rod_d3','b4_2_arm_d3']
 def build():
-    tree=ET.parse(ROOT/'model/robot.xml'); root=tree.getroot()
+    tree=ET.parse(MODEL_DIR/'robot.xml'); root=tree.getroot()
     option=root.find('option')
     if option is None: option=ET.SubElement(root,'option')
     option.set('gravity','0 0 0'); option.set('timestep','0.001'); option.set('integrator','implicitfast')
@@ -34,7 +34,7 @@ def build():
         j=joints[name]
         limits=j.get('range','-0.5 0.5')
         ET.SubElement(actuators,'position',name=name+'_target',joint=name,kp='20',kv='2',ctrllimited='true',ctrlrange=limits)
-    path=ROOT/'model/arm_preview.xml'
+    path=MODEL_DIR/'arm_preview.xml'
     ET.indent(tree); tree.write(path,encoding='utf-8',xml_declaration=True)
     return path
 def check(m):

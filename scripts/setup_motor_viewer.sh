@@ -3,11 +3,11 @@ set -euo pipefail
 workspace_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$workspace_dir"
 if [[ $# -ne 0 ]]; then
-  echo 'Usage: setup_motor_viewer.sh (uses the current full robot in model/)' >&2
+  echo 'Usage: setup_motor_viewer.sh (uses the current full robot in src/robot_description/mujoco/)' >&2
   exit 2
 fi
-if [[ ! -f model/scene.xml || ! -f model/robot.xml || ! -d model/assets ]]; then
-  echo 'Full robot model missing; restore model/ or run the Onshape export first.' >&2
+if [[ ! -f src/robot_description/mujoco/scene.xml || ! -f src/robot_description/mujoco/robot.xml || ! -d src/robot_description/mujoco/assets ]]; then
+  echo 'Full robot model missing; restore src/robot_description/mujoco/ or run the Onshape export first.' >&2
   exit 1
 fi
 # Model files are read directly from this checkout; no historical download or copy.

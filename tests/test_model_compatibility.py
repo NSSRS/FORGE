@@ -1,25 +1,28 @@
+import source_paths  # source-checkout package imports
+from robot_description.paths import model_directory
+MODEL_DIR = model_directory()
 """Regression checks for consumers of the current arm/chassis model."""
 import importlib.util
 import unittest
 from pathlib import Path
 if any(importlib.util.find_spec(n) is None for n in ('mujoco','numpy','scipy')):
-    raise unittest.SkipTest('requires requirements-sim.txt')
+    raise unittest.SkipTest('requires src/simulation/requirements.txt')
 import json
 import numpy as np
 import mujoco
-from forge_sim.spawn_fit import reset_to_spawn
-from forge_sim.arm_closure import ArmClosure
+from simulation.spawn_fit import reset_to_spawn
+from simulation.arm_closure import ArmClosure
 ROOT=Path(__file__).resolve().parents[1]
 
 class ModelCompatibilityTests(unittest.TestCase):
     def load(self):
-        m=mujoco.MjModel.from_xml_path(str(ROOT/'model/scene.xml'))
+        m=mujoco.MjModel.from_xml_path(str(MODEL_DIR/'scene.xml'))
         d=mujoco.MjData(m);reset_to_spawn(m,d)
         return m,d
     def test_default_pose_and_closure(self):
         m,d=self.load()
         self.assertEqual((m.njnt,m.nu,m.neq),(20,10,1))
-        config=json.loads((ROOT/'model/initial_pose.json').read_text())
+        config=json.loads((MODEL_DIR/'initial_pose.json').read_text())
         self.assertEqual(set(config['joint_zero_offsets_rad']),{'b2_arm_d1'})
         for name,value in config['joint_angles_rad'].items():
             self.assertAlmostEqual(d.qpos[m.jnt_qposadr[m.joint(name).id]],value)
@@ -41,7 +44,7 @@ class ModelCompatibilityTests(unittest.TestCase):
     def test_wheel_projection_preserves_full_spawn(self):
         spec=importlib.util.spec_from_file_location('model_mirror',ROOT/'scripts/mujoco_motor_viewer.py')
         module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
-        projection=module.Projection(ROOT/'model/scene.xml',dict(wheel_motor_ids=[1,2,3,4],wheel_directions=[-1,-1,1,1],external_ratios=[1,1,1,1],bench_omit_motor_id=4))
+        projection=module.Projection(MODEL_DIR/'scene.xml',dict(wheel_motor_ids=[1,2,3,4],wheel_directions=[-1,-1,1,1],external_ratios=[1,1,1,1],bench_omit_motor_id=4))
         m,d=self.load()
         np.testing.assert_allclose(projection.data.qpos,d.qpos)
         for i,state in enumerate(projection.mirror.wheels):

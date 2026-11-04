@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>robot_description</name><version>0.1.0</version>
+  <description>Shared full-robot MJCF models and mesh assets</description>
+  <maintainer email="forge@example.invalid">FORGE developers</maintainer>
+  <license>Proprietary</license>
+  <buildtool_depend>ament_python</buildtool_depend>
+  <exec_depend>ament_index_python</exec_depend>
+  <export><build_type>ament_python</build_type></export>
+</package>

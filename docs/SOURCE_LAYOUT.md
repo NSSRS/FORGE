@@ -13,13 +13,15 @@ Native Linux is the deployment target. The ROS Python packages use ament_python:
 | seam_detection | RGB joint edge candidates and annotated/edge images; no motor output |
 | teleop | Keyboard/radio command generation; uses motor_control command helpers |
 | visualization | Read-only relay and measured-state MuJoCo display |
+| simulation | MuJoCo preview/export implementations, terrain, linkage closure and simulation controls |
+| robot_description | Shared MJCF scenes and meshes; resource lookup for simulation and visualization |
 | bringup | Shared YAML/DDS profiles, ROS launch files, four-pane session manager |
 
 The motor simulator remains with motors because it substitutes for hardware.
 Full physics simulation and the arm/chassis CAD model live in this checkout.
-The previews and motor overview read model/ directly.
+The previews and motor overview read src/robot_description/mujoco/ directly.
 The seam_detection package contains the initial image-space edge detector.
-No empty description or localization package has been created.
+robot_description contains the shared MJCF model; no localization package has been created.
 
 ## Scripts audit
 
@@ -64,7 +66,7 @@ they intentionally locate models/config relative to this workspace.
 | --- | --- |
 | `build/encos_driver/` | CMake objects, native utilities, shared libraries, and tests |
 | `build/encos_driver/_deps/soem-src/` | Pinned SOEM dependency source used by the native build |
-| `build/ros2/` | Colcon build products for the seven ROS packages |
+| `build/ros2/` | Colcon build products for the ROS packages |
 | `build/motor_viewer/` | Viewer Python environment |
 | `install/ros2/` | Installed ROS executables, resources, and environment setup |
 | `logs/` | Colcon and local run logs |
@@ -77,8 +79,8 @@ The source snapshot remains locally at `tmp/before-package-reorganization.tar.gz
 
 ## Robot descriptions and displays
 
-The full-robot MuJoCo MJCF model lives in model/ and is
-used by the previews and motor viewer. This checkout has no ROS URDF/Xacro description package.
+The full-robot MuJoCo MJCF model lives in src/robot_description/mujoco/ and is
+used by the previews and motor viewer. robot_description packages the MJCF assets; a calibrated URDF/Xacro remains unavailable.
 Robot-to-IMU and robot-to-camera mounting transforms are not implemented yet.
 The stereo camera driver supplies its internal optical transforms and image
 streams; see [camera setup](STEREO_CAM_SETUP.md). The IMU publishes sensor readings; it is not a pose estimator.
@@ -92,8 +94,23 @@ viewer uses `stereo_cam/frame_buffer.py` for bounded latest-image delivery.
 
 ## Full robot modeling
 
-`model/` contains the current arm/chassis meshes and MJCF. `forge_sim/` contains
+`src/robot_description/mujoco/` contains the current arm/chassis meshes and MJCF. `src/simulation/simulation/` contains
 geometry, D3 closure, colors, terrain fitting, magnets and simulated actuation.
-The root preview/export tools and read-only wheel overview use this model.
-The overview reads model/scene.xml directly; old build/motor_viewer/model
+The scripts/ launchers and simulation package and read-only wheel overview use this model.
+The overview reads src/robot_description/mujoco/scene.xml directly; old build/motor_viewer/model
 snapshots are unused. New arm hardware drivers/firmware are not part of this update.
+
+### Modeling package boundaries
+
+- `src/simulation/simulation/`: all preview/export implementations and simulation helpers.
+- `src/simulation/requirements.txt`: pinned simulation/export dependencies.
+- `src/robot_description/mujoco/`: shared scenes, meshes, default pose and CAD export template.
+- `src/robot_description/robot_description/paths.py`: one resource lookup for source and installed packages.
+- `scripts/`: thin launchers only, including preview_native.py, preview_sim.py, preview_arm.py, export_onshape.py, integrate_sim.py and terrain.py.
+- `tests/`: behavioral and package-layout regressions.
+
+Both packages follow the existing ament_python setup.py/package.xml/resource layout.
+Source launchers work from any current directory. Colcon installs the shared model
+under share/robot_description/mujoco. Set FORGE_MODEL_DIR to an explicit writable
+model copy when generating terrain from an installed package. CAD export/integration
+requires a source checkout; generated backups go under build/simulation/backups/.
