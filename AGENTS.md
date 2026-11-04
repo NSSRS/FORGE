@@ -8,3 +8,5 @@
 - Keep vendor file contents unchanged. Implement changes in project-owned `src/`, `tests/`, `scripts/`, or `docs/` files.
 
 - ROS packages are motor_control, imu, stereo_cam, teleop, visualization, and bringup. Shared launch/config belongs to bringup; scripts are wrappers/setup only. See docs/SOURCE_LAYOUT.md.
+
+- Full robot modeling lives in model/, forge_sim/ and the root preview/export tools. Read docs/ONSHAPE_ARM_PREVIEW.md before changing these. Preserve D3 closure and simulation/hardware coordinate separation. Validate model compatibility, motor overview, body colors, magnetic, terrain and actuator tests. Never commit .env, model/config.json or .sim-backups/.

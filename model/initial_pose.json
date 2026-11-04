@@ -1,0 +1,12 @@
+{
+  "joint_angles_rad": {
+    "b2_arm_d1": 0.0,
+    "b3_arm_d2": 0.0942,
+    "b4_arm_d3": -0.44,
+    "b6_arm_d5": -0.188
+  },
+  "description": "DOF1 zero is the aligned shoulder-to-D3-bearing pose; CAD-to-simulation zero offset retained explicitly.",
+  "joint_zero_offsets_rad": {
+    "b2_arm_d1": -0.48746289486607497
+  }
+}

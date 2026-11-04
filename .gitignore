@@ -33,3 +33,10 @@ Thumbs.db
 
 # Local graphics-driver diagnostic output.
 /MUJOCO_LOG.TXT
+
+# Local Onshape credentials and export staging.
+/.env
+/model/config.json
+/.sim-backups/
+/model/.export-*/
+/model/.cache/

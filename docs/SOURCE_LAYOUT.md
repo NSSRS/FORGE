@@ -16,8 +16,8 @@ Native Linux is the deployment target. The ROS Python packages use ament_python:
 | bringup | Shared YAML/DDS profiles, ROS launch files, four-pane session manager |
 
 The motor simulator remains with motors because it substitutes for hardware.
-Full physics simulation and source CAD/MJCF remain in the separate simulation
-checkout/branch; viewer setup downloads the pinned model into ignored build/.
+Full physics simulation and the arm/chassis CAD model live in this checkout.
+The previews and motor overview read model/ directly.
 The seam_detection package contains the initial image-space edge detector.
 No empty description or localization package has been created.
 
@@ -56,7 +56,7 @@ ROS_DOMAIN_ID=90 python3 -m unittest discover -s tests -p 'test_*.py'
 encos_driver and motors carry COLCON_IGNORE because their CMake and Python API
 builds are independent of colcon. The environment helper adds the source API
 to PYTHONPATH. The GUI pane manager and viewer wrappers are checkout tools;
-they intentionally locate model downloads/config relative to this workspace.
+they intentionally locate models/config relative to this workspace.
 
 ## Generated folders
 
@@ -65,20 +65,20 @@ they intentionally locate model downloads/config relative to this workspace.
 | `build/encos_driver/` | CMake objects, native utilities, shared libraries, and tests |
 | `build/encos_driver/_deps/soem-src/` | Pinned SOEM dependency source used by the native build |
 | `build/ros2/` | Colcon build products for the seven ROS packages |
-| `build/motor_viewer/` | Downloaded MuJoCo model and viewer Python environment |
+| `build/motor_viewer/` | Viewer Python environment |
 | `install/ros2/` | Installed ROS executables, resources, and environment setup |
 | `logs/` | Colcon and local run logs |
 
 These are ignored generated assets, not additional source packages. Keep the
-viewer model/environment and SOEM dependency for offline reuse. Deleting them
+viewer environment and SOEM dependency for offline reuse. Deleting them
 requires rerunning their setup/build helpers and may require downloads.
 The old encos_query build and before-rename ROS build/install folders were removed.
 The source snapshot remains locally at `tmp/before-package-reorganization.tar.gz`.
 
 ## Robot descriptions and displays
 
-The existing MuJoCo MJCF model comes from the pinned simulation branch and is
-used by the motor viewer. This checkout has no ROS URDF/Xacro description package.
+The full-robot MuJoCo MJCF model lives in model/ and is
+used by the previews and motor viewer. This checkout has no ROS URDF/Xacro description package.
 Robot-to-IMU and robot-to-camera mounting transforms are not implemented yet.
 The stereo camera driver supplies its internal optical transforms and image
 streams; see [camera setup](STEREO_CAM_SETUP.md). The IMU publishes sensor readings; it is not a pose estimator.
@@ -89,3 +89,11 @@ Camera defaults are RGB-only 1280x800/30 FPS, with optional 60 FPS streams.
 Camera-only wrappers source `scripts/camera_env.sh` to select bringup's installed
 `fastdds-camera-shm.xml`; combined motor transport remains unchanged. The image
 viewer uses `stereo_cam/frame_buffer.py` for bounded latest-image delivery.
+
+## Full robot modeling
+
+`model/` contains the current arm/chassis meshes and MJCF. `forge_sim/` contains
+geometry, D3 closure, colors, terrain fitting, magnets and simulated actuation.
+The root preview/export tools and read-only wheel overview use this model.
+The overview reads model/scene.xml directly; old build/motor_viewer/model
+snapshots are unused. New arm hardware drivers/firmware are not part of this update.

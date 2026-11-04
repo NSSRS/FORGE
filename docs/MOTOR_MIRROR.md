@@ -7,8 +7,8 @@ simulated motors. See [full-system setup](FULL_SYSTEM_TEST.md) for saved ports,
 limits, viewer behavior, and the RGB-only 30 FPS default and camera-only shared-memory transport.
 
 This read-only viewer projects `/joint_states` encoder measurements onto the
-existing `forge_sim` CAD wheel joints. MuJoCo is used because that branch already
-provides MJCF and meshes; no Gazebo model conversion is required.
+stable wheel_1 through wheel_4 CAD joints in the current full chassis/arm model.
+The default scene is model/scene.xml in this checkout.
 
 ```text
 hardware driver -> /joint_states -> read-only ROS relay -> loopback UDP -> MuJoCo
@@ -106,7 +106,8 @@ as the driver and only one `/joint_states` source.
 - Mouse orbit and zoom work. The viewer has no W/S/A/D motor control; keep focus
   on the existing teleop terminal to drive.
 
-The chassis, suspension and passive wheels retain the initial model pose.
+The chassis, suspension, arm and passive wheels retain the saved terrain_spawn
+keyframe when present, otherwise the model reference pose.
 No measured chassis pose, ground motion, contact simulation, torque/current or
 temperature is claimed: `/joint_states` currently contains motor positions and
 velocities only. Wheel encoders do not measure wall slip or global robot motion.
@@ -136,10 +137,9 @@ colcon --log-base logs/colcon build --base-paths src \
   --build-base build/ros2 --install-base install/ros2 --symlink-install
 ```
 
-The helper extracts only `model/` from `forge_sim` commit
-`7aa258d7105f1c088bb059556a06899433d30cab` into ignored `build/motor_viewer/` and
-installs that branch's pinned MuJoCo 3.13.0 in a local virtual environment. It
-does not switch branches or download Onshape credentials/exporter dependencies.
+The helper installs MuJoCo 3.13.0 in build/motor_viewer/venv.
+It reads the full robot directly from model/; it does not fetch historical
+branches, copy models, or download Onshape credentials/exporter dependencies.
 The system PyYAML comes from the existing ROS environment. A desktop OpenGL
 session is needed for the interactive window.
 
@@ -156,3 +156,15 @@ The tests cover named mapping, direction/ratio conversion, omitted/missing
 motors, malformed/replayed/stale packets, restart baselines, actual MuJoCo joint
 projection with a fixed base, and real ROS-to-loopback delivery of synthetic
 feedback. They do not command hardware. Use an isolated ROS domain for tests.
+
+
+## Select the current nathan model
+
+The full robot is now the default, with no snapshot setup option. Existing
+build/motor_viewer/model snapshots are ignored. Restart the viewer after CAD
+exports. To explicitly select a scene, pass
+`--scene /home/ns_wsl/forge_ws/FORGE-nathan/model/scene.xml`
+to run_motor_viewer.sh after setting up its environment.
+The four wheel names/signs remain compatible. Arm joints are frozen at the saved
+default pose, not driven by Damiao feedback. Do not use this viewer as the full
+physics simulator or as evidence of arm hardware mapping.

@@ -1,0 +1,20 @@
+{
+  "b1_main_frame": "body",
+  "b2_suspension_left_1": "suspension_1",
+  "b2_suspension_right_2": "suspension_2",
+  "b2_suspension_front_3": "suspension_3",
+  "b3_freedrive_5": "freedrive_1",
+  "b3_freedrive_6": "freedrive_2",
+  "b3_wheel_1": "wheel_1",
+  "b3_wheel_2": "wheel_2",
+  "b3_wheel_3": "wheel_3",
+  "b3_wheel_4": "wheel_4",
+  "b4_wheel_5": "wheel_5",
+  "b4_wheel_6": "wheel_6",
+  "l2_wheel_linkage_1": "linkage_wheel_1",
+  "l2_wheel_linkage_2": "linkage_wheel_2",
+  "l2_wheel_linkage_3": "linkage_wheel_3",
+  "l2_wheel_linkage_4": "linkage_wheel_4",
+  "l3_wheel_linkage_5": "linkage_wheel_5",
+  "l3_wheel_linkage_6": "linkage_wheel_6"
+}

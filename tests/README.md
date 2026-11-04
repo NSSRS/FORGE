@@ -96,3 +96,11 @@ ROS_DOMAIN_ID=91 python3 -m unittest discover -s tests -p 'test_seam_edges*.py' 
 The ROS test requires the installed `seam_detection` package. It starts only the
 detector and synthetic publisher, never camera acquisition or motor control.
 These tests do not establish real-weld recognition or millimeter accuracy.
+
+## Full-robot modeling compatibility
+
+With requirements-sim.txt installed, run model_compatibility, motor_overview_models,
+body_colors, magnetic, terrain, velocity_control and motor_mirror test modules.
+The overview test uses synthetic named feedback across flat, curved and bumpy
+full-robot scenes; it verifies status overlays and frozen arm/base coordinates.
+No motor hardware or ROS runtime is needed for those tests.
