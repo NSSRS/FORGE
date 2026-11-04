@@ -85,7 +85,7 @@ def setup(context):
         raise ValueError('motor_viewer_port must be 1024-65535')
     if options['show_motor_model']:
         if not (workspace / 'build/motor_viewer/venv/bin/python').is_file() or not (
-                workspace / 'build/motor_viewer/model/scene.xml').is_file():
+                workspace / 'model/scene.xml').is_file():
             raise ValueError('Run scripts/setup_motor_viewer.sh before enabling show_motor_model')
     actions = []
     if options['use_camera']:

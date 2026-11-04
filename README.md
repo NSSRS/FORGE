@@ -129,7 +129,7 @@ the combined motor launch retains its existing transport settings.
 ## Live motor visualization
 
 [Mirror measured motor movement in MuJoCo](docs/MOTOR_MIRROR.md) using the
-`forge_sim` CAD model and a read-only `/joint_states` relay. The current
+full robot in `model/` and a read-only `/joint_states` relay. The current
 three-motor profile marks motor 4 absent and preserves its model for later.
 
 ## Existing bench utilities
@@ -167,3 +167,22 @@ together; ROS topic names are unchanged. Start a fresh terminal and rebuild
 before using the renamed packages. Source `scripts/ros2_env.sh` for the shared
 configuration and source-tree `motors` API. Native library output is now under
 `build/encos_driver/`. See [source organization](docs/SOURCE_LAYOUT.md).
+
+## Full robot model and previews
+
+The arm-equipped chassis model now lives in `model/`. Install the simulation
+dependencies with `python3 -m pip install -r requirements-sim.txt`, then run:
+
+```bash
+python3 preview_native.py   # Static joint posing with D3 linkage closure
+python3 preview_sim.py      # Physics and terrain preview
+```
+
+The read-only motor overview uses this same model by default. Run
+`bash scripts/setup_motor_viewer.sh` once for its environment; no historical
+model fetch or snapshot option is needed. It maps measured wheel feedback while
+keeping the arm at its saved default pose. Muted body colors distinguish moving
+links; driven-wheel status colors still indicate live/stale/missing feedback.
+
+See [model setup, color legend and limitations](docs/ONSHAPE_ARM_PREVIEW.md).
+This update adds simulation and visualization, not new arm motor-control code.

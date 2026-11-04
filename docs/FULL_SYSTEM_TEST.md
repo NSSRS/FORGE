@@ -211,3 +211,9 @@ with physical motor teleop. Video reception still needs optimization: four
 60 FPS camera streams produced repeated RTP packet-sequence warnings; the
 RGB-only camera backend subsequently reported approximately 60 FPS. This is
 not a measurement of end-to-end display latency.
+
+## Full-robot motor overview
+
+The model pane uses model/scene.xml directly. Run scripts/setup_motor_viewer.sh
+for its Python environment. Only measured wheel feedback is projected; the arm
+and suspension preserve the saved scene pose. See ONSHAPE_ARM_PREVIEW.md.

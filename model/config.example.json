@@ -1,0 +1,10 @@
+{
+  "url": "https://cad.onshape.com/documents/YOUR_DOCUMENT_ID/w/YOUR_WORKSPACE_ID/e/YOUR_ASSEMBLY_ELEMENT_ID",
+  "output_format": "mujoco",
+  "output_filename": "robot",
+  "assets_directory": "assets",
+  "robot_name": "forge",
+  "joint_properties": {
+    "*": {"actuated": false}
+  }
+}

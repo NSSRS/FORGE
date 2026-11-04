@@ -1,0 +1,25 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mujoco model="forge_preview">
+  <include file="robot.xml" />
+  <option timestep="0.002" gravity="0 0 -9.81" integrator="implicitfast" />
+  <asset>
+    <texture name="bright_background" type="skybox" builtin="gradient" rgb1="0.72 0.80 0.90" rgb2="0.93 0.95 0.98" width="512" height="3072" />
+  </asset>
+  <visual>
+    <headlight diffuse="0.7 0.7 0.7" ambient="0.5 0.5 0.5" specular="0.2 0.2 0.2" />
+    <rgba haze="0.75 0.80 0.86 1" />
+  </visual>
+  <custom>
+    <text name="magnetic_bodies" data="linkage_wheel_1 linkage_wheel_2 linkage_wheel_3 linkage_wheel_4 linkage_wheel_5 linkage_wheel_6" />
+    <text name="magnetic_surface" data="steel_wall" />
+    <numeric name="magnetic_parameters" data="100 0.02 0.002" />
+  </custom>
+  <worldbody>
+    <geom name="steel_wall" type="box" pos="0 -0.8 2" size="2 0.01 2" rgba="0.45 0.52 0.60 1" contype="1" conaffinity="1" friction="1 0.005 0.0001" />
+    <light name="preview_light" pos="1 -1 3" dir="-1 1 -3" />
+    <geom name="preview_floor" type="plane" size="0 0 0.05" rgba="0.60 0.64 0.69 1" />
+  </worldbody>
+  <keyframe>
+    <key name="terrain_spawn" qpos="-0.00750001559599 -0.697819882683 1.89563457419 0.999998794297 0.00153710391958 1.83267317434e-05 -0.0002199531969 0.0106823036603 0 0 0.0641490773636 0 0 -0.087102420237 -5.05118309193e-05 0 2.30745796472e-06 0 0 0.0942 -0.44 0.943203760915 0.136666281074 -0.210052705567 -0.218098266606 -0.439626331534 0 -0.188 0" ctrl="0 0 0 0 0 0.0942 -0.44 0 -0.188 0" />
+  </keyframe>
+</mujoco>
