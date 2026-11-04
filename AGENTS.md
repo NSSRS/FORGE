@@ -9,4 +9,4 @@
 
 - ROS packages are motor_control, imu, stereo_cam, teleop, visualization, and bringup. Shared launch/config belongs to bringup; scripts are wrappers/setup only. See docs/SOURCE_LAYOUT.md.
 
-- Full robot modeling lives in model/, forge_sim/ and the root preview/export tools. Read docs/ONSHAPE_ARM_PREVIEW.md before changing these. Preserve D3 closure and simulation/hardware coordinate separation. Validate model compatibility, motor overview, body colors, magnetic, terrain and actuator tests. Never commit .env, model/config.json or .sim-backups/.
+- Modeling follows the same source layout as other packages: reusable code in src/simulation/simulation/, shared MJCF/mesh assets in src/robot_description/mujoco/, and thin launchers/setup in scripts/. Do not add root Python entry points or top-level simulation/model directories. Read docs/ONSHAPE_ARM_PREVIEW.md before changing models; preserve D3 closure and simulation/hardware coordinate separation. Validate package layout, model compatibility, motor overview, body colors, magnetic, terrain and actuator tests. Never commit src/simulation/.env, src/robot_description/mujoco/config.json or generated backups.

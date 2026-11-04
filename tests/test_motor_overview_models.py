@@ -5,9 +5,11 @@ import sys
 import unittest
 
 import source_paths  # source-checkout imports; no ROS/hardware connection
+from robot_description.paths import model_directory
+MODEL_DIR = model_directory()
 
 if any(importlib.util.find_spec(n) is None for n in ('mujoco', 'numpy')):
-    raise unittest.SkipTest('requires requirements-sim.txt')
+    raise unittest.SkipTest('requires src/simulation/requirements.txt')
 import mujoco
 import numpy as np
 from visualization.mujoco_motor_viewer import Projection
@@ -27,7 +29,7 @@ class MotorOverviewModelTests(unittest.TestCase):
     def test_all_full_robot_scenes_preserve_pose_and_show_mapped_status(self):
         for scene_file in SCENES:
             with self.subTest(scene=scene_file):
-                p = Projection(ROOT / 'model' / scene_file, CONFIG)
+                p = Projection(MODEL_DIR / scene_file, CONFIG)
                 m, d = p.model, p.data
                 self.assertEqual((m.njnt, m.nu, m.neq), (20, 10, 1))
                 spawn = m.key('terrain_spawn').id
@@ -74,7 +76,7 @@ class MotorOverviewModelTests(unittest.TestCase):
                 self.assertLess(np.linalg.norm(d.site_xpos[a]-d.site_xpos[b]), 1e-6)
 
     def test_four_motor_overview_including_compact_layouts(self):
-        p = Projection(ROOT / 'model/scene.xml', dict(CONFIG, bench_omit_motor_id=0))
+        p = Projection(MODEL_DIR / 'scene.xml', dict(CONFIG, bench_omit_motor_id=0))
         p.mirror.accept(sample(10., 1,
             ['motor_4_output', 'motor_9_output', 'motor_2_output', 'motor_7_output'],
             [4., 3., 2., 1.], [1., 1., 1., 1.]), 10.)

@@ -1,16 +1,17 @@
+import source_paths  # source-checkout package imports
 import importlib.util
 import unittest
 if any(importlib.util.find_spec(name) is None for name in ('mujoco','numpy','scipy')):
-    raise unittest.SkipTest('requires simulation environment: pip install -r requirements-sim.txt')
+    raise unittest.SkipTest('requires simulation environment: pip install -r src/simulation/requirements.txt')
 import unittest
 from pathlib import Path
 import tempfile
 import xml.etree.ElementTree as ET
 import numpy as np
 import mujoco
-from terrain import generate, MODEL
-from forge_sim.magnetic import MagneticAttraction
-from forge_sim.spawn_fit import reset_to_spawn
+from simulation.terrain import generate, MODEL
+from simulation.magnetic import MagneticAttraction
+from simulation.spawn_fit import reset_to_spawn
 
 class TerrainTests(unittest.TestCase):
     def test_presets_preserve_robot_and_spawn_without_overlap(self):
@@ -56,7 +57,7 @@ if __name__=="__main__":unittest.main()
 
 class MenuTests(unittest.TestCase):
     def test_mouse_controls_and_bounds(self):
-        from forge_sim.terrain_menu import TerrainMenu
+        from simulation.terrain_menu import TerrainMenu
         menu=TerrainMenu(preset="flat",length=10.,angle=30.,width=4.,
                          bump_diameter=.1,bump_height=.005,tilt=0.,inward=False)
         left,width,row,top=menu.layout(1280,900)

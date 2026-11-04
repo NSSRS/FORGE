@@ -40,3 +40,13 @@ Thumbs.db
 /.sim-backups/
 /model/.export-*/
 /model/.cache/
+
+# Package-local model/export configuration.
+/src/simulation/.env
+/src/robot_description/mujoco/config.json
+/src/robot_description/mujoco/.export-*/
+/src/robot_description/mujoco/.cache/
+
+# Local Python package build products.
+/src/simulation/build/
+/src/robot_description/build/

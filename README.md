@@ -129,7 +129,7 @@ the combined motor launch retains its existing transport settings.
 ## Live motor visualization
 
 [Mirror measured motor movement in MuJoCo](docs/MOTOR_MIRROR.md) using the
-full robot in `model/` and a read-only `/joint_states` relay. The current
+full robot in `src/robot_description/mujoco/` and a read-only `/joint_states` relay. The current
 three-motor profile marks motor 4 absent and preserves its model for later.
 
 ## Existing bench utilities
@@ -170,12 +170,12 @@ configuration and source-tree `motors` API. Native library output is now under
 
 ## Full robot model and previews
 
-The arm-equipped chassis model now lives in `model/`. Install the simulation
-dependencies with `python3 -m pip install -r requirements-sim.txt`, then run:
+The arm-equipped chassis model now lives in `src/robot_description/mujoco/`. Install the simulation
+dependencies with `python3 -m pip install -r src/simulation/requirements.txt`, then run:
 
 ```bash
-python3 preview_native.py   # Static joint posing with D3 linkage closure
-python3 preview_sim.py      # Physics and terrain preview
+python3 scripts/preview_native.py   # Static joint posing with D3 linkage closure
+python3 scripts/preview_sim.py      # Physics and terrain preview
 ```
 
 The read-only motor overview uses this same model by default. Run

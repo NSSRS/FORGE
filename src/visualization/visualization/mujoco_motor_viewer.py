@@ -12,6 +12,7 @@ import time
 WORKSPACE = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(WORKSPACE / 'src/motor_control'))
 from visualization.motor_mirror import MotorMirror
+from robot_description.paths import model_directory
 
 
 class Projection:
@@ -111,7 +112,7 @@ def viewport_fit(width, height):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--scene', type=Path, default=WORKSPACE / 'model/scene.xml')
+    parser.add_argument('--scene', type=Path, default=model_directory() / 'scene.xml')
     parser.add_argument('--config', type=Path, default=WORKSPACE / 'src/bringup/config/chassis_bench.yaml')
     parser.add_argument('--width', type=int, default=960, help='Snapshot width')
     parser.add_argument('--height', type=int, default=720, help='Snapshot height')

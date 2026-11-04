@@ -1,12 +1,15 @@
+import source_paths  # source-checkout package imports
+from robot_description.paths import model_directory
+MODEL_DIR = model_directory()
 import importlib.util
 import unittest
 if any(importlib.util.find_spec(name) is None for name in ('mujoco','numpy','scipy')):
-    raise unittest.SkipTest('requires simulation environment: pip install -r requirements-sim.txt')
+    raise unittest.SkipTest('requires simulation environment: pip install -r src/simulation/requirements.txt')
 import unittest
-from forge_sim.spawn_fit import reset_to_spawn
+from simulation.spawn_fit import reset_to_spawn
 import mujoco
 import numpy as np
-from forge_sim.magnetic import MagneticAttraction
+from simulation.magnetic import MagneticAttraction
 
 class MagneticTests(unittest.TestCase):
     def fixture(self, x):
@@ -47,7 +50,7 @@ class MagneticTests(unittest.TestCase):
 class WallSpawnTests(unittest.TestCase):
     def test_scene_spawns_six_magnets_near_wall_with_free_base(self):
         from pathlib import Path
-        m = mujoco.MjModel.from_xml_path(str(Path(__file__).resolve().parents[1] / "model/scene.xml"))
+        m = mujoco.MjModel.from_xml_path(str(MODEL_DIR / "scene.xml"))
         d = mujoco.MjData(m)
         reset_to_spawn(m, d)
         a = MagneticAttraction(m)
@@ -67,9 +70,9 @@ if __name__ == '__main__':
 class MagneticBroadPhaseTests(unittest.TestCase):
     def test_matches_exhaustive_surface_search(self):
         from pathlib import Path
-        from forge_sim.spawn_fit import reset_to_spawn
+        from simulation.spawn_fit import reset_to_spawn
         for scene in ("scene.xml", "scene_curved.xml", "scene_bumpy.xml"):
-            path = Path(__file__).resolve().parents[1] / "model" / scene
+            path = MODEL_DIR / scene
             m = mujoco.MjModel.from_xml_path(str(path))
             d = mujoco.MjData(m)
             reset_to_spawn(m, d)

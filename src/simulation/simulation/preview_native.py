@@ -6,17 +6,17 @@ import time
 import platform
 import threading
 
-ROOT=Path(__file__).resolve().parent
+from simulation.paths import MODEL_DIR
 def load_scene(path):
     import mujoco
-    from forge_sim.spawn_fit import reset_to_spawn
+    from simulation.spawn_fit import reset_to_spawn
     model=mujoco.MjModel.from_xml_path(str(path))
     data=mujoco.MjData(model)
     reset_to_spawn(model,data)
     return model,data
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--scene',type=Path,default=ROOT/'model/scene.xml')
+    parser.add_argument('--scene',type=Path,default=MODEL_DIR/'scene.xml')
     parser.add_argument('--check',action='store_true')
     parser.add_argument('--seconds',type=float)
     parser.add_argument('--renderer',choices=('auto','gpu','software'),default='auto',
@@ -41,7 +41,7 @@ def main():
     import mujoco
     from mujoco import viewer
     import numpy as np
-    from forge_sim.spawn_fit import reset_to_spawn
+    from simulation.spawn_fit import reset_to_spawn
     model,data=load_scene(args.scene.resolve())
     # Start on the opposite side; retain the existing elevation and framing.
     model.vis.global_.azimuth=(model.vis.global_.azimuth+180.0)%360.0
@@ -60,7 +60,7 @@ def main():
             return
         m,d=result
         print("Loaded "+str(args.scene.resolve())+"; initial DOF1 = "+str(round(float(np.degrees(d.qpos[m.jnt_qposadr[m.joint("b2_arm_d1").id]])),6))+" degrees",flush=True)
-        from forge_sim.arm_closure import ArmClosure
+        from simulation.arm_closure import ArmClosure
         closure=ArmClosure(m,d)
         start=time.monotonic()
         print('STATIC VIEWER: press Space once (Simulation > Pause) to enable Joint sliders. No physics runs in either UI mode.',flush=True)

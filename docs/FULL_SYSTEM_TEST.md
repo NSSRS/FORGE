@@ -214,6 +214,6 @@ not a measurement of end-to-end display latency.
 
 ## Full-robot motor overview
 
-The model pane uses model/scene.xml directly. Run scripts/setup_motor_viewer.sh
+The model pane uses src/robot_description/mujoco/scene.xml directly. Run scripts/setup_motor_viewer.sh
 for its Python environment. Only measured wheel feedback is projected; the arm
 and suspension preserve the saved scene pose. See ONSHAPE_ARM_PREVIEW.md.

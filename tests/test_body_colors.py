@@ -1,9 +1,12 @@
+import source_paths  # source-checkout package imports
+from robot_description.paths import model_directory
+MODEL_DIR = model_directory()
 """Visual identity must not change the full robot's physics or closure."""
 import copy
 from pathlib import Path
 import unittest
 import xml.etree.ElementTree as ET
-from forge_sim.body_colors import BODY_COLORS, apply_body_colors, rgba
+from simulation.body_colors import BODY_COLORS, apply_body_colors, rgba
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -11,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 class BodyColorTests(unittest.TestCase):
     def test_palette_covers_all_visual_bodies_and_is_stable(self):
         for filename in ('robot.xml', 'arm_preview.xml'):
-            root = ET.parse(ROOT / 'model' / filename).getroot()
+            root = ET.parse(MODEL_DIR / filename).getroot()
             bodies = [b for b in root.findall('.//worldbody//body')
                       if any(g.get('group') == '2' for g in b.findall('geom'))]
             self.assertEqual({b.get('name') for b in bodies}, set(BODY_COLORS))
@@ -31,7 +34,7 @@ class BodyColorTests(unittest.TestCase):
             self.assertEqual(ET.tostring(root), before)
 
     def test_only_visuals_and_visual_materials_change(self):
-        root = ET.parse(ROOT / 'model/robot.xml').getroot()
+        root = ET.parse(MODEL_DIR / 'robot.xml').getroot()
         def physical_xml(tree):
             tree = copy.deepcopy(tree)
             asset = tree.find('asset')
