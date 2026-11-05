@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Build MC02 USB CDC + three classic-CAN buses. Never flashes hardware."""
 import argparse
+import hashlib
 from pathlib import Path
 import shutil
 import subprocess
@@ -51,6 +52,16 @@ def main():
     if newlib.exists():
         flags += ['-B'+str(newlib)+'/', '-I'+str(prefix/'include/newlib')]
     inc = ['-I'+str(p) for p in includes]
+    # Fingerprint the actual compiled inputs, not just the Git commit (checkout
+    # may be dirty). Diagnostic identity only, not firmware authentication.
+    digest=hashlib.sha256()
+    inputs=set(sources) | set(FW.rglob('*.h')) | set(SDK.rglob('*.h')) | {Path(__file__).resolve()}
+    for path in sorted(inputs):
+        digest.update(str(path.relative_to(ROOT)).encode()+b'\0'+path.read_bytes())
+    digest.update(' '.join(flags).encode())
+    build_id=int.from_bytes(digest.digest()[:4],'big')
+    flags.append(f'-DFORGE_BUILD_ID=0x{build_id:08x}u')
+    (BUILD/'build-id.txt').write_text(f'{build_id:08x}\n')
     objects=[]
     for index, source in enumerate(sources):
         obj=BUILD/f'{index}_{source.stem}.o'; objects.append(obj)

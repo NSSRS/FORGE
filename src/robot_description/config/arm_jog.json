@@ -1,0 +1,131 @@
+{
+  "fixture_confirmed": false,
+  "sequence": "Interactive single-joint step jog; no automatic sweep",
+  "current_protection_verified": false,
+  "timing_note": "Keyboard defaults: 5 degree steps at 45 deg/s; positions remain within +/-90 degrees of session start by default.",
+  "limits_basis": "User-requested unloaded free-shaft 180-degree out-and-back; runner requires start/target plus 0.05 rad within the protocol position bounds.",
+  "motors": [
+    {
+      "unit": "A1",
+      "model": "8009P",
+      "bus": 1,
+      "can_id": 1,
+      "feedback_id": 17,
+      "identity_confirmed": true,
+      "individual_test_passed": true,
+      "ranges": {
+        "pmax": 12.5,
+        "vmax": 45,
+        "tmax": 54
+      },
+      "lower_rad": -12.5,
+      "upper_rad": 12.5,
+      "speed_rad_s": 0.7853981633974483,
+      "speed_trip_rad_s": 10.471975511965978,
+      "torque_trip_nm": 20,
+      "delta_degrees": 180
+    },
+    {
+      "unit": "A2",
+      "model": "4340P",
+      "bus": 2,
+      "can_id": 2,
+      "feedback_id": 18,
+      "identity_confirmed": true,
+      "individual_test_passed": true,
+      "ranges": {
+        "pmax": 12.5,
+        "vmax": 10,
+        "tmax": 28
+      },
+      "lower_rad": -12.5,
+      "upper_rad": 12.5,
+      "speed_rad_s": 0.7853981633974483,
+      "speed_trip_rad_s": 1.5,
+      "torque_trip_nm": 3,
+      "delta_degrees": 180
+    },
+    {
+      "unit": "A3",
+      "model": "4340P",
+      "bus": 2,
+      "can_id": 3,
+      "feedback_id": 19,
+      "identity_confirmed": true,
+      "individual_test_passed": false,
+      "ranges": {
+        "pmax": 12.5,
+        "vmax": 10,
+        "tmax": 28
+      },
+      "lower_rad": -12.5,
+      "upper_rad": 12.5,
+      "speed_rad_s": 0.7853981633974483,
+      "speed_trip_rad_s": 1.5,
+      "torque_trip_nm": 3,
+      "delta_degrees": 180
+    },
+    {
+      "unit": "A4",
+      "model": "4310P",
+      "bus": 2,
+      "can_id": 4,
+      "feedback_id": 20,
+      "identity_confirmed": true,
+      "individual_test_passed": true,
+      "ranges": {
+        "pmax": 12.5,
+        "vmax": 30,
+        "tmax": 10
+      },
+      "lower_rad": -12.5,
+      "upper_rad": 12.5,
+      "speed_rad_s": 0.7853981633974483,
+      "speed_trip_rad_s": 12.56637061435917,
+      "torque_trip_nm": 3.5,
+      "delta_degrees": 180
+    },
+    {
+      "unit": "A5",
+      "model": "4310P",
+      "bus": 2,
+      "can_id": 5,
+      "feedback_id": 21,
+      "identity_confirmed": true,
+      "individual_test_passed": false,
+      "ranges": {
+        "pmax": 12.5,
+        "vmax": 30,
+        "tmax": 10
+      },
+      "lower_rad": -12.5,
+      "upper_rad": 12.5,
+      "speed_rad_s": 0.7853981633974483,
+      "speed_trip_rad_s": 12.56637061435917,
+      "torque_trip_nm": 3.5,
+      "delta_degrees": 180
+    },
+    {
+      "unit": "A6",
+      "model": "4310P",
+      "bus": 2,
+      "can_id": 6,
+      "feedback_id": 22,
+      "identity_confirmed": true,
+      "individual_test_passed": false,
+      "ranges": {
+        "pmax": 12.5,
+        "vmax": 30,
+        "tmax": 10
+      },
+      "lower_rad": -12.5,
+      "upper_rad": 12.5,
+      "speed_rad_s": 0.7853981633974483,
+      "speed_trip_rad_s": 12.56637061435917,
+      "torque_trip_nm": 3.5,
+      "delta_degrees": 180
+    }
+  ],
+  "4340p_guard_basis": "1.5 rad/s reactive feedback stop for unloaded testing; three times the prior 0.5 rad/s bench limit, not a manufacturer rating. Torque stop remains 3 Nm.",
+  "test_scope": "Unloaded free-shaft position API validation. Production joint calibration and gravity support are not established."
+}

@@ -1,9 +1,23 @@
 # Damiao arm commissioning
 
-**2026-11-04 software update:** [individual 8009P/4310P/4340P and six-motor
-test guide](DAMIAO_MOTOR_TESTS.md) adds routed position-velocity bench tests.
-8009P remains alone on CAN1. These new paths have software verification only;
-the 4340P hardware evidence below remains the physical commissioning baseline.
+## Current status — 2026-11-05
+
+All six IDs were written and read back: A1..A6 command IDs 1..6, feedback
+IDs 17..22; A1 is on CAN1, A2..A6 on CAN2. A1 power-cycle persistence is
+verified; A2..A6 post-power-cycle readback remains pending.
+The saved `build/arm_tests/all-six-motion-result.json` passes all 14 stages
+(group outward/return, then each motor outward/return), with disable and mode
+restoration verified. The operator reported the later 180° test worked;
+the currently saved 180° report is interrupted, so it is not full-run evidence.
+These are unloaded shaft checks, not joint calibration or loaded-arm validation.
+
+The [position API and PyQt window](ARM_POSITION_JOG.md) support A1..A6 selection,
+E once per selection, held arrows at 45°/s and release-to-stop; default window
+is ±90° from startup. Focus loss, selection changes and explicit stop disarm.
+59 Python tests, including native-backed firmware and Qt events, pass; physical
+window jogging remains unverified. Existing 180° firmware supports this window
+without a new flash. The separate cached-telemetry firmware is built and tested
+but still awaits deployment and bus qualification. See [cross-layer TODOs](ARM_LAYER_TODOS.md).
 
 ENCOS motors are chassis actuators. Damiao motors are arm actuators on a
 separate DM-MC02 controller: Python on the NUC → USB CDC → C11 firmware on
@@ -314,3 +328,20 @@ slot before the first enable transmission. Mode/timeout writes invalidate old
 commands and verification; enable requires a fresh probe. Fault cleanup can
 restore mode only after stationary disable; the fault latch remains set. Legacy
 fixed 4340P commands remain supported and cannot replace a routed session.
+
+### Disabled-only ID commissioning extension (2026-11-05)
+
+Capability 0x400 adds USB type 20 for a separate ID-only session. The total
+HELLO mask is 0x78f. See [physical DOF assignments and procedure](ARM_MOTOR_IDS.md).
+Only one configured motor is permitted, with fresh stationary disabled
+feedback. Begin locks motion and ordinary configuration/mode/timeout writes
+until MCU reset. Operations are begin (0), MST_ID (7), ESC_ID (8), save (0xAA).
+The save CAN payload is ID-low, ID-high, 0xAA, 0x01, per the P-series manuals;
+both four-byte and padded eight-byte save replies are accepted. The MCU
+requires independent readback of both paired IDs before saving. Faults remain
+latched; no automatic enable or fault clear is implemented. ID assignment
+requires physical bus isolation and separate power-cycle verification.
+
+## Base-layer / upper-layer handoff
+
+Read [base contract](ARM_BASE_LAYER.md) and [cross-layer TODOs](ARM_LAYER_TODOS.md) and local package TODO.md before extending control. Cached telemetry avoids additional CAN polling. Production ROS mode, calibration, current protection and loaded stopping remain separate acceptance tasks.

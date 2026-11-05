@@ -168,3 +168,12 @@ body_colors, magnetic, terrain, velocity_control and motor_mirror test modules.
 The overview test uses synthetic named feedback across flat, curved and bumpy
 full-robot scenes; it verifies status overlays and frozen arm/base coordinates.
 No motor hardware or ROS runtime is needed for those tests.
+
+### Arm desktop jogging and cached telemetry (2026-11-05)
+
+The Damiao discovery command above now runs 59 tests, including Qt offscreen
+press/release, auto-repeat, focus-loss and UI-stall tests, plus native-backed
+position-port release/re-arm semantics and cached telemetry/lease checks.
+Install `python3-pyqt5` for GUI tests. Hardware jogging, telemetry deployment,
+physical fault injection and bus timing remain separate acceptance work;
+see [cross-layer registry](../docs/ARM_LAYER_TODOS.md).

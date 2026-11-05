@@ -85,13 +85,32 @@ void forge_poll(void) {
     if(overflow) { arm_fault(&arm,12,255,now); tail=head; wire.used=0; overflow=false; }
     for(unsigned i=0;i<3;i++) {
         FDCAN_ProtocolStatusTypeDef status;
-        if(HAL_FDCAN_GetProtocolStatus(&can[i],&status)!=HAL_OK || status.BusOff) { arm_fault(&arm,13,255,now); }
+        arm_bus_health *health=&arm.health[i];
+        uint32_t flags=health->status_flags & 16u; /* sticky RX FIFO loss */
+        if(HAL_FDCAN_GetProtocolStatus(&can[i],&status)!=HAL_OK) {
+            flags |= 8u; arm_fault(&arm,13,255,now);
+        } else {
+            if(status.BusOff) {
+                if(!(health->status_flags & 1u)) health->bus_off_events++;
+                flags |= 1u; arm_fault(&arm,13,255,now);
+            }
+            if(status.ErrorPassive) flags |= 2u;
+            if(status.Warning) flags |= 4u;
+            flags |= (status.LastErrorCode & 7u)<<8;
+        }
+        if(can[i].Instance->IR & FDCAN_IR_RF0L) flags |= 16u;
+        health->status_flags=flags;
+        FDCAN_ErrorCountersTypeDef errors;
+        if(HAL_FDCAN_GetErrorCounters(&can[i],&errors)==HAL_OK) {
+            health->tx_error_count=errors.TxErrorCnt; health->rx_error_count=errors.RxErrorCnt;
+        } else health->status_flags |= 8u;
         /* Bounded drain so receive flooding cannot starve the command watchdog. */
         for(unsigned n=0;n<24 && HAL_FDCAN_GetRxFifoFillLevel(&can[i],FDCAN_RX_FIFO0);n++) {
             FDCAN_RxHeaderTypeDef h; uint8_t d[8];
             if(HAL_FDCAN_GetRxMessage(&can[i],FDCAN_RX_FIFO0,&h,d)!=HAL_OK) break;
-            if(h.IdType==FDCAN_STANDARD_ID && h.RxFrameType==FDCAN_DATA_FRAME && h.DataLength==FDCAN_DLC_BYTES_8)
-                arm_receive(&arm,i+1,h.Identifier,d,8,now);
+            if(h.IdType==FDCAN_STANDARD_ID && h.RxFrameType==FDCAN_DATA_FRAME &&
+               h.DataLength<=FDCAN_DLC_BYTES_8)
+                arm_receive(&arm,i+1,h.Identifier,d,(uint8_t)h.DataLength,now);
         }
     }
     USBD_CDC_HandleTypeDef *cdc=(USBD_CDC_HandleTypeDef *)hUsbDeviceHS.pClassData;

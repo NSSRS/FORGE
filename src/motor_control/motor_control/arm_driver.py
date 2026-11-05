@@ -1,3 +1,4 @@
+# Cross-layer TODOs: ROS-01 / ROS-02 / CAL-01; see ../TODO.md and docs/ARM_LAYER_TODOS.md.
 """Separate ROS arm transport; never routes Damiao commands to the chassis bus."""
 import json
 import math

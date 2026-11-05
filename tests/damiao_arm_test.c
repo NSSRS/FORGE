@@ -33,7 +33,9 @@ static void posvel_codec(void) {
     assert(dm_pack_posvel(1.0f,0.1f,d)); assert(!memcmp(d,expected,8));
     assert(!dm_pack_posvel(NAN,.1f,d)); assert(!dm_pack_posvel(13,.1f,d));
     assert(!dm_pack_posvel(0,0,d)); assert(!dm_pack_posvel(0,-.1f,d));
-    assert(!dm_pack_posvel(0,.11f,d));
+    assert(dm_pack_posvel(0,.2617994f,d));
+    float velocity; memcpy(&velocity,d+4,4); assert(fabsf(velocity-.2617994f)<1e-6f);
+    assert(!dm_pack_posvel(0,NAN,d)); assert(!dm_pack_posvel(0,INFINITY,d));
 }
 static void codec(void) {
     dm_range r={12.5f,30,40}; dm_command c={0,0,0,0,0}; uint8_t d[8];

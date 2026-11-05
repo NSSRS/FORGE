@@ -1,3 +1,4 @@
+# Cross-layer TODOs: ROS-02 / SUPPORT-01 / DEPLOY-01; see ../TODO.md and docs/ARM_LAYER_TODOS.md.
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration

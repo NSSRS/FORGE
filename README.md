@@ -7,31 +7,38 @@ actuators controlled by a DM-MC02 over USB. See [Damiao arm implementation and
 commissioning](docs/DAMIAO_ARM.md) for firmware builds, the separate host/ROS
 interface, motor descriptions, manufacturer manuals and outstanding hardware mapping.
 
-- **[`nathan`](https://github.com/NSSRS/FORGE/tree/nathan)**: Damiao arm firmware, descriptions, host interface, and [validated single-4340P bench workflow](docs/DAMIAO_ARM.md#previously-validated-4340p-bench-test); remaining motors and loaded-arm validation pending. Also includes the integrated Onshape chassis/arm MJCF, static posing and full MuJoCo simulation under `src/simulation/`.
+- **[`nathan`](https://github.com/NSSRS/FORGE/tree/nathan)**: Damiao arm firmware, descriptions, host interface, and [six-motor unloaded commissioning](docs/DAMIAO_ARM.md#current-status--2026-11-05) and desktop joint jogging; calibration and loaded-arm validation pending. Also includes the integrated Onshape chassis/arm MJCF, static posing and full MuJoCo simulation under `src/simulation/`.
 - **`main`**: ENCOS C11 driver/utilities, Python motor API, and ROS 2 motor, IMU, teleoperation, visualization, and bringup packages.
 - **[`physics-analysis`](https://github.com/NSSRS/FORGE/tree/physics-analysis)**:
   thermal/magnetic adhesion and suspension/wheel/terrain simulators, preserved
   from the former `main` at `324d21e`.
 - **`encos-motor-workspace`**: preserved earlier combined workspace.
 
+## Arm base-layer APIs and cross-layer work
+
+See [base-layer contract, CAN budget and cached APIs](docs/ARM_BASE_LAYER.md)
+and [cross-layer TODO registry](docs/ARM_LAYER_TODOS.md). Each affected package
+has a local `TODO.md` linking its responsibilities. New telemetry is software-tested;
+its deployment/hardware acceptance is pending. Historical bench notes below
+must not be used to infer current IDs or loaded-arm readiness.
+
 ## Damiao arm bench status
 
-On 2026-11-03, one J4340P-2EC V1.1 on MC02 CAN2 reached **44.83° of a 45°
-target** in position–velocity mode at a commanded 0.1 rad/s. Disable and original
-mode restoration were verified. Experimental MIT bench ramps are removed.
+As of 2026-11-05, all six motors have distinct programmed/read-back IDs and
+passed the saved 14-stage unloaded group/individual sequence, with disable
+and mode restoration verified. A1 is on CAN1; A2..A6 are on CAN2.
+Successful repeat sessions reuse configuration without routine resets or flashes.
+See [current evidence and historical bench notes](docs/DAMIAO_ARM.md),
+[ID inventory](docs/ARM_MOTOR_IDS.md) and [test commands](docs/DAMIAO_MOTOR_TESTS.md).
+The old fixed CAN2/ID1 4340P script does not match the current programmed IDs.
+Production ROS, calibrated joint limits and loaded-arm operation remain unvalidated.
 
-After flashing the current firmware and resetting MC02 with motor PSU off,
-power the secured, unloaded motor and run from the repository root:
+## Manual arm joint control
 
-```bash
-python3 scripts/test_dm_4340_bench.py --port /dev/ttyACM0 --execute
-```
-
-This is fixed to CAN2/ID 1/feedback0 and the tested 4340P ranges. Read the
-[full procedure, reset requirements and limits](docs/DAMIAO_ARM.md) first.
-Next are individual 8009P/4310P and remaining-unit tests; see the
-[robot-description handoff](src/robot_description/ARM_COMMISSIONING.md).
-The six-axis JSON profiles and ROS arm interface are not hardware-validated.
+[Position API and keyboard joint jog](docs/ARM_POSITION_JOG.md): run
+`python3 scripts/jog_dm_arm.py --simulate`, select 1..6, press E once and hold an arrow in the desktop window; release stops.
+Hardware execution is explicit and limited to the documented unloaded fixture.
+ENCOS WASD driving remains separate.
 
 ## Robot model and preview
 

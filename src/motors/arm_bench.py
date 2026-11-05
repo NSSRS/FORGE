@@ -3,6 +3,7 @@
 All coordinates are raw output-shaft radians. No calibration or ID writes.
 """
 import argparse
+from dataclasses import asdict
 from collections import Counter
 import json
 import math
@@ -11,7 +12,7 @@ import struct
 import sys
 import time
 
-from .arm import ArmBus
+from .arm import ArmBus, BENCH_MODEL_LIMITS
 
 
 def number(value, label):
@@ -20,7 +21,9 @@ def number(value, label):
     return value
 
 
-def validate_plan(plan, *, execute=False, all_motors=False):
+def validate_plan(plan, *, execute=False, all_motors=False, group_first=False):
+    if group_first and not all_motors:
+        raise ValueError("--group-first requires --all")
     motors = plan.get('motors', [])
     if not isinstance(motors, list) or len(motors) != (6 if all_motors else 1):
         raise ValueError('Select exactly six motors with --all, otherwise exactly one')
@@ -49,15 +52,16 @@ def validate_plan(plan, *, execute=False, all_motors=False):
             raise ValueError('Invalid discovered protocol ranges')
         lo, hi, speed, trip, torque, degrees = (number(m.get(k), k) for k in
             ('lower_rad', 'upper_rad', 'speed_rad_s', 'speed_trip_rad_s', 'torque_trip_nm', 'delta_degrees'))
-        if not (-min(p, 12.5) <= lo < hi <= min(p, 12.5) and .001 <= speed <= .1 and
-                .03 <= trip <= min(.3, v) and speed <= trip and .01 <= torque <= min(3, t) and
-                2 <= abs(degrees) <= 45):
-            raise ValueError('Invalid fixture limits or test envelope (2..45 degrees, speed <=0.1 rad/s)')
+        max_speed, max_torque = BENCH_MODEL_LIMITS[m['model']]
+        if not (-min(p, 12.5) <= lo < hi <= min(p, 12.5) and .001 <= speed and
+                .03 <= trip <= min(max_speed, v) and speed <= trip and .01 <= torque <= min(max_torque, t) and
+                2 <= abs(degrees) <= 180):
+            raise ValueError('Invalid fixture limits or test envelope (2..180 degrees, speed must not exceed feedback trip)')
         if math.radians(abs(degrees)) / speed + 1.0 > 12:
             raise ValueError('Requested travel/speed cannot complete within the 12-second test window')
         if execute and m.get('identity_confirmed') is not True:
             raise ValueError(f'{unit}: confirm physical model, bus and IDs after isolated discovery')
-        if execute and all_motors and m.get('individual_test_passed') is not True:
+        if execute and all_motors and not group_first and m.get('individual_test_passed') is not True:
             raise ValueError(f'{unit}: complete the individual test before --all')
     if all_motors:
         if Counter(m['model'] for m in motors) != {'8009P': 1, '4340P': 2, '4310P': 3}:
@@ -70,10 +74,26 @@ def validate_plan(plan, *, execute=False, all_motors=False):
 def preflight(bus, motors):
     if bus.capabilities & 399 != 399:
         raise RuntimeError('Rebuild/flash the routed arm-test firmware (capability 0x100 required)')
+    # A completed run leaves configured slots in MCU RAM. Refresh disabled
+    # feedback before each read instead of resetting the controller or faults.
+    states = {i: bus.state(i) for i in range(6)}
+    if any(s.fault or s.enabled for s in states.values()):
+        raise RuntimeError('MC02 is active or faulted; explicit recovery required, no automatic reset')
+    retained = [i for i, s in states.items() if s.registers or s.stopping]
+    previous = None
+    if retained:
+        print('Reusing prior session: confirming stationary disabled feedback before register reads.', flush=True)
+        previous = BenchSession(bus, [], [], {})
+        previous.configured = retained
+        previous.stop()
+        bus.configured = True
+        bus.bench = True
     observed = []
     for m in motors:
         values = {}
         for reg in (7, 8, 9, 10, 21, 22, 23, 31):
+            if previous:
+                previous.stop()
             reply = bus.read_register(m['bus'], m['can_id'], reg)
             if reply is None or reply[0] != m['feedback_id']:
                 raise RuntimeError(f"{m['unit']}: missing/wrong feedback ID for register {reg}")
@@ -110,14 +130,31 @@ class BenchSession:
 
     def stop(self):
         self.bus.stop()
-        result = {}
-        for i in self.configured:
-            result[i] = self.poll(i, lambda s: not s.enabled and not s.stopping and s.status == 0
-                                  and s.age_ms < 80 and abs(s.velocity) <= .03,
-                                  'fresh stationary disable acknowledgement', faults=False)
-        return result
+        deadline = time.monotonic() + 1
+        next_disable = time.monotonic() + .02
+        while time.monotonic() < deadline:
+            states = {i: self.bus.state(i) for i in self.configured}
+            if all(not s.enabled and not s.stopping and s.status == 0
+                   and s.age_ms < 80 and math.isfinite(s.velocity) and abs(s.velocity) <= .03
+                   for s in states.values()):
+                return states
+            # A disabled reply can arrive before the shaft stops coasting. The
+            # motor only replies to commands; request fresh disable feedback.
+            if time.monotonic() >= next_disable:
+                self.bus.stop()
+                next_disable = time.monotonic() + .02
+            time.sleep(.005)
+        raise TimeoutError('fresh stationary disable acknowledgement')
 
-    def prepare(self):
+    def capture_failure(self):
+        # Disable first; diagnostics must never delay the stop request.
+        self.bus.stop()
+        self.report['fault_snapshot'] = self.bus.fault_snapshot()
+        self.report['failure_states'] = {i: asdict(self.bus.state(i)) for i in self.configured}
+
+    def prepare(self, *, jog_window_rad=None):
+        if jog_window_rad is not None and not 0 < jog_window_rad <= math.pi/2:
+            raise ValueError("Jog window must be within +/-90 degrees of session start")
         for i, m in enumerate(self.motors):
             self.configured.append(i)  # An accepted configuration can lose its USB ACK.
             p = min(12.5, m['ranges']['pmax'])
@@ -129,7 +166,10 @@ class BenchSession:
         for i, m in enumerate(self.motors):
             origin = initial[i].position
             target = origin + math.radians(m['delta_degrees'])
-            lo, hi = min(origin, target) - .05, max(origin, target) + .05
+            if jog_window_rad is None:
+                lo, hi = min(origin, target) - .05, max(origin, target) + .05
+            else:
+                lo, hi = origin-jog_window_rad-.05, origin+jog_window_rad+.05
             if not (m['lower_rad'] <= lo < hi <= m['upper_rad']):
                 raise RuntimeError(f"{m['unit']}: measured start/target corridor exceeds fixture limits")
             self.origins[i], self.bounds[i] = origin, (lo, hi)
@@ -171,6 +211,7 @@ class BenchSession:
             raise RuntimeError('Shaft moved away from its initial position before test')
         for i in slots:
             self.command(i, holds[i])
+        enable_started = time.monotonic()
         self.bus.enable_bench_group(slots)
         deadline = time.monotonic() + .4
         while True:
@@ -183,6 +224,11 @@ class BenchSession:
                 raise TimeoutError('Enable not confirmed for every selected motor; no movement target sent')
             time.sleep(.005)
         start = time.monotonic()
+        enable_elapsed = start - enable_started
+        print(f'{label}: CTRL_MODE=2 position-velocity; enable confirmed in {enable_elapsed:.3f}s; '
+              'sending final target directly.', flush=True)
+        first_motion = {i: None for i in slots}
+        first_within_target = {i: None for i in slots}
         settled = {i: None for i in slots}
         peaks = {i: {'sampled_speed_rad_s': 0., 'sampled_torque_nm': 0.} for i in slots}
         next_print = start
@@ -197,24 +243,40 @@ class BenchSession:
                     raise RuntimeError('Motor lost enabled confirmation')
                 peaks[i]['sampled_speed_rad_s'] = max(peaks[i]['sampled_speed_rad_s'], abs(s.velocity))
                 peaks[i]['sampled_torque_nm'] = max(peaks[i]['sampled_torque_nm'], abs(s.torque))
+                if first_motion[i] is None and abs(s.position-holds[i]) >= math.radians(.1):
+                    first_motion[i] = now-start
+                if first_within_target[i] is None and abs(s.position-targets[i]) <= math.radians(1):
+                    first_within_target[i] = now-start
                 reached = abs(s.position-targets[i]) <= math.radians(1) and abs(s.velocity) <= .03
                 settled[i] = (settled[i] if settled[i] is not None else now) if reached else None
             if now >= next_print:
-                print(label, ', '.join(f"{self.motors[i]['unit']}: error={math.degrees(targets[i]-s.position):+.2f}deg"
+                print(f"{label} t={now-start:.3f}s", ', '.join(f"{self.motors[i]['unit']}: error={math.degrees(targets[i]-s.position):+.2f}deg "
+                                      f"speed={s.velocity:+.3f}rad/s torque={s.torque:+.3f}Nm"
                                       for i, s in states.items()), flush=True)
                 next_print = now + .25
             if all(t is not None and now-t >= .3 for t in settled.values()):
                 self.report['stages'].append({'stage': label, 'passed': True, 'elapsed_s': now-start,
+                    'enable_confirmation_s': enable_elapsed,
                     'motors': [{**peaks[i], 'unit': self.motors[i]['unit'], 'position_rad': s.position,
-                                'target_rad': targets[i], 'error_rad': targets[i]-s.position}
+                                'target_rad': targets[i], 'error_rad': targets[i]-s.position,
+                                'first_motion_observed_s': first_motion[i],
+                                'first_within_one_degree_s': first_within_target[i]}
                                for i, s in states.items()]})
                 self.stop()
                 return
             time.sleep(.005)
         raise RuntimeError(f'{label}: target not reached and settled within 12 seconds')
 
-    def run(self, simultaneous=False):
+    def run(self, simultaneous=False, group_first=False):
+        if group_first and not simultaneous:
+            raise ValueError("Group-first requires simultaneous testing")
+        started = time.monotonic()
+        print('Preparing position-velocity mode, timeout, stationary feedback and travel bounds...', flush=True)
         self.prepare()
+        self.report['preparation_s'] = time.monotonic()-started
+        print(f"Preparation complete in {self.report['preparation_s']:.3f}s; CTRL_MODE=2 verified.", flush=True)
+        if simultaneous and group_first:
+            self.move_group()
         # Excursion then return are separate bounded stages, with disable between stages.
         for i, m in enumerate(self.motors):
             origin = self.origins[i]
@@ -223,13 +285,16 @@ class BenchSession:
             self.origins[i] = self.stop()[i].position
             self.move([i], {i: origin}, f"{m['unit']} return")
             self.origins[i] = origin
-        if simultaneous:
-            origins = dict(self.origins)
-            targets = {i: origins[i] + math.radians(m['delta_degrees']) for i, m in enumerate(self.motors)}
-            self.move(self.configured, targets, 'all motors outward')
-            self.origins = {i: s.position for i, s in self.stop().items()}
-            self.move(self.configured, origins, 'all motors return')
-            self.origins = origins
+        if simultaneous and not group_first:
+            self.move_group()
+
+    def move_group(self):
+        origins = dict(self.origins)
+        targets = {i: origins[i] + math.radians(m['delta_degrees']) for i, m in enumerate(self.motors)}
+        self.move(self.configured, targets, 'all motors outward')
+        self.origins = {i: s.position for i, s in self.stop().items()}
+        self.move(self.configured, origins, 'all motors return')
+        self.origins = origins
 
     def cleanup(self):
         if not self.configured:
@@ -256,8 +321,10 @@ def main(argv=None):
     parser.add_argument('--plan', type=Path, required=True)
     parser.add_argument('--port', default='/dev/ttyACM0')
     parser.add_argument('--all', action='store_true', help='six individual tests followed by concurrent outward/return')
+    parser.add_argument('--group-first', action='store_true',
+                        help='explicitly run the group before individual tests; requires --all')
     action = parser.add_mutually_exclusive_group()
-    action.add_argument('--check', action='store_true', help='read registers only; no configuration, disable or writes')
+    action.add_argument('--check', action='store_true', help='check registers; refresh disable feedback if reusing a prior session, no enable or parameter writes')
     action.add_argument('--execute', action='store_true', help='run the confirmed unloaded test plan')
     parser.add_argument('--report', type=Path, help='JSON result, including failures and cleanup')
     args = parser.parse_args(argv)
@@ -267,21 +334,25 @@ def main(argv=None):
     result = 2
     try:
         plan = json.loads(args.plan.read_text())
-        motors = validate_plan(plan, execute=args.execute, all_motors=args.all)
+        motors = validate_plan(plan, execute=args.execute, all_motors=args.all, group_first=args.group_first)
         report['plan'] = plan
         if not args.check and not args.execute:
             print(json.dumps(plan, indent=2))
             print('Plan validated offline. No serial device opened.')
             result = 0
             return result
+        preflight_started = time.monotonic()
+        print('Opening MC02 and checking motor IDs, ranges and original mode...', flush=True)
         bus = ArmBus(args.port)
         observed = preflight(bus, motors)
+        report['connection_and_preflight_s'] = time.monotonic()-preflight_started
+        print(f"Connection/preflight complete in {report['connection_and_preflight_s']:.3f}s.", flush=True)
         report['registers'] = observed
         if args.check:
             print(json.dumps(observed, indent=2)); result = 0
         else:
             session = BenchSession(bus, motors, observed, report)
-            session.run(simultaneous=args.all)
+            session.run(simultaneous=args.all, group_first=args.group_first)
             result = 0
     except KeyboardInterrupt:
         report['error'] = 'Interrupted'; result = 130
@@ -289,6 +360,11 @@ def main(argv=None):
         report['error'] = str(exc)
     finally:
         if session is not None:
+            if result != 0:
+                try:
+                    session.capture_failure()
+                except (OSError, RuntimeError, ValueError) as exc:
+                    report['diagnostic_error'] = str(exc)
             try:
                 session.cleanup()
             except (OSError, RuntimeError, ValueError) as exc:
@@ -305,7 +381,7 @@ def main(argv=None):
     if result:
         print(json.dumps(report, indent=2), file=sys.stderr)
     else:
-        print('PASS: ' + ('motion, disable and mode restoration verified.' if args.execute else 'read-only checks.'))
+        print('PASS: ' + ('motion, disable and mode restoration verified.' if args.execute else 'ID/register checks; no enable or parameter writes.'))
     return result
 
 

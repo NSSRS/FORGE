@@ -24,7 +24,11 @@
         "kd": null
       },
       "direction": null,
-      "zero_offset_rad": null
+      "zero_offset_rad": null,
+      "dof": 1,
+      "physical_unit": "DOF1",
+      "physical_unit_description": "Previously tested 8009P",
+      "id_assignment_verified": true
     },
     {
       "name": "arm_joint_2",
@@ -42,7 +46,11 @@
         "kd": null
       },
       "direction": null,
-      "zero_offset_rad": null
+      "zero_offset_rad": null,
+      "dof": 2,
+      "physical_unit": "DOF2",
+      "physical_unit_description": "Previously tested 4340P",
+      "id_assignment_verified": false
     },
     {
       "name": "arm_joint_3",
@@ -60,7 +68,11 @@
         "kd": null
       },
       "direction": null,
-      "zero_offset_rad": null
+      "zero_offset_rad": null,
+      "dof": 3,
+      "physical_unit": "DOF3",
+      "physical_unit_description": "Additional untested 4340P",
+      "id_assignment_verified": false
     },
     {
       "name": "arm_joint_4",
@@ -79,7 +91,11 @@
       },
       "direction": null,
       "zero_offset_rad": null,
-      "manual_revision": "V1.3; not a hardware revision"
+      "manual_revision": "V1.3; not a hardware revision",
+      "dof": 4,
+      "physical_unit": "DOF4",
+      "physical_unit_description": "Previously tested 4310P",
+      "id_assignment_verified": false
     },
     {
       "name": "arm_joint_5",
@@ -98,7 +114,11 @@
       },
       "direction": null,
       "zero_offset_rad": null,
-      "manual_revision": "V1.3; not a hardware revision"
+      "manual_revision": "V1.3; not a hardware revision",
+      "dof": 5,
+      "physical_unit": "DOF5",
+      "physical_unit_description": "Additional 4310P assigned to DOF5",
+      "id_assignment_verified": false
     },
     {
       "name": "arm_joint_6",
@@ -117,12 +137,17 @@
       },
       "direction": null,
       "zero_offset_rad": null,
-      "manual_revision": "V1.3; not a hardware revision"
+      "manual_revision": "V1.3; not a hardware revision",
+      "dof": 6,
+      "physical_unit": "DOF6",
+      "physical_unit_description": "Additional 4310P assigned to DOF6",
+      "id_assignment_verified": false
     }
   ],
   "wiring_plan": "final_three_bus",
   "wiring_plan_confirmed": true,
   "hardware_tested": false,
   "can_frame_format": "classic_11bit",
-  "can_update_hz": 500
+  "can_update_hz": 500,
+  "physical_dof_mapping_source": "User explicitly identified physical motors as DOF1..DOF6 on 2026-11-05. Does not establish joint signs, zero offsets, travel or loaded limits."
 }

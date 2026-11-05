@@ -11,6 +11,15 @@ import threading
 import time
 import zlib
 
+# Manufacturer continuous ratings (manual specification page 7).
+# 8009P uses its 24 V speed rating until supply voltage is verified.
+# 4340P uses an unloaded bench envelope, increased for the requested 3x-speed test.
+BENCH_MODEL_LIMITS = {
+    '8009P': (100 * 2 * math.pi / 60, 20.0),
+    '4340P': (1.5, 3.0),
+    '4310P': (120 * 2 * math.pi / 60, 3.5),
+}
+
 MAGIC = b'\xa5\x5a'
 FAULT_REASONS = {0: 'not recorded', 1: 'host command lease expired', 2: 'CAN feedback expired',
                  3: 'motor did not stay enabled', 4: 'command encoding rejected',
@@ -75,6 +84,7 @@ class ArmBus:
         self.serial = transport
         self.sequence = 0
         self.lock = threading.Lock()
+        self.snapshot_lock = threading.Lock()
         self.buffer = bytearray()
         self.configured = False
         self.bench = False
@@ -119,6 +129,73 @@ class ArmBus:
                     return result
             raise TimeoutError('MC02 response timeout; firmware command leases are not refreshed')
 
+    def _require_base_telemetry(self):
+        if not self.capabilities & 4096:
+            raise RuntimeError('Firmware lacks cached base telemetry (capability 0x1000); no fallback CAN polling')
+
+    def base_info(self):
+        """Cached API/timing metadata. No CAN traffic, lease refresh or reset."""
+        self._require_base_telemetry()
+        p=self._request(24)
+        keys=('api_version','capabilities','control_period_ms','command_lease_ms',
+              'feedback_timeout_ms','enable_timeout_ms','can_bitrate','configured_mask','id_session_locked','build_id')
+        return dict(zip(keys,struct.unpack_from('<10I',p,1)))
+
+    def bus_health(self, bus):
+        """Cumulative uint32 counters since MCU boot; reading never clears them."""
+        self._require_base_telemetry()
+        if type(bus) is not int or bus not in (1,2,3):
+            raise ValueError('invalid CAN bus')
+        p=self._request(23,bytes([bus]))
+        keys=('at_ms','tx_frames','tx_failed','rx_frames','feedback_frames',
+              'max_feedback_gap_ms','max_tick_gap_ms','late_ticks','bus_off_events',
+              'status_flags','tx_error_count','rx_error_count')
+        return dict(zip(keys,struct.unpack_from('<12I',p,1)))
+
+    def snapshot(self):
+        """Frozen six-slot MCU cache, three USB round trips and zero CAN reads.
+
+        A coherent cache is not simultaneous physical sampling. Use each age
+        and validity flag. Ages saturate at 65535 ms; missing data is not zero.
+        This never refreshes command leases or enables motors.
+        """
+        self._require_base_telemetry()
+        with self.snapshot_lock:
+            acquisition_started=time.monotonic()
+            result=None
+            for page in range(3):
+                generation=0 if result is None else result['generation']
+                p=self._request(22,struct.pack('<BI',page,generation))
+                gen,at,fault,reason,slot=struct.unpack_from('<IIBBB',p,1)
+                if result is None:
+                    result=dict(generation=gen,at_ms=at,fault=bool(fault),fault_reason=reason,
+                                fault_slot=slot,motors=[])
+                elif (gen,at)!=(result['generation'],result['at_ms']):
+                    raise RuntimeError('Incoherent snapshot pages; discard entire sample')
+                for k in range(2):
+                    pos,vel,torque,age,flags,status,mos,rotor=struct.unpack_from('<fffHBBBB',p,12+k*18)
+                    valid=bool(flags & 4)
+                    result['motors'].append(dict(slot=page*2+k,configured=bool(flags & 1),
+                        enabled=bool(flags & 2),feedback_valid=valid,stopping=bool(flags & 8),
+                        enable_confirmed=bool(flags & 16),age_ms=age if valid else None,
+                        position=pos if valid else None,velocity=vel if valid else None,
+                        torque=torque if valid else None,status=status,mos_c=mos,rotor_c=rotor))
+            received=time.monotonic()
+            result['host_received_monotonic_s']=received
+            result['acquisition_duration_ms']=(received-acquisition_started)*1000
+            return result
+
+    def can_rx_trace(self, bus):
+        """Passive last CAN RX frame; does not transmit on CAN or change state."""
+        if type(bus) is not int or bus not in (1, 2, 3):
+            raise ValueError('invalid CAN bus')
+        if not self.capabilities & 2048:
+            raise RuntimeError('Flash firmware with passive CAN RX diagnostics first')
+        p = self._request(21, bytes([bus]))
+        count, at_ms, can_id, length = struct.unpack_from('<IIHB', p, 1)
+        return dict(count=count, at_ms=at_ms, can_id=can_id, length=length,
+                    data=p[12:12+length].hex())
+
     def read_register(self, bus, motor_id, register):
         """Read one whitelisted register without configuring, enabling or stopping motors.
 
@@ -133,8 +210,15 @@ class ArmBus:
             raise ValueError('invalid diagnostic bus, ID or register')
         if self.configured and not (self.bench and self.capabilities & 128):
             raise RuntimeError('Discovery requires a fresh MCU reset with no configured joints')
-        self._request(9, struct.pack('<BHB', bus, motor_id, register))
-        return self._diagnostic_result(bus, motor_id, register)
+        # DOF1 hardware returned replies two requests behind after ID save.
+        # Retry only read-only discovery, before any joint is configured. Never
+        # retry writes or bypass configured-motor freshness/stop requirements.
+        for _ in range(1 if self.configured else 3):
+            self._request(9, struct.pack('<BHB', bus, motor_id, register))
+            reply = self._diagnostic_result(bus, motor_id, register)
+            if reply is not None:
+                return reply
+        return None
 
     def _diagnostic_result(self, bus, motor_id, register):
         deadline = time.monotonic() + 0.5
@@ -200,8 +284,9 @@ class ArmBus:
                 (model == 1) != (bus == 1) or mode not in (1, 2)):
             raise ValueError('Invalid routed bench identity/mode; 8009P alone belongs on CAN1')
         speed, torque = motor['speed_trip_rad_s'], motor['torque_trip_nm']
+        max_speed, max_torque = BENCH_MODEL_LIMITS[motor['model']]
         if (not all(math.isfinite(v) for v in (lower, upper, speed, torque)) or
-                not -12.5 <= lower < upper <= 12.5 or not .03 <= speed <= .3 or not .01 <= torque <= 3):
+                not -12.5 <= lower < upper <= 12.5 or not .03 <= speed <= max_speed or not .01 <= torque <= max_torque):
             raise ValueError('Invalid routed bench limits')
         # Mark cleanup responsibility BEFORE transmission: the ACK may be lost.
         self.configured = self.bench = True
@@ -301,9 +386,31 @@ class ArmBus:
         p=self._request(7,self._slot(slot))
         return ArmState(*struct.unpack_from('<7BI6f',p,1), *struct.unpack_from('<4B3I',p,36))
 
+    def id_operation(self, operation, value=0):
+        """Explicit disabled-only ID session. Requires a fresh MCU reset to move again."""
+        if not self.capabilities & 1024:
+            raise RuntimeError('Flash ID-commissioning firmware (capability 0x400) first')
+        if type(value) is not int or not ((operation==0 and value==0) or
+                (operation==7 and 17<=value<=22) or (operation==8 and 1<=value<=6) or
+                (operation==0xaa and value==0)):
+            raise ValueError('ID-only operation accepts begin, IDs 1..6/17..22, or save')
+        self._request(20, struct.pack('<BI', operation, value))
+
     def reset_fault(self):
         """Requires acknowledged disabled motors; re-probing is needed afterwards."""
         self._request(8)
+
+    def fault_snapshot(self):
+        """Read the first-fault sample, without resetting or sending CAN commands."""
+        if not self.capabilities & 512:
+            return None
+        p = self._request(19)
+        values = struct.unpack_from('<4B3I7fB', p, 1)
+        keys = ('fault', 'reason', 'slot', 'motor_status', 'at_ms', 'command_age_ms',
+                'feedback_age_ms', 'position_rad', 'velocity_rad_s', 'torque_nm',
+                'target_rad', 'command_velocity_rad_s', 'speed_limit_rad_s',
+                'torque_limit_nm', 'sample_flags')
+        return dict(zip(keys, values))
 
     def close(self):
         if not self.closed:

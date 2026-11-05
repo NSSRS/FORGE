@@ -43,7 +43,7 @@ static bool tx(void *ctx,uint8_t bus,uint16_t id,const uint8_t *d,uint8_t n) {
                 if(id==j->cfg.id+0x100) {
                     posvel_commands++;
                     memcpy(&requested,d,4); memcpy(&velocity_limit,d+4,4);
-                    if(motor_mode!=2 || !isfinite(requested) || velocity_limit<=0 || velocity_limit>0.10001f) invalid_commands++;
+                    if(motor_mode!=2 || !isfinite(requested) || !isfinite(velocity_limit) || velocity_limit<=0) invalid_commands++;
                 } else if(motor_mode!=1) invalid_commands++;
             }
             uint8_t feedback[]={j->cfg.id|(status[i]<<4),0x7f,0xff,0x7f,0xf7,0xff,25,25};

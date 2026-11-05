@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 import struct
 import unittest
+from unittest.mock import patch
 import source_paths  # noqa
 from motors.arm import ArmBus, decode, frame
 
@@ -72,6 +73,38 @@ class ArmTests(unittest.TestCase):
                 bus.read_register(2, 1, 8)
         self.assertEqual([kind for kind,_ in usb.sent], [1])
 
+    def test_read_only_discovery_retries_delayed_replies_with_bound(self):
+        with ArmBus(transport=FakeUSB()) as bus:
+            bus.capabilities=129
+            with patch.object(bus, '_request') as request, patch.object(
+                    bus, '_diagnostic_result', side_effect=[None,None,(17,1)]):
+                self.assertEqual(bus.read_register(1,1,8),(17,1))
+                self.assertEqual(request.call_count,3)
+                self.assertTrue(all(c.args[0]==9 for c in request.call_args_list))
+            with patch.object(bus, '_request') as request, patch.object(
+                    bus, '_diagnostic_result', return_value=None):
+                self.assertIsNone(bus.read_register(1,1,8))
+                self.assertEqual(request.call_count,3)
+                bus.configured=True; bus.bench=True
+                request.reset_mock()
+                self.assertIsNone(bus.read_register(1,1,8))
+                self.assertEqual(request.call_count,1)
+
+    def test_base_telemetry_rejects_older_firmware_without_can_fallback(self):
+        usb=FakeUSB()
+        with ArmBus(transport=usb) as bus:
+            for call in (bus.snapshot,bus.base_info,lambda:bus.bus_health(1)):
+                with self.assertRaisesRegex(RuntimeError,'cached base telemetry'): call()
+        self.assertEqual([kind for kind,_ in usb.sent],[1])
+
+    def test_can_budget_is_explicit_estimate(self):
+        from motors.arm_telemetry import can_budget
+        result=can_budget(5)
+        self.assertAlmostEqual(result['estimated_load_min'],.555)
+        self.assertAlmostEqual(result['estimated_load_max'],.675)
+        self.assertGreater(can_budget(5,1000)['estimated_load_max'],1)
+        with self.assertRaises(ValueError): can_budget(5,float('nan'))
+
     def test_crc_and_wire(self):
         packet=frame(4,123,b'test'); self.assertEqual(len(packet),64)
         self.assertEqual(decode(packet)[:2],(4,123))
@@ -117,7 +150,8 @@ class NativeRoundTrip(unittest.TestCase):
             bus.probe(0)
             for _ in range(10): bus.state(0)
             bus.stop(); state=bus.state(0)
-            with self.assertRaises(RuntimeError): bus.command(0,state.position,velocity=.11)
+            bus.command(0,state.position,velocity=.11)
+            with self.assertRaises(RuntimeError): bus.command(0,state.position,velocity=.31)
             with self.assertRaises(RuntimeError): bus.command(0,state.position,velocity=.1,kp=2)
             bus.command(0,state.position,velocity=.1); bus.enable(0)
             self.assertTrue(bus.state(0).enabled)

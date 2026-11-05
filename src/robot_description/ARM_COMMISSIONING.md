@@ -1,10 +1,20 @@
 # Arm hardware commissioning handoff
 
-Updated 2026-11-03. This is a developer description, not an executable motor
+Updated 2026-11-05. This is a developer description, not an executable motor
 profile. ENCOS is chassis; Damiao is arm. Never apply model joint poses directly
 to uncalibrated hardware. See [current procedure](../../docs/DAMIAO_ARM.md).
 
-## Inventory and evidence
+## Current physical mapping (2026-11-05)
+
+User identified DOF1=the tested 8009P, DOF2=the previously tested 4340P,
+DOF3=the additional 4340P, DOF4=the tested 4310P, DOF5/6=the two additional
+4310Ps. All six passed the saved 14-stage unloaded group/individual sequence.
+See [ID assignment and connection order](../../docs/ARM_MOTOR_IDS.md) and
+`config/arm_commissioning_inventory.json`. IDs 1..6 and feedback IDs 17..22 are written/read back. A1 post-power-cycle
+persistence is verified; A2..A6 verification remains pending.
+The older inventory below is historical; signs/zeros/loaded limits remain unset.
+
+## Historical inventory and evidence (2026-11-03)
 
 | Inventory | Status | Next action |
 | --- | --- | --- |
@@ -20,13 +30,13 @@ Largest printed torque0.554 Nm, not a high-rate peak measurement. 3 Nm is a
 feedback stop threshold, not a hard current/torque clamp. One unloaded test
 does not validate motor torque ratings, loaded motion or full-arm control.
 
-## Wiring plans (not measured ID/joint maps)
+## Temporary wiring and planned final split
 
 - Temporary: CAN1=8009P; CAN2=two 4340P+three 4310P; CAN3unused pending cable.
 - Final: CAN1=8009P; CAN2=two 4340P; CAN3=three 4310P.
 - Classic CAN 1 Mbps, target500 Hz per motor. Five motors at 500 Hz estimate
   56–68% bus load; throughput, latency and errors remain unmeasured.
-- Proposed profile IDs/feedback IDs are not factory discoveries. Motor IDs must
+- Profile IDs/feedback IDs now match programmed units, not factory defaults. Motor IDs must
   be unique on a shared bus before connecting multiple factory-configured units.
 - 8009P has one separate H/L connector, no direct CAN pass-through. Smaller
   P-series motors have twoXT30(2+2) connectors. CAN3pins1/2 are5V/GND, not motor
@@ -82,3 +92,7 @@ Low-stiffness MIT bench ramps produced delayed breakaway and ~32° final motion
 for 45° targets. The supported bench uses the motor's internal position–velocity
 loops and unchanged internal gains. General MIT protocol support is retained
 for the separate production interface, not exposed as a bench-test choice.
+
+## Base-layer / upper-layer handoff
+
+Read [base contract](../../docs/ARM_BASE_LAYER.md) and [cross-layer TODOs](../../docs/ARM_LAYER_TODOS.md) and local package TODO.md before extending control. Cached telemetry avoids additional CAN polling. Production ROS mode, calibration, current protection and loaded stopping remain separate acceptance tasks.
