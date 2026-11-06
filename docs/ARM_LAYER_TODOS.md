@@ -147,3 +147,59 @@ exist for unloaded commissioning; production deadman/arbitration remain pending.
 The base hardware adapter still uses the tested routed bench lifecycle; do not
 silently treat its per-operation deadlines or disabled idle state as a loaded
 production-arm control policy.
+
+## Pocket manual input increment (2026-11-06)
+
+Implemented left-stick chassis plus right-stick CW/CCW arm input with held SE,
+SB/SC selection and a separate single-owner arm worker. Input deadlines survive
+mailbox publication and are checked during enable as well as command refresh.
+See [Pocket controls](POCKET_ARM_CONTROL.md). Policy, native C-backed cancellation
+and real ROS/PTY offline-arm tests pass. This is an unloaded commissioning
+adapter. Left-stick CH3/CH4 and SB/SC/SE CH6/CH7/CH8 readings were recorded
+on 2026-11-06 after adding the missing EdgeTX mixes. Measured input replay
+passes; live combined-control acceptance, motor CW signs, left-stick spring
+return and transmitter-loss behavior remain open.
+PLAN-01 is advanced, not completed; ROS-02 production lifecycle, CAL-01, BASE-06,
+PROTECT-01 and SUPPORT-01 remain open. No production confirmation flags changed.
+
+
+The Pocket launch now includes a PyQt dashboard sharing the keyboard joint
+readout. Raw-axis diagnostics expose neutral/primer/conflict causes; animated
+shaft dials and chassis command values support the live simulation test.
+Snapshots reuse the control owner's samples without new USB/CAN requests;
+GUI STOP revokes both command paths, and window exit shuts down the launch.
+This does not establish physical CW signs, RF-loss or loaded-arm acceptance.
+
+
+### PLAN-01 — Pocket hardware acceptance handoff (2026-11-06)
+
+The real DM-MC02 path already exists: `ArmPositionPort` in
+`src/motors/arm_position.py`, selected by `pocket_teleop.arm_factory` when
+`arm_execute:=true`. The keyboard GUI also supports `--execute`. This is
+unloaded single-motor jogging, not a missing hardware implementation or a
+validated loaded-arm controller. The command and next steps are in
+[hardware commissioning](POCKET_ARM_CONTROL.md#hardware-commissioning-next-step).
+
+- [x] Record left CH3/CH4 and SB/SC/SE CH6/CH7/CH8 readings from the operator.
+- [x] Implement and software-test the Pocket hardware adapter, input withdrawal
+  during enable, joint selection, GUI telemetry and GUI STOP.
+- [ ] Resolve the operator's reported `A2: conflicting directions` after
+  centering/pressing SE. Capture the dashboard's CH1/CH2 raw values with SE
+  released and held, confirm which physical axes move, then adjust calibration
+  only from measured evidence. Do not remove the conflict stop to make it run.
+- [ ] Confirm the left vertical stick physically returns to neutral.
+- [ ] Measure raw-positive rotation for each A1..A6 on the secured unloaded
+  fixture, viewed facing the output shaft; enter +1 for positive=CW or -1 for
+  positive=CCW in `arm.cw_raw_signs`. All six entries deliberately remain zero;
+  Pocket hardware startup currently refuses them.
+- [ ] Run live Pocket hardware acceptance: selection isolates one motor,
+  neutral-before-SE priming works, SE release/center/selection change/conflict
+  stops motion, GUI STOP and window close stop the session, and firmware
+  disable/mode restoration succeed. Record logs and hardware identity.
+- [ ] Test transmitter-off, receiver power loss, USB loss and reconnection.
+  Fresh CSV alone cannot detect receiver hold-last failsafe. Preserve original
+  sample deadlines and require re-selection/re-priming after a detected loss.
+
+The latest simulated run demonstrated chassis targets and A2 selection, but
+reported a right-stick conflict. The dashboard was added afterward; no live
+Pocket arm motion or physical CW sign was established in this session.

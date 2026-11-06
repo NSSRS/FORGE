@@ -21,7 +21,7 @@ if [[ "$simulate" == true ]]; then
   echo "FORGE: simulated motors; real sensors and Pocket controller."
   defaults=(simulate:=true execute:=false mapping_confirmed:=false radio_failsafe_confirmed:=false)
 else
-  echo "FORGE: ACTUAL MOTORS — commissioned three-motor bench, Pocket right stick."
+  echo "FORGE: ACTUAL CHASSIS MOTORS — Pocket LEFT stick; arm simulated unless arm_execute:=true."
   defaults=(simulate:=false execute:=true mapping_confirmed:=true radio_failsafe_confirmed:=true)
 fi
 # Explicit arguments win, including disabling any authorization flag.

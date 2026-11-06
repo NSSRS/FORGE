@@ -2,6 +2,10 @@
 
 Motor control, IMU acquisition, teleoperation, and visualization for the magnetic wall-climbing welding robot.
 
+Pocket combined controls now use **left stick for chassis** and **right stick
+for the selected arm motor**: left/up=CW, right/down=CCW, with **SE held**.
+SB selects motors 1/2/3; SC selects 4/5/6. See [mapping capture and launch](docs/POCKET_ARM_CONTROL.md).
+
 ENCOS motors are the **chassis** actuators. The six Damiao motors are **arm**
 actuators controlled by a DM-MC02 over USB. See [Damiao arm implementation and
 commissioning](docs/DAMIAO_ARM.md) for firmware builds, the separate host/ROS
@@ -160,7 +164,7 @@ for the live controls, ROS output images, and pixel-only measurement limits.
 Use [the full-system bench guide](docs/FULL_SYSTEM_TEST.md) to launch the IMU,
 camera, calibrated Pocket controller and three-motor driver together.
 `bash scripts/run_system_test.sh` starts the **actual three-motor bench**, asking
-for sudo when needed, with the saved IMU/ESP32 ports and Pocket right stick.
+for sudo when needed, with the saved IMU/ESP32 ports and Pocket left stick.
 Use `bash scripts/run_system_test.sh simulate:=true` for simulated motors.
 The camera window shows RGB at a requested 30 FPS with received-FPS and CPU/RAM
 diagnostics. Camera-only wrappers use shared-memory DDS for smooth local video;

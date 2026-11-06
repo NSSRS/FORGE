@@ -428,6 +428,37 @@ class RoutedRoundTrip(unittest.TestCase):
                 self.assertFalse(port.armed)
             finally:port.close()
 
+    def test_position_port_checks_primer_during_enable_and_before_poll(self):
+        from motors import arm_position as pos
+        clock=SimpleNamespace(monotonic=lambda:self.lib.fake_now()/1000.,
+                              sleep=lambda seconds:self.lib.fake_advance(round(seconds*1000)))
+        p=plan()
+        for m in p['motors']:m.update(lower_rad=-12.5,upper_rad=12.5,speed_trip_rad_s=1.5)
+        allowed=[True]
+        with patch.object(pos,'time',clock):
+            port=pos.ArmPositionPort(p,bus=self.bus,motion_allowed=lambda:allowed[0])
+            try:
+                port.select(2);port.arm()
+                original=self.bus.enable_bench_group
+                def release_during_enable(slots):
+                    original(slots);allowed[0]=False
+                with patch.object(self.bus,'enable_bench_group',side_effect=release_during_enable), \
+                     patch.object(self.bus,'command',wraps=self.bus.command) as command:
+                    with self.assertRaises(pos.MotionCancelled):port.move_to(.2,.5)
+                    self.assertFalse(any(call.args[1] == .2 for call in command.call_args_list))
+                self.assertEqual([self.lib.fake_status(i) for i in range(6)],[0]*6)
+                self.assertFalse(port.armed)
+                allowed[0]=True;port.arm();port.move_to(.2,.5)
+                self.lib.fake_advance(10)
+                before=[self.lib.fake_commands(i) for i in range(6)]
+                allowed[0]=False
+                with self.assertRaises(pos.MotionCancelled):port.poll()
+                self.assertEqual([self.lib.fake_commands(i) for i in range(6)],before)
+                self.assertEqual([self.lib.fake_status(i) for i in range(6)],[0]*6)
+            finally:port.close()
+            self.assertEqual([self.lib.fake_mode(i) for i in range(6)],[1]*6)
+            self.assertEqual(self.lib.fake_invalid(),0)
+
     def test_180_degree_group_then_individuals_at_same_speed(self):
         p=plan()
         for m in p['motors']:

@@ -1,3 +1,5 @@
+# LEGACY right-stick chassis profile. Combined launch now uses pocket_controls.json
+# for LEFT chassis / RIGHT arm. See docs/POCKET_ARM_CONTROL.md.
 # Measured Pocket RIGHT stick, operator readings 2026-10-09.
 # Overlay after chassis_bench.yaml. Select radio input explicitly at launch.
 keyboard_teleop:

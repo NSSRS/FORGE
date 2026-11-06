@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "note": "Left-stick readings measured 2026-11-06; right-stick readings retained from 2026-10-09. SB/SC/SE measured on CH6/CH7/CH8 after adding EdgeTX mixes on 2026-11-06. Zero CW signs are unmeasured; simulation uses +1 and hardware refuses them.",
+  "timeout_s": 0.15,
+  "axes": {
+    "chassis_forward": {"channel": 3, "minimum": 174, "center": 996, "maximum": 1811, "sign": 1, "deadzone": 0.05},
+    "chassis_turn": {"channel": 4, "minimum": 175, "center": 996, "maximum": 1811, "sign": -1, "deadzone": 0.05},
+    "arm_cw_horizontal": {"channel": 1, "minimum": 174, "center": 992, "maximum": 1811, "sign": -1, "deadzone": 0.05},
+    "arm_cw_vertical": {"channel": 2, "minimum": 174, "center": 992, "maximum": 1811, "sign": 1, "deadzone": 0.05}
+  },
+  "switches": {
+    "sb": {"channel": 6, "values": [191, 1004, 1792], "tolerance": 80},
+    "sc": {"channel": 7, "values": [191, 1004, 1792], "tolerance": 80},
+    "se": {"channel": 8, "values": [191, 1792], "tolerance": 80}
+  },
+  "arm": {"cw_raw_signs": [0, 0, 0, 0, 0, 0], "speed_deg_s": 45, "window_deg": 90}
+}

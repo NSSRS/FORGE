@@ -58,6 +58,7 @@ class ArmJogKeys:
 
 def make_window(port,mode):
     from PyQt5 import QtCore,QtWidgets
+    from .arm_widgets import JointPositionTable
     class Window(QtWidgets.QWidget):
         def __init__(self):
             super().__init__();self.keys=ArmJogKeys(port);self.next_display=0
@@ -73,11 +74,7 @@ def make_window(port,mode):
                 buttons.addWidget(b)
             arm=QtWidgets.QPushButton('Arm selected (E)');arm.setFocusPolicy(QtCore.Qt.NoFocus)
             arm.clicked.connect(lambda:self.invoke(lambda:self.keys.press('e')));buttons.addWidget(arm)
-            self.table=QtWidgets.QTableWidget(6,5)
-            self.table.setHorizontalHeaderLabels(['Joint','Relative °','Raw °','Enabled','Feedback age ms'])
-            self.table.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
-            self.table.setFocusPolicy(QtCore.Qt.NoFocus)
-            self.table.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Stretch)
+            self.table=JointPositionTable()
             layout.addWidget(self.table)
             self.status=QtWidgets.QLabel();self.status.setWordWrap(True);layout.addWidget(self.status)
             stop=QtWidgets.QPushButton('STOP / DISARM (Space)');stop.setFocusPolicy(QtCore.Qt.NoFocus)
@@ -99,9 +96,7 @@ def make_window(port,mode):
             self.status.setText(self.keys.message)
             if time.monotonic()>=self.next_display and not self.keys.failed:
                 def refresh():
-                    for row in port.positions():
-                        values=[f'A{row.joint}',f'{row.relative_degrees:.2f}',f'{math.degrees(row.position_rad):.2f}',str(row.enabled),str(row.age_ms)]
-                        for col,value in enumerate(values):self.table.setItem(row.joint-1,col,QtWidgets.QTableWidgetItem(value))
+                    self.table.update_positions(port.positions(), port.selected)
                 self.invoke(refresh);self.next_display=time.monotonic()+.1
         def key_name(self,event):
             return {QtCore.Qt.Key_Left:'left',QtCore.Qt.Key_Right:'right',QtCore.Qt.Key_Up:'up',QtCore.Qt.Key_Down:'down',QtCore.Qt.Key_Escape:'stop'}.get(event.key(),event.text().lower())

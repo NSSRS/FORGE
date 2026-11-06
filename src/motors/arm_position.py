@@ -4,7 +4,7 @@ Raw output-shaft radians and rad/s. No ROS, IK, background thread, calibration
 writes or implicit re-enable. Adapter reuses the validated routed position-
 velocity transport/lifecycle; production loaded-arm integration is separate.
 """
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import math
 import time
 from typing import Protocol
@@ -27,6 +27,10 @@ class JointPosition:
         return math.degrees(self.position_rad-self.origin_rad)
 
 
+class MotionCancelled(RuntimeError):
+    """Fresh operator authorization was withdrawn; normal acknowledged stop."""
+
+
 class PositionPort(Protocol):
     """Ports use physical A1..A6 numbers, raw radians, explicit selection authorization."""
     selected: int
@@ -38,6 +42,7 @@ class PositionPort(Protocol):
     def move_by(self, delta_rad: float, speed_rad_s: float) -> None: ...
     def poll(self) -> bool: ...
     def positions(self) -> list[JointPosition]: ...
+    def cached_positions(self) -> list[JointPosition]: ...
     def release(self) -> None: ...
     def stop(self) -> None: ...
     def close(self) -> None: ...
@@ -57,7 +62,8 @@ class ArmPositionPort:
     multi-joint motion. arm() is operator authorization, not a CAN enable.
     Session coordinates are never saved as the motor's zero.
     """
-    def __init__(self, plan, *, port='/dev/ttyACM0', bus=None, window_degrees=90):
+    def __init__(self, plan, *, port='/dev/ttyACM0', bus=None, window_degrees=90,
+                 motion_allowed=None):
         self.motors=validate_plan(plan,execute=True,all_motors=True,group_first=True)
         if any(m['can_id']!=i+1 or m['feedback_id']!=17+i for i,m in enumerate(self.motors)):
             raise ValueError('Position port requires verified A1..A6 order and DOF-matched IDs')
@@ -65,6 +71,8 @@ class ArmPositionPort:
         if not 0 < window_degrees <= 90: raise ValueError('window must be >0 and <=90 degrees')
         self.window=math.radians(window_degrees)
         self.selected=1; self.armed=False; self.moving=False; self.closed=False
+        self.motion_allowed=motion_allowed
+        self._display_rows={}  # Samples already obtained by the control owner.
         self.report={'events':[],'disable_acknowledged':False,'mode_restoration_verified':False}
         self.bus=bus if bus is not None else ArmBus(port)
         self.session=None; self.target=None; self.settled=None
@@ -81,6 +89,10 @@ class ArmPositionPort:
 
     def _check(self):
         if self.closed: raise RuntimeError('Position port is closed')
+
+    def _check_intent(self):
+        if self.motion_allowed is not None and not self.motion_allowed():
+            raise MotionCancelled('Operator intent released, changed or expired')
 
     def select(self, joint):
         self._check()
@@ -102,7 +114,7 @@ class ArmPositionPort:
         finite(delta_rad,'delta')
         self._check()
         if not self.armed or self.moving: raise RuntimeError('Arm selected joint; wait for current step to finish')
-        current=self.session.stop()[self.selected-1].position
+        current=self._stop_session()[self.selected-1].position
         self.move_to(current+delta_rad,speed_rad_s)
 
     def move_to(self, angle_rad, speed_rad_s):
@@ -112,14 +124,17 @@ class ArmPositionPort:
         if not lo <= angle_rad <= hi: raise ValueError('Target exceeds session joint window')
         if not .001 <= speed_rad_s <= self.motors[i]['speed_trip_rad_s']:
             raise ValueError('Speed exceeds configured joint envelope')
-        state=self.session.stop()[i]
+        state=self._stop_session()[i]
         duration=abs(angle_rad-state.position)/speed_rad_s+2
         if duration>12: raise ValueError('Move would exceed the bounded 12-second operation')
         try:
+            self._check_intent()
             self.bus.command(i,state.position,velocity=speed_rad_s)
+            self._check_intent()
             self.bus.enable_bench_group([i])
             deadline=time.monotonic()+.4
             while True:
+                self._check_intent()
                 self.bus.command(i,state.position,velocity=speed_rad_s)
                 sample=self.session.sample(i)
                 if sample.status==1 and sample.enable_confirmed: break
@@ -127,6 +142,7 @@ class ArmPositionPort:
                 time.sleep(.005)
             self.target=angle_rad; self.speed=speed_rad_s
             self.deadline=time.monotonic()+duration; self.settled=None; self.moving=True
+            self._check_intent()
             self.bus.command(i,angle_rad,velocity=speed_rad_s)
             self._event('move',joint=self.selected,target_rad=angle_rad,speed_rad_s=speed_rad_s)
         except BaseException:
@@ -137,19 +153,40 @@ class ArmPositionPort:
         if not self.moving: return False
         i=self.selected-1
         try:
+            self._check_intent()
             if time.monotonic()>=self.deadline: raise TimeoutError('Position move did not settle before deadline')
             self.bus.command(i,self.target,velocity=self.speed)
             sample=self.session.sample(i)
+            self._remember_sample(i,sample)
             if sample.status!=1 or not sample.enable_confirmed: raise RuntimeError('Joint lost enabled confirmation')
             reached=abs(sample.position-self.target)<=math.radians(.5) and abs(sample.velocity)<=.03
             now=time.monotonic()
             self.settled=(now if self.settled is None else self.settled) if reached else None
             if self.settled is not None and now-self.settled>=.1:
                 self._event('reached',joint=self.selected,position_rad=sample.position,target_rad=self.target)
-                self.session.stop(); self.moving=False; self.target=None
+                self._stop_session(); self.moving=False; self.target=None
             return self.moving
         except BaseException:
             self.stop(); raise
+
+    def _remember_sample(self, slot, state):
+        lo,hi=self._limits(slot)
+        row=JointPosition(slot+1,state.position,self.session.origins[slot],lo,hi,
+                          state.age_ms,bool(state.enabled))
+        self._display_rows[slot]=(row,time.monotonic())
+        return row
+
+    def _stop_session(self):
+        states=self.session.stop()
+        for slot,state in states.items():
+            self._remember_sample(slot,state)
+        return states
+
+    def cached_positions(self):
+        """Copy existing control samples, aging them without USB or CAN requests."""
+        now=time.monotonic()
+        return [replace(row,age_ms=row.age_ms+max(0,round((now-at)*1000)))
+                for _,(row,at) in sorted(self._display_rows.items())]
 
     def positions(self):
         self._check()
@@ -157,8 +194,7 @@ class ArmPositionPort:
         for i in range(6):
             s=self.bus.state(i)
             if s.fault: raise RuntimeError(s.fault_detail())
-            lo,hi=self._limits(i)
-            result.append(JointPosition(i+1,s.position,self.session.origins[i],lo,hi,s.age_ms,bool(s.enabled)))
+            result.append(self._remember_sample(i,s))
         return result
 
     def release(self):
@@ -170,7 +206,7 @@ class ArmPositionPort:
     def stop(self):
         self.armed=False; self.moving=False; self.target=None
         if self.session is not None and self.session.configured:
-            self.session.stop()
+            self._stop_session()
         self._event('stop')
 
     def close(self):
@@ -217,6 +253,7 @@ class SimulatedPositionPort:
         return self.moving
     def positions(self):
         return [JointPosition(i+1,v,0.,-self.window,self.window,0,self.moving and i==self.selected-1) for i,v in enumerate(self.values)]
+    def cached_positions(self):return self.positions()
     def release(self):self.moving=False
     def stop(self):self.armed=False;self.moving=False
     def close(self):

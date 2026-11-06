@@ -43,3 +43,12 @@ class SystemTestOptions(unittest.TestCase):
 
     def test_disabled_devices_do_not_require_ports(self):
         self.validate(use_imu=False, use_radio=False, imu_port='', radio_port='')
+
+    def test_arm_requires_explicit_unloaded_and_distinct_port(self):
+        flags=dict(use_arm=True,arm_execute=True,arm_unloaded=True,
+                   arm_port='/dev/ttyACM0',arm_plan='arm_jog.json')
+        self.validate(**flags)
+        for override in ({'arm_unloaded':False},{'use_arm':False},{'use_radio':False},
+                         {'arm_port':'/dev/ttyUSB0'},{'arm_port':'/dev/ttyUSB1'},
+                         {'arm_plan':''}):
+            with self.assertRaises(ValueError):self.validate(**{**flags,**override})

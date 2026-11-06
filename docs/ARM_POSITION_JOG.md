@@ -136,3 +136,12 @@ ROS-02 (production position-velocity adapter), CAL-01 (coordinates/limits),
 BASE-06 (atomic multi-joint commands), PLAN-01 (production jog/trajectory policy)
 and SUPPORT-01 (loaded stopping/holding). Add ROS action/service/topic adapters
 above this explicit API; do not reimplement drive packets in teleop.
+
+## Pocket display reuse
+
+The keyboard window and Pocket dashboard share `teleop.arm_widgets`' joint
+readout. Keyboard selection, E authorization, arrow events and focus-loss stops
+are unchanged. The Pocket dashboard consumes the existing Pocket control
+owner's snapshots; see [Pocket dashboard](POCKET_ARM_CONTROL.md#pocket-desktop-dashboard).
+`cached_positions()` returns already collected control feedback with advancing
+age and performs no USB/CAN requests. It is distinct from `positions()`.

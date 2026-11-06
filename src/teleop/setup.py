@@ -6,5 +6,5 @@ setup(
     install_requires=["setuptools"], zip_safe=True,
     maintainer="FORGE developers", maintainer_email="forge@example.invalid",
     description="Chassis keyboard/radio input and arm desktop joint jogging", license="Proprietary",
-    entry_points={"console_scripts": ['keyboard_teleop = teleop.keyboard_teleop:main', 'arm_keyboard = teleop.arm_keyboard:main']},
+    entry_points={"console_scripts": ['keyboard_teleop = teleop.keyboard_teleop:main', 'arm_keyboard = teleop.arm_keyboard:main', 'pocket_teleop = teleop.pocket_teleop:main', 'pocket_gui = teleop.pocket_gui:main', 'calibrate_pocket = teleop.pocket_calibration:main']},
 )

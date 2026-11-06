@@ -1,4 +1,10 @@
-# Pocket single-stick chassis control
+# Pocket radio input
+
+**Current combined controls (2026-11-06):** left stick controls chassis; right
+stick jogs the SB/SC-selected arm motor with SE held. See
+[Pocket chassis/arm guide](POCKET_ARM_CONTROL.md) for channel capture and launch.
+The historical right-stick-only workflow below remains available through
+`keyboard_teleop`, but is no longer the combined system launch's default.
 
 For the combined sensor/Pocket bench session, run `bash scripts/run_system_test.sh`.
 This convenient command now starts **actual motors** on the commissioned

@@ -177,3 +177,28 @@ position-port release/re-arm semantics and cached telemetry/lease checks.
 Install `python3-pyqt5` for GUI tests. Hardware jogging, telemetry deployment,
 physical fault injection and bus timing remain separate acceptance work;
 see [cross-layer registry](../docs/ARM_LAYER_TODOS.md).
+
+### Pocket left-chassis/right-arm controls
+
+`test_pocket_controls.py` exercises switch selection, SE gating, independent
+chassis commands, direction conflicts, freshness, calibration and arm worker
+cancellation. `test_damiao_bench.py` also checks input withdrawal inside enable
+and before command refresh against the real C firmware/fake plant.
+`test_ros_pocket.py` uses a pseudo-terminal and offline arm adapter, with real
+ROS topics, to verify both control paths, primer, silence and shutdown.
+
+```bash
+PYTHONPATH=src python3 -m unittest discover -s tests -p test_pocket_controls.py -v
+source scripts/ros2_env.sh
+ROS_DOMAIN_ID=94 python3 -m unittest discover -s tests -p test_ros_pocket.py -v
+```
+
+Keep the ROS test domain free of physical drivers. Tests never open motor
+hardware or establish physical channel/CW mappings.
+
+
+`test_pocket_gui.py` checks raw-axis conflict diagnostics, primer messages,
+position-cache reads without transport, actual Qt STOP/close events, angle
+readouts and stale display behavior. `test_ros_pocket.py` also checks dashboard
+telemetry and `/pocket/stop` through the real ROS node using a pseudo-terminal.
+Run Qt tests with `QT_QPA_PLATFORM=offscreen` when no desktop is available.

@@ -1,5 +1,13 @@
 # Combined IMU, camera, Pocket and motor bench test
 
+The combined launch now uses LEFT stick for chassis and RIGHT stick for arm,
+with SB/SC selection and held SE. Its `radio_config` argument now accepts the
+JSON mapping described in [Pocket controls](POCKET_ARM_CONTROL.md), rather than
+the old right-stick YAML profile. Capture missing channels before running the
+commands below. Arm defaults to simulation; physical arm use additionally
+requires `arm_execute:=true arm_unloaded:=true arm_port:=...` and measured CW
+signs. Historical right-stick references below describe the previous setup.
+
 `system_test.launch.py` starts the existing HWT9052 reader, Gemini 338Le
 camera, Pocket radio teleop and motor driver together. No estimator or navigation
 stack is added. The convenient Bash wrapper defaults to **actual motors**,
