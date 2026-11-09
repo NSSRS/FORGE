@@ -15,7 +15,11 @@ class ArmClosure:
         self.last=data.qpos.copy()
     def apply(self,data):
         m=self.model
-        if np.array_equal(data.qpos,self.last):return True
+        if np.array_equal(data.qpos,self.last):
+            # A new model/site or an unclosed initial pose can share the same qpos.
+            mujoco.mj_kinematics(m,data)
+            gap=data.site_xpos[self.sites[0]]-data.site_xpos[self.sites[1]]
+            if np.linalg.norm(gap)<1e-6:return True
         candidate=data.qpos.copy()
         # Rod and bearing are dependent coordinates, never independent commands.
         candidate[self.qadr:self.qadr+4]=self.last[self.qadr:self.qadr+4]

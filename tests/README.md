@@ -161,6 +161,20 @@ ID 0, model ranges, group enable, wrong identity/mode, stalls, missing feedback,
 speed/torque/lease trips, restoration and immutable unconfirmed templates.
 See [the test guide](../docs/DAMIAO_MOTOR_TESTS.md) for physical commissioning.
 
+## Arm clearance study
+
+`test_arm_geometry.py` checks exact 150 mm D3 connection-center spacing across
+all active scenes, preserved CAD meshes, geometry-review rejection and closure
+repair when no independent joint command changed.
+
+`test_arm_sweep.py` checks the full-scene clearance scan, first-boundary brackets,
+D3 closure, fixed independent coordinates/chassis, contact filters, and rejection
+of invalid reference poses. It never commands hardware or advances physics. Run:
+
+```bash
+.venv/bin/python -m unittest discover -s tests -p test_arm_sweep.py -v
+```
+
 ## Full-robot modeling compatibility
 
 With src/simulation/requirements.txt installed, run model_compatibility, motor_overview_models,
@@ -181,7 +195,7 @@ see [cross-layer registry](../docs/ARM_LAYER_TODOS.md).
 ### Pocket left-chassis/right-arm controls
 
 `test_pocket_controls.py` exercises switch selection, SE gating, independent
-chassis commands, direction conflicts, freshness, calibration and arm worker
+chassis commands, all four diagonal stops/resume with SE held, freshness, calibration and arm worker
 cancellation. `test_damiao_bench.py` also checks input withdrawal inside enable
 and before command refresh against the real C firmware/fake plant.
 `test_ros_pocket.py` uses a pseudo-terminal and offline arm adapter, with real
@@ -197,8 +211,15 @@ Keep the ROS test domain free of physical drivers. Tests never open motor
 hardware or establish physical channel/CW mappings.
 
 
-`test_pocket_gui.py` checks raw-axis conflict diagnostics, primer messages,
+`test_pocket_gui.py` checks raw-axis/diagonal diagnostics, primer messages,
 position-cache reads without transport, actual Qt STOP/close events, angle
 readouts and stale display behavior. `test_ros_pocket.py` also checks dashboard
 telemetry and `/pocket/stop` through the real ROS node using a pseudo-terminal.
 Run Qt tests with `QT_QPA_PLATFORM=offscreen` when no desktop is available.
+
+2026-11-09 handoff verification: 43 modeling/geometry/sweep regressions,
+26 Pocket policy/Qt tests, three native position-port tests and one ROS/PTY
+integration test passed (73 total). Terrain-generation tests temporarily
+rewrite the curved/bumpy scenes; preserve and restore their pre-test contents.
+No physical motor ports were opened. See the
+[assembled-arm handoff](../docs/ASSEMBLED_ARM_BRINGUP.md) for pending hardware work.

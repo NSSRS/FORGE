@@ -5,6 +5,11 @@ referenced beside the owning code. Update this registry with evidence and
 links when completing work; do not erase unresolved requirements or infer
 hardware validation from simulation. Current branch: `nathan`.
 
+For the 2026-11-09 control/model changes, encoder startup semantics and ordered
+assembled-arm procedure, read [the handoff](ASSEMBLED_ARM_BRINGUP.md). The operator
+reports gravity-driven motion when unpowered. SUPPORT-01 is a prerequisite
+for assembled tests; the current unloaded jog adapter removes holding torque.
+
 ## Implemented in the base layer (software-tested, hardware deployment pending)
 
 - [x] BASE-01: expose capability/API/build identity and timing constants.
@@ -87,6 +92,12 @@ commands and explicit fault recovery are mandatory. Acceptance: ROS tests and
 unloaded integration evidence for the selected mode; no promotion of template
 hardware_confirmed flags as a shortcut. Coordinate BASE-06 before synchronization.
 
+Assembled-arm increment: require fresh complete feedback, preload current
+angles, explicitly arm and hold all load-bearing joints. Separate stopping
+a jog at neutral/SE release from supported torque disable; retain the current
+unloaded adapter behavior. A requested return to home needs a calibrated,
+validated path. No startup homing or automatic re-enable after recovery.
+
 ### CAL-01 — physical joint calibration (robot_description + ROS)
 
 Owner: `src/robot_description/config/arm_motors*.json`, `arm_driver.py`.
@@ -95,6 +106,14 @@ for every DOF. Document transforms between raw shaft SI and robot coordinates;
 keep simulation defaults separate. Acceptance: measured round trips and limit
 checks on every joint before production flags become true. Distinct IDs and
 free-shaft motion do not establish calibration.
+
+Record known-pose/raw-angle pairs, external ratios if present and wrap branch
+for every joint. With mechanical support and drives disabled, compare
+power-cycle feedback first without movement, then after controlled off-power
+movement. The manuals specify single-turn absolute output feedback; actual
+startup behavior and normal-feedback versus p_m/xout readback still require
+unit-specific verification. Do not treat session-origin capture as model
+calibration or use deliberate arm impacts to establish routine limits.
 
 ### PLAN-01 — trajectories and collision policy (planning / teleop / simulation)
 
@@ -106,6 +125,33 @@ or faults. Acceptance: simulator and hardware-boundary tests, then separately
 approved loaded tests. Do not put IK/trajectory planning into MC02 or replay
 old commands to disguise host stalls. Depends on CAL-01, ROS-02, BASE-06.
 
+Simulation evidence (2026-11-09): `simulation.arm_sweep` scans six independent
+joints around the saved chassis/arm pose, solving D3 closure and querying the
+full scene collision geometry with a configurable clearance margin. The native
+MuJoCo viewer and optional MP4 show each sampled interval and its limiting pair.
+See [method, candidate results and caveats](ARM_COLLISION_STUDY.md). These are
+conditional model slices, not six independently combinable joint limits; search
+endpoints are not mechanical stops. Contact exclusions/omitted surfaces remain
+visible in the JSON audit. No hardware ranges, calibration flags or transport
+settings are changed. Verification: six new scan/playback tests plus 33 existing
+layout/model/overview/color/magnetic/terrain/actuator/mirror tests passed; the
+48-second MP4 rendered all 1,152 poses with valid closure and clearance, and
+the native viewer launched. PLAN-01 remains open for combined-pose/path validation,
+geometry review, dynamics and the existing hardware acceptance items.
+
+Dimension confirmation (2026-11-09): operator clarified that D3 is **150 mm
+between ball/connection centers**, not a 150 mm bare rod. Integrated XML and
+preview/terrain copies now use exactly 0.150 m; raw CAD and 140 mm bare-rod meshes
+are unchanged. The former 150.002488 mm site distance needed only a 2.488 micrometre
+rounding correction. Saved flat/curved/bumpy poses were reclosed by adjusting only
+D3 passive coordinates (bearing change about +0.002618 degrees). Integration
+retains the correction and rejects differences larger than 0.01 mm for geometry
+review. The closure solver now checks an unchanged initial qpos before accepting it.
+Verification: 43 model/geometry/sweep regressions passed; all six sampled candidate
+intervals are unchanged at the current search resolution. The existing dynamic
+arm preview passed its 1 mm closure tolerance (maximum 0.7234 mm). This remains
+simulation evidence; hardware calibration and loaded acceptance remain pending.
+
 ### SUPPORT-01 — gravity-load stopping and physical stop chain (bringup/system)
 
 Owner: `src/bringup/`, mechanical/electrical safety integration.
@@ -114,6 +160,12 @@ recovery under gravity. MC02 torque disable is not a brake. Establish which
 faults may use a controlled stop and which require immediate drive disable,
 without hiding fault conditions. Acceptance: documented physical design and
 measured stop/hold behavior before an unsupported loaded arm is enabled.
+
+The operator reports the assembled arm falls unpowered (2026-11-09). Establish
+physical support/rest pose and loss-of-torque behavior before calibration or
+holding tests. Current Pocket neutral/diagonal/release stops disable torque,
+and nonselected joints stay disabled; preserving SE prime is authorization
+only. Continuous coordinated holding needs the separate ROS-02 lifecycle.
 
 ### DEPLOY-01 — versioned configuration and evidence (bringup + commissioning)
 
@@ -157,14 +209,15 @@ See [Pocket controls](POCKET_ARM_CONTROL.md). Policy, native C-backed cancellati
 and real ROS/PTY offline-arm tests pass. This is an unloaded commissioning
 adapter. Left-stick CH3/CH4 and SB/SC/SE CH6/CH7/CH8 readings were recorded
 on 2026-11-06 after adding the missing EdgeTX mixes. Measured input replay
-passes; live combined-control acceptance, motor CW signs, left-stick spring
-return and transmitter-loss behavior remain open.
+passes. Motor CW signs were subsequently recorded on 2026-11-09 (all -1;
+operator observed keyboard Up=CCW on A1..A6). Live combined-control acceptance,
+left-stick spring return and transmitter-loss behavior remain open.
 PLAN-01 is advanced, not completed; ROS-02 production lifecycle, CAL-01, BASE-06,
 PROTECT-01 and SUPPORT-01 remain open. No production confirmation flags changed.
 
 
 The Pocket launch now includes a PyQt dashboard sharing the keyboard joint
-readout. Raw-axis diagnostics expose neutral/primer/conflict causes; animated
+readout. Raw-axis diagnostics expose neutral/primer/diagonal states; animated
 shaft dials and chassis command values support the live simulation test.
 Snapshots reuse the control owner's samples without new USB/CAN requests;
 GUI STOP revokes both command paths, and window exit shuts down the launch.
@@ -183,23 +236,41 @@ validated loaded-arm controller. The command and next steps are in
 - [x] Record left CH3/CH4 and SB/SC/SE CH6/CH7/CH8 readings from the operator.
 - [x] Implement and software-test the Pocket hardware adapter, input withdrawal
   during enable, joint selection, GUI telemetry and GUI STOP.
-- [ ] Resolve the operator's reported `A2: conflicting directions` after
-  centering/pressing SE. Capture the dashboard's CH1/CH2 raw values with SE
-  released and held, confirm which physical axes move, then adjust calibration
-  only from measured evidence. Do not remove the conflict stop to make it run.
+- [x] Implement the 2026-11-09 requested corner behavior: all four diagonals
+  command zero without revoking an existing SE prime. Returning to one axis
+  resumes with SE held; releasing SE, selection changes, stale/invalid data
+  and explicit stop still revoke authorization. The GUI shows an amber
+  diagonal stop. Policy/worker, Qt and ROS/PTY simulation cover this boundary.
+- [ ] Confirm the right-stick neutral reading and diagonal stop/resume on the
+  physical controller. The original centered-stick conflict report did not
+  include raw samples; do not adjust calibration without measurements.
 - [ ] Confirm the left vertical stick physically returns to neutral.
-- [ ] Measure raw-positive rotation for each A1..A6 on the secured unloaded
-  fixture, viewed facing the output shaft; enter +1 for positive=CW or -1 for
-  positive=CCW in `arm.cw_raw_signs`. All six entries deliberately remain zero;
-  Pocket hardware startup currently refuses them.
+- [x] Record raw-positive rotation for each A1..A6 on the secured unloaded
+  fixture using the documented output-shaft viewpoint. On 2026-11-09 the
+  operator reported keyboard Up=CCW for all six; `arm.cw_raw_signs` is now
+  `[-1, -1, -1, -1, -1, -1]`. This removes the unknown-sign startup block,
+  without changing production joint calibration or confirmation flags.
 - [ ] Run live Pocket hardware acceptance: selection isolates one motor,
-  neutral-before-SE priming works, SE release/center/selection change/conflict
-  stops motion, GUI STOP and window close stop the session, and firmware
+  neutral-before-SE priming works, SE release/center/selection change/diagonal
+  stops motion, diagonal return resumes with SE held, GUI STOP and window close stop the session, and firmware
   disable/mode restoration succeed. Record logs and hardware identity.
 - [ ] Test transmitter-off, receiver power loss, USB loss and reconnection.
   Fresh CSV alone cannot detect receiver hold-last failsafe. Preserve original
   sample deadlines and require re-selection/re-priming after a detected loss.
 
-The latest simulated run demonstrated chassis targets and A2 selection, but
-reported a right-stick conflict. The dashboard was added afterward; no live
-Pocket arm motion or physical CW sign was established in this session.
+The latest reported simulated run demonstrated chassis targets and A2 selection,
+but reported a right-stick conflict. The dashboard was added afterward. The
+2026-11-09 keyboard direction observations establish the six shaft CW signs;
+the operator subsequently reported working Pocket motor control after an ER12
+restart. Full stop/failsafe acceptance and physical validation of the updated
+diagonal behavior remain pending. Cached live telemetry showed the same +/-90
+session bounds for all six motors, with A6 last sampled at -89.55 degrees.
+
+## Handoff verification (2026-11-09)
+
+Before push: 43 model/geometry/sweep regressions plus 26 Pocket policy/Qt,
+three native position-port and one ROS/PTY integration test passed (73 total).
+The terrain scenes were restored after generation checks. No physical motor
+ports were opened. The [assembled-arm sequence](ASSEMBLED_ARM_BRINGUP.md)
+records the remaining support, absolute-position calibration, combined-path,
+coordinated-hold and fault/load qualification work without closing those IDs.

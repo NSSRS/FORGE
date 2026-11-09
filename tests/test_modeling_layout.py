@@ -12,7 +12,7 @@ from unittest.mock import patch
 from robot_description.paths import model_directory
 
 ROOT = Path(__file__).resolve().parents[1]
-ENTRIES = ('preview_native', 'preview_sim', 'preview_arm', 'terrain', 'export_onshape', 'integrate_sim')
+ENTRIES = ('preview_native', 'preview_sim', 'preview_arm', 'preview_arm_sweep', 'terrain', 'export_onshape', 'integrate_sim')
 
 
 class ModelingLayoutTests(unittest.TestCase):
@@ -37,11 +37,11 @@ class ModelingLayoutTests(unittest.TestCase):
                     self.assertIn('usage:',result.stdout)
 
     def test_consumers_share_one_model_resource(self):
-        from simulation import preview_native,preview_sim,terrain
+        from simulation import preview_native,preview_sim,terrain,arm_sweep
         from visualization import mujoco_motor_viewer
         expected=ROOT/'src/robot_description/mujoco'
         self.assertEqual(model_directory(),expected)
-        for value in (preview_native.MODEL_DIR,preview_sim.MODEL_DIR,terrain.MODEL,
+        for value in (preview_native.MODEL_DIR,preview_sim.MODEL_DIR,arm_sweep.MODEL_DIR,terrain.MODEL,
                       mujoco_motor_viewer.model_directory()):
             self.assertEqual(value,expected)
 

@@ -68,6 +68,17 @@ class RosPocketTests(unittest.TestCase):
                     spin(.3,dict(sb=992,se=1811,y=1811,forward=1811))
                     self.assertTrue(any('A2: CW' in s for s in statuses))
                     self.assertEqual(commands[-1].twist.linear.x,.08)
+                    # Diagonal zero reaches the worker while SE authorization survives.
+                    for x,y in ((174,174),(174,1811),(1811,174),(1811,1811)):
+                        spin(.3,dict(sb=992,se=1811,x=x,y=y,forward=1811))
+                        self.assertTrue(dashboards[-1]['diagonal'])
+                        self.assertTrue(dashboards[-1]['authorized'])
+                        self.assertEqual(dashboards[-1]['direction'],0)
+                        self.assertFalse(dashboards[-1]['arm']['moving'])
+                        self.assertEqual(commands[-1].twist.linear.x,.08)
+                        spin(.2,dict(sb=992,se=1811,y=1811))
+                        self.assertEqual(dashboards[-1]['direction'],1)
+                        self.assertTrue(dashboards[-1]['arm']['moving'])
                     spin(.2,dict(sb=992,y=1811))
                     # SC middle selects A5; it cannot move until SE is freshly pressed.
                     spin(.6,dict(sb=992,sc=992))

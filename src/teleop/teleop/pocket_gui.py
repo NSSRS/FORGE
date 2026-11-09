@@ -31,7 +31,7 @@ class StickPlot(QtWidgets.QWidget):
         self.arm = arm
         self.x = self.y = 0.
         self.active = False
-        self.conflict = False
+        self.diagonal = False
         self.deadzone = .05
         self.setMinimumSize(200, 180)
         self.setFixedHeight(180)
@@ -59,7 +59,7 @@ class StickPlot(QtWidgets.QWidget):
             ('CCW' if self.arm else 'R', QtCore.QRectF(self.width()-33,center.y()-12,33,24))):
             painter.drawText(rect, QtCore.Qt.AlignCenter, text)
         dot = QtCore.QPointF(center.x()+self.x*radius, center.y()-self.y*radius)
-        color = RED if self.conflict else GREEN if self.active else '#87969f'
+        color = AMBER if self.diagonal else GREEN if self.active else '#87969f'
         painter.setPen(QtGui.QPen(QtGui.QColor(color), 2))
         painter.drawLine(center, dot)
         painter.setBrush(QtGui.QColor(color))
@@ -194,14 +194,15 @@ class PocketWindow(QtWidgets.QWidget):
         self.connection.setStyleSheet('color: '+(GREEN if fresh else RED))
         self.status.setText('Controller telemetry stopped — showing last readings.' if stale else
                             data['status'] if fresh else 'Radio input expired — motion commands stopped.')
-        conflict = 'conflicting' in data['status'] and fresh
-        self.status.setStyleSheet('color: '+(RED if conflict or not fresh else GREEN if data['authorized'] else AMBER))
+        diagonal = data.get('diagonal', False) and fresh
+        self.status.setStyleSheet('color: '+(RED if not fresh else AMBER if diagonal else
+                                            GREEN if data['authorized'] else AMBER))
         axes = data['axes']
         for key, names in (('left',('chassis_turn','chassis_forward')),
                            ('right',('arm_cw_horizontal','arm_cw_vertical'))):
             horizontal,vertical = (axes.get(name) for name in names)
             plot = self.plots[key]
-            plot.active, plot.conflict = fresh, conflict and key == 'right'
+            plot.active, plot.diagonal = fresh, diagonal and key == 'right'
             if horizontal and vertical:
                 plot.x,plot.y = -horizontal['offset'],vertical['offset']
                 plot.deadzone = max(horizontal['deadzone'],vertical['deadzone'])

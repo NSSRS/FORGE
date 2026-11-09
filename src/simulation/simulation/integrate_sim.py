@@ -7,6 +7,7 @@ import mujoco
 import numpy as np
 from simulation.merge_mjcf import merge_model
 from simulation.body_colors import apply_body_colors
+from simulation.arm_geometry import normalize_d3_rod_centers
 from simulation.place_on_floor import place_on_floor
 from simulation.velocity_control import install_velocity_actuators
 from simulation.paths import MODEL_DIR, source_workspace
@@ -21,6 +22,7 @@ def prepare(folder):
     for el in root.iter():
         for attr in ('name','body1','body2','joint','joint1','joint2'):
             if el.get(attr) in mapping: el.set(attr,mapping[el.get(attr)])
+    normalize_d3_rod_centers(root)
     tree.write(folder/'robot.xml',encoding='utf-8',xml_declaration=True)
     merge_model(folder,10000,preserve_collision=True)
     place_on_floor(folder)

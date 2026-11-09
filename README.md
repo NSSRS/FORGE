@@ -4,7 +4,12 @@ Motor control, IMU acquisition, teleoperation, and visualization for the magneti
 
 Pocket combined controls now use **left stick for chassis** and **right stick
 for the selected arm motor**: left/up=CW, right/down=CCW, with **SE held**.
-SB selects motors 1/2/3; SC selects 4/5/6. See [mapping capture and launch](docs/POCKET_ARM_CONTROL.md).
+SB selects motors 1/2/3; SC selects 4/5/6. All right-stick diagonals stop motion
+without breaking an existing SE prime. See [mapping capture and launch](docs/POCKET_ARM_CONTROL.md).
+
+The [assembled-arm handoff](docs/ASSEMBLED_ARM_BRINGUP.md) records the control
+changes, encoder/startup behavior, model constraints and next steps for physical
+calibration and gravity holding. The current jog adapters remain unloaded tools.
 
 ENCOS motors are the **chassis** actuators. The six Damiao motors are **arm**
 actuators controlled by a DM-MC02 over USB. See [Damiao arm implementation and
@@ -63,6 +68,12 @@ GALLIUM_DRIVER=d3d12 MESA_D3D12_DEFAULT_ADAPTER_NAME=NVIDIA .venv/bin/python scr
 
 The default arm angles are [0, 0.0942, -0.44, 0, -0.188, 0] radians.
 Only DOF1's zero was rebased. These are not calibrated hardware encoder coordinates.
+
+For the six-joint collision-clearance study, run
+`.venv/bin/python scripts/preview_arm_sweep.py`. See
+[candidate intervals and limitations](docs/ARM_COLLISION_STUDY.md). The D3 rod
+assembly uses exactly 150 mm between connection centers; the 140 mm bare-rod mesh
+is unchanged. These sampled intervals are not hardware operating limits.
 MoveIt/Mink integration remains future work.
 
 ## Python motion interface

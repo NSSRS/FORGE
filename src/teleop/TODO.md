@@ -10,12 +10,19 @@ independent completion status here. Hardware acceptance is separate from unit te
 
 The Pocket dual-stick adapter and radio-only calibration tool now exist; see
 [Pocket controls](../../docs/POCKET_ARM_CONTROL.md). Left stick is chassis;
-right stick jogs the SB/SC-selected motor only with SE held. Radio channels are
-measured. Resolve the reported right-stick neutral/conflict behavior, measure
-all six motor CW signs, and complete physical Pocket/failsafe acceptance; see
-the PLAN-01 hardware handoff in the central registry. Loaded behavior remains
+right stick jogs the SB/SC-selected motor only with SE held. Radio channels and
+all six CW signs (-1, operator observations on 2026-11-09) are recorded. All
+four diagonals now stop motion while preserving an existing SE prime; return
+to one axis resumes while SE stays held. Confirm neutral and diagonal behavior
+on the physical controller and complete Pocket/failsafe acceptance; see the
+PLAN-01 hardware handoff in the central registry. Loaded behavior remains
 separate acceptance work.
 
 The single-joint position port and keyboard pipeline now exist; see
 [ARM_POSITION_JOG.md](../../docs/ARM_POSITION_JOG.md). Preserve its explicit
 per-selection authorization, key-release stop and fault behavior when adding new adapters.
+
+For the next supported, assembled-arm stage, follow the
+[handoff](../../docs/ASSEMBLED_ARM_BRINGUP.md) and its central TODO IDs.
+Keep session jog bounds, sampled model intervals and calibrated physical
+limits distinct; coordinated gravity holding remains a separate controller.

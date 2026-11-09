@@ -1,6 +1,6 @@
 # Pocket chassis and arm controls
 
-2026-11-06. Uses the existing Pocket -> ER12 -> ESP32 USB CSV setup. The combined
+Updated 2026-11-09. Uses the existing Pocket -> ER12 -> ESP32 USB CSV setup. The combined
 system launch now uses `pocket_teleop` and `pocket_controls.json`. The old
 `keyboard_teleop` radio mode and `radio_pocket.yaml` remain legacy right-stick
 chassis tools and must not run beside the new reader. No receiver rewiring,
@@ -21,15 +21,26 @@ always occupy a position. Move one to select a motor. If both change in one
 sample, selection clears; move just one again. Selection changes stop/disarm
 even with SE held. After selecting, release SE and center the right stick for
 0.3 s, then hold SE and deflect the right stick. Centering stops motion; another
-deflection with SE still held can jog again. Up-left is CW; down-right is CCW.
-Up-right and down-left conflict and stop/disarm until SE is released and neutral
-is reacquired. A radio interruption requires new selection and re-priming.
+deflection with SE still held can jog again. All four diagonals command zero
+whenever both right-stick axes are outside their deadzones. This stops motion
+without revoking an existing SE prime: returning to one axis resumes while SE
+remains held. A diagonal cannot establish the initial prime. SE release,
+selection changes, GUI STOP and radio interruption still revoke authorization;
+a radio interruption also requires new selection.
 
 Jog speed is fixed at the existing 45 degrees/s, not proportional. The default
 session window is +/-90 degrees from startup. Reaching a boundary does not
-restart a held command. These are unloaded shaft commissioning limits, not
-mechanical joint limits. Nonselected motors are disabled and release removes
+restart a held command. Every motor uses the same window relative to its own session-start angle;
+selecting another motor or re-priming does not recenter it. The target is
+considered reached within 0.5 degrees with low velocity, so a displayed angle
+such as -89.55 degrees can be the -90-degree boundary. These are unloaded shaft
+commissioning limits, not mechanical joint limits. Nonselected motors are disabled and release removes
 torque: this adapter does not hold a loaded arm.
+
+The displayed startup zero is a session reference; it does not reset the
+motor encoder or identify the model zero. See the
+[assembled-arm handoff](ASSEMBLED_ARM_BRINGUP.md) for absolute encoders,
+power-cycle calibration, gravity support and the future holding controller.
 
 ## Measured radio mapping
 
@@ -50,8 +61,11 @@ SB/SC/SE were measured on 2026-11-06 after adding the missing EdgeTX mixes:
 | SE (primer) | CH8 | 191 | - | 1792 |
 
 All radio channels are now recorded in `src/bringup/config/pocket_controls.json`.
-The combined launch can use this profile for simulated motors. Motor CW signs
-remain zero until physically measured. The left vertical axis must physically
+On 2026-11-09 the operator reported keyboard Up (positive raw rotation) as CCW
+for each A1..A6 using the documented output-shaft viewpoint. `arm.cw_raw_signs`
+is therefore `[-1, -1, -1, -1, -1, -1]`: Pocket left/up requests negative raw
+rotation for CW. These observations remove the unknown-sign startup block;
+live Pocket acceptance remains pending. The left vertical axis must physically
 self-center for release-to-zero chassis control; this has not yet been confirmed.
 
 ### If switches disappear from receiver readings
@@ -156,11 +170,14 @@ now on the left stick. Arm execution remains opt-in.
 
 ## Hardware commissioning next step
 
-The real hardware adapter and firmware path exist. Pocket hardware mode is
-currently blocked by six unmeasured `arm.cw_raw_signs` values. Also resolve the
-reported centered-stick conflict using the dashboard before live radio jogging.
-Do not replace unknown signs with guessed values or infer motor readiness from
-the simulator. See [remaining acceptance items](ARM_LAYER_TODOS.md#plan-01--pocket-hardware-acceptance-handoff-2026-11-06).
+The real hardware adapter and firmware path exist. All six `arm.cw_raw_signs`
+were recorded as -1 from the operator's keyboard Up=CCW observations on
+2026-11-09; the unknown-sign startup block is removed. Resolve the reported
+right-stick neutral reading using the dashboard. The operator reported working
+Pocket motor control after restarting the ER12 on 2026-11-09; full stop/failsafe
+acceptance remains pending. Do not
+infer Pocket stop/failsafe acceptance from these direction observations or
+from the simulator. See [remaining acceptance items](ARM_LAYER_TODOS.md#plan-01--pocket-hardware-acceptance-handoff-2026-11-06).
 
 For the same secured, unloaded six-motor bench (A1 on CAN1, A2..A6 on CAN2), the
 existing keyboard window can determine raw rotation signs with a narrower
@@ -182,14 +199,17 @@ that positive rotation is CW (+1) or CCW (-1), separately for each motor. These
 keyboard keys use raw positive/negative directions; the Pocket's CW/CCW mapping
 uses the measured signs afterward. This test does not require a new firmware
 flash if the existing routed position-velocity jogging firmware is installed.
-No hardware command was run as part of this handoff.
+The 10-degree window is relative to each motor's session-start angle: holding
+Up stops at +10 degrees and does not extend the boundary. Release and reverse
+to move back. The operator reported all six positive rotations as CCW on
+2026-11-09; live Pocket acceptance still needs its own evidence.
 
 ## Pocket desktop dashboard
 
 `pocket.launch.py` now opens a PyQt desktop window by default (`show_pocket:=true`).
 It reuses the keyboard jog window's joint-position table and adds six animated
 shaft-angle dials, left/right stick plots, raw readings and neutral indicators,
-SB/SC/SE indicators, chassis commands, and precise primer/conflict messages.
+SB/SC/SE indicators, chassis commands, and precise primer/diagonal messages.
 These are shaft readouts, not an articulated robot model. Simulation angles do
 not establish the physical CW signs.
 
@@ -202,10 +222,12 @@ ROS_DOMAIN_ID=93 ros2 launch bringup pocket.launch.py \
   simulate:=true arm_execute:=false
 ```
 
-The right-stick plot shows both axes independently. If the conflict message
-appears, look at CH1 and CH2: the mapped left/up direction is CW and right/down
-is CCW; opposing non-neutral axes disarm the arm. An off-center status lists
-the offending raw channel. No center/deadzone change is inferred from a log.
+The right-stick plot shows both axes independently. Any diagonal (both CH1 and
+CH2 outside their deadzones) displays an amber stopped state. Once primed, it
+says **diagonal: stopped; SE still primed**; returning to one axis resumes
+without releasing SE. Single-axis left/up is CW and right/down is CCW. An
+off-center status lists the active raw channel. No center/deadzone change is
+inferred from a log.
 Release SE, center the right stick until **ready to prime**, hold SE until
 **ready, SE held**, then deflect it. SB/SC selection still requires moving the
 switch; startup does not choose a motor from two simultaneous switch positions.
@@ -249,10 +271,12 @@ RF health or fully measure USB buffering; transmitter-loss testing remains.
 ## Verification
 
 Policy tests cover six selections, independent chassis control, SE, directions,
-diagonals, input expiry, invalid data, calibration, worker cancellation and
+all four diagonal stops and resume with SE held, input expiry, invalid data,
+calibration, worker cancellation and
 serial stalls. Native C-backed tests check SE withdrawal during enable and
 before another command, including disable and mode restoration. A real ROS/PTY
-test covers shared input, simulated arm motion, chassis messages, silence and
+test covers shared input, simulated arm motion, diagonal stop/resume with SE
+held, chassis messages, silence and
 shutdown. Measured-input replay covers the recorded CH3/CH4/CH6/CH7/CH8
 values, all six selections, all four right-stick directions and SE release.
 The operator measured the radio inputs; automated tests do not establish
@@ -262,9 +286,15 @@ This advances PLAN-01 manual input; ROS-02, CAL-01, BASE-06, PROTECT-01 and
 SUPPORT-01 remain open in [the registry](ARM_LAYER_TODOS.md).
 
 
-Dashboard validation: 60 Damiao/native-backed/keyboard tests, 23 Pocket policy
+Initial dashboard validation: 60 Damiao/native-backed/keyboard tests, 23 Pocket policy
 and Qt tests, 6 launch checks, and the ROS/PTY telemetry/STOP integration test
 passed. An installed-launch smoke test on isolated domain 94 also opened the
 GUI, fed measured input values through a PTY, observed simulated joint angles,
 verified SE release, and confirmed all nodes exit when the GUI closes. No real
 motor ports were opened for these checks.
+
+2026-11-09 push verification: 26 Pocket policy/worker/Qt tests, three native
+position-port tests and one real ROS/PTY integration test passed (30 total).
+The updated tests include all four diagonal stops/resume with SE held and
+retain cancellation checks during enable. All motor feedback in these tests
+comes from offline adapters or the native fake plant.

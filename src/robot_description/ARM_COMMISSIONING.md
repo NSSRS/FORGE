@@ -1,8 +1,19 @@
 # Arm hardware commissioning handoff
 
-Updated 2026-11-05. This is a developer description, not an executable motor
+Updated 2026-11-09. This is a developer description, not an executable motor
 profile. ENCOS is chassis; Damiao is arm. Never apply model joint poses directly
 to uncalibrated hardware. See [current procedure](../../docs/DAMIAO_ARM.md).
+
+## Assembled-arm next stage (2026-11-09)
+
+Read the [control/model handoff and ordered procedure](../../docs/ASSEMBLED_ARM_BRINGUP.md).
+Pocket shaft CW signs are now all -1 from operator observations, but physical
+joint direction/zero calibration remains unset. The MuJoCo initial pose and
+single-joint scan intervals are model references, not hardware startup targets.
+Verify absolute encoder wrap/power-cycle behavior on each supported, disabled
+joint. Session-origin capture does not write encoder zero. The existing jog
+tools disable torque on release and cannot hold the assembled arm. Follow
+SUPPORT-01, CAL-01 and ROS-02 in the central registry before loaded operation.
 
 ## Current physical mapping (2026-11-05)
 

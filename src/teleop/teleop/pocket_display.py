@@ -26,6 +26,8 @@ def dashboard_snapshot(policy, worker, now, *, hardware_arm=False):
     return dict(version=1, hardware_arm=hardware_arm, radio_fresh=fresh,
                 remaining_ms=max(0., (policy.deadline-now)*1000) if fresh else 0.,
                 channels=channels, axes=axes, switches=switches,
+                diagonal=bool(axes and axes['arm_cw_horizontal']['value'] != 0
+                              and axes['arm_cw_vertical']['value'] != 0),
                 selected=output.arm.joint, direction=output.arm.direction,
                 authorized=policy.authorized, ready=policy.ready,
                 status=output.status, chassis=list(output.chassis), arm=worker)

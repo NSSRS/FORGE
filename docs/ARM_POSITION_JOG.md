@@ -5,6 +5,10 @@ It is separate from ENCOS WASD driving. No hardware is automatically enabled
 at startup. Production ROS, calibrated arm coordinates, multi-axis trajectories,
 collision checking and gravity holding remain upper-layer integration work.
 
+The [2026-11-09 assembled-arm handoff](ASSEMBLED_ARM_BRINGUP.md) explains
+session zero versus absolute encoder/model position, the Pocket changes,
+constraint study and supported calibration/holding work still required.
+
 ## Survey and design choice
 
 [Universal Robots manual jogging](https://www.universal-robots.com/articles/ur/programming/how-to-jog-the-robot/)
@@ -128,8 +132,11 @@ absolute/relative targets, other-motor isolation, positive/negative return,
 selection mid-move, invalid targets/speeds, stale poll watchdog and mode cleanup.
 Window tests cover held motion, release without re-arming, repeat events,
 conflicting arrows, selection, focus loss, stalled UI and fault lockout.
-Qt tests use actual key events with its offscreen platform. Hardware jogging
-with this window has not yet been validated. No motors were moved by these tests.
+Qt tests use actual key events with its offscreen platform. No motors were
+moved by these tests. On 2026-11-09 the operator reported keyboard Up=CCW
+on all six unloaded motors and later working Pocket control after receiver
+restart. These observations are separate from full stop/failsafe acceptance
+and do not establish assembled-arm calibration or holding.
 
 Stable handoff: [cross-layer registry](ARM_LAYER_TODOS.md), especially
 ROS-02 (production position-velocity adapter), CAL-01 (coordinates/limits),

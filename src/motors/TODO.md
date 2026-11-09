@@ -11,3 +11,8 @@ independent completion status here. Hardware acceptance is separate from unit te
 The single-joint position port and keyboard pipeline now exist; see
 [ARM_POSITION_JOG.md](../../docs/ARM_POSITION_JOG.md). Preserve its explicit
 per-selection authorization, key-release stop and fault behavior when adding new adapters.
+
+For the next supported, assembled-arm stage, follow the
+[handoff](../../docs/ASSEMBLED_ARM_BRINGUP.md) and its central TODO IDs.
+Keep session jog bounds, sampled model intervals and calibrated physical
+limits distinct; coordinated gravity holding remains a separate controller.

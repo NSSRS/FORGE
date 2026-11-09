@@ -337,7 +337,7 @@
                 <geom type="mesh" class="collision" pos="-0.0499844 -0.00199994 0.141414" quat="0.16906 -0.000826505 0.985596 0.00436752" mesh="arm_d2_ref2_m4球头箍_1" material="arm_d2_ref2_m4球头箍_1_material" group="3" mass="0" name="collision_525" />
                 <geom type="mesh" class="collision" pos="2.07063e-06 -0.00066664 -5.55317e-06" quat="0.985596 0.00436752 -0.16906 0.000826505" mesh="arm_d2_ref2_m4球头箍_1" material="arm_d2_ref2_m4球头箍_1_material" group="3" mass="0" name="collision_527" />
                 <geom type="mesh" class="collision" pos="-0.0482395 -0.000453334 0.136477" quat="0.390809 -0.716861 0.27158 0.509532" mesh="arm_d2_ref4_m4不锈钢拉杆140mm_1" material="arm_d2_ref4_m4不锈钢拉杆140mm_1_material" group="3" mass="0" name="collision_529" />
-                <site group="3" name="closing_b4_2_arm_rod_d3_2" pos="-0.049989 -0.0005 0.141427" quat="0.00436752 -0.985596 -0.000826505 -0.16906" />
+                <site group="3" name="closing_b4_2_arm_rod_d3_2" pos="-0.049988170814208137 -0.00049999170631747118 0.14142465409872199" quat="0.00436752 -0.985596 -0.000826505 -0.16906" />
                 <geom name="body_16_b4_1_arm_rod_d3" type="mesh" mesh="body_16_b4_1_arm_rod_d3" group="2" mass="0" rgba="0.764706 0.721569 0.560784 1" contype="0" conaffinity="0" />
               </body>
               <geom name="body_15_l3_arm_linkage_d3" type="mesh" mesh="body_15_l3_arm_linkage_d3" group="2" mass="0" rgba="0.596078 0.678431 0.588235 1" contype="0" conaffinity="0" />

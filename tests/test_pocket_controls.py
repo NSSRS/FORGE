@@ -20,6 +20,7 @@ ROOT = Path(__file__).resolve().parents[1]
 def config():
     # Synthetic fixture mapping, NEVER a claim about the operator's radio.
     cfg = json.loads((ROOT/'src/bringup/config/pocket_controls.json').read_text())
+    cfg['arm']['cw_raw_signs'] = [0]*6  # Explicitly exercise unknown-sign simulation.
     for name, channel, sign in (('chassis_forward',3,1),('chassis_turn',4,-1)):
         cfg['axes'][name] = dict(channel=channel, minimum=174, center=992, maximum=1811,
                                  sign=sign, deadzone=.05)
@@ -72,9 +73,8 @@ class PocketPolicyTests(unittest.TestCase):
         self.assertIsNone(out.arm.joint)
         self.assertEqual(out.arm.direction,0)
 
-    def test_cw_ccw_axes_and_agreeing_diagonals(self):
-        for x,y,direction in ((174,992,1),(992,1811,1),(1811,992,-1),(992,174,-1),
-                               (174,1811,1),(1811,174,-1)):
+    def test_cw_ccw_cardinal_axes(self):
+        for x,y,direction in ((174,992,1),(992,1811,1),(1811,992,-1),(992,174,-1)):
             self.setUp(); self.prime()
             out = self.send(sb=992,se=1811,x=x,y=y,forward=1811)
             self.assertEqual(out.arm.direction,direction)
@@ -98,12 +98,61 @@ class PocketPolicyTests(unittest.TestCase):
         self.send(sb=1811,se=1811)
         self.assertEqual(self.send(sb=1811,se=1811,y=1811).arm.direction,1)
 
-    def test_conflicting_diagonal_requires_reprime(self):
-        self.prime()
-        out = self.send(sb=992,se=1811,x=174,y=174)
-        self.assertEqual(out.arm.direction,0)
-        self.assertIn('conflicting',out.status)
+    def test_all_corners_stop_worker_and_resume_without_repriming(self):
+        for x,y in ((174,174),(174,1811),(1811,174),(1811,1811)):
+            with self.subTest(x=x,y=y):
+                self.setUp(); self.prime()
+                port = SimulatedPositionPort()
+                box = IntentMailbox()
+                runner = ArmJogRunner(port,box,self.policy.mapping,clock=lambda:self.now)
+                moving = self.send(sb=992,se=1811,y=1811,forward=1811)
+                box.put(moving.arm); runner.tick()
+                self.assertTrue(port.moving)
+                stopped = self.send(sb=992,se=1811,x=x,y=y,forward=1811)
+                box.put(stopped.arm); runner.tick()
+                self.assertEqual(stopped.arm.direction,0)
+                self.assertEqual(stopped.chassis,(.08,0.))
+                self.assertGreater(stopped.arm.generation,moving.arm.generation)
+                self.assertIn('diagonal: stopped; SE still primed',stopped.status)
+                self.assertTrue(self.policy.authorized)
+                self.assertFalse(port.moving)
+                self.assertFalse(port.armed)  # Physical torque stops; SE intent is retained.
+                self.assertEqual(self.send(sb=992,se=1811,x=x,y=y).arm.direction,0)
+                resumed = self.send(sb=992,se=1811,y=174)
+                box.put(resumed.arm); runner.tick()
+                self.assertEqual(resumed.arm.direction,-1)
+                self.assertTrue(self.policy.authorized)
+                self.assertTrue(port.moving)
+                self.assertLess(port.target,0)
+
+    def test_corners_do_not_grant_initial_prime(self):
+        self.send()
+        for _ in range(6): self.send(sb=992)
+        self.assertTrue(self.policy.ready)
+        self.send(sb=992,se=1811,x=174,y=1811)
+        self.assertFalse(self.policy.authorized)
         self.assertEqual(self.send(sb=992,se=1811,y=1811).arm.direction,0)
+
+    def test_corner_does_not_preserve_prime_after_release_selection_or_expiry(self):
+        for event in ('release','selection','expiry','invalid','stop'):
+            with self.subTest(event=event):
+                self.setUp(); self.prime()
+                self.send(sb=992,se=1811,x=174,y=1811)
+                selected_sb = 992
+                if event == 'release':
+                    self.send(sb=992,se=174,x=174,y=1811)
+                elif event == 'selection':
+                    selected_sb = 1811
+                    self.send(sb=selected_sb,se=1811,x=174,y=1811)
+                elif event == 'expiry':
+                    self.now += .16
+                    self.policy.output(self.now)
+                elif event == 'invalid':
+                    self.policy.receive('NO_RECENT_CHANNEL_FRAMES',self.now)
+                else:
+                    self.policy.reset()
+                self.assertFalse(self.policy.authorized)
+                self.assertEqual(self.send(sb=selected_sb,se=1811,y=1811).arm.direction,0)
 
     def test_neutral_stops_then_held_se_allows_next_direction(self):
         self.prime()
@@ -176,8 +225,8 @@ class MeasuredPocketPolicyTests(unittest.TestCase):
 class MappingTests(unittest.TestCase):
     def test_measured_profile_valid_and_cw_required_only_for_hardware(self):
         PocketMapping.read(ROOT/'src/bringup/config/pocket_controls.json')
-        with self.assertRaisesRegex(ValueError, 'cw_raw_signs'):
-            PocketMapping.read(ROOT/'src/bringup/config/pocket_controls.json', hardware_arm=True)
+        measured = PocketMapping.read(ROOT/'src/bringup/config/pocket_controls.json', hardware_arm=True)
+        self.assertEqual(measured.cw_signs, (-1,)*6)
         PocketMapping(config())
         with self.assertRaisesRegex(ValueError,'cw_raw_signs'):
             PocketMapping(config(),hardware_arm=True)
@@ -239,6 +288,24 @@ class WorkerTests(unittest.TestCase):
         self.port.values[1]=self.port.target
         self.runner.tick();self.assertFalse(self.port.moving)
         self.runner.tick();self.assertFalse(self.port.moving)
+
+    def test_measured_cw_directions_command_all_six_raw_targets(self):
+        mapping = PocketMapping.read(ROOT/'src/bringup/config/pocket_controls.json', hardware_arm=True)
+        for joint in range(1,7):
+            for direction in (1,-1):
+                with self.subTest(joint=joint, direction=direction):
+                    port = SimulatedPositionPort(window_degrees=10)
+                    box = IntentMailbox()
+                    runner = ArmJogRunner(port, box, mapping, clock=lambda:1.)
+                    box.put(ArmIntent(1,joint,direction,2.))
+                    runner.tick()
+                    self.assertEqual(port.selected, joint)
+                    self.assertTrue(port.moving)
+                    self.assertLess(port.target*direction, 0.)  # CW is raw negative.
+                    box.put(ArmIntent(2,joint,0,2.))
+                    runner.tick()
+                    self.assertFalse(port.moving)
+                    self.assertFalse(port.armed)
 
     def test_arm_initialization_does_not_block_radio_thread(self):
         release=threading.Event()

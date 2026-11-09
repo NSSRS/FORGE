@@ -145,7 +145,7 @@ class PocketCommand:
         x = self.mapping.axes['arm_cw_horizontal'].value(channels)
         y = self.mapping.axes['arm_cw_vertical'].value(channels)
         signs = {1 if v > 0 else -1 for v in (x,y) if v != 0}
-        neutral, conflict = not signs, len(signs) > 1
+        neutral, diagonal = not signs, x != 0 and y != 0
         if not held:
             self.authorized = False
             if neutral:
@@ -159,17 +159,18 @@ class PocketCommand:
             self.authorized = self.ready and neutral and self.selected is not None and not changes
             self.ready = False
             self.neutral_since = None
-        if conflict:
-            self.inhibit_arm()
-        direction = next(iter(signs)) if signs and not conflict and held and self.authorized else 0
+        # Any diagonal stops motion, while a held SE keeps existing authorization.
+        direction = next(iter(signs)) if signs and not diagonal and held and self.authorized else 0
         if direction != self.direction:
             self.generation += 1
         self.direction = direction
         self.was_held = held
         if self.selected is None:
             self.status = 'Move only SB or SC to select A1–A6'
-        elif conflict:
-            self.status = f'A{self.selected}: conflicting directions; release SE and center right stick'
+        elif diagonal:
+            action = ('SE still primed' if self.authorized else
+                      'release SE and center right stick' if held else 'center right stick to prime')
+            self.status = f'A{self.selected}: diagonal: stopped; {action}'
         elif self.authorized:
             self.status = f'A{self.selected}: '+('CW' if direction == 1 else 'CCW' if direction == -1 else 'ready, SE held')
         elif held:

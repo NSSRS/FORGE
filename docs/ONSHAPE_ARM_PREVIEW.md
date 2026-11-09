@@ -20,6 +20,7 @@ prevent treating successful simulation as validated hardware dynamics.
 | Command | Behavior |
 | --- | --- |
 | `.venv/bin/python scripts/preview_native.py --renderer gpu` | Static posing with native Joint panels; never steps physics |
+| `.venv/bin/python scripts/preview_arm_sweep.py` | Kinematic DOF1–6 clearance scans and automatic playback; see [collision study](ARM_COLLISION_STUDY.md) |
 | `.venv/bin/python scripts/preview_sim.py` | Full physics, wall magnets, wheel driving, arm targets, terrain menu and telemetry |
 | `.venv/bin/python scripts/preview_arm.py` | Optional isolated arm dynamics: fixed chassis, no gravity or contact |
 | `.venv/bin/python -m mujoco.viewer --mjcf=src/robot_description/mujoco/scene.xml` | Stock MuJoCo; no custom magnets or static linkage solver |
@@ -72,6 +73,15 @@ There are four wheel velocity actuators and six arm position actuators.
 D3's near ball joint is b4_1_arm_rod_d3; b4_2_arm_d3 is the passive bearing.
 The closing_b4_2_arm_rod_d3 sites are joined by one connect equality.
 Only b4_arm_d3 is the D3 motor command. The rod can spin passively.
+
+The D3 rod assembly is **150 mm between connection centers**, confirmed by the
+operator on 2026-11-09. The bare CAD rod remains 140 mm; the end fittings account
+for the remaining spacing. `simulation.arm_geometry` normalizes the exported
+150.002488 mm connection-site distance to exactly 150 mm during integration.
+It preserves the site direction and corrects only CAD rounding (at most 0.01 mm);
+larger mismatches require a geometry review. Source CAD and visual/collision meshes
+remain unchanged. Saved flat/curved/bumpy poses are reclosed after this correction.
+This dimension does not calibrate motor zeros or certify physical joint limits.
 
 ## Full simulation
 
