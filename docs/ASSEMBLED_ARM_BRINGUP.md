@@ -1,7 +1,10 @@
 # Assembled arm handoff
 
-Updated 2026-11-09, branch `nathan`. The current Pocket and keyboard tools can
-jog the six secured, unloaded DM motors. The MuJoCo study now visualizes
+Updated 2026-11-10, branch `nathan`. The operator verified manual movement of
+all five active A2–A6 motors. The operator will now build a base that permits
+A1 rotation, followed by motor-position initialization and faster commanded
+movement. Read [the current session handoff](ARM_SESSION_HANDOFF.md) for the
+active profile, firmware and keyboard command. The MuJoCo study visualizes
 candidate travel around the saved initial pose. The assembled arm still needs
 physical calibration, a controller that holds all load-bearing joints, and a
 defined response to loss of torque. The operator reports that it falls when
@@ -33,8 +36,9 @@ after restarting the ER12 receiver. These observations do not establish
 physical joint/model signs, encoder offsets, or formal stop/failsafe acceptance.
 
 Both interfaces use the existing real `ArmPositionPort`/DM-MC02 routed
-position-velocity path. The default jog window is +/-90 degrees about each
-motor's session-start reading, with 45 degrees/s jogging. Selecting a different
+position-velocity path. The current supported rig uses 5 deg/s manual travel
+without a startup-angle window. The separate six-motor unloaded profile retains
+a +/-90-degree session window and 45 deg/s command. Selecting a different
 motor or re-priming does not recenter the window. A readout such as -89.55 degrees
 can be the normal settling tolerance at the -90-degree target.
 
@@ -102,7 +106,7 @@ Three references must remain distinct:
 | Reference | Meaning |
 | --- | --- |
 | Raw motor position | Output-shaft radians reported by the motor |
-| Jog session zero | First measured raw position captured by `BenchSession.prepare`; UI angle and +/-90-degree window are relative to it |
+| Jog session zero | First measured raw position captured by `BenchSession.prepare`; UI relative angle and any explicitly selected bounded window are relative to it |
 | Model joint zero | Mechanical reference requiring a measured sign, offset, any external transmission ratio and wrap branch |
 
 Starting the jog tool does not write the motor's persistent encoder zero.
@@ -123,26 +127,34 @@ The stable acceptance requirements remain in the
 [cross-layer TODO registry](ARM_LAYER_TODOS.md). Perform these stages in order;
 none is completed by the simulation study or the unloaded jogging reports.
 
-1. **Support the arm and define stopping — SUPPORT-01.** Establish a repeatable
-   supported rest pose and suitable fixture, brake or counterbalance for loss
+1. **Build the base and define stopping — SUPPORT-01.** The operator will build
+   a base allowing A1 rotation. Record its mounting/cable clearance, then verify
+   A1 identity, disabled feedback and controlled motion on that fixture. Establish
+   a repeatable supported rest pose and suitable fixture, brake or counterbalance for loss
    of power/drive torque. Define emergency stop, command loss, drive fault,
    controlled stopping and supported disable. Verify this arrangement before
    removing support from an energized arm. MC02 disable is not a brake.
-2. **Measure absolute-position mapping — CAL-01, DEPLOY-01.** With the arm
+2. **Initialize measured motor positions — CAL-01, DEPLOY-01.** With the arm
    supported and drives disabled, record each motor's identity/firmware,
    raw angle and known physical/model angle at a repeatable pose. Power-cycle
    without movement, then make a controlled off-power position change and
    compare startup feedback modulo one turn. Determine wrap ambiguity, joint
    sign, offset and any external ratio; save a versioned calibration and
    verify it at additional known poses. Do not let the arm fall as a test or
-   silently declare each new startup pose to be the model zero.
+   silently declare each new startup pose to be the model zero. Initialize
+   from fresh positions while disabled; an intentional home move is separate.
 3. **Qualify joint and path constraints — CAL-01, PLAN-01.** Compare the actual
    assembly with CAD, inspect excluded contact pairs and check cables, hard
    stops and clearances. Test combined configurations and whole motion paths,
    then derive conservative operating limits with stopping/tolerance margins.
    Approach boundaries under support at low speed; deliberate impacts or a
    reactive torque threshold are not the normal limit-calibration method.
-4. **Implement assembled-arm holding — ROS-02, BASE-06, SUPPORT-01.** Add a
+4. **Qualify faster commanded movement — SPEED-01.** After the base and initial
+   position reference are ready, increase command speed in measured stages.
+   Compare requested/actual speed, tracking and stopping in both directions,
+   including A6, and record temperature/current evidence. Current supported
+   commands remain 5 deg/s; a 1.5 rad/s reactive trip is not a speed command.
+5. **Implement assembled-arm holding — ROS-02, BASE-06, SUPPORT-01.** Add a
    separate lifecycle that reads fresh valid angles for all six joints,
    preloads current-position targets, requires explicit arming and holds all
    load-bearing joints together. Define neutral/SE release as stopping a jog
@@ -151,7 +163,7 @@ none is completed by the simulation study or the unloaded jogging reports.
    A return to a saved/home pose must be a separate requested, path-checked
    motion. Preserve one transport owner, fault latches and explicit recovery;
    never automatically re-enable after a fault or reconnect.
-5. **Qualify load and failures — PROTECT-01, BASE-04, BASE-07, DEPLOY-01.**
+6. **Qualify load and failures — PROTECT-01, BASE-04, BASE-07, DEPLOY-01.**
    Verify motor-side current/protection settings and persistence. With support
    retained, measure holding capacity, temperature, feedback age, bus timing,
    stop latency and behavior on host/USB/CAN/command loss. Progress from small
@@ -175,3 +187,11 @@ none is completed by the simulation study or the unloaded jogging reports.
   successful Pocket motion after receiver restart are recorded separately.
   Full radio stop/failsafe acceptance, assembled calibration, holding and
   loaded operation remain pending.
+
+## Supported rig preparation update (2026-11-10)
+
+A [connection/encoder check and bounded A2–A6 manual jog](ARM_RIG_TEST.md) is
+now prepared for A1 temporarily disconnected. The fixture must support all
+links, including A1, throughout movement and torque disable. This adds a narrow
+commissioning step; coordinated holding, physical calibration and loaded
+acceptance in the ordered steps above remain pending.

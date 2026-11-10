@@ -35,6 +35,22 @@ def row(*, x=992, y=992, forward=992, turn=992, sb=174, sc=174, se=174, age=0):
 
 
 class PocketPolicyTests(unittest.TestCase):
+    def test_missing_a1_cannot_prime_or_move_and_requires_fresh_selection(self):
+        self.policy=PocketCommand(PocketMapping(config()),available_joints=(2,3,4,5,6))
+        self.prime()
+        self.assertEqual(self.send(sb=992,se=1811,y=1811).arm.direction,1)
+        out=self.send(sb=174,se=1811,y=1811,forward=1811)
+        self.assertEqual(out.arm.joint,1);self.assertEqual(out.arm.direction,0)
+        self.assertIn('A1 unavailable',out.status)
+        self.assertEqual(out.chassis,(.08,0.))
+        for _ in range(6):self.send(sb=174)
+        self.send(sb=174,se=1811)
+        self.assertFalse(self.policy.authorized)
+        self.assertEqual(self.send(sb=992,se=1811,y=1811).arm.direction,0)
+        for _ in range(6):self.send(sb=992)
+        self.send(sb=992,se=1811)
+        self.assertEqual(self.send(sb=992,se=1811,y=1811).arm.direction,1)
+
     def setUp(self):
         self.policy = PocketCommand(PocketMapping(config()))
         self.now = 1.
@@ -223,6 +239,20 @@ class MeasuredPocketPolicyTests(unittest.TestCase):
 
 
 class MappingTests(unittest.TestCase):
+    def test_rig_profile_factory_and_support_guards(self):
+        from teleop.pocket_teleop import arm_factory
+        rig=ROOT/'src/robot_description/config/arm_rig_a2_a6.json'
+        mapping=PocketMapping.read(ROOT/'src/bringup/config/pocket_controls_rig.json')
+        factory=arm_factory(mapping,execute=False,unloaded=False,supported=True,plan=rig,port='')
+        port=factory()
+        self.assertEqual(port.available_joints,(2,3,4,5,6))
+        self.assertEqual(port.selected,2)
+        with self.assertRaisesRegex(ValueError,'window'):
+            arm_factory(PocketMapping.read(ROOT/'src/bringup/config/pocket_controls.json'),
+                        execute=True,unloaded=False,supported=True,plan=rig,port='/not/opened')
+        with self.assertRaisesRegex(ValueError,'not both'):
+            arm_factory(mapping,execute=True,unloaded=True,supported=True,plan=rig,port='/not/opened')
+
     def test_measured_profile_valid_and_cw_required_only_for_hardware(self):
         PocketMapping.read(ROOT/'src/bringup/config/pocket_controls.json')
         measured = PocketMapping.read(ROOT/'src/bringup/config/pocket_controls.json', hardware_arm=True)
@@ -254,6 +284,63 @@ class MappingTests(unittest.TestCase):
 
 
 class WorkerTests(unittest.TestCase):
+    def test_manual_rig_stick_keeps_running_and_expiry_stops(self):
+        mapping=PocketMapping.read(ROOT/'src/bringup/config/pocket_controls_rig.json',hardware_arm=True)
+        self.assertIsNone(mapping.window)
+        with patch('motors.arm_position.time.monotonic',return_value=1.) as clock:
+            port=SimulatedPositionPort(window_degrees=None,available_joints=(2,3,4,5,6))
+            box=IntentMailbox();runner=ArmJogRunner(port,box,mapping,clock=lambda:clock.return_value)
+            for i in range(101):
+                now=1+i*.02;clock.return_value=now
+                box.put(ArmIntent(1,2,1,now+.15));runner.tick()
+            self.assertLess(port.values[1],-.15);self.assertTrue(port.moving)
+            self.assertIsNone(runner.finished)
+            box.put(ArmIntent(2,2,0,3.15));runner.tick();self.assertFalse(port.moving)
+            box.put(ArmIntent(3,2,-1,3.15));runner.tick();self.assertTrue(port.moving)
+            clock.return_value=3.16;runner.tick();self.assertFalse(port.moving);self.assertFalse(port.armed)
+            port.close()
+
+    def test_worker_saves_startup_failure_without_a_port(self):
+        def factory():
+            raise RuntimeError('retained controller fault')
+        worker=ArmWorker(factory,PocketMapping(config()))
+        worker.start();worker.thread.join(2)
+        self.assertFalse(worker.thread.is_alive())
+        with self.assertRaisesRegex(RuntimeError,'retained controller fault'):
+            worker.close()
+        self.assertEqual(worker.report['error'],'retained controller fault')
+        self.assertIn('RuntimeError: retained controller fault',worker.report['error_traceback'])
+
+    def test_worker_preserves_captured_fault_and_cleanup_error(self):
+        port=SimulatedPositionPort()
+        def capture(error):
+            port.report['error_original']=str(error)
+            port.report['fault_snapshot']={'fault':1,'reason':9,'slot':1}
+            return 'A2: measured torque limit; fault latched'
+        port.capture_failure=capture
+        port.close=lambda: (_ for _ in ()).throw(RuntimeError('disable acknowledgement lost'))
+        worker=ArmWorker(lambda:port,PocketMapping(config()))
+        with patch('teleop.pocket_arm.ArmJogRunner.tick',side_effect=RuntimeError('MC02 rejected command 4')):
+            worker.start();worker.thread.join(2)
+        self.assertFalse(worker.thread.is_alive())
+        with self.assertRaisesRegex(RuntimeError,'A2: measured torque limit'):
+            worker.close()
+        self.assertIn('disable acknowledgement lost',worker.report['error'])
+        self.assertEqual(worker.report['cleanup_error'],'disable acknowledgement lost')
+        self.assertEqual(worker.report['error_original'],'MC02 rejected command 4')
+        self.assertEqual(worker.report['fault_snapshot']['reason'],9)
+
+    def test_subset_worker_uses_physical_numbers_and_rejects_unavailable_intent(self):
+        port=SimulatedPositionPort(window_degrees=1,available_joints=(2,3,4,5,6))
+        runner=ArmJogRunner(port,self.box,self.mapping,clock=lambda:self.now)
+        self.intent(joint=6);runner.tick()
+        self.assertEqual(port.selected,6);self.assertTrue(port.moving)
+        self.intent(generation=2,joint=1);runner.tick()
+        self.assertFalse(port.moving);self.assertFalse(port.armed)
+        self.assertEqual(port.values[0],0)
+        self.intent(generation=3,joint=2);runner.tick()
+        self.assertEqual(port.selected,2);self.assertTrue(port.moving)
+
     def setUp(self):
         self.now=1.
         self.mapping=PocketMapping(config())

@@ -1,6 +1,6 @@
 # Joint-angle API and manual arm jog
 
-2026-11-05. This is a reusable position port plus an unloaded commissioning UI.
+Updated 2026-11-10. This is a reusable position port and fixture commissioning UI.
 It is separate from ENCOS WASD driving. No hardware is automatically enabled
 at startup. Production ROS, calibrated arm coordinates, multi-axis trajectories,
 collision checking and gravity holding remain upper-layer integration work.
@@ -8,6 +8,11 @@ collision checking and gravity holding remain upper-layer integration work.
 The [2026-11-09 assembled-arm handoff](ASSEMBLED_ARM_BRINGUP.md) explains
 session zero versus absolute encoder/model position, the Pocket changes,
 constraint study and supported calibration/holding work still required.
+
+The operator verified A2–A6 movement. For the current 5 deg/s supported manual
+travel command, use [the rig guide](ARM_RIG_TEST.md); the generic six-motor
+unloaded defaults below are separate. Next work is the A1 base, measured position
+initialization and faster movement; see [current status](ARM_SESSION_HANDOFF.md).
 
 ## Survey and design choice
 
@@ -20,7 +25,9 @@ provides joint-jog, twist and pose interfaces, with collision/singularity handli
 and optional smoothing at the robotics-control level. These are references
 for UI/layer separation, not a claim that this keyboard tool has those protections.
 
-The Python/PyQt5 desktop window uses real key press/release events. Select a
+The Python/PyQt5 desktop window uses real key press/release events. It opens
+at 880 × 420 pixels with compact joint rows; longer fault messages can add
+height so the table and controls remain visible. Select a
 joint and arm once; holding an arrow moves continuously at 45°/s. Release
 stops and disables torque while retaining authorization for that selection.
 Switching motors, explicit stop, focus loss or faults disarm. Auto-repeat
@@ -59,6 +66,7 @@ still require explicit recovery. Stop other motor-owning processes first.
 | Hold Left / Down | Move continuously in negative direction |
 | Release arrow | Disable motion; selected motor stays armed |
 | Space / X / Escape | Stop and disarm |
+| R / Recover fault button | Explicit disabled recovery; stays disarmed, then E + fresh arrow |
 | Q / window close | Stop, restore original modes and exit |
 
 Example: `1`, `E`, hold Right, release, hold Left. No second E is needed.
@@ -73,6 +81,39 @@ PyQt5 is required (`python3-pyqt5` on Ubuntu; installed on this NUC). The UI is
 a desktop window, and does not require an interactive terminal. Idle positions
 are cached and show their age; disabled feedback refreshes before each move.
 No IDs, gains, current limits or saved parameters are written.
+
+## Recover a trip inside the keyboard window
+
+After a speed/torque trip or host motion timeout, release all arrows, inspect
+and address the cause, then press **R** or click **Recover fault**. The window
+remains responsive and displays RECOVERING. It saves first-fault evidence before
+clearing the MC02 software latch, verifies all retained motors disabled and
+stationary, and re-prepares mode/ranges/timeout. Successful recovery stays
+disarmed; press **E**, then a fresh arrow. Ordinary arm/disarm never clears a
+latched fault. R does not reboot MC02 or require a power cycle for these trips.
+
+The same window opens in fault lockout if a disabled MC02 already retains a
+fault at startup. Recovery failures remain locked and show the cause; R can be
+pressed again after correcting it. A missing retained motor, persistent drive
+error, hot/coasting feedback or ID-session lock prevents recovery. R cannot
+resolve a mechanical obstruction or provide gravity holding.
+
+During fault lockout, the title shows FAULT and the joint table continues
+aging cached samples, marked STALE with speed/torque blanked. It does not freeze
+a last enabled value as if it were current. Overspeed errors include the
+commanded speed as well as the drive-reported speed and trip threshold.
+
+A unique `.fault-*.json` beside `--report` is flushed to disk before reset;
+failed evidence persistence leaves the latch intact. The session report keeps
+all recovery attempts and previous fault summaries. Hardware keyboard sessions
+without `--report` use `build/arm_tests/keyboard-<timestamp>.json` automatically.
+Only this UI opts into retained-fault startup; the default API/Pocket startup
+still refuses a latched fault. Existing firmware 156f20c8 supports recovery.
+
+The API is `recover(report_path)`. Stop motion and suspend other calls until it
+returns; it preserves the current session origins/bounds and original-mode
+cleanup. The Qt worker temporarily owns the same serial port exclusively, with
+no overlapping polling or second owner. No input during recovery queues motion.
 
 ## API port
 
@@ -152,3 +193,32 @@ are unchanged. The Pocket dashboard consumes the existing Pocket control
 owner's snapshots; see [Pocket dashboard](POCKET_ARM_CONTROL.md#pocket-desktop-dashboard).
 `cached_positions()` returns already collected control feedback with advancing
 age and performs no USB/CAN requests. It is distinct from `positions()`.
+
+## Supported subset test (2026-11-10)
+
+The [A2–A6 rig procedure](ARM_RIG_TEST.md) uses `active_joints` in a complete
+inventory to omit A1 without renumbering. `--speed-deg-s` adjusts manual speed;
+`--supported` requires physical support throughout movement/disable and caps
+bounded windows at +/-3 degrees and speed at 5 degrees/s; --manual-travel
+explicitly removes the startup window as described below. Missing joints are disabled
+in the UI. This preserves release-disable and is not continuous gravity holding.
+
+## Operator-controlled manual travel (2026-11-10)
+
+`--manual-travel` explicitly replaces the startup window for this commissioning
+mode. Use `--supported --speed-deg-s 5` with the A2-A6 rig plan; see
+[the current rig procedure](ARM_RIG_TEST.md). In Python this is
+`ArmPositionPort(plan, window_degrees=None)`, followed by `jog(-1 or +1, speed)`
+and frequent `poll()`. `jog()` advances the mode-2 position target from the
+current disabled position while held. It does not stop when feedback catches a
+target or crosses the original startup angle. Startup zero remains a display
+reference. Release stops and disables torque.
+
+Hardware requires capability 0x8000; passive readback confirmed deployed image
+156f20c8 / mask 0xFF8F on 2026-11-10. No additional flash is needed.
+The host retains a 12-second continuous-hold timeout and the MCU a 15-second
+cutoff; a timeout is an error, never an automatic restart. Protocol position
+range and target-versus-feedback validation remain, together with speed,
+torque, temperature and communication protections. Mechanical limits will be
+identified separately. Numeric `window_degrees` / `--window-deg` still select
+the existing bounded API and do not require this new capability.

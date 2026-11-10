@@ -1,0 +1,79 @@
+{
+  "version": 1,
+  "note": "Left-stick readings measured 2026-11-06; right-stick readings retained from 2026-10-09. SB/SC/SE measured on CH6/CH7/CH8 after adding EdgeTX mixes on 2026-11-06. Operator reported positive raw rotation (keyboard Up) as CCW for A1..A6 on 2026-11-09 using the documented output-shaft viewpoint; CW signs are -1 for all six. Live Pocket acceptance remains pending. Supported rig test: pair with arm_rig_a2_a6.json; 5 degrees/s, operator-controlled manual travel without a startup angle window; 12-second maximum per hold; MC02 capability 0x8000 required; A1 absent.",
+  "timeout_s": 0.15,
+  "axes": {
+    "chassis_forward": {
+      "channel": 3,
+      "minimum": 174,
+      "center": 996,
+      "maximum": 1811,
+      "sign": 1,
+      "deadzone": 0.05
+    },
+    "chassis_turn": {
+      "channel": 4,
+      "minimum": 175,
+      "center": 996,
+      "maximum": 1811,
+      "sign": -1,
+      "deadzone": 0.05
+    },
+    "arm_cw_horizontal": {
+      "channel": 1,
+      "minimum": 174,
+      "center": 992,
+      "maximum": 1811,
+      "sign": -1,
+      "deadzone": 0.05
+    },
+    "arm_cw_vertical": {
+      "channel": 2,
+      "minimum": 174,
+      "center": 992,
+      "maximum": 1811,
+      "sign": 1,
+      "deadzone": 0.05
+    }
+  },
+  "switches": {
+    "sb": {
+      "channel": 6,
+      "values": [
+        191,
+        1004,
+        1792
+      ],
+      "tolerance": 80
+    },
+    "sc": {
+      "channel": 7,
+      "values": [
+        191,
+        1004,
+        1792
+      ],
+      "tolerance": 80
+    },
+    "se": {
+      "channel": 8,
+      "values": [
+        191,
+        1792
+      ],
+      "tolerance": 80
+    }
+  },
+  "arm": {
+    "cw_raw_signs": [
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      -1
+    ],
+    "speed_deg_s": 5,
+    "window_deg": null
+  }
+}

@@ -37,31 +37,32 @@ Close previous camera, IMU, teleop and motor sessions, Arduino Serial Monitor,
 and standalone sensor readers. Only one EtherCAT master and one reader per
 serial port should run. Close the old camera viewer too; the session opens one.
 
-The operator identified the current adapters; these are now the launch defaults:
+The IMU keeps its identified socket path:
+`/dev/serial/by-path/pci-0000:00:14.0-usb-0:1:1.0-port0`. The radio now defaults
+to `radio_port:=auto` (2026-11-10). Startup recognizes the ESP32's fresh CSV
+stream among eligible CH340 adapters, excluding the configured IMU and arm
+ports. This tolerates a changed radio USB socket or ttyUSB number. Keep the
+receiver/transmitter on; close other serial readers before launch. See
+[discovery rules and explicit overrides](POCKET_ARM_CONTROL.md#usb-radio-discovery).
 
-- IMU (`ttyUSB1`): `/dev/serial/by-path/pci-0000:00:14.0-usb-0:1:1.0-port0`
-- ESP32 radio (`ttyUSB0`): `/dev/serial/by-path/pci-0000:00:14.0-usb-0:3:1.0-port0`
+The adapters have identical nonunique by-id names. Do not identify the radio
+from that shared symlink. If you move the IMU, update `imu_port` explicitly;
+radio discovery does not identify or reconnect the IMU. Use
+`ls -l /dev/serial/by-path/` to inspect socket paths. With readers stopped,
+unplug/reconnect only the relevant USB cable if you need to identify a socket.
 
-Keep them in the same physical USB sockets. The saved paths tolerate ttyUSB
-number changes. Plain `bash scripts/run_system_test.sh` uses these defaults;
-explicit `imu_port:=...` and `radio_port:=...` still override them.
-
-If you move the adapters to other sockets, identify them again:
-
-```bash
-ls -l /dev/serial/by-path/
-```
-
-Three adapters were attached during preparation. Their by-id names are not
-unique, so do not assume that the single by-id symlink is the controller.
-Identify each by unplugging/reconnecting its USB cable while no readers run,
-then use the corresponding by-path name. Do not unplug powered motor wiring.
-Set these shell variables to the two actual paths (different devices):
+For the optional explicit-port commands below, set the IMU path and discover
+only the radio (no motor device is opened):
 
 ```bash
+cd /home/forge2/forge2_ws
+source scripts/ros2_env.sh
 export IMU_PORT=/dev/serial/by-path/pci-0000:00:14.0-usb-0:1:1.0-port0
-export RADIO_PORT=/dev/serial/by-path/pci-0000:00:14.0-usb-0:3:1.0-port0
+RADIO_PORT=$(python3 -m bringup.radio_port --exclude "$IMU_PORT" --exclude /dev/ttyACM0)
 ```
+
+Proceed only if discovery succeeds and prints a radio path. Plain combined
+launches perform this discovery themselves; no shell variable is required.
 
 To verify assignments individually without motor commands:
 

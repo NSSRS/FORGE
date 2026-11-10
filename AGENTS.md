@@ -1,26 +1,64 @@
 # Workspace guidance
 
-- Active software is the C11 driver/utilities in `src/encos_driver/`, the Python API in `src/motors/`, and the ROS 2 packages listed below. Native Ubuntu 24.04 is the deployment target; WSL is a temporary development environment.
-- See `docs/ENCOS_WORKSPACE.md` for builds, `tests/README.md` for verification, and `docs/ROS2_MOTOR_CONTROL_STATUS.md` for ROS commissioning.
-- Read `README.md`, then `docs/ENCOS_BRINGUP.md` and `docs/ENCOS_TEST_BENCH.md` when hardware context is needed.
-- When the local supplier bundle is available, use the active references listed in `vendor/encos/README.md`; `vendor/` is intentionally excluded from Git.
-- Do not scan or extract `vendor/encos/_archive/` unless the user asks for a Windows tool, USB-CAN path, bridge firmware work, IgH master, C++ demo/video, or CAD.
-- Keep vendor file contents unchanged. Implement changes in project-owned `src/`, `tests/`, `scripts/`, or `docs/` files.
+## Start here
 
-- ROS packages are motor_control, imu, stereo_cam, seam_detection, teleop, visualization, bringup, robot_description, and simulation. Shared launch/config belongs to bringup; scripts are wrappers/setup only. See docs/SOURCE_LAYOUT.md.
+Read `README.md`, then `docs/ARM_SESSION_HANDOFF.md` for current arm status and
+the next session. Use `docs/ARM_LAYER_TODOS.md` and the owning package's `TODO.md`
+for open work; remove completed tasks instead of appending incident histories.
+Operator procedures belong in `docs/ARM_RIG_TEST.md`; architecture and ownership
+are in `docs/ARM_BASE_LAYER.md` and `docs/SOURCE_LAYOUT.md`.
 
-- ENCOS motors are chassis; Damiao motors are arm actuators on DM-MC02 USB/CAN. Read docs/DAMIAO_ARM.md and src/robot_description/ARM_COMMISSIONING.md before arm work. As of 2026-11-05, A1..A6 IDs 1..6/feedback17..22 are written/read back; the saved six-motor unloaded report passes all 14 group/individual stages with disable/mode restoration. A1 is on CAN1; A2..A6 are on CAN2. Use the current status sections, not historical single-motor notes. Six-axis profiles/ROS and loaded-arm operation remain unvalidated; preserve null calibration and false confirmation flags.
+As of 2026-11-10, the operator verified manual movement of all five active
+motors A2–A6. A1 is omitted from the current rig profile. Next: the operator
+builds a base that permits A1 rotation, then commission A1 on that fixture,
+implement measured motor-position initialization, and qualify faster commanded
+movement. Current supported jogging remains 5 deg/s; all active measured-speed
+trips are 1.5 rad/s. Calibration, loaded holding and current protection remain
+unqualified. Do not promote production confirmation flags from this motion check.
 
-- Modeling follows the same source layout as other packages: reusable code in src/simulation/simulation/, shared MJCF/mesh assets in src/robot_description/mujoco/, and thin launchers/setup in scripts/. Do not add root Python entry points or top-level simulation/model directories. Read docs/ONSHAPE_ARM_PREVIEW.md before changing models; preserve D3 closure and simulation/hardware coordinate separation. Validate package layout, model compatibility, motor overview, body colors, magnetic, terrain and actuator tests. Never commit src/simulation/.env, src/robot_description/mujoco/config.json or generated backups.
+## Source and verification
 
-- For arm/base-layer work, read `docs/ARM_BASE_LAYER.md`, `docs/ARM_LAYER_TODOS.md` and the local package `TODO.md`. Stable TODO IDs link firmware, Python, ROS, calibration, planning and bringup responsibilities. Telemetry must use cached MCU feedback, not new CAN queries while enabled. Preserve fault latches, single-owner transport and raw-shaft SI contracts.
+- ENCOS is chassis: C11 driver/utilities in `src/encos_driver/`; shared Python
+  APIs in `src/motors/`. Damiao is arm: DM-MC02 firmware in
+  `src/damiao_firmware/`. Native Ubuntu 24.04 is the deployment target.
+- Shared launch/config belongs in `src/bringup/`; reusable code belongs in the
+  owning package; `scripts/` contains thin wrappers/build helpers. Follow
+  `docs/SOURCE_LAYOUT.md`; do not add root-level implementations.
+- Run the relevant checks in `tests/README.md`. Distinguish fake-motor, ROS/PTY,
+  model and physical evidence. Generated reports/builds/logs stay ignored.
+- Keep vendor contents unchanged. Use references indexed by `vendor/encos/README.md`
+  when available; do not scan/extract `vendor/encos/_archive/` unless requested
+  for the corresponding Windows, USB-CAN, bridge, IgH, demo/video or CAD work.
+- ENCOS hardware context: `docs/ENCOS_WORKSPACE.md`, `docs/ENCOS_BRINGUP.md`,
+  `docs/ENCOS_TEST_BENCH.md`, `docs/ROS2_MOTOR_CONTROL_STATUS.md`.
 
-- Assembled-arm handoff: read `docs/ASSEMBLED_ARM_BRINGUP.md`. Startup session zero is not model zero; calibrate raw encoder mapping and power-cycle/wrap behavior on a supported arm. The existing unloaded jog adapter disables torque on release/neutral and cannot support a gravity-loaded arm. Follow SUPPORT-01, CAL-01 and ROS-02 before loaded operation; keep study intervals separate from hardware limits.
+## Motor contracts
 
-- Manual arm API/jog: read `docs/ARM_POSITION_JOG.md`. `src/motors/arm_position.py` owns the raw-radian position port; `src/teleop/teleop/arm_keyboard.py` owns key policy. PyQt window: number selection + E once + held arrows (release stops) are unloaded commissioning, separate from ENCOS WASD. Production multi-joint/loaded operation remains pending.
+- One serial owner per controller and one radio reader. Telemetry consumes
+  cached feedback; never add CAN register polling while enabled or let a
+  telemetry read renew a motion lease. Preserve raw-shaft SI units and freshness.
+- Preserve latched faults and explicit recovery. Keyboard **R** saves evidence,
+  verifies disabled/stationary motors and recovers through the existing owner;
+  success stays disarmed until fresh **E + arrow**. Never auto-reset/re-enable.
+- Current rig: A2–A6 on CAN2, original IDs 2–6 and feedback IDs 18–22; A1's
+  inventory route is CAN1/ID1/feedback17. Subsets retain physical slot numbers
+  and never silently omit another missing motor. See `docs/ARM_MOTOR_IDS.md`.
+- Manual travel removes startup-angle windows only when explicitly selected.
+  Release disables torque; nonselected joints stay disabled. Mechanical support
+  must carry all links on torque loss. This adapter is not gravity holding.
+- Session zero, raw encoder position, model zero and calibrated physical limits
+  are distinct. Keep unknown calibration null and production flags false until
+  their documented acceptance criteria are measured.
+- Pocket policy and commissioning live in `docs/POCKET_ARM_CONTROL.md`. Preserve
+  original input deadlines, SE priming, diagonal stop/resume and cancellation
+  during enable. Its GUI consumes cached telemetry and requests stop; it must
+  not acquire another motor/radio owner or publish competing `/cmd_vel`.
 
-- Pocket combined controls: read `docs/POCKET_ARM_CONTROL.md`. Left stick is chassis; right left/up=CW and right/down=CCW, gated by held SE. All four diagonals (both right axes outside their deadzones) command zero while preserving an existing SE prime; returning to one axis resumes while SE remains held. Last-moved SB top/middle/bottom selects 1/2/3; SC selects 4/5/6. Preserve one radio reader, one arm owner, original input deadlines and in-flight enable cancellation. Measured input is CH3/CH4 for left stick and CH6/CH7/CH8 for SB/SC/SE; the operator measured raw-positive rotation as CCW for all six motors on 2026-11-09, so Pocket CW signs are all -1. Do not infer production joint signs/zeros from this shaft-direction measurement. Legacy radio_pocket.yaml is the old right-stick chassis profile, not the combined launch profile.
+## Modeling
 
-- Pocket desktop dashboard: `pocket.launch.py` opens `pocket_gui` by default. It shares the keyboard joint readout, subscribes to `/pocket/telemetry` and can request `/pocket/stop`; never give it a second serial/motor owner or a second `/cmd_vel` publisher. Display snapshots reuse `cached_positions()` without new USB/CAN requests. Preserve radio deadlines and mark stale GUI samples.
-
-- Pocket hardware handoff: real `ArmPositionPort` and `arm_execute:=true` paths exist. Remaining PLAN-01 items are in `docs/ARM_LAYER_TODOS.md`: verify right-stick neutral and the updated diagonal stop/resume behavior, verify left-stick spring return, and validate live Pocket stop/failsafe behavior. All six Pocket CW signs were recorded as -1 from operator measurements on 2026-11-09. Use the documented narrow-window keyboard test to measure raw signs; keep unknown CW values zero and production confirmation flags unchanged.
+Read `docs/ONSHAPE_ARM_PREVIEW.md` before model edits. Reusable code lives in
+`src/simulation/simulation/`, shared assets in `src/robot_description/mujoco/`.
+Preserve D3 closure and the 150 mm connection-center spacing; keep simulation
+coordinates separate from hardware calibration. Run the relevant layout/model,
+overview, color, magnetic, terrain and actuator checks. Never commit
+`src/simulation/.env`, `src/robot_description/mujoco/config.json` or backups.

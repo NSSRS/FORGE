@@ -2,21 +2,27 @@
 
 Motor control, IMU acquisition, teleoperation, and visualization for the magnetic wall-climbing welding robot.
 
-Pocket combined controls now use **left stick for chassis** and **right stick
+**Arm status (2026-11-10): the operator verified movement of all five active
+A2–A6 motors.** Next, the operator will build a base so A1 can rotate, then we
+will work on motor-position initialization and faster commanded movement.
+Start with the [current arm handoff](docs/ARM_SESSION_HANDOFF.md) and
+[keyboard rig instructions](docs/ARM_RIG_TEST.md); the keyboard needs no radio.
+
+Pocket combined controls use **left stick for chassis** and **right stick
 for the selected arm motor**: left/up=CW, right/down=CCW, with **SE held**.
 SB selects motors 1/2/3; SC selects 4/5/6. All right-stick diagonals stop motion
 without breaking an existing SE prime. See [mapping capture and launch](docs/POCKET_ARM_CONTROL.md).
 
 The [assembled-arm handoff](docs/ASSEMBLED_ARM_BRINGUP.md) records the control
 changes, encoder/startup behavior, model constraints and next steps for physical
-calibration and gravity holding. The current jog adapters remain unloaded tools.
+calibration and gravity holding. The jog adapters require unloaded shafts or mechanical support and disable torque on release.
 
 ENCOS motors are the **chassis** actuators. The six Damiao motors are **arm**
 actuators controlled by a DM-MC02 over USB. See [Damiao arm implementation and
 commissioning](docs/DAMIAO_ARM.md) for firmware builds, the separate host/ROS
 interface, motor descriptions, manufacturer manuals and outstanding hardware mapping.
 
-- **[`nathan`](https://github.com/NSSRS/FORGE/tree/nathan)**: Damiao arm firmware, descriptions, host interface, and [six-motor unloaded commissioning](docs/DAMIAO_ARM.md#current-status--2026-11-05) and desktop joint jogging; calibration and loaded-arm validation pending. Also includes the integrated Onshape chassis/arm MJCF, static posing and full MuJoCo simulation under `src/simulation/`.
+- **[`nathan`](https://github.com/NSSRS/FORGE/tree/nathan)**: Damiao arm firmware, descriptions, host interface, and [current arm commissioning](docs/ARM_SESSION_HANDOFF.md) and desktop joint jogging; calibration and loaded-arm validation pending. Also includes the integrated Onshape chassis/arm MJCF, static posing and full MuJoCo simulation under `src/simulation/`.
 - **`main`**: ENCOS C11 driver/utilities, Python motor API, and ROS 2 motor, IMU, teleoperation, visualization, and bringup packages.
 - **[`physics-analysis`](https://github.com/NSSRS/FORGE/tree/physics-analysis)**:
   thermal/magnetic adhesion and suspension/wheel/terrain simulators, preserved
@@ -27,8 +33,9 @@ interface, motor descriptions, manufacturer manuals and outstanding hardware map
 
 See [base-layer contract, CAN budget and cached APIs](docs/ARM_BASE_LAYER.md)
 and [cross-layer TODO registry](docs/ARM_LAYER_TODOS.md). Each affected package
-has a local `TODO.md` linking its responsibilities. New telemetry is software-tested;
-its deployment/hardware acceptance is pending. Historical bench notes below
+has a local `TODO.md` linking its open responsibilities. Cached telemetry and
+manual-travel/readback firmware are deployed; physical bus/fault/load qualification
+remains open. Historical bench notes below
 must not be used to infer current IDs or loaded-arm readiness.
 
 ## Damiao arm bench status
@@ -46,8 +53,15 @@ Production ROS, calibrated joint limits and loaded-arm operation remain unvalida
 
 [Position API and keyboard joint jog](docs/ARM_POSITION_JOG.md): run
 `python3 scripts/jog_dm_arm.py --simulate`, select 1..6, press E once and hold an arrow in the desktop window; release stops.
-Hardware execution is explicit and limited to the documented unloaded fixture.
+Hardware execution requires the documented unloaded or mechanically supported fixture.
 ENCOS WASD driving remains separate.
+
+For A1 temporarily disconnected, follow the
+[A2–A6 rig test and expected behavior](docs/ARM_RIG_TEST.md): disabled feedback
+check, then optional 5°/s keyboard jogging with operator-observed manual travel. This mode
+still disables torque on stop. See the
+[arm file map](docs/SOURCE_LAYOUT.md#arm-controls-and-rig-test-file-map) for the
+owning modules, profiles, entry points and report/log locations.
 
 ## Robot model and preview
 

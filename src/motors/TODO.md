@@ -1,18 +1,12 @@
-# Python motor APIs: cross-layer arm/motor TODOs
+# Python motor APIs: open arm work
 
-Start with [cross-layer registry](../../docs/ARM_LAYER_TODOS.md) and
-[base API contract](../../docs/ARM_BASE_LAYER.md). Relevant stable IDs: **BASE-04, BASE-05, BASE-06, PROTECT-01**.
+The [cross-layer registry](../../docs/ARM_LAYER_TODOS.md) is the status authority.
+Owning IDs: **BASE-04, BASE-05, BASE-06, PROTECT-01, CAL-01, SPEED-01**. Read [current hardware status](../../docs/ARM_SESSION_HANDOFF.md)
+and [the base contract](../../docs/ARM_BASE_LAYER.md) before continuing.
 
-One serial owner; expose raw shaft SI and explicit validity. No background command replay or telemetry-triggered CAN register polling.
+Next: measured position initialization and staged faster commands after the new base is ready. Keep raw-shaft SI, one transport owner, explicit recovery and cached telemetry. Coordinate initialization with robot_description; keep gravity holding in ROS-02.
 
-Update the central entries with implementation/test evidence; do not duplicate
-independent completion status here. Hardware acceptance is separate from unit tests.
-
-The single-joint position port and keyboard pipeline now exist; see
-[ARM_POSITION_JOG.md](../../docs/ARM_POSITION_JOG.md). Preserve its explicit
-per-selection authorization, key-release stop and fault behavior when adding new adapters.
-
-For the next supported, assembled-arm stage, follow the
-[handoff](../../docs/ASSEMBLED_ARM_BRINGUP.md) and its central TODO IDs.
-Keep session jog bounds, sampled model intervals and calibrated physical
-limits distinct; coordinated gravity holding remains a separate controller.
+Completed implementation and run instructions belong in the
+[rig guide](../../docs/ARM_RIG_TEST.md) and
+[source map](../../docs/SOURCE_LAYOUT.md#arm-controls-and-rig-test-file-map).
+Update the owning registry entry instead of duplicating session histories here.

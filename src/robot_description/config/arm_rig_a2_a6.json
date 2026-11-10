@@ -1,0 +1,141 @@
+{
+  "fixture_confirmed": false,
+  "sequence": "Disabled connection/encoder check, then explicitly armed single-joint manual jogging; no automatic sweep",
+  "current_protection_verified": false,
+  "timing_note": "Supported manual jogging at 5 degrees/s; --manual-travel removes the startup angle window; 12-second maximum continuous hold.",
+  "limits_basis": "Protocol bounds for disabled probing. Manual session windows are not calibrated mechanical limits.",
+  "motors": [
+    {
+      "unit": "A1",
+      "model": "8009P",
+      "bus": 1,
+      "can_id": 1,
+      "feedback_id": 17,
+      "identity_confirmed": true,
+      "individual_test_passed": true,
+      "ranges": {
+        "pmax": 12.5,
+        "vmax": 45,
+        "tmax": 54
+      },
+      "lower_rad": -12.5,
+      "upper_rad": 12.5,
+      "speed_rad_s": 0.08726646259971647,
+      "speed_trip_rad_s": 0.3,
+      "torque_trip_nm": 20,
+      "delta_degrees": 2
+    },
+    {
+      "unit": "A2",
+      "model": "4340P",
+      "bus": 2,
+      "can_id": 2,
+      "feedback_id": 18,
+      "identity_confirmed": true,
+      "individual_test_passed": true,
+      "ranges": {
+        "pmax": 12.5,
+        "vmax": 10,
+        "tmax": 28
+      },
+      "lower_rad": -12.5,
+      "upper_rad": 12.5,
+      "speed_rad_s": 0.08726646259971647,
+      "speed_trip_rad_s": 1.5,
+      "torque_trip_nm": 12,
+      "delta_degrees": 2
+    },
+    {
+      "unit": "A3",
+      "model": "4340P",
+      "bus": 2,
+      "can_id": 3,
+      "feedback_id": 19,
+      "identity_confirmed": true,
+      "individual_test_passed": false,
+      "ranges": {
+        "pmax": 12.5,
+        "vmax": 10,
+        "tmax": 28
+      },
+      "lower_rad": -12.5,
+      "upper_rad": 12.5,
+      "speed_rad_s": 0.08726646259971647,
+      "speed_trip_rad_s": 1.5,
+      "torque_trip_nm": 12,
+      "delta_degrees": 2
+    },
+    {
+      "unit": "A4",
+      "model": "4310P",
+      "bus": 2,
+      "can_id": 4,
+      "feedback_id": 20,
+      "identity_confirmed": true,
+      "individual_test_passed": true,
+      "ranges": {
+        "pmax": 12.5,
+        "vmax": 30,
+        "tmax": 10
+      },
+      "lower_rad": -12.5,
+      "upper_rad": 12.5,
+      "speed_rad_s": 0.08726646259971647,
+      "speed_trip_rad_s": 1.5,
+      "torque_trip_nm": 3.5,
+      "delta_degrees": 2
+    },
+    {
+      "unit": "A5",
+      "model": "4310P",
+      "bus": 2,
+      "can_id": 5,
+      "feedback_id": 21,
+      "identity_confirmed": true,
+      "individual_test_passed": false,
+      "ranges": {
+        "pmax": 12.5,
+        "vmax": 30,
+        "tmax": 10
+      },
+      "lower_rad": -12.5,
+      "upper_rad": 12.5,
+      "speed_rad_s": 0.08726646259971647,
+      "speed_trip_rad_s": 1.5,
+      "torque_trip_nm": 3.5,
+      "delta_degrees": 2
+    },
+    {
+      "unit": "A6",
+      "model": "4310P",
+      "bus": 2,
+      "can_id": 6,
+      "feedback_id": 22,
+      "identity_confirmed": true,
+      "individual_test_passed": false,
+      "ranges": {
+        "pmax": 12.5,
+        "vmax": 30,
+        "tmax": 10
+      },
+      "lower_rad": -12.5,
+      "upper_rad": 12.5,
+      "speed_rad_s": 0.08726646259971647,
+      "speed_trip_rad_s": 1.5,
+      "torque_trip_nm": 3.5,
+      "delta_degrees": 2
+    }
+  ],
+  "4340p_guard_basis": "12 Nm manual-rated output torque ceiling; requires MC02 capability 0x2000. Reactive torque and measured-speed stops are not motor current clamps. Supported manual commissioning only; see docs/DAMIAO_TORQUE_LIMITS.md.",
+  "test_scope": "Mechanically supported rig commissioning; all attached links and the disconnected A1 axis must remain supported throughout movement and torque disable. No gravity holding.",
+  "active_joints": [
+    2,
+    3,
+    4,
+    5,
+    6
+  ],
+  "fixture_mode": "supported",
+  "supported_confirmed": false,
+  "speed_guard_basis": "Operator-requested consistent A2-A6 measured-speed trip: 1.5 rad/s, the existing common commissioning ceiling permitted by all active models. Commanded jogging remains 5 degrees/s. Replaces the earlier 0.3 rad/s rig trip; not a manufacturer rating or validation of tracking."
+}

@@ -1,9 +1,12 @@
-# Bringup and deployment: cross-layer arm/motor TODOs
+# Bringup and deployment: open arm work
 
-Start with [cross-layer registry](../../docs/ARM_LAYER_TODOS.md) and
-[base API contract](../../docs/ARM_BASE_LAYER.md). Relevant stable IDs: **BASE-07, ROS-02, SUPPORT-01, DEPLOY-01**.
+The [cross-layer registry](../../docs/ARM_LAYER_TODOS.md) is the status authority.
+Owning IDs: **SUPPORT-01, DEPLOY-01, BASE-07, ROS-02**. Read [current hardware status](../../docs/ARM_SESSION_HANDOFF.md)
+and [the base contract](../../docs/ARM_BASE_LAYER.md) before continuing.
 
-Own startup/stop/recovery policy and physical support assumptions; do not auto-clear faults or enable drives.
+Next: record the operator-built base, commission A1 through an explicit profile, and preserve reproducible deployment/fault evidence. Keep radio discovery before node startup and exclude other devices; no implicit reconnect/re-arm. Rig radio profiles belong in config/ and setup.py; reports belong under build/arm_tests/.
 
-Update the central entries with implementation/test evidence; do not duplicate
-independent completion status here. Hardware acceptance is separate from unit tests.
+Completed implementation and run instructions belong in the
+[rig guide](../../docs/ARM_RIG_TEST.md) and
+[source map](../../docs/SOURCE_LAYOUT.md#arm-controls-and-rig-test-file-map).
+Update the owning registry entry instead of duplicating session histories here.

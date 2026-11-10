@@ -1,6 +1,6 @@
 # Arm base-layer contract and implementation plan
 
-Status: 2026-11-05, `nathan`. This is the base transport/execution layer, not
+Status: 2026-11-10, `nathan`. This is the base transport/execution layer, not
 an arm planner. All project code/builds live in `forge2_ws`; deployment tools
 may be installed elsewhere. Cross-layer work: [ARM_LAYER_TODOS.md](ARM_LAYER_TODOS.md).
 
@@ -16,7 +16,7 @@ may be installed elsewhere. Cross-layer work: [ARM_LAYER_TODOS.md](ARM_LAYER_TOD
 | Planning / teleop | Trajectories, acceleration/jerk, synchronization, collision avoidance and operator intent | Bypass joint/firmware limits or continually renew a stale command |
 | Bringup / safety integration | Physical stop chain, gravity support/brakes, power sequencing, deployment identity | Assume torque disable safely holds a loaded arm |
 
-## Work applied in this change
+## Implemented APIs
 
 - Cached six-slot snapshot with one MCU capture timestamp and generation, returned
   in three USB pages. Each motor retains its own feedback age and validity.
@@ -28,13 +28,11 @@ may be installed elsewhere. Cross-layer work: [ARM_LAYER_TODOS.md](ARM_LAYER_TOD
   a clear missing-capability error; there is no fallback to CAN diagnostics.
 - Native-backed tests for no extra CAN traffic, immutable snapshot pages,
   stale generation rejection, invalid data, lease expiry and fault preservation.
-- No ROS control-mode conversion, trajectory generator, current-limit write,
-  firmware flash or motor motion is performed as part of this change.
-
-This extends the existing firmware. It requires one deployment flash to use
-these new APIs; normal motion parameter changes within the supported envelope
-and successful repeated tests still do not require reflashing. Existing
-commands remain compatible. The new build has not been hardware-qualified.
+The deployed rig build `156f20c8` provides these APIs, disabled control-register
+readback and explicit manual travel. Normal profile changes within the supported
+envelope and successful repeat sessions do not require reflashing. Production
+ROS mode, trajectories, current-limit writes and physical bus/load qualification
+remain separate work; see [current status](ARM_SESSION_HANDOFF.md).
 
 ## CAN capacity and information policy
 
@@ -123,7 +121,7 @@ Offline capacity estimate (no device opened):
 python3 scripts/inspect_dm_base.py
 ```
 
-After deploying the new firmware, passive inspection of an idle controller:
+Passive inspection of an idle controller with no competing serial owner:
 
 ```bash
 python3 scripts/inspect_dm_base.py --port /dev/ttyACM0 --samples 50 \
@@ -135,7 +133,19 @@ It does not silently configure motors; unconfigured slots remain invalid.
 
 ## Wire extension (little endian, existing 64-byte CRC frame)
 
-Capability bit 12 (`0x1000`); total current mask `0x1F8F`. API version 1.
+Cached telemetry uses capability bit 12 (`0x1000`). API version 1.
+The 2026-11-10 torque-ceiling extension adds bit 13 (`0x2000`) for explicit
+4340P trip thresholds above 3 Nm and up to the manual-rated 12 Nm. Current
+source mask after manual travel is `0xFF8F`: bit 14 (`0x4000`) permits guarded
+disabled control readback; bit 15 (`0x8000`) permits explicit manual travel.
+Build `156f20c8` / mask `0xFF8F` was verified deployed on 2026-11-10; see the rig guide. Type-16
+mode byte bit 7 requests manual travel with mode 2 (0x82); the flag stays on the
+MCU and motor mode readback remains 2. Only these slots bypass the narrow
+startup-corridor width check at enable; raw protocol bounds, near-position
+preload, 3.2-rad command-distance check, trips and watchdogs remain. No wire
+layout changes; old firmware remains usable with <=3 Nm 4340P bounded profiles.
+Loaded/bus qualification remains pending. See
+[DAMIAO_TORQUE_LIMITS.md](DAMIAO_TORQUE_LIMITS.md).
 Existing type-7 state and type-19 first-fault replies are unchanged.
 Offsets below are within the response payload, whose byte 0 is result status.
 
@@ -159,8 +169,4 @@ No upper-layer production/calibration confirmation flags are set by this work.
 See stable TODO IDs in the cross-layer handoff for hardware acceptance,
 telemetry consumers, batching, protection, calibration and loaded stopping.
 
-Validation for this implementation: **53 Python tests and 2 native C tests
-passed**, local documentation links and `git diff --check` passed, and the
-MC02 firmware build completed with build ID `4f73a8b2`. Only existing vendor
-compiler warnings were emitted. Hardware was not flashed or enabled during
-this base-layer change; BASE-04 and BASE-07 acceptance remain pending.
+Current reproduction commands are in [tests/README.md](../tests/README.md).

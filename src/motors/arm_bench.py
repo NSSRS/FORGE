@@ -7,12 +7,15 @@ from dataclasses import asdict
 from collections import Counter
 import json
 import math
+import os
 from pathlib import Path
 import struct
 import sys
+import tempfile
 import time
 
-from .arm import ArmBus, BENCH_MODEL_LIMITS
+from .arm import (ArmBus, BENCH_MODEL_LIMITS, CAP_CONTROL_READBACK,
+                  CAP_MANUAL_TRAVEL, CONTROL_REGISTERS)
 
 
 def number(value, label):
@@ -21,14 +24,30 @@ def number(value, label):
     return value
 
 
+def active_joints(plan):
+    """Physical DOF numbers; a subset never renumbers motor IDs or MCU slots."""
+    count = len(plan.get('motors', []))
+    joints = plan.get('active_joints', list(range(1, count+1)))
+    if (not isinstance(joints, list) or not joints or
+            any(type(j) is not int or not 1 <= j <= count for j in joints) or
+            len(set(joints)) != len(joints)):
+        raise ValueError('active_joints must be distinct physical joint numbers in the plan')
+    if 'active_joints' in plan:
+        if count != 6 or any(m.get('can_id') != i+1 or m.get('feedback_id') != 17+i
+                             for i, m in enumerate(plan['motors'])):
+            raise ValueError('Subset plans require the complete verified A1..A6 inventory and IDs')
+    return tuple(sorted(joints))
+
+
 def validate_plan(plan, *, execute=False, all_motors=False, group_first=False):
     if group_first and not all_motors:
         raise ValueError("--group-first requires --all")
     motors = plan.get('motors', [])
     if not isinstance(motors, list) or len(motors) != (6 if all_motors else 1):
         raise ValueError('Select exactly six motors with --all, otherwise exactly one')
+    active_joints(plan)
     if execute and plan.get('fixture_confirmed') is not True:
-        raise ValueError('Confirm the secured, unloaded fixture and measured limits in the plan')
+        raise ValueError('Confirm the secured fixture and measured limits in the plan')
     ids, feedback, units = set(), set(), set()
     for m in motors:
         if m.get('model') not in ('8009P', '4340P', '4310P'):
@@ -71,6 +90,10 @@ def validate_plan(plan, *, execute=False, all_motors=False, group_first=False):
     return motors
 
 
+class LatchedControllerFault(RuntimeError):
+    """Retained controller fault; an idle UI may offer explicit recovery."""
+
+
 def preflight(bus, motors):
     if bus.capabilities & 399 != 399:
         raise RuntimeError('Rebuild/flash the routed arm-test firmware (capability 0x100 required)')
@@ -78,7 +101,10 @@ def preflight(bus, motors):
     # feedback before each read instead of resetting the controller or faults.
     states = {i: bus.state(i) for i in range(6)}
     if any(s.fault or s.enabled for s in states.values()):
-        raise RuntimeError('MC02 is active or faulted; explicit recovery required, no automatic reset')
+        error = RuntimeError if any(s.enabled for s in states.values()) else LatchedControllerFault
+        raise error('MC02 is active or faulted; explicit recovery required. Stop the other owner and address the cause, then use '
+                    'test_dm_arm.py --check --feedback --supported --recover --report PATH '
+                    'with the same plan/port; no automatic reset')
     retained = [i for i, s in states.items() if s.registers or s.stopping]
     previous = None
     if retained:
@@ -110,8 +136,12 @@ def preflight(bus, motors):
 
 
 class BenchSession:
-    def __init__(self, bus, motors, observed, report):
+    def __init__(self, bus, motors, observed, report, *, slots=None):
         self.bus, self.motors, self.observed, self.report = bus, motors, observed, report
+        self.slots = tuple(range(len(motors))) if slots is None else tuple(slots)
+        if (len(set(self.slots)) != len(self.slots) or
+                any(type(i) is not int or not 0 <= i < len(motors) for i in self.slots)):
+            raise ValueError('Invalid commissioning slots')
         self.configured = []
         self.restore = set()
         self.origins = {}
@@ -152,36 +182,56 @@ class BenchSession:
         self.report['fault_snapshot'] = self.bus.fault_snapshot()
         self.report['failure_states'] = {i: asdict(self.bus.state(i)) for i in self.configured}
 
-    def prepare(self, *, jog_window_rad=None):
-        if jog_window_rad is not None and not 0 < jog_window_rad <= math.pi/2:
-            raise ValueError("Jog window must be within +/-90 degrees of session start")
-        for i, m in enumerate(self.motors):
+    def probe_disabled(self):
+        """Configure MCU routes and capture disabled feedback; no motor parameter writes."""
+        for i in self.slots:
+            m = self.motors[i]
             self.configured.append(i)  # An accepted configuration can lose its USB ACK.
             p = min(12.5, m['ranges']['pmax'])
             self.bus.prepare_routed_bench(i, m, -p, p, self.observed[i][10])
         for i in self.configured:
             self.bus.probe(i)
             self.poll(i, lambda s: s.registers & 15 == 15, 'initial range/mode probe')
-        initial = self.stop()
-        for i, m in enumerate(self.motors):
+        return self.stop()
+
+    def prepare(self, *, jog_window_rad=None, manual_travel=False):
+        if jog_window_rad is not None and not 0 < jog_window_rad <= math.pi/2:
+            raise ValueError("Jog window must be within +/-90 degrees of session start")
+        if manual_travel:
+            if jog_window_rad is not None:
+                raise ValueError("Choose manual travel or a startup window")
+            if not self.bus.capabilities & CAP_MANUAL_TRAVEL:
+                raise RuntimeError("Manual travel requires MC02 capability 0x8000; flash the updated firmware")
+        initial = self.probe_disabled()
+        for i in self.slots:
+            m = self.motors[i]
             origin = initial[i].position
             target = origin + math.radians(m['delta_degrees'])
-            if jog_window_rad is None:
+            if manual_travel:
+                p = min(12.5, m["ranges"]["pmax"])
+                lo, hi = -p, p  # Protocol representation, not mechanical travel limits.
+            elif jog_window_rad is None:
                 lo, hi = min(origin, target) - .05, max(origin, target) + .05
             else:
                 lo, hi = origin-jog_window_rad-.05, origin+jog_window_rad+.05
-            if not (m['lower_rad'] <= lo < hi <= m['upper_rad']):
+            if not manual_travel and not (m['lower_rad'] <= lo < hi <= m['upper_rad']):
                 raise RuntimeError(f"{m['unit']}: measured start/target corridor exceeds fixture limits")
             self.origins[i], self.bounds[i] = origin, (lo, hi)
+        self.prepare_motion(manual_travel=manual_travel)
+
+    def prepare_motion(self, *, manual_travel=False, observed=None):
+        """Reverify mode/timeout/routes without changing origins or bounds."""
+        current = self.observed if observed is None else observed
         for i in self.configured:
             self.stop()
             self.bus.write_routed_bench(i, 9, 2000)
-            if self.observed[i][10] != 2:
+            if current[i][10] != 2:
                 self.stop()
                 self.restore.add(i)  # Before write: ACK/readback may fail after motor changes mode.
                 self.bus.write_routed_bench(i, 10, 2)
-        for i, m in enumerate(self.motors):
-            self.bus.prepare_routed_bench(i, m, *self.bounds[i], 2)
+        for i in self.slots:
+            m = self.motors[i]
+            self.bus.prepare_routed_bench(i, m, *self.bounds[i], 2, manual_travel=manual_travel)
         for i in self.configured:
             self.bus.probe(i)
             s = self.poll(i, lambda s: s.registers == 31, 'verified mode/ranges/timeout')
@@ -200,6 +250,49 @@ class BenchSession:
                 abs(s.torque) > m['torque_trip_nm'] or max(s.mos_c, s.rotor_c) >= 80):
             raise RuntimeError(f"{m['unit']}: invalid motion feedback; {s.fault_detail()}")
         return s
+
+    def inspect_control(self):
+        """Explicit disabled-only readback; preserve partial evidence and raw bits.
+
+        No gain/current/limit writes, motion targets, enables or fault resets.
+        A missing/nonfinite register is unavailable evidence, never a zero.
+        """
+        if not self.bus.capabilities & CAP_CONTROL_READBACK:
+            raise RuntimeError('Control/protection readback requires reviewed MC02 firmware with capability 0x4000')
+        if not self.configured or set(self.configured) != set(self.slots):
+            raise RuntimeError('Prepare all selected disabled routes before control inspection')
+        rows = self.report['control_registers'] = []
+        self.report['control_readback_complete'] = False
+        complete = True
+        for i in self.configured:
+            m = self.motors[i]
+            row = dict(joint=i+1, unit=m['unit'], model=m['model'], bus=m['bus'],
+                       can_id=m['can_id'], feedback_id=m['feedback_id'], registers={})
+            rows.append(row)
+            for reg, (name, kind) in CONTROL_REGISTERS.items():
+                entry = row['registers'][name] = dict(address=reg, type=kind)
+                if reg in (59, 60) and m['model']=='8009P':
+                    entry.update(status='not_documented_for_model', value=None)
+                    continue
+                self.stop()  # Fresh stationary disabled ACK on every retained route.
+                reply = self.bus.read_register(m['bus'], m['can_id'], reg)
+                if reply is None:
+                    entry.update(status='no_reply', value=None)
+                    complete = False
+                    continue
+                feedback_id, raw = reply
+                entry.update(reply_can_id=feedback_id, raw_uint32=raw, raw_hex=f'{raw:08x}')
+                if feedback_id != m['feedback_id']:
+                    entry.update(status='wrong_feedback_id', value=None)
+                    raise RuntimeError(f"{m['unit']}: wrong feedback ID for {name}")
+                value = raw if kind=='uint32' else struct.unpack('<f', struct.pack('<I', raw))[0]
+                valid = math.isfinite(value)
+                entry.update(status='ok' if valid else 'nonfinite', value=value if valid else None)
+                complete &= valid
+            print(f"{m['unit']}: disabled control/protection readback recorded", flush=True)
+        self.report['control_readback_complete'] = bool(complete)
+        if not complete:
+            raise RuntimeError('Control/protection readback incomplete; inspect unavailable registers in the report')
 
     def command(self, i, target):
         self.bus.command(i, target, velocity=self.motors[i]['speed_rad_s'])
@@ -278,7 +371,8 @@ class BenchSession:
         if simultaneous and group_first:
             self.move_group()
         # Excursion then return are separate bounded stages, with disable between stages.
-        for i, m in enumerate(self.motors):
+        for i in self.slots:
+            m = self.motors[i]
             origin = self.origins[i]
             target = origin + math.radians(m['delta_degrees'])
             self.move([i], {i: target}, f"{m['unit']} outward")
@@ -290,7 +384,7 @@ class BenchSession:
 
     def move_group(self):
         origins = dict(self.origins)
-        targets = {i: origins[i] + math.radians(m['delta_degrees']) for i, m in enumerate(self.motors)}
+        targets = {i: origins[i] + math.radians(self.motors[i]['delta_degrees']) for i in self.slots}
         self.move(self.configured, targets, 'all motors outward')
         self.origins = {i: s.position for i, s in self.stop().items()}
         self.move(self.configured, origins, 'all motors return')
@@ -316,6 +410,104 @@ class BenchSession:
             raise RuntimeError('Mode restoration failed; power-cycle before reuse: ' + '; '.join(errors))
 
 
+def recover_fault(bus, report, report_path):
+    """Explicit disabled-only latch recovery; never enable or write motor parameters.
+
+    Retained routes must all acknowledge disable, including slots omitted by the
+    next plan. Older deployed firmware exposes ranges instead of a configured
+    mask. Reset clears range-valid bits, so restore them before decoding feedback
+    or allowing preflight to reuse those routes.
+    """
+    recovery = report['recovery'] = dict(reset_attempted=False, reset_acknowledged=False,
+                                         reset_verified=False)
+    if bus.capabilities & 911 != 911:  # Routed bench + retained first-fault sample.
+        raise RuntimeError('Recovery requires routed bench and first-fault diagnostics firmware')
+    states = {i: bus.state(i) for i in range(6)}
+    recovery['states_before'] = {i: asdict(s) for i, s in states.items()}
+    fault = recovery['fault_before'] = bus.fault_snapshot()
+    if fault is None or bool(fault['fault']) != any(s.fault for s in states.values()):
+        raise RuntimeError('Cannot establish a consistent retained fault; no reset sent')
+    if any(s.enabled for s in states.values()):
+        raise RuntimeError('Stop the active motor owner before recovery; no reset sent')
+    retained = [i for i, s in states.items() if s.registers or s.stopping
+                or any(v != 0 for v in (s.pmax, s.vmax, s.tmax))]
+    if bus.capabilities & 4096:
+        info = bus.base_info()
+        recovery['base_info'] = info
+        if info['id_session_locked']:
+            raise RuntimeError('An ID-commissioning session requires an MCU restart, not fault recovery')
+        retained = [i for i in range(6) if info['configured_mask'] & (1 << i)]
+    if fault['fault'] and not retained:
+        raise RuntimeError('Cannot verify retained motor routes for this fault; no reset sent')
+    recovery['retained_slots'] = retained
+    previous = BenchSession(bus, [], [], {})
+    previous.configured = retained
+    if retained:
+        bus.configured = True
+        bus.bench = True
+
+    def disabled_feedback():
+        # Stop ACK is available even when reset invalidated the range cache.
+        bus.stop()
+        for i in retained:
+            previous.poll(i, lambda s: not s.enabled and not s.stopping and s.status == 0,
+                          'recovery disable acknowledgement', faults=False)
+        for i in retained:
+            if bus.state(i).registers & 7 != 7:
+                bus.probe(i)  # Read-only range/mode/timeout probe of existing route.
+                previous.poll(i, lambda s: s.registers & 7 == 7,
+                              'recovery range probe', faults=False)
+        # Cancels any remaining mode probe. Cleanup may have restored mode 1
+        # while MCU still expects 2; only range bits are needed to decode disable.
+        disabled = previous.stop()
+        if any(not all(math.isfinite(v) for v in (s.position, s.velocity, s.torque))
+               or max(s.mos_c, s.rotor_c) >= 80 for s in disabled.values()):
+            raise RuntimeError('Invalid/hot disabled feedback; no recovery verified')
+        return disabled
+
+    try:
+        print('Recovery: confirming every retained motor is disabled and stationary...', flush=True)
+        disabled = disabled_feedback()
+        recovery['disabled_before'] = {i: asdict(s) for i, s in disabled.items()}
+        if fault['fault']:
+            # This unique companion file survives later report overwrites. A
+            # write/fsync failure aborts before erasing the MCU first-fault latch.
+            report_path = Path(report_path)
+            report_path.parent.mkdir(parents=True, exist_ok=True)
+            with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', delete=False,
+                    dir=report_path.parent, prefix=report_path.stem + '.fault-', suffix='.json') as evidence:
+                recovery['evidence_path'] = str(Path(evidence.name).resolve())
+                json.dump(report, evidence, indent=2)
+                evidence.write('\n')
+                evidence.flush()
+                os.fsync(evidence.fileno())
+            print(f"Saved pre-reset fault evidence: {recovery['evidence_path']}", flush=True)
+            # Disk I/O can stall: renew the stationary disable check immediately
+            # before reset instead of relying on feedback from before the write.
+            disabled_feedback()
+            recovery['reset_attempted'] = True
+            bus.reset_fault()
+            recovery['reset_acknowledged'] = True
+            disabled = disabled_feedback()
+        after = {i: bus.state(i) for i in range(6)}
+        recovery['states_after'] = {i: asdict(s) for i, s in after.items()}
+        recovery['fault_after'] = bus.fault_snapshot()
+        if any(s.fault or s.enabled or s.stopping for s in after.values()) or recovery['fault_after']['fault']:
+            raise RuntimeError('MC02 is still/newly faulted or not disabled after recovery')
+        recovery['reset_verified'] = bool(fault['fault'])
+        recovery['outcome'] = 'recovered' if fault['fault'] else 'no_latched_fault'
+        print('Recovery complete; motors remain disabled. Running the normal connection check.'
+              if fault['fault'] else 'No latched fault; no reset sent. Running the normal connection check.',
+              flush=True)
+    except BaseException as exc:
+        recovery['error'] = str(exc)
+        try:
+            bus.stop()
+        except (OSError, RuntimeError) as stop_error:
+            recovery['stop_error'] = str(stop_error)
+        raise
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--plan', type=Path, required=True)
@@ -326,8 +518,24 @@ def main(argv=None):
     action = parser.add_mutually_exclusive_group()
     action.add_argument('--check', action='store_true', help='check registers; refresh disable feedback if reusing a prior session, no enable or parameter writes')
     action.add_argument('--execute', action='store_true', help='run the confirmed unloaded test plan')
+    parser.add_argument('--feedback', action='store_true',
+                        help='with --check, capture fresh disabled shaft feedback; no enable/parameter writes')
+    parser.add_argument('--supported', action='store_true',
+                        help='confirm all attached links are supported when torque is disabled')
+    parser.add_argument('--recover', action='store_true',
+                        help='explicit fault recovery after addressing the cause; requires '
+                             '--check --feedback --supported --report; never enables motors')
+    parser.add_argument('--inspect-control', action='store_true',
+                        help='read documented current/protection/gain registers while disabled; '
+                             'requires --check --feedback --supported --report and MC02 capability 0x4000')
     parser.add_argument('--report', type=Path, help='JSON result, including failures and cleanup')
     args = parser.parse_args(argv)
+    if args.feedback and (not args.check or not args.supported):
+        parser.error('--feedback requires --check --supported because it sends torque-disable frames')
+    if args.recover and (not args.check or not args.feedback or not args.supported or not args.report):
+        parser.error('--recover requires --check --feedback --supported --report PATH')
+    if args.inspect_control and (not args.check or not args.feedback or not args.supported or not args.report):
+        parser.error('--inspect-control requires --check --feedback --supported --report PATH')
     report = {'passed': False, 'hardware_test': bool(args.execute), 'stages': [],
               'disable_acknowledged': False, 'mode_restoration_verified': False}
     bus = session = None
@@ -335,7 +543,13 @@ def main(argv=None):
     try:
         plan = json.loads(args.plan.read_text())
         motors = validate_plan(plan, execute=args.execute, all_motors=args.all, group_first=args.group_first)
+        joints = active_joints(plan)
+        slots = [j-1 for j in joints]
+        if args.execute and (len(joints) != len(motors) or plan.get('fixture_mode', 'unloaded') != 'unloaded'):
+            raise ValueError('Subset/supported plans are for --check and manual jogging, not automatic sweeps')
         report['plan'] = plan
+        report['active_joints'] = joints
+        report['motor_parameter_writes'] = bool(args.execute)
         if not args.check and not args.execute:
             print(json.dumps(plan, indent=2))
             print('Plan validated offline. No serial device opened.')
@@ -344,12 +558,37 @@ def main(argv=None):
         preflight_started = time.monotonic()
         print('Opening MC02 and checking motor IDs, ranges and original mode...', flush=True)
         bus = ArmBus(args.port)
-        observed = preflight(bus, motors)
+        if args.inspect_control:
+            if not bus.capabilities & CAP_CONTROL_READBACK:
+                raise RuntimeError('Control/protection readback requires reviewed MC02 firmware with capability 0x4000')
+            report['base_info'] = bus.base_info()
+        if args.recover:
+            recover_fault(bus, report, args.report)
+        observed = dict(zip(slots, preflight(bus, [motors[i] for i in slots])))
         report['connection_and_preflight_s'] = time.monotonic()-preflight_started
         print(f"Connection/preflight complete in {report['connection_and_preflight_s']:.3f}s.", flush=True)
-        report['registers'] = observed
+        report['registers'] = [observed[i] for i in slots]
+        report['register_slots'] = slots
         if args.check:
-            print(json.dumps(observed, indent=2)); result = 0
+            if args.feedback:
+                session = BenchSession(bus, motors, observed, report, slots=slots)
+                states = session.probe_disabled()
+                report['feedback'] = [dict(joint=i+1, unit=motors[i]['unit'], bus=motors[i]['bus'],
+                    can_id=motors[i]['can_id'], feedback_id=motors[i]['feedback_id'],
+                    raw_position_rad=s.position, raw_position_deg=math.degrees(s.position),
+                    velocity_rad_s=s.velocity, torque_nm=s.torque, age_ms=s.age_ms,
+                    enabled=bool(s.enabled), status=s.status, mos_c=s.mos_c, rotor_c=s.rotor_c)
+                    for i, s in states.items()]
+                for row in report['feedback']:
+                    print(f"A{row['joint']}: {row['raw_position_deg']:+.3f} deg raw; "
+                          f"age={row['age_ms']} ms; disabled; CAN{row['bus']}/ID{row['can_id']}")
+                omitted = sorted(set(range(1, len(motors)+1))-set(joints))
+                if omitted: print('Unavailable/omitted:', ', '.join(f'A{j}' for j in omitted))
+                if args.inspect_control:
+                    session.inspect_control()
+            else:
+                print(json.dumps(observed, indent=2))
+            result = 0
         else:
             session = BenchSession(bus, motors, observed, report)
             session.run(simultaneous=args.all, group_first=args.group_first)

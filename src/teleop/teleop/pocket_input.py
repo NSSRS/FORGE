@@ -58,9 +58,9 @@ class PocketMapping:
         self.window = arm.get('window_deg', 90)
         if not math.isfinite(self.speed) or not 0 < self.speed <= math.radians(45):
             raise ValueError('Pocket jog speed must be in (0,45] degrees/s')
-        if not math.isfinite(self.window) or not 0 < self.window <= 90:
-            raise ValueError('Pocket jog window must be in (0,90] degrees')
-        if 2*math.radians(self.window)/self.speed+2 > 12:
+        if self.window is not None and (not math.isfinite(self.window) or not 0 < self.window <= 90):
+            raise ValueError('Pocket jog window must be null (manual) or in (0,90] degrees')
+        if self.window is not None and 2*math.radians(self.window)/self.speed+2 > 12:
             raise ValueError('Reduce jog window to fit the existing 12-second move bound')
 
     @classmethod
@@ -85,7 +85,11 @@ class PocketOutput:
 
 
 class PocketCommand:
-    def __init__(self, mapping, speed=.08, yaw_rate=.28):
+    def __init__(self, mapping, speed=.08, yaw_rate=.28, *, available_joints=tuple(range(1,7))):
+        if (not available_joints or len(set(available_joints))!=len(available_joints) or
+                any(type(j) is not int or not 1<=j<=6 for j in available_joints)):
+            raise ValueError('available_joints must contain distinct A1..A6 numbers')
+        self.available_joints=tuple(sorted(available_joints))
         self.mapping = mapping
         self.chassis = RadioCommand(mapping.axes['chassis_forward'], mapping.axes['chassis_turn'],
                                     speed, yaw_rate, mapping.timeout)
@@ -159,6 +163,8 @@ class PocketCommand:
             self.authorized = self.ready and neutral and self.selected is not None and not changes
             self.ready = False
             self.neutral_since = None
+        if self.selected not in self.available_joints:
+            self.inhibit_arm()
         # Any diagonal stops motion, while a held SE keeps existing authorization.
         direction = next(iter(signs)) if signs and not diagonal and held and self.authorized else 0
         if direction != self.direction:
@@ -167,6 +173,8 @@ class PocketCommand:
         self.was_held = held
         if self.selected is None:
             self.status = 'Move only SB or SC to select A1–A6'
+        elif self.selected not in self.available_joints:
+            self.status = f'A{self.selected} unavailable; move SB or SC to a connected motor'
         elif diagonal:
             action = ('SE still primed' if self.authorized else
                       'release SE and center right stick' if held else 'center right stick to prime')

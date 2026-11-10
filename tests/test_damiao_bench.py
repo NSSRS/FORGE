@@ -1,5 +1,6 @@
 import contextlib
 import ctypes
+from dataclasses import replace
 import io
 import json
 import math
@@ -11,7 +12,7 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
-from motors.arm import ArmBus
+from motors.arm import ArmBus, CAP_RATED_4340_TORQUE, CAP_CONTROL_READBACK, CONTROL_REGISTERS
 from motors import arm_bench as bench
 from test_damiao_arm import NativeTransport
 
@@ -32,6 +33,46 @@ def plan(final=False):
 
 
 class PlanTests(unittest.TestCase):
+    def test_control_inspection_requires_disabled_check_and_saved_report(self):
+        required = ['--check', '--feedback', '--supported', '--report', 'result.json']
+        for args in [required[:i]+required[i+1:] for i in range(3)] + [required[:3]]:
+            with self.subTest(args=args), patch.object(bench,'ArmBus') as factory, \
+                 contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                bench.main(['--plan','unused.json','--inspect-control']+args)
+            factory.assert_not_called()
+
+    def test_subset_plan_validation_and_no_automatic_sweep(self):
+        for joints in ([], [2,2], [0,2], [True,2], [7], '2,3'):
+            p=plan();p['active_joints']=joints
+            with self.subTest(joints=joints), self.assertRaises(ValueError):
+                bench.validate_plan(p,all_motors=True)
+        p=plan();p['active_joints']=[2,3,4,5,6]
+        self.assertEqual(bench.active_joints(p),(2,3,4,5,6))
+        with tempfile.TemporaryDirectory() as directory:
+            path=Path(directory)/'plan.json';path.write_text(json.dumps(p))
+            with patch.object(bench,'ArmBus') as factory, contextlib.redirect_stderr(io.StringIO()):
+                self.assertEqual(bench.main(['--plan',str(path),'--all','--execute']),2)
+            factory.assert_not_called()
+        from motors.arm_position import ArmPositionPort
+        p.update(fixture_mode='supported',supported_confirmed=False)
+        with patch('motors.arm_position.ArmBus') as factory:
+            with self.assertRaisesRegex(ValueError,'support confirmation'):
+                ArmPositionPort(p,window_degrees=3)
+            p['supported_confirmed']=True
+            with self.assertRaisesRegex(ValueError,'window'):
+                ArmPositionPort(p,window_degrees=90)
+            factory.assert_not_called()
+
+    def test_recovery_cli_requires_disabled_check_support_and_report(self):
+        required = ['--check', '--feedback', '--supported', '--report', 'result.json']
+        cases = [required[:i] + required[i+1:] for i in range(3)]
+        cases += [required[:3], ['--execute', '--supported', '--report', 'result.json']]
+        for args in cases:
+            with self.subTest(args=args), patch.object(bench, 'ArmBus') as factory, \
+                 contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                bench.main(['--plan', 'unused.json', '--recover'] + args)
+            factory.assert_not_called()
+
     def test_templates_are_not_hardware_confirmation(self):
         for path in (ROOT/'src/robot_description/config').glob('bench_*.json'):
             p = json.loads(path.read_text())
@@ -86,6 +127,7 @@ class RoutedRoundTrip(unittest.TestCase):
         cls.lib = ctypes.CDLL(str(so))
         cls.lib.fake_exchange.argtypes = [ctypes.c_char_p, ctypes.c_void_p]
         cls.lib.fake_torque.argtypes = [ctypes.c_uint, ctypes.c_float]
+        cls.lib.fake_position.argtypes = [ctypes.c_uint, ctypes.c_float]
         cls.lib.fake_speed.argtypes = [ctypes.c_uint, ctypes.c_float]
 
     @classmethod
@@ -105,6 +147,786 @@ class RoutedRoundTrip(unittest.TestCase):
     def session(self, motors):
         observed = bench.preflight(self.bus, motors)
         return bench.BenchSession(self.bus, motors, observed, {'stages': []})
+
+    def test_control_inspection_typed_values_sparse_routes_and_no_writes(self):
+        p=plan();p['active_joints']=[2,3,4,5,6]
+        self.lib.fake_missing(0)
+        self.lib.fake_register(1,14,0x1020304)
+        self.lib.fake_register(1,5,struct.unpack('<I',struct.pack('<f',-12.5))[0])
+        self.lib.fake_register(1,59,struct.unpack('<I',struct.pack('<f',19.85))[0])
+        with tempfile.TemporaryDirectory() as directory:
+            path=Path(directory)/'plan.json';path.write_text(json.dumps(p))
+            report=Path(directory)/'report.json'
+            with patch.object(bench,'ArmBus',return_value=self.bus), \
+                 patch.object(self.bus,'_request',wraps=self.bus._request) as request:
+                self.assertEqual(bench.main(['--plan',str(path),'--all','--check','--feedback',
+                    '--supported','--inspect-control','--report',str(report)]),0)
+            result=json.loads(report.read_text())
+            self.assertTrue(result['control_readback_complete'])
+            self.assertTrue(result['disable_acknowledged'])
+            self.assertFalse(result['motor_parameter_writes'])
+            self.assertEqual([r['joint'] for r in result['control_registers']],[2,3,4,5,6])
+            regs=result['control_registers'][0]['registers']
+            self.assertEqual(regs['sw_ver']['value'],0x1020304)
+            self.assertEqual(regs['DEC']['value'],-12.5)
+            self.assertAlmostEqual(regs['Imax']['value'],19.85,places=4)
+            self.assertEqual(regs['Imax']['reply_can_id'],18)
+            self.assertEqual(regs['Imax']['raw_hex'],'419ecccd')
+            self.assertTrue({c.args[0] for c in request.call_args_list}.isdisjoint({4,5,8,11,15,17,18,20}))
+        self.assertEqual(self.lib.fake_parameter_writes(),0)
+        self.assertEqual([self.lib.fake_commands(i) for i in range(6)],[0]*6)
+        self.assertEqual(self.lib.fake_invalid(),0)
+
+    def test_control_inspection_skips_undocumented_8009_registers(self):
+        s=self.session([plan()['motors'][0]]);s.probe_disabled()
+        try:
+            s.inspect_control()
+            regs=s.report['control_registers'][0]['registers']
+            for reg,name in ((59,'Imax'),(60,'VBus')):
+                self.assertEqual(regs[name]['status'],'not_documented_for_model')
+                self.assertIsNone(regs[name]['value'])
+                self.assertEqual(self.lib.fake_register_reads(0,reg),0)
+                s.stop()
+                with self.assertRaisesRegex(RuntimeError,'rejected command 9'):
+                    self.bus._request(9,struct.pack('<BHB',1,1,reg))
+        finally:s.cleanup()
+        self.assertEqual(self.lib.fake_parameter_writes(),0)
+
+    def test_control_reads_require_new_capability_and_configured_route(self):
+        self.bus.capabilities &= ~CAP_CONTROL_READBACK
+        with patch.object(self.bus,'_request',wraps=self.bus._request) as request:
+            with self.assertRaisesRegex(RuntimeError,'0x4000'):self.bus.read_register(2,2,59)
+            request.assert_not_called()
+        self.bus.capabilities |= CAP_CONTROL_READBACK
+        with self.assertRaisesRegex(RuntimeError,'configured disabled'):self.bus.read_register(2,2,59)
+        for reg in CONTROL_REGISTERS:
+            if reg==31:continue
+            with self.subTest(register=reg), self.assertRaisesRegex(RuntimeError,'rejected command 9'):
+                self.bus._request(9,struct.pack('<BHB',2,2,reg))
+        self.assertEqual(self.lib.fake_register_reads(1,59),0)
+        s=self.session(plan()['motors'])
+        with self.assertRaisesRegex(RuntimeError,'all selected disabled routes'):s.inspect_control()
+
+    def test_control_reads_reject_active_or_stale_other_routes_without_can_read(self):
+        s=self.enable_all()
+        try:
+            with self.assertRaisesRegex(RuntimeError,'rejected command 9'):
+                self.bus.read_register(2,2,59)
+            self.assertEqual(self.lib.fake_register_reads(1,59),0)
+            s.stop();self.lib.fake_advance(101)
+            with self.assertRaisesRegex(RuntimeError,'rejected command 9'):
+                self.bus.read_register(2,2,59)
+            self.assertEqual(self.lib.fake_register_reads(1,59),0)
+            s.stop()
+            self.assertIsNotNone(self.bus.read_register(2,2,59))
+            for reg in (1,3,25,27,59):
+                with self.assertRaises(ValueError):self.bus.write_routed_bench(1,reg,1)
+                with self.assertRaisesRegex(RuntimeError,'rejected command 17'):
+                    self.bus._request(17,struct.pack('<BBI',1,reg,1))
+        finally:s.cleanup()
+
+    def test_control_inspection_missing_and_nonfinite_remain_unavailable(self):
+        s=self.session(plan()['motors']);s.probe_disabled()
+        self.lib.fake_drop_register(1,59)
+        self.lib.fake_register(2,25,0x7fc00000)
+        try:
+            with self.assertRaisesRegex(RuntimeError,'readback incomplete'):s.inspect_control()
+            self.assertEqual(len(s.report['control_registers']),6)
+            missing=s.report['control_registers'][1]['registers']['Imax']
+            invalid=s.report['control_registers'][2]['registers']['KP_ASR']
+            self.assertEqual(missing['status'],'no_reply');self.assertIsNone(missing['value'])
+            self.assertEqual(invalid['status'],'nonfinite');self.assertIsNone(invalid['value'])
+            self.assertEqual(invalid['raw_hex'],'7fc00000')
+            json.dumps(s.report,allow_nan=False)
+            self.assertFalse(s.report['control_readback_complete'])
+        finally:s.cleanup()
+        self.assertEqual(self.lib.fake_parameter_writes(),0)
+
+    def test_control_read_preserves_fault_latch(self):
+        s=self.enable_all();self.lib.fake_advance(200);s.stop()
+        try:
+            before=self.bus.fault_snapshot()
+            self.assertTrue(before['fault'])
+            self.assertIsNotNone(self.bus.read_register(2,2,59))
+            self.assertEqual(self.bus.fault_snapshot(),before)
+        finally:s.cleanup()
+
+    def test_control_read_rejects_id_session_and_coasting_other_motor(self):
+        s=self.session(plan()['motors']);s.probe_disabled()
+        self.lib.fake_coast(0,20);self.bus.stop()
+        with self.assertRaisesRegex(RuntimeError,'rejected command 9'):
+            self.bus.read_register(2,2,59)
+        self.assertEqual(self.lib.fake_register_reads(1,59),0)
+        self.lib.fake_coast(0,0);s.cleanup()
+        # Separate explicit ID-only session, with one motor configured.
+        self.bus.close();self.bus=ArmBus(transport=NativeTransport(self.lib))
+        s=self.session([plan()['motors'][0]]);s.probe_disabled()
+        try:
+            self.bus.id_operation(0)
+            with self.assertRaisesRegex(RuntimeError,'rejected command 9'):
+                self.bus.read_register(1,1,3)
+            self.assertEqual(self.lib.fake_register_reads(0,3),0)
+        finally:s.cleanup()
+
+    def test_control_inspection_wrong_identity_preserves_partial_evidence(self):
+        s=self.session(plan()['motors']);s.probe_disabled()
+        original=self.bus.read_register
+        def read(bus,mid,reg):
+            return (999,0) if mid==2 and reg==59 else original(bus,mid,reg)
+        try:
+            with patch.object(self.bus,'read_register',side_effect=read):
+                with self.assertRaisesRegex(RuntimeError,'wrong feedback ID for Imax'):s.inspect_control()
+            self.assertFalse(s.report['control_readback_complete'])
+            self.assertEqual(s.report['control_registers'][1]['registers']['Imax']['status'],'wrong_feedback_id')
+        finally:s.cleanup()
+
+    def test_control_cli_old_firmware_fails_before_configuring_or_reading_motors(self):
+        self.bus.capabilities &= ~CAP_CONTROL_READBACK
+        with tempfile.TemporaryDirectory() as directory:
+            path=Path(directory)/'plan.json';path.write_text(json.dumps(plan()))
+            report=Path(directory)/'report.json'
+            with patch.object(bench,'ArmBus',return_value=self.bus), \
+                 patch.object(self.bus,'_request',wraps=self.bus._request) as request, \
+                 contextlib.redirect_stderr(io.StringIO()):
+                self.assertEqual(bench.main(['--plan',str(path),'--all','--check','--feedback',
+                    '--supported','--inspect-control','--report',str(report)]),2)
+                request.assert_not_called()
+            self.assertIn('0x4000',json.loads(report.read_text())['error'])
+
+    def manual_port(self, *, speed_trip=None):
+        from motors import arm_position as pos
+        p=json.loads((ROOT/'src/robot_description/config/arm_rig_a2_a6.json').read_text())
+        p.update(fixture_confirmed=True,supported_confirmed=True)
+        if speed_trip is not None:
+            for joint in p['active_joints']:p['motors'][joint-1]['speed_trip_rad_s']=speed_trip
+        self.lib.fake_missing(0)
+        return pos.ArmPositionPort(p,bus=self.bus,window_degrees=None)
+
+    def check_a6_speed_quantization(self, injected, expected):
+        from motors import arm_position as pos
+        with patch.object(pos,'time',bench.time):
+            # Preserve reproduction of the earlier 0.3 rad/s incident.
+            port=self.manual_port(speed_trip=.3)
+            try:
+                port.select(6);port.arm();port.jog(1 if injected>0 else -1,math.radians(5))
+                self.lib.fake_speed(5,.28 if injected>0 else -.28);self.lib.fake_advance(2)
+                port.poll();self.assertTrue(port.moving)
+                self.lib.fake_speed(5,injected);self.lib.fake_advance(2)
+                with self.assertRaisesRegex(RuntimeError,'commanded 0.0873 rad/s'):port.poll()
+                f=port.report['fault_snapshot']
+                self.assertEqual((f['slot'],f['reason']),(5,8))
+                self.assertAlmostEqual(f['velocity_rad_s'],expected,places=6)
+                self.assertAlmostEqual(f['command_velocity_rad_s'],math.radians(5),places=7)
+                self.assertAlmostEqual(f['speed_limit_rad_s'],.3,places=7)
+                self.assertEqual(self.lib.fake_status(5),0)
+                self.assertFalse(port.moving or port.armed)
+            finally:port.close()
+
+    def test_a6_positive_speed_trip_uses_verified_vmax_and_first_bin_above_limit(self):
+        self.check_a6_speed_quantization(.31,.3003654479980469)
+
+    def test_a6_negative_speed_trip_uses_verified_vmax_and_first_bin_above_limit(self):
+        self.check_a6_speed_quantization(-.30,-.3003654479980469)
+
+    def test_rig_all_active_joints_share_speed_trip_across_host_and_firmware(self):
+        from motors import arm_position as pos
+        with patch.object(pos,'time',bench.time), tempfile.TemporaryDirectory() as directory:
+            port=self.manual_port()
+            try:
+                self.assertEqual(port.available_joints,(2,3,4,5,6))
+                for joint in port.available_joints:
+                    slot=joint-1
+                    for direction in (1,-1):
+                        with self.subTest(joint=joint,direction=direction):
+                            port.select(joint);port.arm();port.jog(direction,math.radians(5))
+                            # Firmware and host must both accept the old A6
+                            # incident values, without increasing commanded speed.
+                            for speed in (.3151,.5,1.45):
+                                self.lib.fake_speed(slot,direction*speed);self.lib.fake_advance(2)
+                                self.assertTrue(port.poll());self.assertFalse(self.bus.state(slot).fault)
+                                self.assertAlmostEqual(port.speed,math.radians(5),places=7)
+                            self.lib.fake_speed(slot,direction*1.6);self.lib.fake_advance(2)
+                            with self.assertRaisesRegex(RuntimeError,'speed limit'):port.poll()
+                            fault=port.report['fault_snapshot']
+                            self.assertEqual((fault['slot'],fault['reason']),(slot,8))
+                            self.assertAlmostEqual(fault['speed_limit_rad_s'],1.5,places=7)
+                            self.assertAlmostEqual(fault['command_velocity_rad_s'],math.radians(5),places=7)
+                            self.assertEqual(self.lib.fake_status(slot),0)
+                            self.lib.fake_speed(slot,0)
+                            port.recover(Path(directory)/'speed-trip.json')
+                            self.assertFalse(port.armed or port.moving)
+                self.assertEqual(self.lib.fake_commands(0),0)
+            finally:port.close()
+
+    def trip_position_port(self, port, reason=9):
+        port.select(3);port.arm();port.jog(1,math.radians(5))
+        if reason==9:self.lib.fake_torque(2,12.1)
+        else:self.lib.fake_speed(2,port.motors[2]['speed_trip_rad_s']+.2)
+        self.lib.fake_advance(2)
+        with self.assertRaises(RuntimeError):port.poll()
+        self.assertEqual(port.report['fault_snapshot']['reason'],reason)
+        self.lib.fake_torque(2,0);self.lib.fake_speed(2,0)
+
+    def test_position_recovery_repeated_torque_speed_faults_keep_modes_and_origins(self):
+        from motors import arm_position as pos
+        with patch.object(pos,'time',bench.time), tempfile.TemporaryDirectory() as directory:
+            port=self.manual_port()
+            origins=dict(port.session.origins);bounds=dict(port.session.bounds)
+            try:
+                for reason in (9,8):
+                    self.trip_position_port(port,reason)
+                    original=port.report['fault_snapshot'].copy()
+                    before=[self.lib.fake_commands(i) for i in range(6)]
+                    with patch.object(self.bus,'enable_bench_group',wraps=self.bus.enable_bench_group) as enable:
+                        port.recover(Path(directory)/'session.json')
+                        enable.assert_not_called()
+                    self.assertEqual([self.lib.fake_commands(i) for i in range(6)],before)
+                    self.assertEqual(port.session.origins,origins);self.assertEqual(port.session.bounds,bounds)
+                    self.assertEqual(port.selected,3);self.assertFalse(port.armed or port.moving or port.recovery_required)
+                    self.assertIsNone(port.target);self.assertNotIn('error',port.report)
+                    attempt=port.report['recoveries'][-1]
+                    self.assertTrue(attempt['success']);self.assertTrue(attempt['recovery']['reset_verified'])
+                    evidence=json.loads(Path(attempt['recovery']['evidence_path']).read_text())
+                    self.assertEqual(evidence['failure_before']['fault_snapshot'],original)
+                    self.assertEqual(evidence['recovery']['fault_before'],original)
+                    self.assertEqual([self.bus.state(i).registers for i in port.slots],[31]*5)
+                    with self.assertRaisesRegex(RuntimeError,'Arm selected'):port.jog(1,math.radians(5))
+                self.assertEqual(len(list(Path(directory).glob('*.fault-*.json'))),2)
+                port.arm();port.jog(-1,math.radians(5));self.assertTrue(port.moving);port.release()
+            finally:port.close()
+            self.assertEqual([self.lib.fake_mode(i) for i in range(6)],[1]*6)
+            self.assertTrue(port.report['mode_restoration_verified'])
+
+    def test_position_startup_fault_is_explicit_opt_in_and_recovers_disabled(self):
+        from motors import arm_position as pos
+        p=self.latch_recovery_fault()
+        original=self.bus.fault_snapshot()
+        with patch.object(pos,'time',bench.time), tempfile.TemporaryDirectory() as directory:
+            with patch.object(self.bus,'close') as close:
+                with self.assertRaises(bench.LatchedControllerFault):
+                    pos.ArmPositionPort(p,bus=self.bus,window_degrees=None)
+                close.assert_called_once()
+            port=pos.ArmPositionPort(p,bus=self.bus,window_degrees=None,allow_faulted_start=True)
+            try:
+                self.assertTrue(port.recovery_required);self.assertIsNone(port.session)
+                self.assertEqual(port.report['fault_snapshot'],original)
+                with self.assertRaisesRegex(RuntimeError,'Recovery required'):port.arm()
+                with patch.object(self.bus,'enable_bench_group') as enable:
+                    port.recover(Path(directory)/'startup.json');enable.assert_not_called()
+                self.assertFalse(port.armed or port.moving or port.recovery_required)
+                self.assertEqual([row.joint for row in port.positions()],[2,3,4,5,6])
+                port.arm();port.jog(1,.05);self.assertTrue(port.moving);port.release()
+            finally:port.close()
+            self.assertEqual([self.lib.fake_mode(i) for i in range(6)],[1]*6)
+
+    def test_position_recovery_failure_preserves_latch_then_allows_explicit_retry(self):
+        from motors import arm_position as pos
+        with patch.object(pos,'time',bench.time), tempfile.TemporaryDirectory() as directory:
+            port=self.manual_port()
+            try:
+                self.trip_position_port(port)
+                with patch.object(bench.os,'fsync',side_effect=OSError('disk failure')), \
+                     patch.object(self.bus,'reset_fault',wraps=self.bus.reset_fault) as reset:
+                    with self.assertRaisesRegex(RuntimeError,'disk failure'):port.recover(Path(directory)/'session.json')
+                    reset.assert_not_called()
+                self.assertTrue(port.recovery_required);self.assertTrue(self.bus.state(2).fault)
+                self.assertFalse(port.armed or port.moving)
+                with self.assertRaisesRegex(RuntimeError,'Recovery required'):port.arm()
+                port.recover(Path(directory)/'session.json')
+                self.assertEqual([a['success'] for a in port.report['recoveries']],[False,True])
+            finally:port.close()
+
+    def test_position_startup_recovery_retries_partial_mode_preparation(self):
+        from motors import arm_position as pos
+        p=self.latch_recovery_fault()
+        with patch.object(pos,'time',bench.time), tempfile.TemporaryDirectory() as directory:
+            port=pos.ArmPositionPort(p,bus=self.bus,window_degrees=None,allow_faulted_start=True)
+            write=self.bus.write_routed_bench
+            def lost_mode_ack(slot,reg,value):
+                write(slot,reg,value)
+                if reg==10:raise TimeoutError('lost mode ACK')
+            try:
+                with patch.object(self.bus,'write_routed_bench',side_effect=lost_mode_ack):
+                    with self.assertRaisesRegex(RuntimeError,'lost mode ACK'):port.recover(Path(directory)/'session.json')
+                self.assertTrue(port.recovery_required);self.assertFalse(port.armed or port.moving)
+                port.recover(Path(directory)/'session.json')
+                self.assertFalse(port.recovery_required)
+                self.assertEqual([self.lib.fake_mode(i) for i in port.slots],[2]*5)
+            finally:port.close()
+            self.assertEqual([self.lib.fake_mode(i) for i in range(6)],[1]*6)
+
+    def test_faulted_start_option_still_rejects_an_active_owner(self):
+        from motors import arm_position as pos
+        with patch.object(pos,'time',bench.time):
+            port=self.manual_port()
+            try:
+                port.arm();port.jog(1,math.radians(5))
+                p=json.loads((ROOT/'src/robot_description/config/arm_rig_a2_a6.json').read_text())
+                p.update(fixture_confirmed=True,supported_confirmed=True)
+                with patch.object(self.bus,'close'), patch.object(self.bus,'reset_fault') as reset:
+                    with self.assertRaisesRegex(RuntimeError,'active or faulted') as caught:
+                        pos.ArmPositionPort(p,bus=self.bus,window_degrees=None,allow_faulted_start=True)
+                    self.assertNotIsInstance(caught.exception,bench.LatchedControllerFault)
+                    reset.assert_not_called()
+            finally:port.close()
+
+    def test_position_recovery_lost_reset_ack_can_retry_with_invalidated_cache(self):
+        from motors import arm_position as pos
+        with patch.object(pos,'time',bench.time), tempfile.TemporaryDirectory() as directory:
+            port=self.manual_port()
+            try:
+                self.trip_position_port(port)
+                reset=self.bus.reset_fault
+                def lost_ack():
+                    reset();raise TimeoutError('lost reset ACK')
+                with patch.object(self.bus,'reset_fault',side_effect=lost_ack) as reset_call:
+                    with self.assertRaisesRegex(RuntimeError,'lost reset ACK'):port.recover(Path(directory)/'session.json')
+                    reset_call.assert_called_once()
+                self.assertTrue(port.recovery_required)
+                with patch.object(self.bus,'reset_fault',wraps=reset) as reset_call:
+                    port.recover(Path(directory)/'session.json');reset_call.assert_not_called()
+                self.assertFalse(port.recovery_required or port.armed or port.moving)
+                self.assertEqual([self.bus.state(i).registers for i in port.slots],[31]*5)
+            finally:port.close()
+
+    def test_position_recovery_preserves_bounded_window_after_disabled_drift(self):
+        from motors import arm_position as pos
+        with patch.object(pos,'time',bench.time), tempfile.TemporaryDirectory() as directory:
+            p=plan();port=pos.ArmPositionPort(p,bus=self.bus,window_degrees=3)
+            try:
+                origins=dict(port.session.origins);bounds=dict(port.session.bounds)
+                port.capture_failure(RuntimeError('host interruption'))
+                self.lib.fake_position(0,origins[0]+.3)
+                with patch.object(self.bus,'reset_fault') as reset:
+                    port.recover(Path(directory)/'session.json');reset.assert_not_called()
+                self.assertEqual(port.session.origins,origins);self.assertEqual(port.session.bounds,bounds)
+                port.arm()
+                with patch.object(self.bus,'enable_bench_group') as enable:
+                    with self.assertRaisesRegex(RuntimeError,'outside the startup corridor'):
+                        port.move_to(origins[0],.1)
+                    enable.assert_not_called()
+            finally:port.close()
+
+    def test_position_recovery_rejects_moving_and_missing_retained_motor(self):
+        from motors import arm_position as pos
+        with patch.object(pos,'time',bench.time), tempfile.TemporaryDirectory() as directory:
+            port=self.manual_port()
+            try:
+                port.arm();port.jog(1,math.radians(5))
+                with patch.object(self.bus,'reset_fault') as reset:
+                    with self.assertRaisesRegex(RuntimeError,'Release motion'):port.recover(Path(directory)/'session.json')
+                    reset.assert_not_called()
+                port.release();self.trip_position_port(port)
+                self.lib.fake_missing(5)
+                with patch.object(self.bus,'reset_fault') as reset:
+                    with self.assertRaisesRegex(RuntimeError,'disable acknowledgement'):port.recover(Path(directory)/'session.json')
+                    reset.assert_not_called()
+                self.assertTrue(port.recovery_required);self.assertTrue(self.bus.state(2).fault)
+                with self.assertRaisesRegex(RuntimeError,'Disable not confirmed'):port.close()
+            finally:
+                if not port.closed:port.close()
+
+    def test_manual_travel_passes_old_bounds_both_directions_and_uses_current_preload(self):
+        from motors import arm_position as pos
+        with patch.object(pos,'time',bench.time):
+            port=self.manual_port()
+            try:
+                for joint in (2,3,4):
+                    slot=joint-1;origin=port.session.origins[slot]
+                    self.lib.fake_position(slot,origin-math.radians(8.8))
+                    for direction in (1,-1):
+                        port.select(joint);port.arm()
+                        before=port.positions()[slot-1].position_rad
+                        commands=[self.lib.fake_commands(i) for i in range(6)]
+                        port.jog(direction,math.radians(5))
+                        start=bench.time.monotonic()
+                        while bench.time.monotonic()-start<4:
+                            self.lib.fake_advance(20);self.assertTrue(port.poll())
+                        after=self.bus.state(slot).position
+                        self.assertGreater(direction*(after-before),math.radians(18))
+                        self.assertFalse(self.bus.state(slot).fault)
+                        for i in range(6):
+                            if i!=slot:self.assertEqual(self.lib.fake_commands(i),commands[i])
+                        port.release();self.assertFalse(port.moving);self.assertTrue(port.armed)
+                        self.assertEqual([self.lib.fake_status(i) for i in range(6)],[0]*6)
+                    self.assertEqual(port.session.origins[slot],origin)
+                    self.assertEqual(port.session.bounds[slot],(-12.5,12.5))
+                self.assertEqual(port.report['travel_policy'],'manual')
+                self.assertFalse(any(e['event']=='reached' for e in port.report['events']))
+            finally:port.close()
+        self.assertTrue(port.report['mode_restoration_verified'])
+        self.assertEqual(self.lib.fake_invalid(),0)
+
+    def test_manual_stall_keeps_advancing_target_then_stops_at_twelve_seconds(self):
+        from motors import arm_position as pos
+        with patch.object(pos,'time',bench.time):
+            port=self.manual_port()
+            try:
+                port.arm();self.lib.fake_stall(1);self.lib.fake_torque(1,2.)
+                port.jog(1,math.radians(5));origin=port.jog_origin;start=bench.time.monotonic()
+                with self.assertRaisesRegex(RuntimeError,'Manual jog host duration limit reached'):
+                    for _ in range(650):
+                        self.lib.fake_advance(20);port.poll()
+                self.assertGreater(bench.time.monotonic()-start,12)
+                self.assertLess(bench.time.monotonic()-start,13)
+                self.assertGreater(port.report['motion_summary']['2']['last_sample']['target_rad']-origin,math.radians(55))
+                self.assertFalse(port.report['fault_snapshot']['fault'])
+                self.assertFalse(port.armed);self.assertFalse(port.moving)
+                self.assertEqual([self.lib.fake_status(i) for i in range(6)],[0]*6)
+            finally:port.close()
+
+    def test_manual_old_firmware_fails_before_motor_operations(self):
+        from motors.arm import CAP_MANUAL_TRAVEL
+        self.bus.capabilities &= ~CAP_MANUAL_TRAVEL
+        with patch.object(self.bus,'_request',wraps=self.bus._request) as request:
+            with self.assertRaisesRegex(RuntimeError,'0x8000'):self.manual_port()
+            request.assert_not_called()
+        self.assertEqual(self.lib.fake_parameter_writes(),0)
+        self.assertEqual([self.lib.fake_commands(i) for i in range(6)],[0]*6)
+
+    def test_manual_intent_cancellation_during_enable_and_poll_stops(self):
+        from motors import arm_position as pos
+        with patch.object(pos,'time',bench.time):
+            port=self.manual_port();allowed=[True];port.motion_allowed=lambda:allowed[0]
+            try:
+                port.arm()
+                enable=self.bus.enable_bench_group
+                def cancel(slots):
+                    enable(slots);allowed[0]=False
+                with patch.object(self.bus,'enable_bench_group',side_effect=cancel):
+                    with self.assertRaises(pos.MotionCancelled):port.jog(1,math.radians(5))
+                self.assertFalse(port.armed);self.assertEqual(self.lib.fake_status(1),0)
+                allowed[0]=True;port.arm();port.jog(-1,math.radians(5))
+                allowed[0]=False
+                with self.assertRaises(pos.MotionCancelled):port.poll()
+                self.assertFalse(port.armed);self.assertEqual(self.lib.fake_status(1),0)
+            finally:port.close()
+
+    def test_manual_keeps_torque_trip_and_fault_evidence(self):
+        from motors import arm_position as pos
+        with patch.object(pos,'time',bench.time):
+            port=self.manual_port()
+            try:
+                port.arm();port.jog(1,math.radians(5))
+                self.lib.fake_torque(1,12.1);self.lib.fake_advance(2)
+                with self.assertRaisesRegex(RuntimeError,'measured torque limit'):port.poll()
+                self.assertEqual(port.report['fault_snapshot']['reason'],9)
+                self.assertEqual(self.lib.fake_status(1),0)
+            finally:port.close()
+
+    def test_manual_protocol_boundary_is_not_silently_clipped(self):
+        from motors import arm_position as pos
+        with patch.object(pos,'time',bench.time):
+            port=self.manual_port()
+            try:
+                self.lib.fake_position(1,12.45);port.arm();port.jog(1,math.radians(5))
+                with self.assertRaisesRegex(RuntimeError,'protocol position range'):
+                    for _ in range(40):self.lib.fake_advance(20);port.poll()
+                self.assertFalse(port.moving);self.assertFalse(port.armed)
+                self.assertEqual(self.lib.fake_status(1),0)
+            finally:port.close()
+
+    def test_firmware_manual_flag_keeps_mode_validation_command_lease_and_duration(self):
+        from motors import arm_position as pos
+        with patch.object(pos,'time',bench.time):
+            port=self.manual_port()
+            try:
+                # The flag is a USB policy bit; it must never select motor mode 129.
+                with self.assertRaises(RuntimeError):
+                    self.bus._request(16,struct.pack('<BBHHBB4f',1,2,2,18,2,0x81,-12.5,12.5,.3,12.))
+                port.arm();port.jog(1,math.radians(5))
+                # Exercise firmware's independent 15 s stop while renewing the lease.
+                with self.assertRaises(RuntimeError):
+                    for _ in range(1600):
+                        self.lib.fake_advance(10)
+                        self.bus.command(1,port.target,velocity=math.radians(5))
+                self.assertEqual(self.bus.fault_snapshot()['reason'],10)
+                self.assertEqual(self.lib.fake_status(1),0)
+            finally:port.close()
+
+    def test_manual_lost_host_lease_still_latches_fault(self):
+        from motors import arm_position as pos
+        with patch.object(pos,'time',bench.time):
+            port=self.manual_port()
+            try:
+                port.arm();port.jog(1,math.radians(5));self.lib.fake_advance(200)
+                with self.assertRaises(RuntimeError):port.poll()
+                self.assertEqual(port.report['fault_snapshot']['reason'],1)
+                self.assertEqual(self.lib.fake_status(1),0)
+            finally:port.close()
+
+    def test_rig_has_no_hidden_two_or_three_nm_stop(self):
+        from motors import arm_position as pos
+        p=json.loads((ROOT/'src/robot_description/config/arm_rig_a2_a6.json').read_text())
+        p.update(fixture_confirmed=True,supported_confirmed=True)
+        self.lib.fake_missing(0)
+        self.lib.fake_torque_limit.restype=ctypes.c_float
+        with patch.object(pos,'time',bench.time):
+            port=pos.ArmPositionPort(p,bus=self.bus,window_degrees=3)
+            try:
+                for joint in (2,3,4):
+                    slot=joint-1
+                    self.assertEqual(self.lib.fake_torque_limit(slot),12. if joint<4 else 3.5)
+                    port.select(joint);port.arm()
+                    port.move_to(port.session.origins[slot]+math.radians(3),math.radians(5))
+                    self.assertAlmostEqual(port.duration,2.6,delta=.01)
+                    for torque in ((2.,3.1,6.,11.5) if joint<4 else (2.,3.4)):
+                        self.lib.fake_torque(slot,torque);self.lib.fake_advance(2);port.poll()
+                        self.assertTrue(port.moving);self.assertFalse(self.bus.state(slot).fault)
+                    port.release();self.lib.fake_torque(slot,0)
+                self.assertEqual(self.lib.fake_torque_limit(3),3.5)
+            finally:port.close()
+        self.assertEqual(self.lib.fake_invalid(),0)
+
+    def test_rig_two_nm_stall_ends_at_duration_not_torque_trip(self):
+        from motors import arm_position as pos
+        p=json.loads((ROOT/'src/robot_description/config/arm_rig_a2_a6.json').read_text())
+        p.update(fixture_confirmed=True,supported_confirmed=True)
+        self.lib.fake_missing(0)
+        with patch.object(pos,'time',bench.time):
+            port=pos.ArmPositionPort(p,bus=self.bus,window_degrees=3)
+            try:
+                port.select(2);port.arm();self.lib.fake_stall(1);self.lib.fake_torque(1,2.)
+                port.move_to(port.session.origins[1]+math.radians(3),math.radians(5))
+                event=next(e for e in port.report['events'] if e['event']=='move')
+                self.assertAlmostEqual(event['duration_limit_s'],2.6,delta=.01)
+                with self.assertRaisesRegex(RuntimeError,'host duration limit reached'):
+                    for _ in range(160):
+                        self.lib.fake_advance(20);port.poll()
+                self.assertFalse(port.report['fault_snapshot']['fault'])
+                self.assertAlmostEqual(port.report['motion_summary']['2']['max_abs_torque_feedback_nm'],2.,delta=.02)
+                self.assertFalse(port.moving)
+            finally:port.close()
+        self.assertTrue(port.report['disable_acknowledged'])
+
+    def test_rig_check_with_a1_absent_reads_fresh_disabled_feedback_without_writes(self):
+        p=plan();p.update(active_joints=[2,3,4,5,6],fixture_confirmed=False)
+        self.lib.fake_missing(0)
+        with tempfile.TemporaryDirectory() as directory:
+            path=Path(directory)/'plan.json';path.write_text(json.dumps(p))
+            report=Path(directory)/'result.json'
+            with patch.object(bench,'ArmBus',return_value=self.bus), \
+                 patch.object(self.bus,'read_register',wraps=self.bus.read_register) as read, \
+                 patch.object(self.bus,'write_routed_bench',wraps=self.bus.write_routed_bench) as write, \
+                 patch.object(self.bus,'enable_bench_group',wraps=self.bus.enable_bench_group) as enable:
+                self.assertEqual(bench.main(['--plan',str(path),'--all','--check','--feedback',
+                                             '--supported','--report',str(report)]),0)
+                self.assertEqual({c.args[1] for c in read.call_args_list},{2,3,4,5,6})
+                write.assert_not_called();enable.assert_not_called()
+            result=json.loads(report.read_text())
+            self.assertTrue(result['passed']);self.assertTrue(result['disable_acknowledged'])
+            self.assertFalse(result['motor_parameter_writes'])
+            self.assertEqual([r['joint'] for r in result['feedback']],[2,3,4,5,6])
+            self.assertTrue(all(not r['enabled'] and r['age_ms']<80 for r in result['feedback']))
+        self.assertEqual([self.lib.fake_commands(i) for i in range(6)],[0]*6)
+        self.assertEqual([self.lib.fake_mode(i) for i in range(6)],[1]*6)
+        self.assertEqual(self.lib.fake_invalid(),0)
+
+    def test_subset_jog_preserves_physical_slots_and_cleans_up(self):
+        from motors import arm_position as pos
+        p=plan();p.update(active_joints=[2,3,4,5,6],fixture_mode='supported',supported_confirmed=True)
+        self.lib.fake_missing(0)
+        with patch.object(pos,'time',bench.time):
+            port=pos.ArmPositionPort(p,bus=self.bus,window_degrees=3)
+            try:
+                self.assertEqual(port.selected,2)
+                self.assertEqual([r.joint for r in port.positions()],[2,3,4,5,6])
+                self.assertEqual(self.bus.state(0).registers,0)
+                for joint in range(2,7):
+                    before=[self.lib.fake_commands(i) for i in range(6)]
+                    port.select(joint);port.arm()
+                    with self.assertRaisesRegex(ValueError,'5 degrees'):
+                        port.move_by(.01,.1)
+                    port.move_by(.02,math.radians(5))
+                    for _ in range(200):
+                        self.lib.fake_advance(10)
+                        if not port.poll():break
+                    self.assertFalse(port.moving)
+                    row=next(r for r in port.positions() if r.joint==joint)
+                    self.assertAlmostEqual(row.position_rad,.02,delta=.01)
+                    for i in range(6):
+                        if i!=joint-1:self.assertEqual(self.lib.fake_commands(i),before[i])
+                port.select(2);port.arm();port.move_by(.01,math.radians(5))
+                with self.assertRaisesRegex(ValueError,'unavailable'):port.select(1)
+                self.assertFalse(port.moving);self.assertFalse(port.armed)
+            finally:port.close()
+        self.assertEqual([self.lib.fake_mode(i) for i in range(6)],[1]*6)
+        self.assertEqual([self.lib.fake_status(i) for i in range(6)],[0]*6)
+        self.assertEqual(self.lib.fake_invalid(),0)
+
+    def test_subset_does_not_silently_skip_another_missing_motor(self):
+        p=plan();p.update(active_joints=[2,3,4,5,6],fixture_confirmed=False)
+        self.lib.fake_missing(0);self.lib.fake_missing(3)
+        with tempfile.TemporaryDirectory() as directory:
+            path=Path(directory)/'plan.json';path.write_text(json.dumps(p))
+            report=Path(directory)/'result.json'
+            with patch.object(bench,'ArmBus',return_value=self.bus), contextlib.redirect_stderr(io.StringIO()):
+                self.assertEqual(bench.main(['--plan',str(path),'--all','--check','--feedback',
+                                             '--supported','--report',str(report)]),2)
+            result=json.loads(report.read_text())
+            self.assertFalse(result['passed']);self.assertIn('missing/wrong feedback',result['error'])
+        self.assertEqual([self.lib.fake_commands(i) for i in range(6)],[0]*6)
+
+    def test_prior_six_motor_session_does_not_hide_missing_a1_or_reset(self):
+        p=plan();session=self.session(p['motors'])
+        session.prepare();session.cleanup()
+        self.lib.fake_missing(0)
+        with patch.object(self.bus,'reset_fault',wraps=self.bus.reset_fault) as reset:
+            with self.assertRaisesRegex(TimeoutError,'disable acknowledgement'):
+                bench.preflight(self.bus,p['motors'][1:])
+            reset.assert_not_called()
+        self.assertEqual([self.lib.fake_commands(i) for i in range(6)],[0]*6)
+
+    def latch_recovery_fault(self, *, full=False):
+        p = plan()
+        slots = list(range(6)) if full else list(range(1, 6))
+        if not full:
+            p['active_joints'] = [2, 3, 4, 5, 6]
+            self.lib.fake_missing(0)
+        observed = dict(zip(slots, bench.preflight(self.bus, [p['motors'][i] for i in slots])))
+        session = bench.BenchSession(self.bus, p['motors'], observed, {}, slots=slots)
+        session.prepare()
+        session.command(1, session.stop()[1].position)
+        self.bus.enable_bench_group([1])
+        self.lib.fake_torque(1, .6)
+        self.lib.fake_advance(2)
+        self.assertEqual(self.bus.state(1).fault_reason, 9)
+        session.cleanup()  # Restores actual mode 1; retained MCU routes still expect 2.
+        self.lib.fake_torque(1, 0)
+        return p
+
+    def test_recovery_cli_preserves_fault_before_reset_without_enables_or_writes(self):
+        p = self.latch_recovery_fault()
+        self.bus.capabilities = 3983  # Deployed rig: no base_info or rated-torque extension.
+        before = [self.lib.fake_commands(i) for i in range(6)]
+        original = self.bus.fault_snapshot()
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)/'plan.json'; path.write_text(json.dumps(p))
+            report = Path(directory)/'result.json'
+            reset = self.bus.reset_fault
+            def checked_reset():
+                files = list(Path(directory).glob('result.fault-*.json'))
+                self.assertEqual(len(files), 1)
+                evidence = json.loads(files[0].read_text())['recovery']
+                self.assertEqual(evidence['fault_before'], original)
+                self.assertFalse(evidence['reset_attempted'])
+                self.assertEqual(len(evidence['disabled_before']), 5)
+                self.assertTrue(all(not s['enabled'] and s['age_ms'] < 80
+                                    for s in evidence['disabled_before'].values()))
+                reset()
+            with patch.object(bench, 'ArmBus', return_value=self.bus), \
+                 patch.object(self.bus, 'reset_fault', side_effect=checked_reset) as reset_call, \
+                 patch.object(self.bus, 'enable_bench_group', wraps=self.bus.enable_bench_group) as enable, \
+                 patch.object(self.bus, 'write_routed_bench', wraps=self.bus.write_routed_bench) as write, \
+                 patch.object(self.bus, 'base_info', wraps=self.bus.base_info) as info:
+                result = bench.main(['--plan', str(path), '--all', '--check', '--feedback',
+                                     '--supported', '--recover', '--report', str(report)])
+                self.assertEqual(result, 0)
+                reset_call.assert_called_once(); enable.assert_not_called()
+                write.assert_not_called(); info.assert_not_called()
+            result = json.loads(report.read_text())
+            self.assertTrue(result['passed']); self.assertTrue(result['disable_acknowledged'])
+            self.assertTrue(result['recovery']['reset_verified'])
+            self.assertEqual(result['recovery']['fault_before'], original)
+            self.assertEqual([r['joint'] for r in result['feedback']], [2,3,4,5,6])
+            self.assertTrue(all(not r['enabled'] and r['age_ms'] < 80 for r in result['feedback']))
+        self.assertEqual([self.lib.fake_commands(i) for i in range(6)], before)
+        self.assertEqual([self.lib.fake_mode(i) for i in range(6)], [1]*6)
+        self.assertEqual([self.lib.fake_status(i) for i in range(6)], [0]*6)
+        self.assertEqual(self.lib.fake_invalid(), 0)
+
+    def test_recovery_reprobes_reset_cache_and_repeated_checks_need_no_reset(self):
+        p = self.latch_recovery_fault()
+        with tempfile.TemporaryDirectory() as directory, \
+             patch.object(self.bus, 'reset_fault', wraps=self.bus.reset_fault) as reset:
+            report = {}; path = Path(directory)/'recovery.json'
+            bench.recover_fault(self.bus, report, path)
+            self.assertTrue(report['recovery']['reset_verified'])
+            for _ in range(2):
+                self.assertEqual(len(bench.preflight(self.bus, p['motors'][1:])), 5)
+            second = {}; bench.recover_fault(self.bus, second, path)
+            self.assertEqual(second['recovery']['outcome'], 'no_latched_fault')
+            reset.assert_called_once()
+            self.assertEqual(len(list(Path(directory).glob('*.fault-*.json'))), 1)
+
+    def test_recovery_missing_retained_motor_never_clears_fault(self):
+        self.latch_recovery_fault(full=True)
+        self.lib.fake_missing(0)  # Next plan omits A1; old MCU session still owns it.
+        with tempfile.TemporaryDirectory() as directory, \
+             patch.object(self.bus, 'reset_fault', wraps=self.bus.reset_fault) as reset:
+            with self.assertRaisesRegex(TimeoutError, 'disable acknowledgement'):
+                bench.recover_fault(self.bus, {}, Path(directory)/'result.json')
+            reset.assert_not_called()
+        self.assertTrue(self.bus.state(1).fault)
+
+    def test_recovery_coasting_or_drive_error_never_clears_fault(self):
+        self.latch_recovery_fault()
+        with tempfile.TemporaryDirectory() as directory, \
+             patch.object(self.bus, 'reset_fault', wraps=self.bus.reset_fault) as reset:
+            self.lib.fake_coast(1, 10000)
+            with self.assertRaisesRegex(TimeoutError, 'stationary disable acknowledgement'):
+                bench.recover_fault(self.bus, {}, Path(directory)/'result.json')
+            self.lib.fake_coast(1, 0)
+            state = self.bus.state
+            def drive_error(i):
+                s = state(i)
+                return replace(s, status=8) if i == 1 else s
+            with patch.object(self.bus, 'state', side_effect=drive_error), \
+                 self.assertRaisesRegex(TimeoutError, 'disable acknowledgement'):
+                bench.recover_fault(self.bus, {}, Path(directory)/'result.json')
+            reset.assert_not_called()
+        self.assertTrue(self.bus.state(1).fault)
+
+    def test_recovery_diagnostic_or_evidence_failure_never_clears_fault(self):
+        self.latch_recovery_fault()
+        with tempfile.TemporaryDirectory() as directory, \
+             patch.object(self.bus, 'reset_fault', wraps=self.bus.reset_fault) as reset:
+            with patch.object(self.bus, 'capabilities', self.bus.capabilities & ~512), \
+                 self.assertRaisesRegex(RuntimeError, 'requires routed bench and first-fault'):
+                bench.recover_fault(self.bus, {}, Path(directory)/'result.json')
+            with patch.object(self.bus, 'fault_snapshot', return_value=None), \
+                 self.assertRaisesRegex(RuntimeError, 'consistent retained fault'):
+                bench.recover_fault(self.bus, {}, Path(directory)/'result.json')
+            with patch.object(bench.os, 'fsync', side_effect=OSError('disk failure')), \
+                 self.assertRaisesRegex(OSError, 'disk failure'):
+                bench.recover_fault(self.bus, {}, Path(directory)/'result.json')
+            reset.assert_not_called()
+        self.assertTrue(self.bus.state(1).fault)
+
+    def test_recovery_reset_rejection_preserves_latch_and_does_not_claim_success(self):
+        self.latch_recovery_fault()
+        with tempfile.TemporaryDirectory() as directory, \
+             patch.object(self.bus, 'reset_fault', side_effect=RuntimeError('reset rejected')) as reset:
+            report = {}
+            with self.assertRaisesRegex(RuntimeError, 'reset rejected'):
+                bench.recover_fault(self.bus, report, Path(directory)/'result.json')
+            reset.assert_called_once()
+            self.assertTrue(report['recovery']['reset_attempted'])
+            self.assertFalse(report['recovery']['reset_acknowledged'])
+            self.assertFalse(report['recovery']['reset_verified'])
+            self.assertTrue(self.bus.state(1).fault)
+
+    def test_recovery_lost_reset_ack_does_not_retry_and_next_explicit_check_repairs_cache(self):
+        p = self.latch_recovery_fault()
+        self.bus.capabilities = 3983
+        reset = self.bus.reset_fault
+        def lost_ack():
+            reset()
+            raise TimeoutError('lost reset ACK')
+        with tempfile.TemporaryDirectory() as directory:
+            report = {}; path = Path(directory)/'result.json'
+            with patch.object(self.bus, 'reset_fault', side_effect=lost_ack) as reset_call, \
+                 self.assertRaisesRegex(TimeoutError, 'lost reset ACK'):
+                bench.recover_fault(self.bus, report, path)
+            reset_call.assert_called_once()
+            self.assertTrue(report['recovery']['reset_attempted'])
+            self.assertFalse(report['recovery']['reset_acknowledged'])
+            self.assertFalse(report['recovery']['reset_verified'])
+            with patch.object(self.bus, 'reset_fault', wraps=reset) as second_reset:
+                next_report = {}; bench.recover_fault(self.bus, next_report, path)
+                self.assertEqual(next_report['recovery']['outcome'], 'no_latched_fault')
+                self.assertEqual(len(bench.preflight(self.bus, p['motors'][1:])), 5)
+                second_reset.assert_not_called()
 
     def test_each_model_and_factory_feedback_zero(self):
         for index in (0, 1, 3):
@@ -136,7 +958,8 @@ class RoutedRoundTrip(unittest.TestCase):
         self.assertTrue(s.report['mode_restoration_verified'])
 
     def test_manufacturer_rated_envelopes_and_faults(self):
-        for index, rpm, torque in ((0, 100, 20.), (3, 120, 3.5)):
+        # 4340P torque is rated; its existing 1.5 rad/s speed ceiling stays lower.
+        for index, rpm, torque in ((0, 100, 20.), (1, 1.5*60/(2*math.pi), 12.), (3, 120, 3.5)):
             for scenario in ('motion', 'speed', 'torque'):
                 with self.subTest(model=index, scenario=scenario):
                     self.bus.close(); self.bus=ArmBus(transport=NativeTransport(self.lib))
@@ -153,7 +976,7 @@ class RoutedRoundTrip(unittest.TestCase):
                             self.bus.prepare_routed_bench(0,bad,-1,1,2)
                         with self.assertRaises(RuntimeError):
                             self.bus._request(16, struct.pack('<BBHHBB4f',0,m['bus'],m['can_id'],
-                                m['feedback_id'],1 if index==0 else 3,2,-1,1,
+                                m['feedback_id'],1 if index==0 else 2 if index==1 else 3,2,-1,1,
                                 bad['speed_trip_rad_s'],bad['torque_trip_nm']))
                     s=self.session([m])
                     try:
@@ -172,6 +995,38 @@ class RoutedRoundTrip(unittest.TestCase):
                     self.assertTrue(s.report['disable_acknowledged'])
                     self.assertTrue(s.report['mode_restoration_verified'])
                     self.assertEqual(self.lib.fake_status(index),0)
+
+    def test_4340_rated_threshold_requires_new_firmware_before_config_write(self):
+        m = dict(plan()['motors'][1], torque_trip_nm=12)
+        self.assertTrue(self.bus.capabilities & CAP_RATED_4340_TORQUE)
+        self.bus.capabilities = 3983
+        with patch.object(self.bus, '_request', wraps=self.bus._request) as request:
+            with self.assertRaisesRegex(RuntimeError, 'old 3 Nm.*0x2000'):
+                self.bus.prepare_routed_bench(1, m, -1, 1, 2)
+            request.assert_not_called()
+            self.assertFalse(self.bus.configured)
+        m['torque_trip_nm'] = 3
+        self.bus.prepare_routed_bench(1, m, -1, 1, 2)
+        self.bus.stop()
+
+    def test_4340_configured_threshold_is_enforced_below_rated_ceiling(self):
+        for threshold in (3., 6., 12.):
+            with self.subTest(threshold=threshold):
+                self.bus.close(); self.bus = ArmBus(transport=NativeTransport(self.lib))
+                m = dict(plan()['motors'][1], torque_trip_nm=threshold)
+                session = self.session([m])
+                try:
+                    session.prepare(); state = session.stop()[0]
+                    session.command(0, state.position); self.bus.enable_bench_group([0])
+                    self.lib.fake_torque(1, threshold-.1); self.lib.fake_advance(2)
+                    self.assertFalse(self.bus.state(0).fault)
+                    self.lib.fake_torque(1, threshold+.1); self.lib.fake_advance(2)
+                    self.assertEqual(self.bus.state(0).fault_reason, 9)
+                    self.assertAlmostEqual(self.bus.fault_snapshot()['torque_limit_nm'], threshold)
+                finally:
+                    session.cleanup()
+                self.assertEqual(self.lib.fake_status(1), 0)
+                self.assertEqual(self.lib.fake_mode(1), 1)
 
     def id_fixture(self, index):
         from motors import arm as arm_module, arm_ids
@@ -405,6 +1260,104 @@ class RoutedRoundTrip(unittest.TestCase):
             self.assertEqual([self.lib.fake_status(i) for i in range(6)],[0]*6)
             self.assertEqual(self.lib.fake_invalid(),0)
 
+    def test_disabled_drift_rejected_before_preload_or_enable_without_rebasing(self):
+        from motors import arm_position as pos
+        p=json.loads((ROOT/'src/robot_description/config/arm_rig_a2_a6.json').read_text())
+        p.update(fixture_confirmed=True,supported_confirmed=True)
+        self.lib.fake_missing(0)
+        with patch.object(pos,'time',bench.time):
+            port=pos.ArmPositionPort(p,bus=self.bus,window_degrees=3)
+            try:
+                port.select(4);port.arm()
+                origin=port.session.origins[3];bounds=port.session.bounds[3]
+                self.lib.fake_position(3,origin-math.radians(8.8))
+                with patch.object(self.bus,'command',wraps=self.bus.command) as command, \
+                     patch.object(self.bus,'enable_bench_group',wraps=self.bus.enable_bench_group) as enable:
+                    with self.assertRaisesRegex(RuntimeError,'A4: disabled joint shifted.*no enable sent'):
+                        port.move_to(origin,math.radians(5))
+                    command.assert_not_called();enable.assert_not_called()
+                self.assertEqual(port.session.origins[3],origin)
+                self.assertEqual(port.session.bounds[3],bounds)
+                self.assertFalse(port.report['start_rejection']['enable_sent'])
+                self.assertFalse(port.armed);self.assertFalse(self.bus.state(3).fault)
+            finally:port.close()
+        self.assertTrue(port.report['disable_acknowledged'])
+        self.assertTrue(port.report['mode_restoration_verified'])
+
+    def test_position_port_reports_a2_torque_trip_after_command_rejection(self):
+        from motors import arm_position as pos
+        p=json.loads((ROOT/'src/robot_description/config/arm_rig_a2_a6.json').read_text())
+        p.update(fixture_confirmed=True,supported_confirmed=True)
+        self.lib.fake_missing(0)
+        with patch.object(pos,'time',bench.time):
+            port=pos.ArmPositionPort(p,bus=self.bus,window_degrees=3)
+            try:
+                port.select(2);port.arm()
+                port.move_to(port.positions()[0].upper_rad,math.radians(5))
+                trip=p['motors'][1]['torque_trip_nm']
+                # Exercise the actual rig profile above the former 3 Nm trip,
+                # then verify its configured rated threshold still latches.
+                self.lib.fake_torque(1,trip/2);self.lib.fake_advance(2)
+                port.poll()
+                self.assertTrue(port.moving)
+                self.assertFalse(self.bus.state(1).fault)
+                self.assertAlmostEqual(port.report['motion_summary']['2']['max_abs_torque_feedback_nm'],trip/2,delta=.02)
+                self.assertEqual(port.report['control_mode'],'position_velocity')
+                self.assertIsNone(port.report['commanded_torque_nm'])
+                self.assertEqual(port.report['session_joints'][0]['verified_motion_mode'],2)
+                last=port.report['motion_summary']['2']['last_sample']
+                self.assertTrue(last['enabled']);self.assertTrue(last['enable_confirmed'])
+                self.assertEqual(last['torque_trip_nm'],trip)
+                self.lib.fake_torque(1,trip+.05);self.lib.fake_advance(2)
+                with patch.object(self.bus,'_request',wraps=self.bus._request) as request:
+                    with self.assertRaisesRegex(RuntimeError,'A2: measured torque limit'):
+                        port.poll()
+                    kinds=[c.args[0] for c in request.call_args_list]
+                self.assertEqual(kinds[0],4)  # Original rejection reproduced.
+                self.assertLess(kinds.index(6),kinds.index(19))  # Stop before diagnostics.
+                self.assertTrue(set(kinds)<= {4,6,7,19})  # No reset, enable, probe or parameter writes.
+                self.assertEqual(kinds.count(4),1)
+                fault=port.report['fault_snapshot']
+                self.assertEqual((fault['reason'],fault['slot']),(9,1))
+                self.assertGreater(fault['torque_nm'],trip)
+                self.assertLess(fault['torque_nm'],trip+.07)
+                self.assertAlmostEqual(fault['torque_limit_nm'],trip)
+                self.assertIn('MC02 rejected command 4',port.report['error_original'])
+                self.assertIn(f'limit {trip:.4f} Nm',port.report['error'])
+                self.assertIn('explicit recovery',port.report['error'])
+                self.assertEqual(set(port.report['failure_states']),{1,2,3,4,5})
+                self.assertFalse(port.armed);self.assertFalse(port.moving)
+                # Cleanup/callback reporting must not overwrite first-fault evidence.
+                first=port.report['error']
+                self.assertEqual(port.capture_failure(RuntimeError('secondary')),first)
+                self.assertEqual(self.bus.fault_snapshot(),fault)
+                self.assertTrue(self.bus.state(1).fault)
+            finally:port.close()
+        self.assertTrue(port.report['disable_acknowledged'])
+        self.assertTrue(port.report['mode_restoration_verified'])
+        self.assertEqual([self.lib.fake_status(i) for i in range(6)],[0]*6)
+        self.assertEqual([self.lib.fake_mode(i) for i in range(1,6)],[1]*5)
+        self.assertGreater(port.report['motion_summary']['2']['max_abs_torque_feedback_nm'],trip/2-.02)
+        self.assertTrue(port.report['motion_samples'][0]['enabled'])
+        json.dumps(port.report)  # Shutdown report remains serializable.
+
+    def test_position_port_diagnostic_failure_preserves_original_and_stops(self):
+        from motors import arm_position as pos
+        p=plan()
+        with patch.object(pos,'time',bench.time):
+            port=pos.ArmPositionPort(p,bus=self.bus,window_degrees=3)
+            try:
+                port.select(2);port.arm();port.move_to(port.positions()[1].upper_rad,.05)
+                with patch.object(self.bus,'fault_snapshot',side_effect=OSError('USB read failed')):
+                    message=port.capture_failure(RuntimeError('original transport failure'))
+                self.assertIn('original transport failure',message)
+                self.assertIn('USB read failed',message)
+                self.assertEqual(port.report['error_original'],'original transport failure')
+                self.assertTrue(port.report['failure_capture_errors'])
+                self.assertFalse(port.armed);self.assertFalse(port.moving)
+                self.assertEqual([self.lib.fake_status(i) for i in range(6)],[0]*6)
+            finally:port.close()
+
     def test_position_port_window_selection_and_stale_poll_fail_closed(self):
         from motors import arm_position as pos
         clock=SimpleNamespace(monotonic=lambda:self.lib.fake_now()/1000.,
@@ -453,6 +1406,8 @@ class RoutedRoundTrip(unittest.TestCase):
                 before=[self.lib.fake_commands(i) for i in range(6)]
                 allowed[0]=False
                 with self.assertRaises(pos.MotionCancelled):port.poll()
+                self.assertNotIn('error',port.report)
+                self.assertNotIn('fault_snapshot',port.report)
                 self.assertEqual([self.lib.fake_commands(i) for i in range(6)],before)
                 self.assertEqual([self.lib.fake_status(i) for i in range(6)],[0]*6)
             finally:port.close()

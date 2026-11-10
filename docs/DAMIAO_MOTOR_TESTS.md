@@ -73,7 +73,6 @@ Later disable feedback does not overwrite this record. Hosts support older
 firmware by reporting a null snapshot. Failure reports request disable before
 reading diagnostics; they never clear the fault or re-enable a motor.
 
-
 The later 45-degree attempt at 0.2617994 rad/s also stopped on speed fault 8:
 latched velocity 0.3186798 rad/s exceeded the 0.3 rad/s feedback threshold;
 latched torque was 0.6461525 Nm, below the 1 Nm torque threshold. No leg
@@ -332,3 +331,10 @@ all model ranges and both bus layouts, including negative travel, factory reply
 ID 0, stalls, mode mismatch, missing feedback, speed/torque/lease faults, group
 enable, firmware routing guards and cleanup. Simulated 500 Hz scheduling is not
 physical bus timing. Existing 4340P and production MIT tests remain covered.
+
+## A2–A6 rig check and slow manual test (2026-11-10)
+
+Use the [rig procedure](ARM_RIG_TEST.md) when A1 is temporarily disconnected.
+It includes a disabled connection/encoder capture and explicitly supported
+keyboard or optional Pocket jogging at 5 degrees/s with explicit manual travel. No automatic sweep
+or gravity holding is authorized by this profile.

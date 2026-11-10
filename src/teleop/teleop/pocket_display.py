@@ -28,6 +28,7 @@ def dashboard_snapshot(policy, worker, now, *, hardware_arm=False):
                 channels=channels, axes=axes, switches=switches,
                 diagonal=bool(axes and axes['arm_cw_horizontal']['value'] != 0
                               and axes['arm_cw_vertical']['value'] != 0),
+                available_joints=list(policy.available_joints),
                 selected=output.arm.joint, direction=output.arm.direction,
                 authorized=policy.authorized, ready=policy.ready,
                 status=output.status, chassis=list(output.chassis), arm=worker)
@@ -36,4 +37,5 @@ def dashboard_snapshot(policy, worker, now, *, hardware_arm=False):
 def position_snapshot(port, now):
     """Called ONLY by the arm owner; cached_positions never reads USB/CAN."""
     return dict(at=now, moving=port.moving, armed=port.armed,
+                travel_policy='manual' if port.window is None else 'startup_window',
                 selected=port.selected, rows=[asdict(row) for row in port.cached_positions()])

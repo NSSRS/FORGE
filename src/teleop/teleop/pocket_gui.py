@@ -241,7 +241,8 @@ class PocketWindow(QtWidgets.QWidget):
         motion = 'MOVING' if arm.get('moving') and not arm_stale else 'STALE' if arm_stale else 'STOPPED'
         self.arm_state.setText('Arm feedback: '+motion+ ('\n'+str(arm['error']) if arm.get('error') else ''))
         self.joint_caption.setText('Arm shaft positions • '+('HARDWARE / cached' if data['hardware_arm'] else
-            'SIMULATED / CW sign not yet measured')+' • relative to session start')
+            'SIMULATED / CW sign not yet measured')+' • relative to session start'+
+            (' • Manual travel (12 s max)' if arm.get('travel_policy') == 'manual' else ''))
         channels = data.get('channels')
         self.raw_channels.setText('   '.join(f'CH{i} {raw}' for i,raw in enumerate(channels,1))
                                   if channels else 'Raw receiver channels: no fresh sample')

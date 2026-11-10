@@ -1,21 +1,24 @@
-# Motor protection verification TODO
+# Motor protection verification
 
-Recorded 2026-11-05. User deferred protection-setting verification for the
-current secured, unloaded, free-shaft 8009P/4310P basic function tests.
-Passing these tests does not verify current protection or loaded operation.
+Updated 2026-11-10. Open work under **PROTECT-01** in the
+[cross-layer registry](ARM_LAYER_TODOS.md). A2–A6 basic manual movement is verified
+by the operator; that does not establish current protection or loaded operation.
 
-- [ ] Verify protection settings for every physical motor: all Damiao arm
-  units (one 8009P, two 4340P, three 4310P) and all ENCOS chassis units.
-- [ ] Record each unit's model/revision, firmware, bus/IDs, existing current
-  limit and overcurrent fault threshold, units/scaling, and timeout behavior.
-- [ ] Distinguish a current-command clamp from an overcurrent fault shutdown
-  and from FORGE's reactive measured-torque stop.
-- [ ] Add guarded read-only MC02 diagnostics for documented protection and
-  version registers. Confirm model-specific support; do not assume the 4310P
-  Imax register exists on the 8009P.
-- [ ] Select and verify application-specific limits before loaded testing;
-  record readback, persistence across power cycles, and fault-stop results.
-- [ ] Use ENCOS-specific documentation and tooling for chassis motors.
+Guarded, disabled-only readback is implemented. The operator's A2–A6 inspection
+completed at 19:56 on 2026-11-10; see [values and interpretation](DAMIAO_TORQUE_LIMITS.md).
+No gains or current limits were written. Remaining work:
 
-Factory defaults remain unverified. Preserve production calibration and
-hardware-confirmation flags until their separate commissioning is complete.
+- [ ] Record and verify model/revision, firmware, bus/IDs, current/protection
+  settings, units/scaling and timeout behavior for every Damiao and ENCOS unit.
+  Extend the current A2–A6 record to A1 when its fixture is ready; do not assume
+  the 4310P Imax/VBus registers exist on the 8009P.
+- [ ] Distinguish current-command clamping, overcurrent fault shutdown and
+  FORGE's reactive measured-torque trips. Verify drive torque/current reporting
+  against independent load/phase-current measurements; PSU current is different.
+- [ ] Select application-specific operating limits and verify persistence,
+  temperature behavior and measured fault/stop response before loaded testing.
+- [ ] Complete ENCOS-specific verification with its documentation and tooling.
+
+Keep production calibration and protection-confirmation flags unchanged until
+their separate acceptance is complete. A successful register read is evidence
+of a value, not validation of its suitability for this arm.

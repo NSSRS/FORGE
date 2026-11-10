@@ -7,7 +7,7 @@ import stat
 import yaml
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import ExecuteProcess, DeclareLaunchArgument, EmitEvent, IncludeLaunchDescription, OpaqueFunction, RegisterEventHandler
+from launch.actions import ExecuteProcess, DeclareLaunchArgument, EmitEvent, IncludeLaunchDescription, LogInfo, OpaqueFunction, RegisterEventHandler
 from launch.event_handlers import OnProcessExit
 from launch.events import Shutdown
 from launch.launch_description_sources import PythonLaunchDescriptionSource
@@ -15,6 +15,7 @@ from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 from motor_control.differential import DifferentialDrive, CommandLease
 from teleop.pocket_input import PocketMapping, PocketCommand
+from .radio_port import resolve_radio_port
 
 
 def validate_options(options):
@@ -31,8 +32,9 @@ def validate_options(options):
         if Path(options['imu_port']).resolve() == Path(options['radio_port']).resolve():
             raise ValueError('IMU and radio must use different serial devices')
     if options.get('arm_execute', False):
-        if not options['use_radio'] or not options.get('use_arm', False) or not options.get('arm_unloaded', False):
-            raise ValueError('Physical arm requires use_radio, use_arm and arm_unloaded')
+        fixture = bool(options.get('arm_unloaded', False)) != bool(options.get('arm_supported', False))
+        if not options['use_radio'] or not options.get('use_arm', False) or not fixture:
+            raise ValueError('Physical arm requires use_radio, use_arm and exactly one of arm_unloaded/arm_supported')
         if not options.get('arm_port') or not options.get('arm_plan'):
             raise ValueError('Physical arm requires arm_port and arm_plan')
         for key, enabled in (('radio_port', options['use_radio']), ('imu_port', options['use_imu'])):
@@ -40,16 +42,25 @@ def validate_options(options):
                 raise ValueError('MC02, radio and IMU must use separate serial devices')
 
 
+def resolve_serial_options(options):
+    """Validate authorization before discovery, and device separation afterward."""
+    validate_options(options)
+    if options['use_radio']:
+        options['radio_port'] = resolve_radio_port(options['radio_port'], exclude=(
+            options.get('imu_port'), options.get('arm_port')))
+    validate_options(options)
+
+
 def setup(context):
     names = ('simulate', 'execute', 'mapping_confirmed', 'radio_failsafe_confirmed',
              'use_imu', 'use_camera', 'use_radio', 'show_video', 'show_imu', 'show_motor_model',
-             'use_arm', 'arm_execute', 'arm_unloaded', 'show_pocket', 'log_motor_targets')
+             'use_arm', 'arm_execute', 'arm_unloaded', 'arm_supported', 'show_pocket', 'log_motor_targets')
     options = {key: LaunchConfiguration(key).perform(context) == 'true' for key in names}
     for key in ('imu_port', 'radio_port', 'motor_interface', 'camera_interface',
                 'camera_ip', 'camera_serial', 'config', 'radio_config', 'motor_viewer_port',
-                'arm_port', 'arm_plan'):
+                'arm_port', 'arm_plan', 'arm_report'):
         options[key] = LaunchConfiguration(key).perform(context)
-    validate_options(options)
+    resolve_serial_options(options)
     config = yaml.safe_load(Path(options['config']).read_text())
     driver = config['motor_driver']['ros__parameters']
     if driver['command_mode'] != 'chassis':
@@ -63,7 +74,7 @@ def setup(context):
         if options['use_arm']:
             from teleop.pocket_teleop import arm_factory
             arm_factory(mapping, execute=options['arm_execute'], unloaded=options['arm_unloaded'],
-                        plan=options['arm_plan'], port=options['arm_port'])
+                        plan=options['arm_plan'], port=options['arm_port'], supported=options['arm_supported'])
     for key, enabled in [('imu_port', options['use_imu']), ('radio_port', options['use_radio']),
                          ('arm_port', options['arm_execute'])]:
         if enabled:
@@ -98,7 +109,8 @@ def setup(context):
         if not (workspace / 'build/motor_viewer/venv/bin/python').is_file() or not (
                 workspace / 'src/robot_description/mujoco/scene.xml').is_file():
             raise ValueError('Run scripts/setup_motor_viewer.sh before enabling show_motor_model')
-    actions = []
+    actions = ([LogInfo(msg=f"Pocket radio serial port: {options['radio_port']}")]
+               if options['use_radio'] else [])
     if options['use_camera']:
         # Run network preparation now, before any motor process starts. The
         # camera-only include skips its second preparation pass.
@@ -126,7 +138,9 @@ def setup(context):
                                 'speed_m_s': teleop['speed_m_s'], 'yaw_rate_rad_s': teleop['yaw_rate_rad_s'],
                                 'command_frame': teleop['command_frame'], 'use_arm': options['use_arm'],
                                 'arm_execute': options['arm_execute'], 'arm_unloaded': options['arm_unloaded'],
-                                'arm_port': options['arm_port'], 'arm_plan': options['arm_plan']}]))
+                                'arm_supported': options['arm_supported'],
+                                'arm_port': options['arm_port'], 'arm_plan': options['arm_plan'],
+                                'report': options['arm_report']}]))
     if options['use_radio'] and options['show_pocket']:
         actions.append(Node(package='teleop', executable='pocket_gui', name='pocket_gui',
                             output='screen'))
@@ -159,13 +173,14 @@ def generate_launch_description(overrides=None):
         'radio_failsafe_confirmed': 'false', 'use_imu': 'true', 'use_camera': 'true',
         'use_radio': 'true', 'show_video': 'true',
         'show_pocket': 'false', 'log_motor_targets': 'true',
-        'use_arm': 'true', 'arm_execute': 'false', 'arm_unloaded': 'false',
+        'use_arm': 'true', 'arm_execute': 'false', 'arm_unloaded': 'false', 'arm_supported': 'false',
         'arm_port': '',
+        'arm_report': '',
         'arm_plan': str(Path(__file__).resolve().parents[3] / 'src/robot_description/config/arm_jog.json'),
         'show_imu': 'true', 'show_motor_model': 'true', 'motor_viewer_port': '8766',
-        # Operator identified IMU=ttyUSB1 and ESP32=ttyUSB0 on these sockets.
+        # IMU keeps its identified socket. Radio follows its verified CSV stream.
         'imu_port': '/dev/serial/by-path/pci-0000:00:14.0-usb-0:1:1.0-port0',
-        'radio_port': '/dev/serial/by-path/pci-0000:00:14.0-usb-0:3:1.0-port0',
+        'radio_port': 'auto',
         'motor_interface': 'enp86s0',
         'camera_interface': 'enx000ec8a22028', 'camera_ip': '192.168.1.10',
         'camera_serial': 'CHL5663000HZ',
@@ -175,7 +190,7 @@ def generate_launch_description(overrides=None):
     defaults.update(overrides or {})
     flags = {'simulate', 'execute', 'mapping_confirmed', 'radio_failsafe_confirmed',
              'use_imu', 'use_camera', 'use_radio', 'show_video', 'show_imu', 'show_motor_model',
-             'use_arm', 'arm_execute', 'arm_unloaded', 'show_pocket', 'log_motor_targets'}
+             'use_arm', 'arm_execute', 'arm_unloaded', 'arm_supported', 'show_pocket', 'log_motor_targets'}
     return LaunchDescription([
         DeclareLaunchArgument(key, default_value=value,
                               **({'choices': ['true', 'false']} if key in flags else {}))

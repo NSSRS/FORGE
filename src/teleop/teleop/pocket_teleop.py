@@ -1,5 +1,6 @@
 """Existing Pocket serial stream -> left chassis and SE-gated right arm."""
 import json
+import math
 from pathlib import Path
 import time
 
@@ -9,20 +10,34 @@ from .radio_stream import RadioStream
 from .pocket_display import dashboard_snapshot
 
 
-def arm_factory(mapping, *, execute, unloaded, plan, port):
+def read_arm_plan(plan):
+    from motors.arm_bench import active_joints, validate_plan
+    config = json.loads(Path(plan).read_text()) if plan else None
+    if config is not None:
+        validate_plan(config, all_motors=True)
+    return config, active_joints(config) if config is not None else tuple(range(1,7))
+
+
+def arm_factory(mapping, *, execute, unloaded, plan, port, supported=False):
     # Validate before opening either a serial port or a simulated adapter.
     from motors.arm_position import ArmPositionPort, SimulatedPositionPort
+    config, joints = read_arm_plan(plan)
+    if supported and ((mapping.window is not None and mapping.window>3) or mapping.speed>math.radians(5)):
+        raise ValueError('Supported-arm profile requires manual travel or window <=3 degrees, and speed <=5 degrees/s')
+    if supported and unloaded:
+        raise ValueError('Choose supported arm or unloaded fixture, not both')
     if execute:
-        if not unloaded or not plan or not port:
-            raise ValueError('Physical arm requires arm_unloaded, arm_plan and arm_port')
+        if not (unloaded or supported) or not plan or not port:
+            raise ValueError('Physical arm requires arm_unloaded or arm_supported, arm_plan and arm_port')
         if 0 in mapping.cw_signs:
             raise ValueError('Measure cw_raw_signs before physical arm jogging')
-        config = json.loads(Path(plan).read_text())
-        config['fixture_confirmed'] = True  # Explicit arm_unloaded from this invocation.
+        config['fixture_confirmed'] = True  # Explicit fixture confirmation from this invocation.
+        config['fixture_mode'] = 'supported' if supported else 'unloaded'
+        config['supported_confirmed'] = bool(supported)
         from motors.arm_bench import validate_plan
         validate_plan(config, execute=True, all_motors=True, group_first=True)
         return lambda: ArmPositionPort(config, port=port, window_degrees=mapping.window)
-    return lambda: SimulatedPositionPort(window_degrees=mapping.window)
+    return lambda: SimulatedPositionPort(window_degrees=mapping.window,available_joints=joints)
 
 
 def main(args=None):
@@ -38,7 +53,7 @@ def main(args=None):
             for name, value in (('mapping_file',''), ('serial_port',''),
                                 ('speed_m_s',.08), ('yaw_rate_rad_s',.28),
                                 ('command_frame','base_link'), ('use_arm',True),
-                                ('arm_execute',False), ('arm_unloaded',False),
+                                ('arm_execute',False), ('arm_unloaded',False), ('arm_supported',False),
                                 ('arm_plan',''), ('arm_port',''), ('report','')):
                 self.declare_parameter(name, value)
             self.value = lambda key: self.get_parameter(key).value
@@ -49,11 +64,14 @@ def main(args=None):
             if self.value('arm_execute') and Path(self.value('serial_port')).resolve() == Path(self.value('arm_port')).resolve():
                 raise ValueError('Radio and MC02 must use different serial ports')
             mapping = PocketMapping.read(self.value('mapping_file'), hardware_arm=self.value('arm_execute'))
-            self.policy = PocketCommand(mapping, self.value('speed_m_s'), self.value('yaw_rate_rad_s'))
+            joints=read_arm_plan(self.value('arm_plan'))[1] if self.value('use_arm') else tuple(range(1,7))
+            self.policy = PocketCommand(mapping, self.value('speed_m_s'), self.value('yaw_rate_rad_s'),
+                                        available_joints=joints)
             self.worker = None
             if self.value('use_arm'):
                 factory = arm_factory(mapping, execute=self.value('arm_execute'), unloaded=self.value('arm_unloaded'),
-                                      plan=self.value('arm_plan'), port=self.value('arm_port'))
+                                      plan=self.value('arm_plan'), port=self.value('arm_port'),
+                                      supported=self.value('arm_supported'))
                 self.worker = ArmWorker(factory, mapping)
             self.publisher = self.create_publisher(TwistStamped, '/cmd_vel', 1)
             self.status_publisher = self.create_publisher(String, '/arm/teleop_status', 1)
@@ -82,7 +100,8 @@ def main(args=None):
                 stream = RadioStream(self.value('serial_port'))
                 if self.worker:
                     self.worker.start()
-                mode = 'HARDWARE, unloaded only' if self.value('arm_execute') else 'SIMULATED ARM'
+                mode = ('HARDWARE, mechanically supported' if self.value('arm_supported') else
+                        'HARDWARE, unloaded only') if self.value('arm_execute') else 'SIMULATED ARM'
                 self.get_logger().info(f'Pocket: LEFT chassis; RIGHT arm; SB=1/2/3 SC=4/5/6; hold SE. {mode}')
                 while rclpy.ok():
                     rclpy.spin_once(self, timeout_sec=0.)
@@ -90,7 +109,9 @@ def main(args=None):
                     for line in stream.poll(now):
                         self.policy.receive(line, now)
                     if self.worker and self.worker.error:
-                        raise RuntimeError(self.worker.error)
+                        # Stop chassis and join cleanup first. close() raises
+                        # the completed diagnostic once, after report capture.
+                        break
                     if not self.worker or not self.worker.ready.is_set():
                         self.policy.inhibit_arm()
                     output = self.policy.output(time.monotonic())
@@ -145,6 +166,9 @@ def main(args=None):
         node.run()
     except (KeyboardInterrupt, ExternalShutdownException):
         pass
+    except Exception as exc:
+        rclpy.logging.get_logger('pocket_teleop').error(f'Pocket stopped: {exc}')
+        raise SystemExit(1) from None
     finally:
         if node:
             node.destroy_node()

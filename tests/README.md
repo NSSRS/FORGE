@@ -109,7 +109,6 @@ The native Damiao round-trip test covers both selected bus maps and checks 50
 control frames per joint over 100 ms of simulated MCU time (500 Hz). This does
 not measure wire utilization, CAN arbitration latency or physical motor response.
 
-
 ## Current chassis and arm MJCF
 
 Use the root .venv with src/simulation/requirements.txt for simulation tests. The dedicated
@@ -130,10 +129,9 @@ Model compatibility tests cover default joint angles/targets, the rebased D1,
 static D3 solving, and wheel-feedback projection without changing arm/base pose.
 See [model guide](../docs/ONSHAPE_ARM_PREVIEW.md) for remaining physical limitations.
 
-
 ### Current Damiao bench regressions
 
-Position–velocity is the only bench motion mode. The14 Python tests cover
+Position–velocity is the only bench motion mode. Python tests cover
 host/firmware round trips, wrong mode readback, speed/gain rejection, simulated
 target completion and stalls, delayed enable, restoration, watchdogs and both
 six-joint bus maps. Two CTest targets cover codec/state machine/USB framing
@@ -183,43 +181,42 @@ The overview test uses synthetic named feedback across flat, curved and bumpy
 full-robot scenes; it verifies status overlays and frozen arm/base coordinates.
 No motor hardware or ROS runtime is needed for those tests.
 
-### Arm desktop jogging and cached telemetry (2026-11-05)
+### A2–A6 supported rig (A1 disconnected)
 
-The Damiao discovery command above now runs 59 tests, including Qt offscreen
-press/release, auto-repeat, focus-loss and UI-stall tests, plus native-backed
-position-port release/re-arm semantics and cached telemetry/lease checks.
-Install `python3-pyqt5` for GUI tests. Hardware jogging, telemetry deployment,
-physical fault injection and bus timing remain separate acceptance work;
-see [cross-layer registry](../docs/ARM_LAYER_TODOS.md).
-
-### Pocket left-chassis/right-arm controls
-
-`test_pocket_controls.py` exercises switch selection, SE gating, independent
-chassis commands, all four diagonal stops/resume with SE held, freshness, calibration and arm worker
-cancellation. `test_damiao_bench.py` also checks input withdrawal inside enable
-and before command refresh against the real C firmware/fake plant.
-`test_ros_pocket.py` uses a pseudo-terminal and offline arm adapter, with real
-ROS topics, to verify both control paths, primer, silence and shutdown.
+The [operator guide](../docs/ARM_RIG_TEST.md) and
+[current milestone](../docs/ARM_SESSION_HANDOFF.md) distinguish physical
+observations from these hardware-free regressions. Install `python3-pyqt5` for
+Qt checks; source the ROS environment for launch/PTY tests.
 
 ```bash
-PYTHONPATH=src python3 -m unittest discover -s tests -p test_pocket_controls.py -v
 source scripts/ros2_env.sh
-ROS_DOMAIN_ID=94 python3 -m unittest discover -s tests -p test_ros_pocket.py -v
+QT_QPA_PLATFORM=offscreen PYTHONDONTWRITEBYTECODE=1 \
+  PYTHONPATH="tests:src:$PYTHONPATH" python3 -m unittest -v \
+  test_damiao_arm test_damiao_bench test_damiao_keyboard \
+  test_pocket_controls test_pocket_gui test_radio_port test_system_test_launch
+ROS_DOMAIN_ID=94 PYTHONDONTWRITEBYTECODE=1 \
+  PYTHONPATH="tests:src:$PYTHONPATH" python3 -m unittest -v test_ros_pocket
 ```
 
-Keep the ROS test domain free of physical drivers. Tests never open motor
-hardware or establish physical channel/CW mappings.
+Keep domain 94 free of physical drivers. The tests use native C firmware/fake
+CAN motors, Qt offscreen events and virtual serial devices; none opens physical
+motor hardware. Do not count skipped optional ROS/Qt cases as passed coverage.
 
+| Boundary | Coverage |
+| --- | --- |
+| Routing / feedback | Physical A2–A6 slots with absent A1, another missing motor, retained A1 routes, disabled capture without enables or parameter writes |
+| Manual travel | Beyond former startup window, current-position preload, release/intent expiry, duration/protocol guards, old-firmware rejection |
+| Profile / limits | 4340P 12 Nm ceiling and legacy rejection; independent lower torque trips; all active joints accept the old speed-trip region and fault above 1.5 rad/s in both directions |
+| Recovery | Evidence saved before reset, retained disabled/stationary checks, range-cache repair, lost ACK, disk/readback/reset failures, no automatic enable; session bounds/original modes survive keyboard R |
+| Readback / diagnostics | Disabled-only model register whitelist, wrong identities, missing/nonfinite values, original fault, enabled sample/peak retention, Feedback Nm versus Trip Nm |
+| Keyboard / display | Selection, E/held arrows/release, conflicts, focus loss, UI stall, startup fault lockout, threaded recovery, fresh input after recovery, aging stale rows |
+| Pocket | SE priming, diagonals, deadlines, input withdrawal during enable, unavailable A1, worker startup/motion/cleanup faults and saved errors |
+| Radio / launch | USB relocation/ambiguity/exclusions, receive-only probe, stale/malformed CSV, busy ports, virtual-serial cleanup, authorization before discovery |
+| ROS / PTY | Real node topics with offline motors, telemetry/STOP, supported sparse selection/manual travel, silence/shutdown and fault-report exit |
 
-`test_pocket_gui.py` checks raw-axis/diagonal diagnostics, primer messages,
-position-cache reads without transport, actual Qt STOP/close events, angle
-readouts and stale display behavior. `test_ros_pocket.py` also checks dashboard
-telemetry and `/pocket/stop` through the real ROS node using a pseudo-terminal.
-Run Qt tests with `QT_QPA_PLATFORM=offscreen` when no desktop is available.
-
-2026-11-09 handoff verification: 43 modeling/geometry/sweep regressions,
-26 Pocket policy/Qt tests, three native position-port tests and one ROS/PTY
-integration test passed (73 total). Terrain-generation tests temporarily
-rewrite the curved/bumpy scenes; preserve and restore their pre-test contents.
-No physical motor ports were opened. See the
-[assembled-arm handoff](../docs/ASSEMBLED_ARM_BRINGUP.md) for pending hardware work.
+The existing native firmware CTest targets are listed above. Build the target
+STM32 firmware separately using `scripts/build_dm_mc02.py` and the toolchain/SDK
+instructions in [DAMIAO_ARM.md](../docs/DAMIAO_ARM.md); this build never flashes.
+Physical bus timing, current/torque accuracy, position calibration, higher speeds,
+loaded holding and fault-stop latency remain acceptance work in
+[the open registry](../docs/ARM_LAYER_TODOS.md).

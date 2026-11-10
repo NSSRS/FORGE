@@ -1,6 +1,19 @@
 # Damiao arm commissioning
 
-## Current status — 2026-11-05
+## Current status — 2026-11-10
+
+The operator verified manual movement of all five active **A2–A6** motors.
+A1 is omitted until the operator builds a base that allows it to rotate.
+Next: A1 fixture commissioning, motor-position initialization and faster commanded
+movement. The current keyboard path uses 5 deg/s manual travel, common 1.5 rad/s
+measured-speed trips and explicit R recovery. Read
+[the current handoff](ARM_SESSION_HANDOFF.md) and [rig procedure](ARM_RIG_TEST.md).
+Deployed MC02 firmware is `156f20c8` / `0xFF8F`; no additional flash is needed.
+Calibration, delivered torque/current, bus qualification and loaded holding remain
+open. Use [the registry](ARM_LAYER_TODOS.md) for acceptance criteria.
+
+<a id="current-status--2026-11-05"></a>
+## Earlier six-motor bench evidence — 2026-11-05
 
 All six IDs were written and read back: A1..A6 command IDs 1..6, feedback
 IDs 17..22; A1 is on CAN1, A2..A6 on CAN2. A1 power-cycle persistence is
@@ -11,13 +24,9 @@ restoration verified. The operator reported the later 180° test worked;
 the currently saved 180° report is interrupted, so it is not full-run evidence.
 These are unloaded shaft checks, not joint calibration or loaded-arm validation.
 
-The [position API and PyQt window](ARM_POSITION_JOG.md) support A1..A6 selection,
-E once per selection, held arrows at 45°/s and release-to-stop; default window
-is ±90° from startup. Focus loss, selection changes and explicit stop disarm.
-59 Python tests, including native-backed firmware and Qt events, pass; physical
-window jogging remains unverified. Existing 180° firmware supports this window
-without a new flash. The separate cached-telemetry firmware is built and tested
-but still awaits deployment and bus qualification. See [cross-layer TODOs](ARM_LAYER_TODOS.md).
+The [position API and PyQt window](ARM_POSITION_JOG.md) also retain a separate
+six-motor unloaded profile (45 deg/s, +/-90-degree session window). That profile
+is distinct from the current supported A2–A6 rig procedure above.
 
 ENCOS motors are chassis actuators. Damiao motors are arm actuators on a
 separate DM-MC02 controller: Python on the NUC → USB CDC → C11 firmware on
@@ -162,6 +171,13 @@ Retrieved 2026-10-30 from Damiao's `dmBots` repositories:
 | J4310P | [English user manual V1.3, 2026-09-14](https://github.com/dmBots/DM-J4310P-2EC/blob/9e728c9a42b498380ae43964636b3d66d01f42c7/manual/DM-J4310P-2EC%20Geared%20Motor%20User%20Manual%20V1.3%202026-09-14.pdf) | Rated 3.5 Nm, peak 12.5 Nm; no separately titled hardware V1.1 manual found |
 | MC02 | [Manufacturer repository at pinned revision](https://github.com/dmBots/DM-MC02/tree/d65a3688981405dc205f628f1a026bde8cf8303e) | `manual/` contains board manual V1.1; USB/CAN examples supply STM32H723 support |
 
+The 2026-11-10 [torque review](DAMIAO_TORQUE_LIMITS.md) rechecks these manuals,
+records the repeated A2 trip and separates rated ceilings from active rig trips.
+The new routed 4340P ceiling requires capability 0x2000, verified on the
+post-flash controller. The supported rig profile now uses 12 Nm for A2/A3 after
+operator clearance confirmation; A4-A6 remain 3.5 Nm and A1 is omitted. This is
+not a motor current clamp or loaded-motion acceptance; see the review and rig
+guide for the unchanged support, speed and travel requirements.
 
 ## Hardware mapping and power
 
@@ -345,3 +361,16 @@ requires physical bus isolation and separate power-cycle verification.
 ## Base-layer / upper-layer handoff
 
 Read [base contract](ARM_BASE_LAYER.md) and [cross-layer TODOs](ARM_LAYER_TODOS.md) and local package TODO.md before extending control. Cached telemetry avoids additional CAN polling. Production ROS mode, calibration, current protection and loaded stopping remain separate acceptance tasks.
+
+### Explicit manual-travel extension (2026-11-10)
+
+Capability bit 15 (`0x8000`) permits type-16 mode byte `0x82`: mode 2 plus
+manual-travel policy. MCU strips bit 7 and verifies motor mode 2 normally.
+Mode 1 with the flag and other unknown modes are rejected. The flag is stored
+per slot and bypasses only the routed narrow-window enable check. Python uses
+full raw protocol bounds for this path and streams a moving position target
+while held. No startup-angle stop remains. Near-current-position preload,
+3.2-rad target-versus-feedback check, 15-second enabled cutoff, speed/torque/
+temperature trips and leases remain. Legacy routed configurations are unchanged.
+See the current [rig procedure](ARM_RIG_TEST.md) for operator-authorized use;
+build 156f20c8 / capability mask 0xFF8F was verified deployed on 2026-11-10.

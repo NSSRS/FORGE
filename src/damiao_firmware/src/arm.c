@@ -78,11 +78,15 @@ static bool routed_disabled(arm_controller *a,unsigned i,uint32_t now) {
         j->status==0 && fabsf(j->v)<=0.03f;
 }
 bool arm_prepare_routed(arm_controller *a,unsigned i,const arm_config *c,uint8_t model,uint8_t mode) {
-    /* Continuous ratings: 8009P V1.1 at 24 V, 4310P at 24/48 V.
-       4340P uses a 1.5 rad/s unloaded bench envelope for the requested 3x-speed test.
-       No motor register changes. */
+    /* Rated torque ceilings from the P-series manuals: 20 / 12 / 3.5 Nm.
+       8009P speed uses 24 V; 4340P retains its 1.5 rad/s commissioning cap.
+       These are configuration ceilings, not current clamps or permission to
+       apply rated torque to an assembled linkage. Profiles may choose less. */
+    const bool manual_travel=(mode & ARM_ROUTED_MANUAL_TRAVEL)!=0;
+    mode &= (uint8_t)~ARM_ROUTED_MANUAL_TRAVEL;
+    if(manual_travel && mode!=2) return false;
     const float max_speed=model==1?10.4719755f:model==3?12.5663706f:1.5f;
-    const float max_torque=model==1?20.0f:model==3?3.5f:3.0f;
+    const float max_torque=model==1?20.0f:model==3?3.5f:12.0f;
     if(i>=ARM_COUNT || a->id_commissioning || a->fault || busy(a) || a->diagnostic.state==1 ||
        (a->bench && !a->routed_bench) || model<1 || model>3 || (mode!=1 && mode!=2) ||
        (model==1 ? c->bus!=1 : c->bus==1) ||
@@ -99,6 +103,7 @@ bool arm_prepare_routed(arm_controller *a,unsigned i,const arm_config *c,uint8_t
     a->bench=true; a->routed_bench=true;
     if(!arm_configure(a,i,c)) { a->bench=old_bench; a->routed_bench=old_routed; return false; }
     a->joints[i].bench_mode=mode; a->joints[i].model=model;
+    a->joints[i].manual_travel=manual_travel;
     return true;
 }
 bool arm_routed_write(arm_controller *a,unsigned i,uint8_t reg,uint32_t value,uint32_t now) {
@@ -147,12 +152,22 @@ bool arm_id_operation(arm_controller *a,uint8_t op,uint32_t value,uint32_t now) 
 }
 bool arm_read_register(arm_controller *a,uint8_t bus,uint16_t id,uint8_t reg,uint32_t now) {
     if(a->save_quiet || (a->fault && !a->routed_bench) || bus<1 || bus>3 || id>=0x7ff || a->diagnostic.state==1) return false;
-    if(reg!=7 && reg!=8 && reg!=9 && reg!=10 && reg!=21 && reg!=22 && reg!=23 && reg!=31) return false;
+    bool legacy=reg==7 || reg==8 || reg==9 || reg==10 || reg==21 || reg==22 || reg==23 || reg==31;
+    bool control=reg<=6 || reg==14 || (reg>=24 && reg<=28) || reg==30 ||
+                 (reg>=32 && reg<=34) || reg==36 || reg==59 || reg==60;
+    if(!legacy && !control) return false;
+    if(!legacy && (!a->routed_bench || a->id_commissioning)) return false;
     bool configured=false, allowed=false;
     for(unsigned i=0;i<ARM_COUNT;i++) if(a->joints[i].configured) {
         configured=true;
+        /* Expanded reads require every retained route freshly disabled and
+           stationary. Never discover these settings on an unverified motor. */
+        if(!legacy && !routed_disabled(a,i,now)) return false;
+        if(!legacy && a->joints[i].cfg.bus==bus && a->joints[i].cfg.id==id &&
+           (reg==59 || reg==60) && a->joints[i].model!=2 && a->joints[i].model!=3) return false;
         if(a->joints[i].cfg.bus==bus && a->joints[i].cfg.id==id && routed_disabled(a,i,now)) allowed=true;
     }
+    if(!legacy && (!configured || !allowed)) return false;
     if(configured && !allowed && !(bus==2 && id==1 && bench_disabled(a,now))) return false;
     arm_diagnostic *q=&a->diagnostic;
     *q=(arm_diagnostic){.state=1,.bus=bus,.reg=reg,.opcode=0x33,.id=id,.started=now};
@@ -253,8 +268,10 @@ static bool can_enable(arm_controller *a,unsigned i,uint32_t now) {
     if(!j->configured || j->enabled || j->stopping || j->registers!=31 || !j->command_seen ||
        now-j->command_at>=ARM_LEASE_MS || !j->feedback_seen || now-j->feedback_at>=ARM_FEEDBACK_MS ||
        j->status!=0 || fabsf(j->cmd.p-j->p)>0.05f || (!posvel(a,j) && j->cmd.v!=0) || j->cmd.t!=0) return false;
-    /* Wide initial bench configuration can probe position but cannot enable. */
-    if(a->bench && (!posvel(a,j) || (!a->routed_bench && i!=0) || j->cfg.hi-j->cfg.lo>(a->routed_bench?3.25f:1.1f))) return false;
+    /* Wide probing routes cannot enable without explicit manual-travel policy. */
+    if(a->bench && (!posvel(a,j) || (!a->routed_bench && i!=0))) return false;
+    if(a->bench && !(a->routed_bench && j->manual_travel) &&
+       j->cfg.hi-j->cfg.lo>(a->routed_bench?3.25f:1.1f)) return false;
     return true;
 }
 bool arm_enable(arm_controller *a,unsigned i,uint32_t now) {

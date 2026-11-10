@@ -11,12 +11,30 @@ import threading
 import time
 import zlib
 
-# Manufacturer continuous ratings (manual specification page 7).
+# Manufacturer rated torque ceilings (manual specification page 7).
 # 8009P uses its 24 V speed rating until supply voltage is verified.
-# 4340P uses an unloaded bench envelope, increased for the requested 3x-speed test.
+# 4340P keeps its 1.5 rad/s commissioning speed cap; torque ceiling is the
+# V1.1 manual rated 12 Nm. Profiles may choose a lower reactive trip threshold.
+CAP_RATED_4340_TORQUE = 1 << 13
+CAP_CONTROL_READBACK = 1 << 14
+CAP_MANUAL_TRAVEL = 1 << 15
+# P-series manual register maps. These are reads only; write whitelist stays
+# TIMEOUT/CTRL_MODE. Imax/VBus are documented for 4340P/4310P, not 8009P V1.1.
+CONTROL_REGISTERS = {
+    0: ('UV_Value', 'float32'), 1: ('KT_Value', 'float32'),
+    2: ('OT_Value', 'float32'), 3: ('OC_Value', 'float32'),
+    4: ('ACC', 'float32'), 5: ('DEC', 'float32'), 6: ('MAX_SPD', 'float32'),
+    14: ('sw_ver', 'uint32'), 24: ('I_BW', 'float32'),
+    25: ('KP_ASR', 'float32'), 26: ('KI_ASR', 'float32'),
+    27: ('KP_APR', 'float32'), 28: ('KI_APR', 'float32'),
+    30: ('GREF', 'float32'), 31: ('Deta', 'float32'),
+    32: ('V_BW', 'float32'), 33: ('IQ_c1', 'float32'),
+    34: ('VL_c1', 'float32'), 36: ('sub_ver', 'uint32'),
+    59: ('Imax', 'float32'), 60: ('VBus', 'float32'),
+}
 BENCH_MODEL_LIMITS = {
     '8009P': (100 * 2 * math.pi / 60, 20.0),
-    '4340P': (1.5, 3.0),
+    '4340P': (1.5, 12.0),
     '4310P': (120 * 2 * math.pi / 60, 3.5),
 }
 
@@ -200,14 +218,22 @@ class ArmBus:
         """Read one whitelisted register without configuring, enabling or stopping motors.
 
         Return (reply_CAN_ID, raw_uint32), or None if no matching reply arrived.
-        Requires no configured joints, or new firmware and a freshly disabled bench motor.
+        Legacy registers allow unconfigured discovery. Expanded control reads
+        require capability 0x4000 and verified disabled routed motors; the MCU
+        checks every retained route's freshness, status and speed.
         """
         if not self.capabilities & 1:
             raise RuntimeError('Firmware lacks read-only CAN discovery; flash the updated ELF first')
         if (type(bus) is not int or bus not in (1, 2, 3) or
                 type(motor_id) is not int or not 0 <= motor_id < 0x7ff or
-                type(register) is not int or register not in (7, 8, 9, 10, 21, 22, 23, 31)):
+                type(register) is not int or register not in {*CONTROL_REGISTERS, 7, 8, 9, 10, 21, 22, 23}):
             raise ValueError('invalid diagnostic bus, ID or register')
+        if register not in (7, 8, 9, 10, 21, 22, 23, 31):
+            if not self.capabilities & CAP_CONTROL_READBACK:
+                raise RuntimeError('Control/protection readback requires reviewed MC02 firmware with capability 0x4000')
+            if not self.configured or not self.bench or (bus, motor_id) not in {
+                    route[:2] for route in getattr(self, 'bench_routes', {}).values()}:
+                raise RuntimeError('Control/protection reads require a configured disabled routed motor')
         if self.configured and not (self.bench and self.capabilities & 128):
             raise RuntimeError('Discovery requires a fresh MCU reset with no configured joints')
         # DOF1 hardware returned replies two requests behind after ID save.
@@ -270,8 +296,8 @@ class ArmBus:
         if self.read_register(2, 1, 10) != (0, mode):
             raise RuntimeError('Mode readback mismatch; no enable permitted')
 
-    def prepare_routed_bench(self, slot, motor, lower, upper, mode):
-        """Configure one explicit P-series test slot; requires firmware capability 8."""
+    def prepare_routed_bench(self, slot, motor, lower, upper, mode, *, manual_travel=False):
+        """Configure one explicit P-series test slot; requires firmware capability 0x100."""
         if not self.capabilities & 256:
             raise RuntimeError('Flash the routed arm-test firmware first (capability 0x100)')
         self._slot(slot)
@@ -288,13 +314,22 @@ class ArmBus:
         if (not all(math.isfinite(v) for v in (lower, upper, speed, torque)) or
                 not -12.5 <= lower < upper <= 12.5 or not .03 <= speed <= max_speed or not .01 <= torque <= max_torque):
             raise ValueError('Invalid routed bench limits')
+        if model == 2 and torque > 3.0 and not self.capabilities & CAP_RATED_4340_TORQUE:
+            raise RuntimeError('MC02 firmware supports only the old 3 Nm 4340P ceiling; '
+                               'a reviewed firmware update with capability 0x2000 is required '
+                               'before requesting a higher trip threshold')
+        if manual_travel:
+            if mode != 2:
+                raise ValueError("Manual travel requires position-velocity mode")
+            if not self.capabilities & CAP_MANUAL_TRAVEL:
+                raise RuntimeError("Manual travel requires MC02 capability 0x8000; flash the updated firmware")
         # Mark cleanup responsibility BEFORE transmission: the ACK may be lost.
         self.configured = self.bench = True
         if not hasattr(self, 'bench_routes'):
             self.bench_routes = {}
         self.bench_routes[slot] = (bus, can_id, feedback_id)
         self._request(16, struct.pack('<BBHHBB4f', slot, bus, can_id, feedback_id,
-                                     model, mode, lower, upper, speed, torque))
+                                     model, mode | (0x80 if manual_travel else 0), lower, upper, speed, torque))
 
     def enable_bench_group(self, slots):
         """MCU validates every slot before enabling any; feedback confirmation is separate."""

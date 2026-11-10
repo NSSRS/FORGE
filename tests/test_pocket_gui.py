@@ -53,15 +53,18 @@ class DashboardTests(unittest.TestCase):
         port.bus = Mock()
         port.session = SimpleNamespace(origins={0:1.})
         port.window = .5
+        port.motors = [dict(torque_trip_nm=12.)]
         port._display_rows = {}
         port.selected=1;port.armed=True;port.moving=True
-        sample = SimpleNamespace(position=1.2,age_ms=4,enabled=True)
+        sample = SimpleNamespace(position=1.2,age_ms=4,enabled=True,velocity=.05,torque=2.4)
         with patch('motors.arm_position.time.monotonic',return_value=10.):
             port._remember_sample(0,sample)
         with patch('motors.arm_position.time.monotonic',return_value=10.1):
             result = position_snapshot(port,10.1)
         self.assertEqual(result['rows'][0]['age_ms'],104)
         self.assertEqual(result['rows'][0]['position_rad'],1.2)
+        self.assertEqual(result['rows'][0]['torque_feedback_nm'],2.4)
+        self.assertEqual(result['rows'][0]['torque_trip_nm'],12.)
         self.assertEqual(port.bus.mock_calls,[])
 
     def test_qt_live_angles_raw_channels_staleness_and_stop(self):
@@ -73,18 +76,28 @@ class DashboardTests(unittest.TestCase):
         stops=[]
         window=PocketWindow(lambda:stops.append(True),clock=lambda:now[0])
         self.send();self.send(sb=992,x=1811,y=1811)
-        position=JointPosition(2,.5,0.,-1.5,1.5,0,True)
-        worker=dict(rows=[asdict(position)],sample_age_ms=0,moving=False)
+        position=JointPosition(2,.5,0.,-1.5,1.5,0,True,.08,2.4,12.)
+        worker=dict(rows=[asdict(position)],sample_age_ms=0,moving=False,travel_policy='manual')
         data=dashboard_snapshot(self.policy,worker,self.now)
         window.accept_snapshot(data)
         window.show();app.processEvents()
         self.assertIn('diagonal: stopped',window.status.text())
+        self.assertIn('Manual travel',window.joint_caption.text())
+        self.assertIn('12 s',window.joint_caption.text())
         self.assertTrue(window.plots['right'].diagonal)
         self.assertIn('CH1: 1811',window.axis_labels['right'].text())
         self.assertIn('ACTIVE',window.axis_labels['right'].text())
         self.assertTrue(window.dials[1].selected)
         self.assertAlmostEqual(window.dials[1].angle,28.6478898)
         self.assertEqual(window.table.item(1,1).text(),'28.65')
+        self.assertEqual(window.table.item(1,5).text(),'+0.080')
+        self.assertEqual(window.table.item(1,6).text(),'+2.400')
+        self.assertEqual(window.table.item(1,7).text(),'12.00')
+        # A live GUI cannot present an old motor sample as fresh feedback.
+        window.table.update_positions([JointPosition(2,.5,0.,-1.5,1.5,100,True,.08,2.4,12.)])
+        self.assertEqual(window.table.item(1,3).text(),'STALE')
+        self.assertEqual(window.table.item(1,6).text(),'—')
+        self.assertEqual(window.table.item(1,7).text(),'12.00')
         # All four corners are displayed as a temporary stop with SE still primed.
         for _ in range(6): self.send(sb=992)
         self.send(sb=992,se=1811)
@@ -106,6 +119,8 @@ class DashboardTests(unittest.TestCase):
         self.assertIn('STALE',window.arm_state.text())
         self.assertEqual(window.table.item(1,3).text(),'STALE')
         self.assertEqual(window.table.item(1,4).text(),'500')
+        self.assertEqual(window.table.item(1,6).text(),'—')
+        self.assertEqual(window.table.item(1,7).text(),'12.00')
         window.close()
         self.assertEqual(len(stops),2)
 

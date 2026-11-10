@@ -1,6 +1,7 @@
 """One arm transport owner, isolated from radio ingestion and chassis output."""
 import threading
 import time
+import traceback
 from motors.arm_position import MotionCancelled
 from .pocket_input import ArmIntent
 from .pocket_display import position_snapshot
@@ -36,12 +37,12 @@ class ArmJogRunner:
     def allowed(self):
         intent = self.mailbox.get()
         return (self.active == self.token(intent) and intent.direction != 0
-                and intent.joint is not None and self.clock() < intent.deadline)
+                and intent.joint in self.port.available_joints and self.clock() < intent.deadline)
 
     def tick(self):
         intent = self.mailbox.get()
         token = self.token(intent)
-        if not intent.direction or intent.joint is None or self.clock() >= intent.deadline:
+        if not intent.direction or intent.joint not in self.port.available_joints or self.clock() >= intent.deadline:
             if self.active is not None or self.port.armed:
                 self.port.stop()
             self.active = None
@@ -56,13 +57,16 @@ class ArmJogRunner:
                 self.active = token
                 self.port.select(intent.joint)
                 self.port.arm()
-                row = self.port.positions()[intent.joint-1]
+                row = next(row for row in self.port.positions() if row.joint==intent.joint)
                 # Zero is permitted only in offline simulation, visibly uncalibrated.
                 sign = (self.mapping.cw_signs[intent.joint-1] or 1)*intent.direction
                 target = row.upper_rad if sign > 0 else row.lower_rad
                 if not self.allowed():
                     raise MotionCancelled('Input changed during arm preparation')
-                self.port.move_to(target, self.mapping.speed)
+                if self.mapping.window is None:
+                    self.port.jog(sign, self.mapping.speed)
+                else:
+                    self.port.move_to(target, self.mapping.speed)
             if not self.allowed():
                 raise MotionCancelled('Input expired before poll')
             if not self.port.poll():
@@ -91,6 +95,7 @@ class ArmWorker:
 
     def run(self):
         port = None
+        failure_traceback = None
         try:
             port = self.factory()
             runner = ArmJogRunner(port, self.mailbox, self.mapping)
@@ -103,6 +108,12 @@ class ArmWorker:
                 self.shutdown.wait(.02)
         except Exception as exc:
             self.error = str(exc)
+            failure_traceback = traceback.format_exc()
+            if port is not None and hasattr(port, 'capture_failure'):
+                try:
+                    self.error = port.capture_failure(exc)
+                except Exception as capture_exc:
+                    self.error += f'; failure capture failed: {capture_exc}'
         finally:
             self.ready.clear()
             if port is not None:
@@ -110,7 +121,12 @@ class ArmWorker:
                     port.close()
                 except Exception as exc:
                     self.error = f'{self.error or ""} Cleanup failed: {exc}'
+                    port.report['cleanup_error'] = str(exc)
                 self.report = port.report
+            if self.error:
+                self.report['error'] = self.error
+            if failure_traceback:
+                self.report['error_traceback'] = failure_traceback
 
     def display_snapshot(self, now):
         with self.display_lock:

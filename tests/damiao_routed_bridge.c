@@ -15,6 +15,9 @@ static arm_controller a;
 static arm_wire w;
 static uint32_t now;
 static unsigned invalid;
+static unsigned reg_reads[6][256], parameter_writes;
+static bool reg_override[6][256], reg_drop[6][256];
+static uint32_t reg_value[6][256];
 static unsigned quant(float v,float range,unsigned bits) {
     return (unsigned)((v+range)/(2*range)*((1u<<bits)-1));
 }
@@ -27,6 +30,7 @@ static bool tx(void *ctx,uint8_t bus,uint16_t id,const uint8_t *d,uint8_t n) {
         if(id==0x7ff && d[0]==m->id && d[1]==0) {
             memcpy(r,d,4); uint32_t value=0;
             if(d[2]==0x55 && n==8) {
+                parameter_writes++;
                 memcpy(&value,d+4,4);
                 if(d[3]==7) { if(!m->ignore_ids) m->rx=value; }
                 else if(d[3]==8) { if(!m->ignore_ids) m->id=value; }
@@ -34,7 +38,10 @@ static bool tx(void *ctx,uint8_t bus,uint16_t id,const uint8_t *d,uint8_t n) {
                 else if(d[3]==10) { m->mode_writes++; if(!m->ignore_mode) m->mode=value; }
                 else invalid++;
             } else if(d[2]==0x33) {
-                if(d[3]==7) value=m->rx;
+                reg_reads[i][d[3]]++;
+                if(reg_drop[i][d[3]]) continue;
+                if(reg_override[i][d[3]]) value=reg_value[i][d[3]];
+                else if(d[3]==7) value=m->rx;
                 else if(d[3]==8) value=m->id;
                 else if(d[3]==9) value=m->timeout;
                 else if(d[3]==10) value=m->mode;
@@ -68,6 +75,8 @@ static bool tx(void *ctx,uint8_t bus,uint16_t id,const uint8_t *d,uint8_t n) {
 }
 void fake_init(void) {
     memset(motors,0,sizeof(motors)); now=0; invalid=0;
+    memset(reg_reads,0,sizeof(reg_reads)); parameter_writes=0;
+    memset(reg_override,0,sizeof(reg_override)); memset(reg_drop,0,sizeof(reg_drop));
     for(unsigned i=0;i<6;i++) {
         motor *m=&motors[i]; m->bus=i?2:1; m->id=i+1; m->rx=17+i;
         m->pmax=12.5f; m->vmax=i==0?45.f:i<3?10.f:30.f;
@@ -100,10 +109,16 @@ unsigned fake_mode(unsigned i) { return motors[i].mode; }
 unsigned fake_commands(unsigned i) { return motors[i].commands; }
 unsigned fake_status(unsigned i) { return motors[i].status; }
 unsigned fake_invalid(void) { return invalid; }
+unsigned fake_register_reads(unsigned i,unsigned reg) { return reg_reads[i][reg]; }
+unsigned fake_parameter_writes(void) { return parameter_writes; }
+void fake_register(unsigned i,unsigned reg,uint32_t value) { reg_override[i][reg]=true; reg_value[i][reg]=value; }
+void fake_drop_register(unsigned i,unsigned reg) { reg_drop[i][reg]=true; }
+float fake_torque_limit(unsigned i) { return a.joints[i].cfg.torque; }
 void fake_missing(unsigned i) { motors[i].present=false; }
 void fake_stall(unsigned i) { motors[i].stalled=true; }
 void fake_ignore_mode(unsigned i) { motors[i].ignore_mode=true; }
 void fake_torque(unsigned i,float torque) { motors[i].torque=torque; }
+void fake_position(unsigned i,float position) { motors[i].p=position; }
 void fake_speed(unsigned i,float speed) { motors[i].stalled=true; motors[i].v=speed; }
 void fake_coast(unsigned i,unsigned replies) { motors[i].coasting_replies=replies; }
 unsigned fake_disables(unsigned i) { return motors[i].disables; }

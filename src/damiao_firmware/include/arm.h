@@ -4,7 +4,11 @@
 #include <stddef.h>
 #include <stdint.h>
 #define ARM_COUNT 6
-#define ARM_CAPABILITIES 8079u /* legacy capabilities + cached telemetry bit 12 */
+#define ARM_CAP_RATED_4340_TORQUE (1u << 13) /* Rated 12 Nm configuration ceiling. */
+#define ARM_CAP_CONTROL_READBACK (1u << 14) /* Disabled-only control/protection reads. */
+#define ARM_CAP_MANUAL_TRAVEL (1u << 15) /* Explicit mode-2 manual travel, no startup corridor. */
+#define ARM_ROUTED_MANUAL_TRAVEL 0x80u /* USB configure mode flag; never sent to motor. */
+#define ARM_CAPABILITIES (8079u | ARM_CAP_RATED_4340_TORQUE | ARM_CAP_CONTROL_READBACK | ARM_CAP_MANUAL_TRAVEL)
 #define ARM_BASE_API_VERSION 1u
 #ifndef FORGE_BUILD_ID
 #define FORGE_BUILD_ID 0u /* native tests/nonstandard builds */
@@ -22,7 +26,7 @@ typedef struct {
     arm_config cfg; dm_range range; dm_command cmd;
     float p, v, t; uint32_t feedback_at, command_at, enabled_at;
     uint8_t registers, status, mos, rotor, probe_index, bench_mode, model;
-    bool configured, probing, feedback_seen, command_seen, enabled, stopping, enable_confirmed;
+    bool configured, probing, feedback_seen, command_seen, enabled, stopping, enable_confirmed, manual_travel;
 } arm_joint;
 /* Diagnostics: unconfigured bus or fresh, acknowledged-disabled bench motor. */
 typedef struct {

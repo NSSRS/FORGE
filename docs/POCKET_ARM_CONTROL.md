@@ -1,6 +1,6 @@
 # Pocket chassis and arm controls
 
-Updated 2026-11-09. Uses the existing Pocket -> ER12 -> ESP32 USB CSV setup. The combined
+Updated 2026-11-10. Uses the existing Pocket -> ER12 -> ESP32 USB CSV setup. The combined
 system launch now uses `pocket_teleop` and `pocket_controls.json`. The old
 `keyboard_teleop` radio mode and `radio_pocket.yaml` remain legacy right-stick
 chassis tools and must not run beside the new reader. No receiver rewiring,
@@ -107,7 +107,7 @@ opens only that port: no ROS command publisher or motor connection.
 ```bash
 cd /home/forge2/forge2_ws
 python3 scripts/calibrate_pocket.py \
-  --port /dev/serial/by-path/pci-0000:00:14.0-usb-0:3:1.0-port0 \
+  --port /dev/serial/by-path/pci-0000:00:14.0-usb-0:6.3:1.0-port0 \
   --template src/bringup/config/pocket_controls.json \
   --output build/pocket-controls.local.json
 ```
@@ -123,6 +123,43 @@ CW, -1 means decreasing raw angle is CW. Establish this from observed unloaded
 jogging; radio capture cannot determine it. Zero means unknown. Offline
 simulation uses +1 for unknown signs; physical arm execution rejects zeros.
 Production joint calibration and hardware-confirmation flags remain unchanged.
+
+## USB radio discovery
+
+`pocket.launch.py` and `system_test.launch.py` default to `radio_port:=auto`.
+Before starting any nodes, bringup enumerates the observed CH340 adapter type
+(USB 1a86:7523), excludes the configured IMU and arm paths, then receives at
+115200 baud with an exclusive open. Five consecutive valid fresh 16-channel
+CSV rows identify the radio. Each candidate has a 1.5-second deadline; probing
+sends no serial command bytes and requests DTR/RTS deasserted before opening.
+Probe samples are discarded, each probe closes before teleop opens, and normal
+neutral/selection/SE/freshness requirements still apply. MC02/STM32 adapters
+are never discovery candidates. Unknown bridge types require an explicit path.
+
+Keep the transmitter and receiver on and close other serial readers before
+launch. Zero matches, multiple matches or a busy/inaccessible candidate stop
+startup with a diagnostic. There is no fallback to the first ttyUSB device or
+a shared by-id link, and no automatic reconnect/re-arm during a running session.
+After USB removal/reconnection, restart the stopped launch and reselect/prime.
+
+An explicit `radio_port:=/dev/serial/by-path/ACTUAL_RADIO` bypasses discovery.
+The IMU retains its configured socket path; if it moves, update `imu_port` too.
+Both configured IMU/arm paths are excluded even if those components are disabled.
+On 2026-11-10, the moved radio was verified by received CSV at `/dev/ttyUSB1`,
+with by-path `pci-0000:00:14.0-usb-0:6.3:1.0-port0`. The IMU and radio share the
+same CH340 identity without unique serials, so their by-id link is ambiguous.
+
+To identify the radio alone, with no ROS nodes or motor connection:
+
+```bash
+source scripts/ros2_env.sh
+python3 -m bringup.radio_port \
+  --exclude /dev/serial/by-path/pci-0000:00:14.0-usb-0:1:1.0-port0 \
+  --exclude /dev/ttyACM0
+```
+
+Implementation: `src/bringup/bringup/radio_port.py`; regression tests:
+`tests/test_radio_port.py` and `tests/test_system_test_launch.py`.
 
 ## Build and run
 
@@ -177,7 +214,7 @@ right-stick neutral reading using the dashboard. The operator reported working
 Pocket motor control after restarting the ER12 on 2026-11-09; full stop/failsafe
 acceptance remains pending. Do not
 infer Pocket stop/failsafe acceptance from these direction observations or
-from the simulator. See [remaining acceptance items](ARM_LAYER_TODOS.md#plan-01--pocket-hardware-acceptance-handoff-2026-11-06).
+from the simulator. See [remaining acceptance items](ARM_LAYER_TODOS.md#plan-01--paths-trajectories-and-input-acceptance).
 
 For the same secured, unloaded six-motor bench (A1 on CAN1, A2..A6 on CAN2), the
 existing keyboard window can determine raw rotation signs with a narrower
@@ -251,6 +288,12 @@ is marked stale rather than presented as live motor motion.
 uses `log_motor_targets:=false` to avoid repetitive RPM output; the full-system
 launch retains its previous defaults. Enable that flag explicitly if needed.
 
+Set `arm_report:=$PWD/build/arm_tests/<run-name>.json` on the launch to save the
+arm worker's session summary during shutdown. The default is no summary file;
+choose a distinct name to retain each run. This forwards the existing node
+`report` parameter, without a second owner or live-feedback polling. See the
+[file map](SOURCE_LAYOUT.md#arm-controls-and-rig-test-file-map).
+
 ## Ownership and freshness
 
 One reader owns the ESP32; one separate worker owns MC02. Slow arm preparation
@@ -285,7 +328,6 @@ physical motor behavior or RF-loss handling.
 This advances PLAN-01 manual input; ROS-02, CAL-01, BASE-06, PROTECT-01 and
 SUPPORT-01 remain open in [the registry](ARM_LAYER_TODOS.md).
 
-
 Initial dashboard validation: 60 Damiao/native-backed/keyboard tests, 23 Pocket policy
 and Qt tests, 6 launch checks, and the ROS/PTY telemetry/STOP integration test
 passed. An installed-launch smoke test on isolated domain 94 also opened the
@@ -298,3 +340,28 @@ position-port tests and one real ROS/PTY integration test passed (30 total).
 The updated tests include all four diagonal stops/resume with SE held and
 retain cancellation checks during enable. All motor feedback in these tests
 comes from offline adapters or the native fake plant.
+
+## A1-disconnected, mechanically supported rig test
+
+See [the A2–A6 procedure](ARM_RIG_TEST.md). Its separate plan and radio profile
+use 5 degrees/s and operator-controlled manual travel (`window_deg: null`),
+with no startup-angle window. This requires MC02 capability 0x8000; image
+156f20c8 / capabilities 0xFF8F was verified deployed on 2026-11-10. Each continuous hold retains a 12-second host
+timeout (15 seconds independently on MCU). `arm_supported:=true` requires
+mechanical support throughout travel and torque loss. A1 is unavailable;
+A2–A6 retain the existing SB/SC positions. This is a supported commissioning
+mode, not an assembled-arm holding controller. The default six-motor unloaded
+profile remains unchanged.
+
+## Controller fault reports
+
+Faults still stop the whole launched session. The position port disables first
+and captures cached MCU first-fault evidence; Pocket prints the joint/reason
+and measured value/limit when available, then exits nonzero after cleanup.
+The `arm_report` JSON retains the original exception, traceback, fault snapshot,
+cached states and cleanup outcome. Command-4 rejection is a rejected motion
+command, not the firmware's numbered fault reason. The retained fault identifies
+which guard triggered. Diagnostics do not clear the latch, extend deadlines,
+change thresholds or re-enable motors. See the
+[fault findings](DAMIAO_TORQUE_LIMITS.md#earlier-faults-and-current-draw-findings)
+and [explicit recovery](ARM_RIG_TEST.md#recover-a-latched-fault-without-unplugging-mc02).
