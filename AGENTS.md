@@ -10,9 +10,9 @@ are in `docs/ARM_BASE_LAYER.md` and `docs/SOURCE_LAYOUT.md`.
 
 As of 2026-11-10, the operator verified manual movement of all five active
 motors A2–A6. A1 is omitted from the current rig profile. Next: the operator
-builds a base that permits A1 rotation, then commission A1 on that fixture,
-implement measured motor-position initialization, and qualify faster commanded
-movement. Current supported jogging remains 5 deg/s; all active measured-speed
+builds a base that permits A1 rotation. Follow `docs/ARM_POSE_TEST.md` for
+reference capture, model-pose replay, adjustment and staged speed trials.
+The supported baseline remains 5 deg/s; all active A2–A6 measured-speed
 trips are 1.5 rad/s. Calibration, loaded holding and current protection remain
 unqualified. Do not promote production confirmation flags from this motion check.
 

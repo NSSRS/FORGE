@@ -2,7 +2,7 @@
   "fixture_confirmed": false,
   "sequence": "Disabled connection/encoder check, then explicitly armed single-joint manual jogging; no automatic sweep",
   "current_protection_verified": false,
-  "timing_note": "Supported manual jogging at 5 degrees/s; --manual-travel removes the startup angle window; 12-second maximum continuous hold.",
+  "timing_note": "Supported jogging defaults to 5 deg/s. The keyboard --speed-trial option permits staged manual trials up to 10 deg/s. Hardware qualification pending.",
   "limits_basis": "Protocol bounds for disabled probing. Manual session windows are not calibrated mechanical limits.",
   "motors": [
     {
@@ -137,5 +137,5 @@
   ],
   "fixture_mode": "supported",
   "supported_confirmed": false,
-  "speed_guard_basis": "Operator-requested consistent A2-A6 measured-speed trip: 1.5 rad/s, the existing common commissioning ceiling permitted by all active models. Commanded jogging remains 5 degrees/s. Replaces the earlier 0.3 rad/s rig trip; not a manufacturer rating or validation of tracking."
+  "speed_guard_basis": "A2-A6 measured-speed trips are 1.5 rad/s. Trial command speeds are independent of these reactive guards."
 }

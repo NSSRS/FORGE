@@ -1,6 +1,7 @@
 # Joint-angle API and manual arm jog
 
-Updated 2026-11-10. This is a reusable position port and fixture commissioning UI.
+Updated 2026-11-11. This is a reusable position port and fixture commissioning UI.
+For `--teach-file`, `--stop-map` and `--speed-trial`, see the [pose and speed tester guide](ARM_POSE_TEST.md).
 It is separate from ENCOS WASD driving. No hardware is automatically enabled
 at startup. Production ROS, calibrated arm coordinates, multi-axis trajectories,
 collision checking and gravity holding remain upper-layer integration work.
@@ -199,7 +200,7 @@ age and performs no USB/CAN requests. It is distinct from `positions()`.
 The [A2–A6 rig procedure](ARM_RIG_TEST.md) uses `active_joints` in a complete
 inventory to omit A1 without renumbering. `--speed-deg-s` adjusts manual speed;
 `--supported` requires physical support throughout movement/disable and caps
-bounded windows at +/-3 degrees and speed at 5 degrees/s; --manual-travel
+bounded windows at +/-3 degrees and normal supported speed at 5 degrees/s; --manual-travel
 explicitly removes the startup window as described below. Missing joints are disabled
 in the UI. This preserves release-disable and is not continuous gravity holding.
 

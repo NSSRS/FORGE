@@ -194,8 +194,10 @@ the three 4310P bus assignments; no firmware change is needed to use it.
 The host rejects unsupported bitrate, frame-format and update-rate fields;
 changing JSON does not reconfigure the CAN peripheral or activate CAN-FD.
 
-These are confirmed wiring plans, not measured hardware maps. Proposed command
-IDs remain 1–6 and feedback IDs 0x11–0x16; actual ID configuration is unverified.
+These profiles describe the temporary and planned bus layouts. Command IDs
+1–6 and feedback IDs 0x11–0x16 were read back on the six physical units.
+A2–A6 power-cycle persistence is still pending. See the [ID inventory](ARM_MOTOR_IDS.md)
+and [fixture teaching procedure](ARM_POSE_TEST.md).
 Joint names/order are placeholders. All operating limits remain unset and
 `hardware_tested` is false. `hardware_confirmed` and `joint_order_confirmed`
 must both be true before the host accepts an operational profile. Set limits

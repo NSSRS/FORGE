@@ -4,18 +4,11 @@ import math
 from pathlib import Path
 import time
 
+from motors.arm_bench import read_arm_plan, validate_plan
 from .pocket_input import PocketMapping, PocketCommand
 from .pocket_arm import ArmWorker
 from .radio_stream import RadioStream
 from .pocket_display import dashboard_snapshot
-
-
-def read_arm_plan(plan):
-    from motors.arm_bench import active_joints, validate_plan
-    config = json.loads(Path(plan).read_text()) if plan else None
-    if config is not None:
-        validate_plan(config, all_motors=True)
-    return config, active_joints(config) if config is not None else tuple(range(1,7))
 
 
 def arm_factory(mapping, *, execute, unloaded, plan, port, supported=False):
@@ -34,7 +27,6 @@ def arm_factory(mapping, *, execute, unloaded, plan, port, supported=False):
         config['fixture_confirmed'] = True  # Explicit fixture confirmation from this invocation.
         config['fixture_mode'] = 'supported' if supported else 'unloaded'
         config['supported_confirmed'] = bool(supported)
-        from motors.arm_bench import validate_plan
         validate_plan(config, execute=True, all_motors=True, group_first=True)
         return lambda: ArmPositionPort(config, port=port, window_degrees=mapping.window)
     return lambda: SimulatedPositionPort(window_degrees=mapping.window,available_joints=joints)

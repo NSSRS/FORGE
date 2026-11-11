@@ -1,9 +1,9 @@
 # A2–A6 rig test, A1 temporarily disconnected
 
-Updated 2026-11-10. The operator verified manual movement of all five A2–A6
-motors. Next, the operator will build a base allowing A1 rotation, followed by
-position initialization and faster commanded-motion commissioning. See the
-[current handoff](ARM_SESSION_HANDOFF.md). The inventory remains A1/CAN1 and A2–A6/CAN2 with command
+The operator verified manual movement of all five A2–A6 motors on 2026-11-10.
+For reference capture, model-pose replay, the new six-axis fixture and
+opt-in speed trials, use the [next bench test](ARM_POSE_TEST.md).
+The inventory remains A1/CAN1 and A2–A6/CAN2 with command
 IDs 1–6 and feedback IDs 17–22. `arm_rig_a2_a6.json` selects physical joints
 2–6 without renumbering IDs or MCU slots. A1 is unavailable. Another missing
 motor fails the check; the code never silently drops a joint or clears faults.
@@ -223,7 +223,7 @@ Fault recovery remains separate and explicit; inspection does not clear faults.
 
 ## Limits and evidence
 
-Current supported commands remain **5 degrees/s**. Explicit manual travel removes
+The supported baseline is **5 degrees/s**. Explicit manual travel removes
 startup-angle windows; relative zero is only a session display reference.
 Bounded mode remains separately available with a window of at most +/-3 degrees.
 All active A2–A6 measured-speed trips are **1.5 rad/s**, at the operator's request.

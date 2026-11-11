@@ -1,6 +1,6 @@
 # Arm session handoff
 
-Updated 2026-11-10, branch `nathan` in `NSSRS/FORGE`. This is the current status
+Updated 2026-11-11, based on branch `nathan` in `NSSRS/FORGE`. This is the current status
 for operators and future agents. Keep open requirements in
 [the cross-layer registry](ARM_LAYER_TODOS.md), run instructions in
 [the rig guide](ARM_RIG_TEST.md), and detailed measurements in dated reports.
@@ -25,17 +25,14 @@ it does not qualify A1 in the new mounted assembly.
    verify A1 identity, disabled feedback and controlled motion on that fixture.
    Restore it through an explicit six-joint profile after reconnecting it;
    do not silently change the current A2–A6 subset.
-2. **Motor-position initialization — CAL-01.** Measure each joint at repeatable
-   physical poses; record raw angle, sign, offset, any transmission ratio and
-   wrap branch. Verify startup after power cycles and off-power movement.
-   Initialize from fresh measured positions with the drives disabled; enabling
-   must not jump toward a guessed zero. Keep an intentional move to a home pose
-   separate from coordinate initialization. Identify physical travel limits here.
-3. **Faster commanded movement — SPEED-01.** Increase actual commanded speed
-   in measured stages on the supported fixture. Review the host/UI/MCU and
-   motor-loop constraints together; record tracking, peak speed, current/torque
-   evidence, temperatures and stopping. The 1.5 rad/s trip change did not raise
-   the current 5 deg/s command. No faster setting is qualified yet.
+2. **One-pose teaching — CAL-01.** Run the [tester procedure](ARM_POSE_TEST.md)
+   to capture the six references, teach or compute each raw goal, and verify
+   repeated approaches against the saved MuJoCo pose. Check power-cycle and
+   off-power repeatability. Production coordinate initialization and both-sided
+   travel calibration remain open.
+3. **Faster movement and A6 response — SPEED-01.** Follow the same procedure
+   for separate 5, 7.5 and 10 deg/s runs. Compare A6 with A4/A5 and return
+   tracking and stationary-stop evidence. Higher rates await fixture testing.
 
 Current protection, coordinated holding, bus timing and fault-injection work
 remain open in the registry; they were not completed by basic motor movement.
@@ -101,6 +98,12 @@ Pocket remains optional and requires its ESP32 radio CSV stream.
   fault evidence. Stale GUI rows now age visibly and blank dynamic readings.
 
 ## Evidence and reproduction
+
+On 2026-11-11 the prepared teach/trim workflow and speed trials passed 177
+Ubuntu tests covering the native C fake-motor transport, Qt controls and ROS
+launch configuration. These include release during enable, A6 trials in both
+directions and a stalled shaft. Physical pose agreement, A6 response and the
+7.5/10 deg/s rates await the fixture session described above.
 
 Local evidence is ignored by Git; the source/procedure and this summary travel
 with the branch. The five-motor milestone above comes from the operator's

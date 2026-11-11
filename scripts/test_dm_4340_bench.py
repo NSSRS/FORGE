@@ -4,10 +4,9 @@ import argparse
 import math
 from pathlib import Path
 import sys
-import struct
 import time
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
-from motors.arm import ArmBus
+from motors.arm import ArmBus, decode_register
 
 
 def poll_until(bus, predicate, description, timeout=1.0):
@@ -47,7 +46,7 @@ def run(bus):
     damping_reply = bus.read_register(2, 1, 31)
     if damping_reply is None or damping_reply[0] != 0:
         raise RuntimeError('No velocity-loop damping readback')
-    damping = struct.unpack('<f', struct.pack('<I', damping_reply[1]))[0]
+    damping = decode_register(31, damping_reply[1])
     if not math.isfinite(damping) or damping <= 0:
         raise RuntimeError('Motor velocity-loop damping must be positive; configure with Damiao tool')
     print(f'Position-velocity precheck: existing damping factor={damping:g}; no internal gains changed.', flush=True)
@@ -55,7 +54,7 @@ def run(bus):
         reply = bus.read_register(2, 1, reg)
         if reply is None or reply[0] != 0:
             raise RuntimeError(f'No matching range reply for register {reg}')
-        actual = struct.unpack('<f', struct.pack('<I', reply[1]))[0]
+        actual = decode_register(reg, reply[1])
         if not math.isclose(actual, expected, rel_tol=1e-5):
             raise RuntimeError(f'Range register {reg} changed: {actual}; review before motion')
     bus.set_bench_timeout()

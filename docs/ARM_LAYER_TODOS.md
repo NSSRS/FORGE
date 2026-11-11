@@ -1,6 +1,6 @@
 # Arm cross-layer TODO registry
 
-Updated 2026-11-10, branch `nathan`. This registry contains **open work only**.
+Updated 2026-11-11, based on branch `nathan`. This registry contains **open work only**.
 Read [current status](ARM_SESSION_HANDOFF.md) and [the base contract](ARM_BASE_LAYER.md)
 first. Stable IDs link package responsibilities; update the owning entry when
 work changes, and retire completed tasks instead of appending session history.
@@ -15,7 +15,7 @@ in the guides; full hardware qualification below remains separate.
 
 1. Operator builds a base allowing A1 to spin; commission A1 in that fixture
    (**SUPPORT-01**, **DEPLOY-01**).
-2. Implement measured motor-position initialization and identify travel limits
+2. Verify taught pose replay, implement production position initialization and identify travel limits
    (**CAL-01**).
 3. Qualify faster commanded movement on the supported fixture (**SPEED-01**).
 
@@ -35,6 +35,9 @@ Owner: operator/mechanical integration, `src/bringup/`.
 
 Owner: `src/robot_description/`, `src/motors/`, ROS coordinate adapter.
 
+Bench acceptance uses the [joint reference table and pose procedure](ARM_POSE_TEST.md).
+Record fixture measurements before promoting any calibration to production.
+
 - [ ] Record known physical-pose/raw-angle pairs for each DOF: sign, zero offset,
   any external ratio, wrap branch and units. Separate model zero from session zero.
 - [ ] Verify disabled startup readings after power cycles, first without motion
@@ -52,9 +55,9 @@ Owner: `src/robot_description/`, `src/motors/`, ROS coordinate adapter.
 
 Owner: `src/motors/arm_position.py`, `src/teleop/`, firmware/profile commissioning.
 
-- [ ] Agree and record staged commanded speeds after the base/support and initial
-  position reference are established. Current supported command remains 5 deg/s;
-  the common 1.5 rad/s measured-speed trip is not a speed command.
+- [ ] Test the 5 deg/s baseline and opt-in 7.5/10 deg/s trials on the supported
+  fixture. Compare A6 tracking, host sample timing and release travel with A4/A5.
+  Record the accepted speed for each joint and direction.
 - [ ] Review UI/adapter/profile/MCU caps and motor ACC/DEC/MAX_SPD/loop readback
   together. Preserve command/feedback deadlines and explicit fault recovery.
 - [ ] Measure requested versus actual motion in both directions on each joint,

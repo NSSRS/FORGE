@@ -32,6 +32,20 @@ CONTROL_REGISTERS = {
     34: ('VL_c1', 'float32'), 36: ('sub_ver', 'uint32'),
     59: ('Imax', 'float32'), 60: ('VBus', 'float32'),
 }
+DISCOVERY_REGISTERS = {
+    7: ('MST_ID', 'uint32'), 8: ('ESC_ID', 'uint32'), 9: ('TIMEOUT', 'uint32'),
+    10: ('CTRL_MODE', 'uint32'), 21: ('PMAX', 'float32'), 22: ('VMAX', 'float32'),
+    23: ('TMAX', 'float32'), 31: CONTROL_REGISTERS[31],
+}
+REGISTERS = DISCOVERY_REGISTERS | CONTROL_REGISTERS
+
+
+def decode_register(register, raw):
+    if REGISTERS[register][1] == 'float32':
+        return struct.unpack('<f', struct.pack('<I', raw))[0]
+    return raw
+
+
 BENCH_MODEL_LIMITS = {
     '8009P': (100 * 2 * math.pi / 60, 20.0),
     '4340P': (1.5, 12.0),
@@ -106,6 +120,7 @@ class ArmBus:
         self.buffer = bytearray()
         self.configured = False
         self.bench = False
+        self.bench_routes = {}
         self.closed = False
         try:
             reply = self._request(1)
@@ -226,13 +241,13 @@ class ArmBus:
             raise RuntimeError('Firmware lacks read-only CAN discovery; flash the updated ELF first')
         if (type(bus) is not int or bus not in (1, 2, 3) or
                 type(motor_id) is not int or not 0 <= motor_id < 0x7ff or
-                type(register) is not int or register not in {*CONTROL_REGISTERS, 7, 8, 9, 10, 21, 22, 23}):
+                type(register) is not int or register not in REGISTERS):
             raise ValueError('invalid diagnostic bus, ID or register')
-        if register not in (7, 8, 9, 10, 21, 22, 23, 31):
+        if register not in DISCOVERY_REGISTERS:
             if not self.capabilities & CAP_CONTROL_READBACK:
                 raise RuntimeError('Control/protection readback requires reviewed MC02 firmware with capability 0x4000')
             if not self.configured or not self.bench or (bus, motor_id) not in {
-                    route[:2] for route in getattr(self, 'bench_routes', {}).values()}:
+                    route[:2] for route in self.bench_routes.values()}:
                 raise RuntimeError('Control/protection reads require a configured disabled routed motor')
         if self.configured and not (self.bench and self.capabilities & 128):
             raise RuntimeError('Discovery requires a fresh MCU reset with no configured joints')
@@ -269,10 +284,7 @@ class ArmBus:
         if not self.capabilities & 2 or self.configured:
             raise RuntimeError('Bench firmware and a fresh controller reset are required')
         self._request(11)
-        if self._diagnostic_result(2, 1, 9) != (0, 2000):
-            raise RuntimeError('Bench timeout write was not acknowledged on feedback ID 0')
-        if self.read_register(2, 1, 9) != (0, 2000):
-            raise RuntimeError('Bench timeout readback failed; no motion permitted')
+        self._verify_write(2, 1, 9, (0, 2000))
 
     def prepare_bench(self, lower, upper, *, posvel=False):
         """Fixed CAN2/ID1/feedback0 bench configuration; wide limits cannot enable."""
@@ -291,10 +303,7 @@ class ArmBus:
         if not self.capabilities & 128 or mode not in (1, 2) or not self.bench:
             raise RuntimeError('Position-velocity bench firmware and disabled bench motor required')
         self._request(15, bytes([mode]))
-        if self._diagnostic_result(2, 1, 10) != (0, mode):
-            raise RuntimeError('Mode write was not acknowledged')
-        if self.read_register(2, 1, 10) != (0, mode):
-            raise RuntimeError('Mode readback mismatch; no enable permitted')
+        self._verify_write(2, 1, 10, (0, mode))
 
     def prepare_routed_bench(self, slot, motor, lower, upper, mode, *, manual_travel=False):
         """Configure one explicit P-series test slot; requires firmware capability 0x100."""
@@ -325,8 +334,6 @@ class ArmBus:
                 raise RuntimeError("Manual travel requires MC02 capability 0x8000; flash the updated firmware")
         # Mark cleanup responsibility BEFORE transmission: the ACK may be lost.
         self.configured = self.bench = True
-        if not hasattr(self, 'bench_routes'):
-            self.bench_routes = {}
         self.bench_routes[slot] = (bus, can_id, feedback_id)
         self._request(16, struct.pack('<BBHHBB4f', slot, bus, can_id, feedback_id,
                                      model, mode | (0x80 if manual_travel else 0), lower, upper, speed, torque))
@@ -346,17 +353,19 @@ class ArmBus:
     def write_routed_bench(self, slot, register, value):
         """Volatile TIMEOUT=100ms or CTRL_MODE=1/2; requires fresh disabled feedback."""
         self._slot(slot)
-        if not self.capabilities & 256 or slot not in getattr(self, 'bench_routes', {}):
+        if not self.capabilities & 256 or slot not in self.bench_routes:
             raise RuntimeError('No routed bench slot configured')
         if not ((register == 9 and value == 2000) or (register == 10 and value in (1, 2))):
             raise ValueError('Only bench timeout and mode writes are permitted')
         bus, can_id, feedback_id = self.bench_routes[slot]
         self._request(17, struct.pack('<BBI', slot, register, value))
-        if self._diagnostic_result(bus, can_id, register) != (feedback_id, value):
-            raise RuntimeError('Bench register write was not acknowledged by the selected motor')
-        if self.read_register(bus, can_id, register) != (feedback_id, value):
-            raise RuntimeError('Bench register readback mismatch')
+        self._verify_write(bus, can_id, register, (feedback_id, value))
 
+    def _verify_write(self, bus, can_id, register, expected):
+        if self._diagnostic_result(bus, can_id, register) != expected:
+            raise RuntimeError(f'CAN{bus} ID {can_id}: register {register} write was not acknowledged')
+        if self.read_register(bus, can_id, register) != expected:
+            raise RuntimeError(f'CAN{bus} ID {can_id}: register {register} readback mismatch')
 
     def configure(self, profile):
         """Load a measured hardware profile; deliberately rejects the shipped template."""

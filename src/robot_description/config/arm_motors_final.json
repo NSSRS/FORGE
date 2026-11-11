@@ -27,7 +27,7 @@
       "zero_offset_rad": null,
       "dof": 1,
       "physical_unit": "DOF1",
-      "physical_unit_description": "Previously tested 8009P",
+      "physical_unit_description": "D1 base rotation",
       "id_assignment_verified": true
     },
     {
@@ -49,7 +49,7 @@
       "zero_offset_rad": null,
       "dof": 2,
       "physical_unit": "DOF2",
-      "physical_unit_description": "Previously tested 4340P",
+      "physical_unit_description": "D2 upper arm",
       "id_assignment_verified": false
     },
     {
@@ -71,7 +71,7 @@
       "zero_offset_rad": null,
       "dof": 3,
       "physical_unit": "DOF3",
-      "physical_unit_description": "Additional untested 4340P",
+      "physical_unit_description": "D3 driven crank",
       "id_assignment_verified": false
     },
     {
@@ -94,7 +94,7 @@
       "manual_revision": "V1.3; not a hardware revision",
       "dof": 4,
       "physical_unit": "DOF4",
-      "physical_unit_description": "Previously tested 4310P",
+      "physical_unit_description": "D4 wrist",
       "id_assignment_verified": false
     },
     {
@@ -117,7 +117,7 @@
       "manual_revision": "V1.3; not a hardware revision",
       "dof": 5,
       "physical_unit": "DOF5",
-      "physical_unit_description": "Additional 4310P assigned to DOF5",
+      "physical_unit_description": "D5 wrist",
       "id_assignment_verified": false
     },
     {
@@ -140,7 +140,7 @@
       "manual_revision": "V1.3; not a hardware revision",
       "dof": 6,
       "physical_unit": "DOF6",
-      "physical_unit_description": "Additional 4310P assigned to DOF6",
+      "physical_unit_description": "D6 tool rotation",
       "id_assignment_verified": false
     }
   ],

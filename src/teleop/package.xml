@@ -12,5 +12,6 @@
   <exec_depend>python3-serial</exec_depend>
   <exec_depend>python3-pyqt5</exec_depend>
   <exec_depend>motor_control</exec_depend>
+  <exec_depend>robot_description</exec_depend>
   <export><build_type>ament_python</build_type></export>
 </package>

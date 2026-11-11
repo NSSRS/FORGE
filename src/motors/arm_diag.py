@@ -2,7 +2,7 @@
 import argparse
 import json
 from pathlib import Path
-from .arm import ArmBus
+from .arm import ArmBus, DISCOVERY_REGISTERS
 
 
 def main(argv=None):
@@ -20,7 +20,7 @@ def main(argv=None):
                 state=bus.state(slot)
                 if state.enabled or state.stopping or state.registers:
                     raise RuntimeError('Reset MC02 before this read-only capture')
-            for reg in (7,8,9,10,21,22,23,31):
+            for reg in DISCOVERY_REGISTERS:
                 before=bus.can_rx_trace(args.bus)
                 reply=bus.read_register(args.bus,args.id,reg)
                 after=bus.can_rx_trace(args.bus)

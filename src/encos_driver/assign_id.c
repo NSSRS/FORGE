@@ -7,40 +7,11 @@
 
 #include "ethercat.h"
 #include "bridge_pdo.h"
+#include "cli_bridge.h"
 #include "encos_protocol.h"
 
 #define CYCLE_US 1000
 #define RESPONSE_TIMEOUT_CYCLES 1000
-static uint8_t io_map[4096];
-
-static bool exchange(int expected_wkc)
-{
-    ec_send_processdata();
-    return ec_receive_processdata(EC_TIMEOUTRET) >= expected_wkc;
-}
-
-static bool enter_operational(const char *interface_name, int *expected_wkc)
-{
-    if (!ec_init(interface_name) || ec_config_init(FALSE) != 1) return false;
-    ec_slave[1].CoEdetails &= ~ECT_COEDET_SDOCA;
-    ec_config_map(io_map);
-    ec_configdc();
-    ec_statecheck(0, EC_STATE_SAFE_OP, EC_TIMEOUTSTATE * 4);
-    if (ec_slave[1].Obytes != ENCOS_BRIDGE_OUTPUT_BYTES ||
-        ec_slave[1].Ibytes != ENCOS_BRIDGE_INPUT_BYTES) return false;
-    *expected_wkc = ec_group[0].outputsWKC * 2 + ec_group[0].inputsWKC;
-    memset(ec_slave[1].outputs, 0, ENCOS_BRIDGE_OUTPUT_BYTES);
-    ec_slave[0].state = EC_STATE_OPERATIONAL;
-    exchange(*expected_wkc);
-    ec_writestate(0);
-    for (int tries = 0; tries < 40; ++tries) {
-        exchange(*expected_wkc);
-        ec_statecheck(0, EC_STATE_OPERATIONAL, 50000);
-        if (ec_slave[0].state == EC_STATE_OPERATIONAL) return true;
-    }
-    return false;
-}
-
 static bool parse_id(const char *text, uint16_t *id)
 {
     char *end = NULL;
@@ -63,7 +34,7 @@ int main(int argc, char **argv)
         return 2;
     }
     int expected_wkc = 0;
-    if (!enter_operational(argv[1], &expected_wkc)) {
+    if (!encos_open_cli_bridge(argv[1], &expected_wkc)) {
         fprintf(stderr, "Bridge did not reach OPERATIONAL with exactly one EtherCAT bridge.\n");
         ec_close();
         return 1;
@@ -85,22 +56,22 @@ int main(int argc, char **argv)
     outputs->motor_num = 1;
     outputs->can_ide = 0;
     outputs->motor[0] = request;
-    if (!exchange(expected_wkc)) goto fail;
+    if (!encos_exchange(expected_wkc)) goto fail;
     memset(outputs, 0, sizeof(*outputs));
     for (int cycle = 0; cycle < RESPONSE_TIMEOUT_CYCLES; ++cycle) {
-        if (!exchange(expected_wkc)) goto fail;
+        if (!encos_exchange(expected_wkc)) goto fail;
         for (size_t slot = 0; slot < ENCOS_BRIDGE_CHANNELS; ++slot) {
             const encos_can_frame_t *reply = &inputs->motor[slot];
             if (reply->id == ENCOS_DISCOVERY_CAN_ID && reply->rtr == 0 && reply->dlc == 4 &&
                 reply->data[0] == (uint8_t)(new_id >> 8) && reply->data[1] == (uint8_t)new_id &&
                 reply->data[2] == 0x01 && reply->data[3] == 0x04) {
                 printf("PASS: motor CAN ID changed from %u to %u. Power-cycle, then query ID %u.\n", old_id, new_id, new_id);
-                exchange(expected_wkc); ec_close(); return 0;
+                encos_exchange(expected_wkc); ec_close(); return 0;
             }
         }
         usleep(CYCLE_US);
     }
     fprintf(stderr, "No matching ID-change acknowledgement. Do not retry with multiple motors connected.\n");
 fail:
-    memset(outputs, 0, sizeof(*outputs)); exchange(expected_wkc); ec_close(); return 1;
+    memset(outputs, 0, sizeof(*outputs)); encos_exchange(expected_wkc); ec_close(); return 1;
 }

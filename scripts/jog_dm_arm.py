@@ -2,7 +2,7 @@
 """Interactive Damiao arm joint jog; simulation by default."""
 from pathlib import Path
 import sys
-root=Path(__file__).resolve().parents[1]
-sys.path[:0]=[str(root/'src'),str(root/'src/teleop')]
+source = Path(__file__).resolve().parents[1] / 'src'
+sys.path[:0] = [str(source), str(source / 'teleop'), str(source / 'robot_description')]
 from teleop.arm_keyboard import main
 if __name__ == '__main__':raise SystemExit(main())

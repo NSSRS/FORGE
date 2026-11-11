@@ -722,6 +722,88 @@ class RoutedRoundTrip(unittest.TestCase):
         self.assertEqual([self.lib.fake_mode(i) for i in range(6)],[1]*6)
         self.assertEqual(self.lib.fake_invalid(),0)
 
+    def test_supported_trial_uses_existing_firmware_and_records_a6_response(self):
+        from motors import arm_position as pos
+        p=json.loads((ROOT/'src/robot_description/config/arm_rig_a2_a6.json').read_text())
+        p.update(fixture_confirmed=True,supported_confirmed=True)
+        self.lib.fake_missing(0)
+        with patch.object(pos,'time',bench.time), pos.ArmPositionPort(
+                p,bus=self.bus,window_degrees=None,speed_trial=True) as port:
+            port.select(6)
+            self.assertFalse(port.stationary_position().enabled)
+            port.arm()
+            with self.assertRaisesRegex(ValueError,'5 degrees'):port.move_to(.05,math.radians(10))
+            with self.assertRaisesRegex(ValueError,'10 degrees'):port.jog(1,math.radians(11))
+            for direction in (1,-1):
+                for speed in (5,7.5,10):
+                    port.jog(direction,math.radians(speed))
+                    for _ in range(15):
+                        self.lib.fake_advance(20)
+                        self.assertTrue(port.poll())
+                    port.release()
+                    self.assertFalse(port.stationary_position().enabled)
+            self.assertEqual([self.lib.fake_commands(i) for i in range(5)],[0]*5)
+            summary=port.report['motion_summary']['6']
+            self.assertGreater(summary['max_sample_gap_ms'],0)
+            self.assertGreater(summary['max_abs_tracking_error_rad'],0)
+            self.assertEqual(len([e for e in port.report['events'] if e['event']=='motion_stop']),6)
+            self.lib.fake_stall(5)
+            for direction in (1,-1):
+                port.jog(direction,math.radians(10))
+                initial=port.target
+                for _ in range(30):
+                    self.lib.fake_advance(20)
+                    port.poll()
+                self.assertAlmostEqual(port.target,initial,delta=.001)
+                self.assertTrue(summary['last_sample']['lead_limited'])
+                port.release()
+        self.assertEqual(self.lib.fake_invalid(),0)
+
+    def test_teach_window_release_during_enable_cancels_before_goal_command(self):
+        from PyQt5 import QtCore,QtTest,QtWidgets
+        from motors import arm_position as pos
+        from motors.arm_pose_teach import PoseTeach
+        from teleop.arm_keyboard import make_window
+        model=ROOT/'src/robot_description/mujoco/initial_pose.json'
+        p=json.loads((ROOT/'src/robot_description/config/arm_rig_a2_a6.json').read_text())
+        p.update(fixture_confirmed=True,supported_confirmed=True)
+        app=QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+        with tempfile.TemporaryDirectory() as directory, patch.object(pos,'time',bench.time), \
+             pos.ArmPositionPort(p,bus=self.bus,window_degrees=None) as port:
+            teach=PoseTeach(Path(directory)/'teach.json',model,p,False,[])
+            window=make_window(port,'FAKE CAN',speed_deg_s=5,teach=teach)
+            try:
+                window.show();app.processEvents()
+                window.keys.press('6');window.keys.press('c')
+                self.lib.fake_position(5,.16)
+                self.lib.fake_advance(100)
+                window.keys.press('t')
+                self.assertAlmostEqual(teach.target(6),.16,delta=.001)
+                self.lib.fake_position(5,.02);self.lib.fake_advance(100)
+                window.keys.press('e')
+                enable=self.bus.enable_bench_group
+                def release_during_enable(slots):
+                    enable(slots)
+                    QtCore.QTimer.singleShot(0,lambda:QtTest.QTest.keyRelease(window,QtCore.Qt.Key_H))
+                with patch.object(self.bus,'enable_bench_group',side_effect=release_during_enable), \
+                     patch.object(self.bus,'command',wraps=self.bus.command) as commands:
+                    QtTest.QTest.keyPress(window,QtCore.Qt.Key_H)
+                    self.assertTrue(commands.called)
+                    self.assertTrue(all(abs(c.args[1]-.02)<.001 for c in commands.call_args_list))
+                self.assertFalse(port.moving or port.armed or window.keys.failed)
+                self.assertFalse(self.bus.state(5).enabled)
+                window.keys.press('e')
+                QtTest.QTest.keyPress(window,QtCore.Qt.Key_H)
+                self.assertTrue(port.moving)
+                self.assertAlmostEqual(port.target,.02+math.radians(5),delta=.001)
+                with patch.object(port,'positions',side_effect=AssertionError('extra display read')):
+                    window.next_display=0;window.update_state()
+                self.assertFalse(window.keys.failed)
+                QtTest.QTest.keyRelease(window,QtCore.Qt.Key_H)
+                self.assertFalse(self.bus.state(5).enabled)
+            finally:
+                window.close()
+
     def test_subset_jog_preserves_physical_slots_and_cleans_up(self):
         from motors import arm_position as pos
         p=plan();p.update(active_joints=[2,3,4,5,6],fixture_mode='supported',supported_confirmed=True)

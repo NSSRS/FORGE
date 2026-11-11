@@ -67,11 +67,11 @@ stores ALL current motor parameters, not only IDs; perform assignment after a
 fresh motor power cycle, before any bench mode/timeout changes in that session.
 Do not claim persistence from a write ACK alone.
 
-The three remaining units still need discovery and individual motion tests.
-Physical joint signs, zero offsets, travel and loaded limits remain uncalibrated;
-production profile confirmation flags remain false.
+All six IDs and unloaded tests are recorded in the table above. Physical
+signs, offsets, travel and loaded limits still require measurement. For the
+next fixture session, see the [pose test](ARM_POSE_TEST.md).
 
-## Commissioning observation: DOF1 save verification unresolved
+## Historical observation before DOF1 persistence was verified
 
 DOF1 accepted MST_ID=17 while ESC_ID remained 1; both registers read back
 correctly before saving, and Save Parameters was acknowledged. Subsequent

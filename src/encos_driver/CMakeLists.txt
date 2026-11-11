@@ -42,15 +42,15 @@ add_library(encos_driver SHARED encos_driver.c)
 target_compile_options(encos_driver PRIVATE -Wall -Wextra -Werror)
 target_link_libraries(encos_driver PRIVATE encos_protocol encos_soem)
 
-add_executable(encos_query main.c)
+add_executable(encos_query main.c cli_bridge.c)
 target_compile_options(encos_query PRIVATE -Wall -Wextra -Werror)
 target_link_libraries(encos_query PRIVATE encos_protocol encos_soem)
 
-add_executable(encos_motion motion.c)
+add_executable(encos_motion motion.c cli_bridge.c)
 target_compile_options(encos_motion PRIVATE -Wall -Wextra -Werror)
 target_link_libraries(encos_motion PRIVATE encos_protocol encos_soem)
 
-add_executable(encos_assign_id assign_id.c)
+add_executable(encos_assign_id assign_id.c cli_bridge.c)
 target_compile_options(encos_assign_id PRIVATE -Wall -Wextra -Werror)
 target_link_libraries(encos_assign_id PRIVATE encos_protocol encos_soem)
 

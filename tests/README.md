@@ -192,7 +192,7 @@ Qt checks; source the ROS environment for launch/PTY tests.
 source scripts/ros2_env.sh
 QT_QPA_PLATFORM=offscreen PYTHONDONTWRITEBYTECODE=1 \
   PYTHONPATH="tests:src:$PYTHONPATH" python3 -m unittest -v \
-  test_damiao_arm test_damiao_bench test_damiao_keyboard \
+  test_arm_pose_teach test_damiao_arm test_damiao_bench test_damiao_keyboard \
   test_pocket_controls test_pocket_gui test_radio_port test_system_test_launch
 ROS_DOMAIN_ID=94 PYTHONDONTWRITEBYTECODE=1 \
   PYTHONPATH="tests:src:$PYTHONPATH" python3 -m unittest -v test_ros_pocket

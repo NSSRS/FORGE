@@ -2,14 +2,10 @@
 """Read Damiao CAN IDs/settings without enable, disable or parameter writes."""
 import argparse
 from pathlib import Path
-import struct
 import sys
 import time
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
-from motors.arm import ArmBus
-
-REGISTERS = ((7, 'MST_ID'), (8, 'ESC_ID'), (9, 'TIMEOUT'), (10, 'CTRL_MODE'),
-             (21, 'PMAX'), (22, 'VMAX'), (23, 'TMAX'), (31, 'Deta'))
+from motors.arm import ArmBus, DISCOVERY_REGISTERS, decode_register
 
 
 def main():
@@ -49,7 +45,7 @@ def main():
                     raise RuntimeError(f'ID {motor_id} returned inconsistent ESC_ID={esc_id}; stop and inspect wiring/settings')
                 found += 1
                 print(f'FOUND command ID={motor_id} (0x{motor_id:03X}), reply CAN ID={feedback} (0x{feedback:03X})', flush=True)
-                for reg, name in REGISTERS:
+                for reg, (name, _) in DISCOVERY_REGISTERS.items():
                     reply = bus.read_register(args.bus, motor_id, reg)
                     time.sleep(0.025)
                     if reply is None:
@@ -58,7 +54,7 @@ def main():
                     rx_id, raw = reply
                     if rx_id != feedback:
                         raise RuntimeError('Reply CAN ID changed during discovery; possible duplicate motor IDs')
-                    value = struct.unpack('<f', struct.pack('<I', raw))[0] if reg >= 21 else raw
+                    value = decode_register(reg, raw)
                     extra = ''
                     if reg == 9:
                         extra = f' ({raw * 0.05:g} ms; zero does not meet FORGE timeout requirements)'

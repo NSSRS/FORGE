@@ -9,13 +9,12 @@ import json
 import math
 import os
 from pathlib import Path
-import struct
 import sys
 import tempfile
 import time
 
 from .arm import (ArmBus, BENCH_MODEL_LIMITS, CAP_CONTROL_READBACK,
-                  CAP_MANUAL_TRAVEL, CONTROL_REGISTERS)
+                  CAP_MANUAL_TRAVEL, CONTROL_REGISTERS, DISCOVERY_REGISTERS, decode_register)
 
 
 def number(value, label):
@@ -90,8 +89,31 @@ def validate_plan(plan, *, execute=False, all_motors=False, group_first=False):
     return motors
 
 
+def read_arm_plan(path):
+    """Read a six-axis commissioning plan and its active physical joint numbers."""
+    if not path:
+        return None, tuple(range(1, 7))
+    plan = json.loads(Path(path).read_text())
+    validate_plan(plan, all_motors=True)
+    return plan, active_joints(plan)
+
+
 class LatchedControllerFault(RuntimeError):
     """Retained controller fault; an idle UI may offer explicit recovery."""
+
+
+def read_settings(bus, channel, mid, rx, stop=None):
+    values = {}
+    for register in DISCOVERY_REGISTERS:
+        if stop is not None:
+            stop()
+        reply = bus.read_register(channel, mid, register)
+        if reply is None or reply[0] != rx:
+            raise RuntimeError(f'CAN{channel} ID {mid}: missing/wrong feedback ID for register {register}')
+        values[register] = decode_register(register, reply[1])
+    if values[7] != rx or values[8] != mid or values[10] not in (1, 2):
+        raise RuntimeError(f'CAN{channel} ID {mid}: identity or mode mismatch')
+    return values
 
 
 def preflight(bus, motors):
@@ -116,16 +138,8 @@ def preflight(bus, motors):
         bus.bench = True
     observed = []
     for m in motors:
-        values = {}
-        for reg in (7, 8, 9, 10, 21, 22, 23, 31):
-            if previous:
-                previous.stop()
-            reply = bus.read_register(m['bus'], m['can_id'], reg)
-            if reply is None or reply[0] != m['feedback_id']:
-                raise RuntimeError(f"{m['unit']}: missing/wrong feedback ID for register {reg}")
-            values[reg] = reply[1] if reg < 21 else struct.unpack('<f', struct.pack('<I', reply[1]))[0]
-        if values[7] != m['feedback_id'] or values[8] != m['can_id'] or values[10] not in (1, 2):
-            raise RuntimeError(f"{m['unit']}: identity or mode mismatch")
+        values = read_settings(bus, m['bus'], m['can_id'], m['feedback_id'],
+                               previous.stop if previous else None)
         for reg, key in ((21, 'pmax'), (22, 'vmax'), (23, 'tmax')):
             if not math.isclose(values[reg], m['ranges'][key], rel_tol=1e-5):
                 raise RuntimeError(f"{m['unit']}: {key} changed; repeat discovery")
@@ -285,7 +299,7 @@ class BenchSession:
                 if feedback_id != m['feedback_id']:
                     entry.update(status='wrong_feedback_id', value=None)
                     raise RuntimeError(f"{m['unit']}: wrong feedback ID for {name}")
-                value = raw if kind=='uint32' else struct.unpack('<f', struct.pack('<I', raw))[0]
+                value = decode_register(reg, raw)
                 valid = math.isfinite(value)
                 entry.update(status='ok' if valid else 'nonfinite', value=value if valid else None)
                 complete &= valid

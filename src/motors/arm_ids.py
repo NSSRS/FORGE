@@ -2,27 +2,10 @@
 import argparse
 import json
 from pathlib import Path
-import struct
 import time
 
-from .arm import ArmBus
-from .arm_bench import BenchSession
-
-REGS = (7, 8, 9, 10, 21, 22, 23, 31)
-
-
-def read_settings(bus, channel, mid, rx, stop=None):
-    result = {}
-    for reg in REGS:
-        if stop:
-            stop()
-        reply = bus.read_register(channel, mid, reg)
-        if reply is None or reply[0] != rx:
-            raise RuntimeError(f'ID/readback mismatch at register {reg}; no blind retry')
-        result[reg] = reply[1] if reg < 21 else struct.unpack('<f', struct.pack('<I', reply[1]))[0]
-    if result[7] != rx or result[8] != mid or result[10] not in (1, 2):
-        raise RuntimeError('Unexpected IDs or mode; no ID writes allowed')
-    return result
+from .arm import ArmBus, DISCOVERY_REGISTERS
+from .arm_bench import BenchSession, read_settings
 
 
 def assign(bus, *, dof, channel, current_id, current_feedback, report, verify=False):
@@ -83,7 +66,7 @@ def assign(bus, *, dof, channel, current_id, current_feedback, report, verify=Fa
                 raise RuntimeError('ID write readback failed; no save issued')
         after = read_settings(bus, channel, mid, rx, session.stop)
         report['after'] = after
-        if any(after[r] != before[r] for r in REGS if r not in (7, 8)):
+        if any(after[r] != before[r] for r in DISCOVERY_REGISTERS if r not in (7, 8)):
             raise RuntimeError('Non-ID setting changed; refusing parameter save')
         session.stop()
         report['save_attempted'] = True

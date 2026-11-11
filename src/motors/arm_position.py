@@ -4,6 +4,7 @@ Raw output-shaft radians and rad/s. No ROS, IK, background thread, calibration
 writes or implicit re-enable. Adapter reuses the validated routed position-
 velocity transport/lifecycle; production loaded-arm integration is separate.
 """
+from contextlib import contextmanager
 from dataclasses import asdict, dataclass, replace
 from copy import deepcopy
 import math
@@ -11,8 +12,11 @@ import time
 from typing import Protocol
 from .arm import ArmBus, FAULT_REASONS, CAP_MANUAL_TRAVEL
 from .arm_bench import (BenchSession, preflight, validate_plan, active_joints,
-                        recover_fault, LatchedControllerFault)
+                        recover_fault, LatchedControllerFault, number as finite)
 
+SUPPORTED_JOG_DEG_S = 5
+TRIAL_JOG_DEG_S = 10
+JOG_LEAD_S = .1
 
 @dataclass(frozen=True)
 class JointPosition:
@@ -50,16 +54,19 @@ class PositionPort(Protocol):
     def poll(self) -> bool: ...
     def positions(self) -> list[JointPosition]: ...
     def cached_positions(self) -> list[JointPosition]: ...
+    def stationary_position(self) -> JointPosition: ...
     def release(self) -> None: ...
     def stop(self) -> None: ...
     def recover(self, report_path) -> None: ...
     def close(self) -> None: ...
 
 
-def finite(value, label):
-    if type(value) not in (int,float) or not math.isfinite(value):
-        raise ValueError(f'{label} must be finite')
-    return value
+def jog_window(window_degrees):
+    if window_degrees is None:
+        return None
+    if not 0 < finite(window_degrees, 'window') <= 90:
+        raise ValueError('window must be >0 and <=90 degrees')
+    return math.radians(window_degrees)
 
 
 class ArmPositionPort:
@@ -70,26 +77,26 @@ class ArmPositionPort:
     multi-joint motion. arm() is operator authorization, not a CAN enable.
     Session coordinates are never saved as the motor's zero.
     window_degrees=None explicitly selects manual travel without a startup window.
-    Supported-arm mode retains <=5 degree/s and a 12-second continuous-hold cap;
+    Supported-arm mode defaults to <=5 degree/s and a 12-second continuous-hold cap;
     it still disables torque on stop and does not support the arm's weight.
     """
     def __init__(self, plan, *, port='/dev/ttyACM0', bus=None, window_degrees=90,
-                 motion_allowed=None, allow_faulted_start=False):
+                 motion_allowed=None, allow_faulted_start=False, speed_trial=False):
         self.motors=validate_plan(plan,execute=True,all_motors=True,group_first=True)
         self.available_joints=active_joints(plan)
         self.slots=tuple(j-1 for j in self.available_joints)
         if any(m['can_id']!=i+1 or m['feedback_id']!=17+i for i,m in enumerate(self.motors)):
             raise ValueError('Position port requires verified A1..A6 order and DOF-matched IDs')
-        if window_degrees is not None:
-            finite(window_degrees,'window')
-            if not 0 < window_degrees <= 90: raise ValueError('window must be >0 and <=90 degrees')
+        self.window = jog_window(window_degrees)
         mode=plan.get('fixture_mode','unloaded')
         if mode not in ('unloaded','supported'):
             raise ValueError('Unknown fixture_mode')
         self.supported=mode=='supported'
+        self.speed_trial=speed_trial
+        if speed_trial and (not self.supported or window_degrees is not None):
+            raise ValueError('Speed trials require supported manual travel')
         if self.supported and (plan.get('supported_confirmed') is not True or (window_degrees is not None and window_degrees>3)):
             raise ValueError('Supported arm requires explicit support confirmation and manual travel or window <=3 degrees')
-        self.window=None if window_degrees is None else math.radians(window_degrees)
         self.selected=self.available_joints[0]; self.armed=False; self.moving=False; self.closed=False
         self.motion_allowed=motion_allowed
         self._display_rows={}  # Samples already obtained by the control owner.
@@ -100,7 +107,7 @@ class ArmPositionPort:
                      'active_joints':self.available_joints,'fixture_mode':mode,
                      'travel_policy':'manual' if self.window is None else 'startup_window',
                      'window_degrees':window_degrees,
-                     'control_mode':'position_velocity', 'commanded_torque_nm':None,
+                     'control_mode':'position_velocity', 'commanded_torque_nm':None, 'speed_trial':speed_trial,
                      'motion_samples':[], 'motion_samples_dropped':0, 'motion_summary':{}}
         # Torque is feedback, not a command in mode 2. Record before cleanup
         # overwrites enabled feedback; do not introduce another transport reader.
@@ -141,6 +148,19 @@ class ArmPositionPort:
     def _check_intent(self):
         if self.motion_allowed is not None and not self.motion_allowed():
             raise MotionCancelled('Operator intent released, changed or expired')
+
+    @contextmanager
+    def _guard_motion(self):
+        try:
+            yield
+        except MotionCancelled:
+            self.stop()
+            raise
+        except Exception as exc:
+            raise RuntimeError(self.capture_failure(exc)) from exc
+        except BaseException:
+            self.stop()
+            raise
 
     def select(self, joint):
         self._check()
@@ -193,16 +213,17 @@ class ArmPositionPort:
             raise ValueError('Target exceeds session joint window or protocol range')
         if not .001 <= speed_rad_s <= self.motors[i]['speed_trip_rad_s']:
             raise ValueError('Speed exceeds configured joint envelope')
-        if self.supported and speed_rad_s>math.radians(5):
-            raise ValueError('Supported-arm commissioning speed must not exceed 5 degrees/s')
+        cap = TRIAL_JOG_DEG_S if self.speed_trial and direction else SUPPORTED_JOG_DEG_S
+        if self.supported and speed_rad_s>math.radians(cap):
+            raise ValueError(f'Supported-arm commissioning speed must not exceed {cap} degrees/s')
         state=self._stop_session()[i]
         if direction:
-            angle_rad=state.position+direction*speed_rad_s*.1
+            angle_rad=state.position+direction*speed_rad_s*JOG_LEAD_S
             if not lo < angle_rad < hi:
                 raise ValueError("Manual target exceeds protocol position range")
         duration=12. if direction else abs(angle_rad-state.position)/speed_rad_s+2
         if duration>12: raise ValueError('Move would exceed the bounded 12-second operation')
-        try:
+        with self._guard_motion():
             corridor_lo,corridor_hi=self.session.bounds[i]
             if not corridor_lo <= state.position <= corridor_hi:
                 self.report['start_rejection']=dict(joint=i+1,position_rad=state.position,
@@ -227,6 +248,8 @@ class ArmPositionPort:
                 time.sleep(.005)
             self.target=angle_rad; self.speed=speed_rad_s; self.jog_direction=direction
             self.jog_started=time.monotonic(); self.jog_origin=state.position
+            self.last_ramp_at=self.jog_started; self.lead_limited=False
+            self.previous_sample_at=None
             self.duration=duration; self.deadline=time.monotonic()+duration; self.settled=None; self.moving=True
             self._check_intent()
             self.bus.command(i,angle_rad,velocity=speed_rad_s)
@@ -234,32 +257,47 @@ class ArmPositionPort:
                         start_position_rad=state.position,
                         target_rad=angle_rad,speed_rad_s=speed_rad_s,duration_limit_s=duration)
             self._record_motion_sample(i,sample)
-        except MotionCancelled:
-            self.stop(); raise
-        except Exception as exc:
-            raise RuntimeError(self.capture_failure(exc)) from exc
-        except BaseException:
-            self.stop(); raise
+
+    def _enabled_sample(self, slot):
+        sample = self.session.sample(slot)
+        self._remember_sample(slot, sample)
+        if sample.status != 1 or not sample.enable_confirmed:
+            raise RuntimeError('Joint lost enabled confirmation')
+        return sample
+
+    def _advance_jog(self, now, sample):
+        if sample is None:
+            self.target = self.jog_origin + self.jog_direction * self.speed * (now - self.jog_started + JOG_LEAD_S)
+            return
+        # Discard missed travel when shaft feedback lags during a speed trial.
+        advance = self.speed * (now - self.last_ramp_at)
+        room = self.jog_direction * (sample.position - self.target) + self.speed * JOG_LEAD_S
+        self.lead_limited = room < advance
+        self.target += self.jog_direction * min(advance, max(0., room))
+        self.last_ramp_at = now
 
     def poll(self):
         self._check()
         if not self.moving: return False
         i=self.selected-1
-        try:
+        with self._guard_motion():
             self._check_intent()
             if time.monotonic()>=self.deadline:
                 raise TimeoutError(f'{"Manual jog" if self.jog_direction else "Position move"} '
                                    f'host duration limit reached ({self.duration:.3f} s)')
+            sample=None
             if self.jog_direction:
-                self.target=self.jog_origin+self.jog_direction*self.speed*(time.monotonic()-self.jog_started+.1)
+                now=time.monotonic()
+                if self.speed_trial:
+                    sample = self._enabled_sample(i)
+                self._advance_jog(now, sample)
                 lo,hi=self._limits(i)
                 if not lo < self.target < hi:
                     raise RuntimeError('Manual target reached protocol position range')
             self._check_intent()
             self.bus.command(i,self.target,velocity=self.speed)
-            sample=self.session.sample(i)
-            self._remember_sample(i,sample)
-            if sample.status!=1 or not sample.enable_confirmed: raise RuntimeError('Joint lost enabled confirmation')
+            if sample is None:
+                sample = self._enabled_sample(i)
             self._record_motion_sample(i,sample)
             if self.jog_direction:
                 return True  # A close tracking sample is not a release or a travel stop.
@@ -270,12 +308,6 @@ class ArmPositionPort:
                 self._event('reached',joint=self.selected,position_rad=sample.position,target_rad=self.target)
                 self._stop_session(); self.moving=False; self.target=None
             return self.moving
-        except MotionCancelled:
-            self.stop(); raise
-        except Exception as exc:
-            raise RuntimeError(self.capture_failure(exc)) from exc
-        except BaseException:
-            self.stop(); raise
 
     def capture_failure(self, error):
         """Stop first, then save cached fault evidence once, without clearing it.
@@ -346,14 +378,22 @@ class ArmPositionPort:
         now=time.monotonic()
         sample=dict(at_monotonic_s=now,joint=slot+1,position_rad=state.position,
                     velocity_rad_s=state.velocity,torque_feedback_nm=state.torque,
+                    requested_speed_rad_s=self.speed, direction=self.jog_direction, lead_limited=self.lead_limited,
+                    tracking_error_rad=self.target-state.position, rotor_c=state.rotor_c, mos_c=state.mos_c,
+                    sample_gap_ms=None if self.previous_sample_at is None else (now-self.previous_sample_at)*1000,
                     torque_trip_nm=self.motors[slot]['torque_trip_nm'],
                     target_rad=self.target,enabled=bool(state.enabled),
                     enable_confirmed=state.enable_confirmed,status=state.status,age_ms=state.age_ms)
+        self.previous_sample_at=now
         key=str(slot+1)
         summary=self.report['motion_summary'].setdefault(key,dict(
             samples=0,first_at_monotonic_s=now,min_position_rad=state.position,
             max_position_rad=state.position,max_abs_torque_feedback_nm=0.,max_abs_velocity_rad_s=0.))
         summary['samples']+=1
+        for field, value in (('max_abs_tracking_error_rad', abs(sample['tracking_error_rad'])),
+                             ('max_sample_gap_ms', sample['sample_gap_ms'] or 0),
+                             ('max_feedback_age_ms', state.age_ms)):
+            summary[field]=max(summary.get(field, 0), value)
         summary['last_sample']=sample
         summary['min_position_rad']=min(summary['min_position_rad'],state.position)
         summary['max_position_rad']=max(summary['max_position_rad'],state.position)
@@ -379,6 +419,16 @@ class ArmPositionPort:
         return [replace(row,age_ms=row.age_ms+max(0,round((now-at)*1000)))
                 for _,(row,at) in sorted(self._display_rows.items())]
 
+    def stationary_position(self):
+        self._check()
+        if self.moving or self.recovery_required:
+            raise RuntimeError('Release motion and resolve faults before sampling')
+        states = self._stop_session()
+        for state in states.values():
+            if state.fault:
+                raise RuntimeError(state.fault_detail())
+        return self._display_rows[self.selected-1][0]
+
     def positions(self):
         self._check()
         if self.recovery_required:
@@ -397,9 +447,19 @@ class ArmPositionPort:
         self.armed=authorized
 
     def stop(self):
+        moving=self.moving
+        stop_at=time.monotonic()
+        last=self._display_rows.get(self.selected-1)
         self.armed=False; self.moving=False; self.target=None; self.jog_direction=0
         if self.session is not None and self.session.configured:
-            self._stop_session()
+            states=self._stop_session()
+            if moving and last:
+                final=states[self.selected-1]
+                self._event('motion_stop', joint=self.selected, request_at_monotonic_s=stop_at,
+                            stationary_ack_ms=(time.monotonic()-stop_at)*1000,
+                            last_motion_sample_age_ms=last[0].age_ms+(stop_at-last[1])*1000,
+                            last_sample_to_stationary_rad=final.position-last[0].position_rad,
+                            stationary_raw_rad=final.position)
         self._event('stop')
 
     def recover(self, report_path):
@@ -460,10 +520,8 @@ class ArmPositionPort:
 class SimulatedPositionPort:
     """Offline adapter for the identical selection/position/control interface."""
     def __init__(self, window_degrees=90, *, available_joints=tuple(range(1,7))):
-        if window_degrees is not None:
-            finite(window_degrees,'window')
-            if not 0<window_degrees<=90:raise ValueError('window must be >0 and <=90 degrees')
-        self.window=None if window_degrees is None else math.radians(window_degrees);self.values=[0.]*6
+        self.window = jog_window(window_degrees)
+        self.values = [0.] * 6
         if (not available_joints or len(set(available_joints))!=len(available_joints) or
                 any(type(j) is not int or not 1<=j<=6 for j in available_joints)):
             raise ValueError('available_joints must contain distinct A1..A6 numbers')
@@ -515,6 +573,10 @@ class SimulatedPositionPort:
         return [JointPosition(j,self.values[j-1],0.,-limit,limit,0,self.moving and j==self.selected)
                 for j in self.available_joints]
     def cached_positions(self):return self.positions()
+    def stationary_position(self):
+        if self.closed or self.moving:
+            raise RuntimeError('Release motion before sampling')
+        return next(row for row in self.positions() if row.joint == self.selected)
     def release(self):self.moving=False
     def stop(self):self.armed=False;self.moving=False
     def recover(self,report_path=None):

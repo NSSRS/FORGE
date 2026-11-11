@@ -5,17 +5,20 @@ import math
 from pathlib import Path
 import sys
 import time
-from motors.arm_position import ArmPositionPort, SimulatedPositionPort
-from motors.arm_bench import active_joints, validate_plan
+from motors.arm_position import (ArmPositionPort, MotionCancelled, SimulatedPositionPort,
+                                 SUPPORTED_JOG_DEG_S, TRIAL_JOG_DEG_S)
+from motors.arm_pose_teach import PoseTeach
+from motors.arm_bench import read_arm_plan
 
 
 class ArmJogKeys:
     """Press/release policy, independent of Qt and hardware transport."""
     directions={'right':1,'up':1,'left':-1,'down':-1}
-    def __init__(self,port,speed_deg_s=45,*,recovery_report_path=None):
+    def __init__(self,port,speed_deg_s=45,*,recovery_report_path=None,teach=None):
         if not math.isfinite(speed_deg_s) or not 0<speed_deg_s<=45:
             raise ValueError('Jog speed must be >0 and <=45 degrees/s')
         self.speed=math.radians(speed_deg_s)
+        self.teach=teach
         self.port=port;self.held=set();self.down=set();self.quit=False
         self.recovering=False;self.recovery_report_path=recovery_report_path
         self.failed=bool(getattr(port,'recovery_required',False))
@@ -25,14 +28,36 @@ class ArmJogKeys:
     def stop(self):
         self.held.clear();self.port.stop()
         if not self.failed:self.message='Stopped and disarmed. E arms again.'
+    def is_motion_key(self, key):
+        return key in self.directions or (self.teach is not None and key == 'h')
+
+    def _capture_pose(self, key):
+        if self.port.armed or self.down or self.port.moving:
+            self.message = 'Release all motion keys and press Space to disarm before capturing.'
+            return
+        row = self.port.stationary_position()
+        try:
+            self.message = self.teach.capture(self.port.selected, key, row)
+        except ValueError as exc:
+            self.message = str(exc)
+            return
+        self.port.report.setdefault('pose_captures', []).append(dict(
+            joint=row.joint, action=key, raw_rad=row.position_rad, feedback_age_ms=row.age_ms,
+            model_goal_rad=self.teach.goals[row.joint], at_monotonic_s=time.monotonic(),
+            record=dict(self.teach.records['joints'][str(row.joint)])))
+
     def press(self,key,repeat=False):
         if repeat:return
-        if key in self.directions:self.down.add(key)
+        motion_key = self.is_motion_key(key)
+        if motion_key:self.down.add(key)
         if self.recovering:return
         if key=='r':self.recover();return
         if key=='q':self.stop();self.quit=True;return
         if key in ('stop',' ','x'):self.stop();return
         if self.failed:return
+        if self.teach and key in ('c','b','t'):
+            self._capture_pose(key)
+            return
         if key in tuple('123456'):
             if int(key) not in self.port.available_joints:
                 self.stop();self.message=f'A{key} unavailable. Select a connected motor.';return
@@ -44,21 +69,40 @@ class ArmJogKeys:
             if not self.down and not self.port.armed:
                 self.port.arm();self.message='Armed. Hold an arrow; release to stop.'
             return
-        if key not in self.directions or key in self.held:return
+        if not motion_key or key in self.held:return
         self.held.add(key)
-        if len(self.held)>1:
+        if len(self.down)>1:
             self.port.release();self.message='Release all arrows before changing direction.';return
         if not self.port.armed:
             self.message='Release arrow, then press E to arm.';return
-        row=next(row for row in self.port.positions() if row.joint==self.port.selected)
-        target=row.upper_rad if self.directions[key]>0 else row.lower_rad
-        if self.port.window is None:
-            self.port.jog(self.directions[key],self.speed)
-        else:
+        self._start_move(key)
+
+    def _start_move(self, key):
+        if self.teach:
+            row = self.port.stationary_position()
+            j = self.port.selected
+            try:
+                if key == 'h':
+                    target = self.teach.waypoint(j, row, self.speed)
+                else:
+                    target = self.teach.trim_target(j, row, self.directions[key])
+            except ValueError as exc:
+                self.message = str(exc)
+                return
+            if target is None:
+                self.message = 'Within 0.5° of the raw goal. Release H and compare the physical pose.'
+                return
             self.port.move_to(target,self.speed)
+            self.message=f'A{j} moving toward raw {math.degrees(target):+.2f}°. Release to stop.'
+        elif self.port.window is None:
+            self.port.jog(self.directions[key],self.speed)
+            self.message='Manual travel — release to stop; 12 s maximum per hold.'
+        else:
+            row=next(row for row in self.port.positions() if row.joint==self.port.selected)
+            target=row.upper_rad if self.directions[key]>0 else row.lower_rad
+            self.port.move_to(target,self.speed)
+            self.message=f'Moving while held — release to stop; ±{math.degrees(self.port.window):g}° session window.'
         self.last_tick=time.monotonic()
-        self.message=('Manual travel — release to stop; 12 s maximum per hold.' if self.port.window is None
-                      else f'Moving while held — release to stop; ±{math.degrees(self.port.window):g}° session window.')
     def release(self,key):
         self.down.discard(key)
         if self.recovering:return
@@ -71,6 +115,7 @@ class ArmJogKeys:
             self.message='Release all arrows before recovery.'
             return False
         self.held.clear();self.failed=True;self.recovering=True
+        if self.teach:self.teach.reset_session()
         self.message='Recovering; verifying disabled motors. Motion stays disarmed.'
         return True
     def finish_recovery(self,error=None):
@@ -99,10 +144,12 @@ class ArmJogKeys:
         self.last_tick=now
         if not self.failed and self.port.moving:
             self.port.poll()
-            if not self.port.moving:self.message='Travel boundary reached. Release and reverse direction.'
+            if not self.port.moving:
+                self.message=('Step complete. Release the key and compare the pose.' if self.teach else
+                              'Travel boundary reached. Release and reverse direction.')
 
 
-def make_window(port,mode,*,speed_deg_s=45,recovery_report_path=None):
+def make_window(port,mode,*,speed_deg_s=45,recovery_report_path=None,teach=None):
     from PyQt5 import QtCore,QtWidgets
     from .arm_widgets import JointPositionTable
     class RecoveryThread(QtCore.QThread):
@@ -114,13 +161,21 @@ def make_window(port,mode,*,speed_deg_s=45,recovery_report_path=None):
 
     class Window(QtWidgets.QWidget):
         def __init__(self):
-            super().__init__();self.keys=ArmJogKeys(port,speed_deg_s,recovery_report_path=recovery_report_path);self.next_display=0
+            super().__init__();self.keys=ArmJogKeys(port,speed_deg_s,recovery_report_path=recovery_report_path,teach=teach);self.next_display=0
             self.recovery_thread=None;self.close_after_recovery=False
+            self.starting=False;self.cancel_start=False;self.close_after_start=False
             self.setWindowTitle('FORGE • Arm joint jog • '+mode);self.resize(880,420)
             layout=QtWidgets.QVBoxLayout(self);layout.setContentsMargins(8,8,8,8);layout.setSpacing(4)
             self.title=QtWidgets.QLabel();layout.addWidget(self.title)
             shortcuts=QtWidgets.QLabel('1–6 select   •   E arm   •   Hold ↑/→ positive, ↓/← negative   •   Space stop   •   R recover')
             shortcuts.setWordWrap(True);layout.addWidget(shortcuts)
+            if teach:
+                layout.addWidget(QtWidgets.QLabel('C reference   •   B inward sample   •   T save aligned goal   •   Hold H toward goal   •   Arrows trim 1°'))
+                self.pose_label=QtWidgets.QLabel();self.pose_label.setWordWrap(True);layout.addWidget(self.pose_label)
+                if isinstance(port,SimulatedPositionPort):
+                    hand=QtWidgets.QPushButton('Place simulated shaft by hand…')
+                    hand.setFocusPolicy(QtCore.Qt.NoFocus)
+                    hand.clicked.connect(self.place_simulated);layout.addWidget(hand)
             travel='Manual travel • 12 s maximum per hold' if port.window is None else f'±{math.degrees(port.window):g}° window'
             layout.addWidget(QtWidgets.QLabel(f'{speed_deg_s:g}°/s • {travel} • Release stops • Focus loss disarms'))
             buttons=QtWidgets.QHBoxLayout();layout.addLayout(buttons)
@@ -146,14 +201,28 @@ def make_window(port,mode,*,speed_deg_s=45,recovery_report_path=None):
             stop.clicked.connect(lambda:self.invoke(self.keys.stop));layout.addWidget(stop)
             support=QtWidgets.QLabel('Fixture commissioning; release disables torque. Support all attached links. No gravity holding.')
             support.setWordWrap(True);layout.addWidget(support)
-            self.timer=QtCore.QTimer(self);self.timer.timeout.connect(self.update_state);self.timer.start(20)
+            self.timer=QtCore.QTimer(self);self.timer.setTimerType(QtCore.Qt.PreciseTimer)
+            self.timer.timeout.connect(self.update_state);self.timer.start(20)
+        def place_simulated(self):
+            if self.keys.failed or self.keys.recovering or self.keys.down or port.armed or port.moving:return
+            row=port.stationary_position()
+            degrees,ok=QtWidgets.QInputDialog.getDouble(self,'Simulated hand placement',
+                f'A{port.selected} raw shaft angle (degrees)',math.degrees(row.position_rad),
+                math.degrees(row.lower_rad),math.degrees(row.upper_rad),3)
+            if ok:port.values[port.selected-1]=math.radians(degrees)
         def invoke(self,fn):
+            if self.starting:
+                self.cancel_start=True
+                return
             if self.keys.recovering:return
             try:fn()
             except Exception as exc:self.keys.fail(exc)
             if self.keys.quit:
                 self.keys.quit=False;self.close()
         def start_recovery(self):
+            if self.starting:
+                self.cancel_start=True
+                return
             if not self.keys.begin_recovery():return
             # Recovery owns the port; show existing samples as stale until it ends.
             self.table.update_positions(port.cached_positions(),port.selected,stale=True)
@@ -166,28 +235,54 @@ def make_window(port,mode,*,speed_deg_s=45,recovery_report_path=None):
             self.recover_button.setEnabled(True);self.next_display=0
             if self.close_after_recovery:self.close()
         def update_state(self):
+            if self.starting:return
             self.invoke(self.keys.tick)
             self.title.setText(f'{mode} — A{port.selected} — '+('RECOVERING' if self.keys.recovering else 'FAULT' if self.keys.failed else 'MOVING' if port.moving else 'ARMED' if port.armed else 'DISARMED'))
             self.status.setText(self.keys.message)
+            if teach:self.pose_label.setText(teach.describe(port.selected))
             self.status.setMinimumHeight(self.status.heightForWidth(max(1,self.status.width())))
             if time.monotonic()>=self.next_display and not self.keys.recovering:
                 def refresh():
                     # Fault lockout must still age the table. A frozen enabled
                     # row is not evidence that the motor remains enabled.
-                    rows=port.cached_positions() if self.keys.failed else port.positions()
+                    rows=port.cached_positions() if self.keys.failed or port.moving else port.positions()
                     self.table.update_positions(rows,port.selected,stale=self.keys.failed)
                 self.invoke(refresh);self.next_display=time.monotonic()+.1
         def key_name(self,event):
             return {QtCore.Qt.Key_Left:'left',QtCore.Qt.Key_Right:'right',QtCore.Qt.Key_Up:'up',QtCore.Qt.Key_Down:'down',QtCore.Qt.Key_Escape:'stop'}.get(event.key(),event.text().lower())
+        def start_motion(self, key):
+            # The serial enable handshake is synchronous. Process releases while
+            # waiting, without allowing a nested timer or input to use the port.
+            previous=port.motion_allowed
+            def still_held():
+                QtWidgets.QApplication.processEvents()
+                return not self.cancel_start and (previous is None or previous())
+            self.starting=True;self.cancel_start=False
+            port.motion_allowed=still_held
+            try:
+                self.keys.press(key)
+            except MotionCancelled:
+                self.keys.held.clear()
+                self.keys.message='Motion cancelled during enable. Press E to arm again.'
+            finally:
+                port.motion_allowed=previous;self.starting=False
+                if self.close_after_start:QtCore.QTimer.singleShot(0,self.close)
         def keyPressEvent(self,event):
             key=self.key_name(event)
-            if key=='r' and not event.isAutoRepeat():self.start_recovery()
+            if self.starting:
+                if not event.isAutoRepeat():self.cancel_start=True
+            elif key=='r' and not event.isAutoRepeat():self.start_recovery()
             elif self.keys.recovering:self.keys.press(key,event.isAutoRepeat())
+            elif self.keys.is_motion_key(key) and not event.isAutoRepeat() and isinstance(port,ArmPositionPort):
+                self.invoke(lambda:self.start_motion(key))
             else:self.invoke(lambda:self.keys.press(key,event.isAutoRepeat()))
             event.accept()
         def keyReleaseEvent(self,event):
             if not event.isAutoRepeat():
-                if self.keys.recovering:self.keys.release(self.key_name(event))
+                if self.starting:
+                    if self.key_name(event) in self.keys.down:
+                        self.keys.down.discard(self.key_name(event));self.cancel_start=True
+                elif self.keys.recovering:self.keys.release(self.key_name(event))
                 else:self.invoke(lambda:self.keys.release(self.key_name(event)))
             event.accept()
         def changeEvent(self,event):
@@ -195,6 +290,8 @@ def make_window(port,mode,*,speed_deg_s=45,recovery_report_path=None):
                 self.invoke(self.keys.stop)
             super().changeEvent(event)
         def closeEvent(self,event):
+            if self.starting:
+                self.cancel_start=True;self.close_after_start=True;event.ignore();return
             if self.keys.recovering:
                 self.close_after_recovery=True;event.ignore();return
             self.timer.stop();self.invoke(self.keys.stop);event.accept()
@@ -214,34 +311,53 @@ def main(argv=None):
     travel=parser.add_mutually_exclusive_group()
     travel.add_argument('--window-deg',type=float,default=90)
     travel.add_argument('--manual-travel',action='store_true',help='no startup angle window; held input advances target, maximum 12 seconds')
-    parser.add_argument('--speed-deg-s',type=float,default=45)
+    parser.add_argument('--speed-deg-s',type=float)
+    parser.add_argument('--speed-trial', action='store_true', help='supported manual jog trial up to 10 deg/s')
+    parser.add_argument('--teach-file', type=Path, help='save fixture references and tuned raw goal offsets')
+    parser.add_argument('--stop-map', nargs=3, action='append', default=[],
+                        metavar=('DOF','MODEL_STOP_DEG','SIGNED_RAW_PER_MODEL'),
+                        help='measured stop mapping for A2/A3/A5; used on C')
     parser.add_argument('--report',type=Path)
     args=parser.parse_args(argv)
+    if args.speed_deg_s is None:
+        args.speed_deg_s=SUPPORTED_JOG_DEG_S if args.supported or args.teach_file else 45
+    if args.speed_trial and (not args.supported or not args.manual_travel or args.teach_file):
+        parser.error('--speed-trial requires --supported --manual-travel in a separate jog session')
+    if args.teach_file and (not args.plan or not args.manual_travel or
+                            (args.execute and not args.supported) or args.speed_deg_s>SUPPORTED_JOG_DEG_S):
+        parser.error('Teaching requires --plan --manual-travel, speed <=5 deg/s, and supported hardware')
+    if args.teach_file and args.report and args.teach_file.resolve() == args.report.resolve():
+        parser.error('Use different paths for --teach-file and --report')
+    if args.stop_map and not args.teach_file:parser.error('--stop-map requires --teach-file')
     if args.execute and (not (args.unloaded or args.supported) or args.plan is None):
         parser.error('Hardware requires --plan and either --unloaded or --supported')
     if not math.isfinite(args.speed_deg_s) or not 0<args.speed_deg_s<=45:
         parser.error('--speed-deg-s must be >0 and <=45')
-    if args.supported and ((not args.manual_travel and not 0<args.window_deg<=3) or args.speed_deg_s>5):
-        parser.error('--supported requires --manual-travel or --window-deg <=3, and --speed-deg-s <=5')
+    cap=TRIAL_JOG_DEG_S if args.speed_trial else SUPPORTED_JOG_DEG_S
+    if args.supported and ((not args.manual_travel and not 0<args.window_deg<=3) or args.speed_deg_s>cap):
+        parser.error(f'--supported requires manual travel or a window <=3°, and speed <={cap} deg/s')
     from PyQt5 import QtWidgets
     app=QtWidgets.QApplication.instance() or QtWidgets.QApplication([sys.argv[0]])
     if args.execute and args.report is None:
         args.report=Path('build/arm_tests')/f'keyboard-{time.time_ns()}.json'
     port=None;window=None;error=None;result=2
     try:
-        plan=json.loads(args.plan.read_text()) if args.plan else None
-        if plan:validate_plan(plan,all_motors=True)
-        joints=active_joints(plan) if plan else tuple(range(1,7))
+        plan, joints = read_arm_plan(args.plan)
+        teach=None
+        if args.teach_file:
+            from robot_description.paths import model_directory
+            model = model_directory() / 'initial_pose.json'
+            teach = PoseTeach(args.teach_file, model, plan, not args.execute, args.stop_map)
         if args.execute:
             plan['fixture_confirmed']=True
             plan['fixture_mode']='supported' if args.supported else 'unloaded'
             plan['supported_confirmed']=bool(args.supported)
             port=ArmPositionPort(plan,port=args.port,window_degrees=None if args.manual_travel else args.window_deg,
-                                 allow_faulted_start=True)
+                                 allow_faulted_start=True,speed_trial=args.speed_trial)
         else:port=SimulatedPositionPort(window_degrees=None if args.manual_travel else args.window_deg,available_joints=joints)
         window=make_window(port,'HARDWARE (SUPPORTED)' if args.execute and args.supported else
                            'HARDWARE (UNLOADED)' if args.execute else 'SIMULATION',speed_deg_s=args.speed_deg_s,
-                           recovery_report_path=args.report)
+                           recovery_report_path=args.report,teach=teach)
         window.show();app.exec_();result=1 if window.keys.failed else 0
     except KeyboardInterrupt:error='Interrupted';result=130
     except Exception as exc:error=str(exc)

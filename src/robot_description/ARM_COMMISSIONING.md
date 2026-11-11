@@ -1,6 +1,6 @@
 # Arm hardware commissioning handoff
 
-Updated 2026-11-10. Current operator/agent status:
+Updated 2026-11-11. Current operator/agent status:
 [ARM_SESSION_HANDOFF.md](../../docs/ARM_SESSION_HANDOFF.md). This document owns
 hardware mapping and calibration context; it is not an executable profile.
 
@@ -8,9 +8,10 @@ hardware mapping and calibration context; it is not an executable profile.
 
 The operator verified manual movement of all five active **A2–A6** motors on
 2026-11-10. A1 is omitted from `config/arm_rig_a2_a6.json` while the operator
-builds a base that permits A1 rotation. Next: commission A1 in that fixture,
-implement measured motor-position initialization and identify joint travel,
-then qualify faster commanded movement. See **SUPPORT-01, CAL-01, SPEED-01 and
+builds a base that permits A1 rotation. Select `config/arm_rig_a1_a6.json`
+only for that supported six-axis fixture. Use the [tester guide and joint
+reference table](../../docs/ARM_POSE_TEST.md) for hand placement, model
+targets, trimming, and staged speed trials. See **SUPPORT-01, CAL-01, SPEED-01 and
 DEPLOY-01** in [the open-work registry](../../docs/ARM_LAYER_TODOS.md).
 
 All six motors previously passed the saved 14-stage unloaded group/individual
