@@ -22,6 +22,7 @@ prevent treating successful simulation as validated hardware dynamics.
 | `.venv/bin/python scripts/preview_native.py --renderer gpu` | Static posing with native Joint panels; never steps physics |
 | `.venv/bin/python scripts/preview_arm_sweep.py` | Kinematic DOF1–6 clearance scans and automatic playback; see [collision study](ARM_COLLISION_STUDY.md) |
 | `.venv/bin/python scripts/preview_sim.py` | Full physics, wall magnets, wheel driving, arm targets, terrain menu and telemetry |
+| `.venv/bin/python scripts/preview_weave.py --loop` | [Shape 1 weave](../src/simulation/simulation/controllers/README.md) with driven wheels, wrist weave and the 45° gun mounted half a turn in its clamp |
 | `.venv/bin/python scripts/preview_arm.py` | Optional isolated arm dynamics: fixed chassis, no gravity or contact |
 | `.venv/bin/python -m mujoco.viewer --mjcf=src/robot_description/mujoco/scene.xml` | Stock MuJoCo; no custom magnets or static linkage solver |
 | `scripts/run_motor_viewer.sh` | Read-only wheel encoder display, not full physics or arm feedback |

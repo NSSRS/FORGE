@@ -12,7 +12,7 @@ from unittest.mock import patch
 from robot_description.paths import model_directory
 
 ROOT = Path(__file__).resolve().parents[1]
-ENTRIES = ('preview_native', 'preview_sim', 'preview_arm', 'preview_arm_sweep', 'terrain', 'export_onshape', 'integrate_sim')
+ENTRIES = ('preview_native', 'preview_sim', 'preview_arm', 'preview_arm_sweep', 'preview_weave', 'terrain', 'export_onshape', 'integrate_sim')
 
 
 class ModelingLayoutTests(unittest.TestCase):

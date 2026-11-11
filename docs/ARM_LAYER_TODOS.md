@@ -151,6 +151,16 @@ Pocket physical acceptance still needs:
 - [ ] Transmitter-off, receiver-power, USB-loss and reconnection tests. Fresh CSV
   cannot identify hold-last RF failsafe; retain sample deadlines and fresh priming.
 
+### WEAVE-01 — flat-ground coordinated weave experiment
+
+- [ ] Check whether the installed gun can be clocked 180° in the DOF6 clamp,
+  including cable clearance and payload. The centered 45° simulation with that
+  mounting drives the cart and tracks the full width at 1–3 Hz. Review observed
+  edge overshoot and agree on tolerances before physical trials.
+  Use the [simulation controller and tester guide](../src/simulation/simulation/controllers/README.md).
+  Record the accepted amplitude, feed and tracking tolerance for the intended seam.
+  Physical pose teaching and A6 speed trials remain under CAL-01 and SPEED-01.
+
 ### DEPLOY-01 — fixture, configuration and evidence
 
 Owner: bringup/commissioning and `src/robot_description/ARM_COMMISSIONING.md`.
