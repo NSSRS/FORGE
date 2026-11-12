@@ -126,6 +126,21 @@ frame; do not promise it clears a latched drive error.
 
 ## Deferred motion issue — A1/A4/A5/A6 jitter while jogging
 
+The original scratch analysis is now versioned as `motors.arm_jitter_report`,
+with the portable entry point `scripts/analyze_arm_jitter.py`. To reproduce its
+JSON/CSV from the original local session report, run:
+
+```bash
+python3 scripts/analyze_arm_jitter.py \
+  build/arm_tests/group-hold-20261112-165434/holding.json \
+  --output-dir build/arm_tests/jitter-analysis
+```
+
+This is a historical analysis, including that trial's operator observations and
+hypotheses. It verifies the original report hash before applying those notes;
+it does not diagnose other runs or access hardware. Full motion traces remain
+local under ignored build directories.
+
 The operator ran group hold and reports steady stationary holding, smooth A2/A3
 travel, and jitter on A1/A4/A5/A6 during continuous jogging. Saved physical run:
 `build/arm_tests/group-hold-20261112-165434/holding.json`. It ended with disable

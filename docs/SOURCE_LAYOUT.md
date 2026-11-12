@@ -139,6 +139,7 @@ generated. Rebuild the affected ROS package after changing an installed asset.
 | Explicit group holding and selection without torque disable | [src/motors/arm_group_hold.py](../src/motors/arm_group_hold.py), exercised by [tests/test_arm_group_hold.py](../tests/test_arm_group_hold.py) |
 | Guided raw bounds and initial-position capture from cached group feedback | [src/motors/arm_capture.py](../src/motors/arm_capture.py), `jog_dm_arm.py --capture-file`, exercised by [tests/test_arm_capture.py](../tests/test_arm_capture.py) |
 | Portable eight-position recording launcher | [scripts/record_arm_positions.sh](../scripts/record_arm_positions.sh) |
+| Historical saved-report jitter analysis (no hardware access) | [src/motors/arm_jitter_report.py](../src/motors/arm_jitter_report.py), [scripts/analyze_arm_jitter.py](../scripts/analyze_arm_jitter.py) |
 | Recorded raw references and original sample evidence | [2026-11-12 reference JSON](../src/robot_description/config/arm_reference_positions_2026-11-12.json), [capture evidence](measurements/arm-reference-2026-11-12.capture.json); observation only, not runtime limits |
 | Optional 2 ms jog target slew with immediate release/hold | [src/damiao_firmware/src/arm.c](../src/damiao_firmware/src/arm.c), [tests/damiao_smooth_jog_test.c](../tests/damiao_smooth_jog_test.c), [tests/test_arm_smooth_jog.py](../tests/test_arm_smooth_jog.py) |
 | A2–A6 selection, motor IDs/routes and fixture test envelope | [src/robot_description/config/arm_rig_a2_a6.json](../src/robot_description/config/arm_rig_a2_a6.json) |
