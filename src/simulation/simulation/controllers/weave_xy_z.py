@@ -27,8 +27,8 @@ WIRE_AXIS = (0, -1, -1)  # nozzle-to-tip direction of the APW503 wire in the D6 
 WIRE_GAP = .002  # wire tip above the actual wheel-contact floor, m
 SEAM_XY = (-.440, 0.)  # DOF1-zero centerline, m
 SEAM_WIDTH = .020  # edge to edge, m
-TARGET_WIRE = np.array([-1., 0., -1.]) / np.sqrt(2)  # away from mount, down 45°
-POSE_GAIN = 260.  # resolved-rate pose feedback, per second
+WIRE_TO_FLOOR_DEG = 80.  # flat butt joint, 10° drag along +X travel
+POSE_GAIN = 400.  # resolved-rate pose feedback, per second
 WHEEL_RADIUS = .040  # nominal rolling radius, m
 
 
@@ -40,7 +40,15 @@ def reference(t, origin, hz, amplitude, speed):
     return position, np.array([speed, amplitude * hz * slope, 0])
 
 
-def floor_scene(seam_length=.072, gun_mount="reversed"):
+def wire_direction(floor_angle_deg):
+    pitch = np.deg2rad(floor_angle_deg)
+    return np.array([-np.cos(pitch), 0., -np.sin(pitch)])
+
+
+TARGET_WIRE = wire_direction(WIRE_TO_FLOOR_DEG)
+
+
+def floor_scene(seam_length=.072):
     spec = mj.MjSpec.from_file(str(MODEL_DIR / "scene.xml"))
     if sys.platform == "win32":
         # Python opens the Unicode CAD filenames on NTFS and WSL shares.
@@ -54,19 +62,8 @@ def floor_scene(seam_length=.072, gun_mount="reversed"):
         pos=[x + seam_length/2, y, 0], size=[seam_length/2, SEAM_WIDTH/2, .00003],
         rgba=[.70, .47, .22, 1])
     tool = spec.body("l6_arm_linkage_d6")
-    tip = tool.add_site(
+    tool.add_site(
         name="wire_tip", pos=WIRE_TIP, zaxis=WIRE_AXIS, size=[.001, 0, 0], rgba=[0, .9, .6, 1])
-    if gun_mount == "reversed":
-        # Half-turn about the APW503 barrel centerline at local Y=111 mm.
-        frame = tool.add_frame(pos=[0, .222, 0], quat=[0, 0, 0, 1])
-        tip.set_frame(frame)
-        spec.delete(spec.geom("body_20_l6_arm_linkage_d6"))
-        for geom in tool.geoms:
-            geom.group = 2  # render the same CAD parts used for contact
-            if "apw503" in geom.meshname:
-                geom.set_frame(frame)
-    elif gun_mount != "cad":
-        raise ValueError("gun mount must be cad or reversed")
     # Resolve the rigid rod over two physics steps to limit numerical stretch under gravity.
     rod_constraint = next(eq for eq in spec.equalities if eq.name1 == "closing_b4_2_arm_rod_d3_1")
     spec.option.timestep = .001
@@ -76,10 +73,10 @@ def floor_scene(seam_length=.072, gun_mount="reversed"):
     mj.mj_resetDataKeyframe(model, data, model.key("terrain_spawn").id)
     # Rotate CAD forward/left/outward (+Z/+X/+Y) onto world +X/+Y/+Z.
     height = data.qpos[1] - wall_face
-    data.qpos[:3] = [-.020 if gun_mount == "reversed" else .020, 0, height]
+    data.qpos[:3] = [0, 0, height]
     mj.mju_mulQuat(data.qpos[3:7], np.full(4, .5), data.qpos[3:7].copy())
     closure = ArmClosure(model, data)
-    pose = [0, 20, 11, 0, -9, 0] if gun_mount == "reversed" else [0, 20, -18, 0, 78, 0]
+    pose = [0, 20, -18, 0, 78, 0]
     for name, angle in zip(ARM_DRIVES, np.deg2rad(pose)):
         data.joint(name).qpos[0] = data.actuator(name + "_target").ctrl[0] = angle
     if not closure.apply(data):
@@ -194,7 +191,7 @@ class ArmTracker:
         angle_error = np.cross(wire, self.target_wire)
         twist = np.r_[velocity + POSE_GAIN * (target - data.site_xpos[self.tip]), POSE_GAIN * angle_error]
         twist -= jac[:, :6] @ data.qvel[:6]  # subtract measured floating-base motion
-        # Control pitch and heading. Roll about the wire is free, and D1 holds zero.
+        # Control the fixed tool's wire direction with the arm joints. D1 holds zero.
         tangent = np.eye(3) - np.outer(wire, wire)
         arm_jac[3:] = tangent @ arm_jac[3:]
         twist[3:] = tangent @ twist[3:]
@@ -226,10 +223,10 @@ def draw_traces(scene, rows, hz, dt):
             line(scene, a, b, color, width)
 
 
-def preview_plan(hz, amplitude, speed, cycles, show=False, loop=False, gun_mount="reversed", target_wire=TARGET_WIRE):
+def preview_plan(hz, amplitude, speed, cycles, show=False, loop=False, target_wire=TARGET_WIRE):
     """Show the commanded path with the CAD arm held at the centered fit."""
     duration = cycles / hz
-    model, data = floor_scene(speed * duration, gun_mount)
+    model, data = floor_scene(speed * duration)
     origin = np.array([*SEAM_XY, data.geom("preview_floor").xpos[2] + WIRE_GAP])
     data, blocked = centered_start(model, data, origin, target_wire)
     print(blocked or "Centered start is reachable.", flush=True)
@@ -258,8 +255,8 @@ def preview_plan(hz, amplitude, speed, cycles, show=False, loop=False, gun_mount
             time.sleep(.02)
 
 
-def run(hz, amplitude, speed, cycles, show=False, loop=False, gun_mount="reversed", target_wire=TARGET_WIRE):
-    model, data = floor_scene(speed * cycles / hz, gun_mount)
+def run(hz, amplitude, speed, cycles, show=False, loop=False, target_wire=TARGET_WIRE):
+    model, data = floor_scene(speed * cycles / hz)
     base = model.body("body").id
     wheels = [model.actuator(j + "_velocity").id for j in DRIVEN_JOINTS]
     wheel_dofs = model.jnt_dofadr[model.actuator_trnid[wheels, 0]]
@@ -317,7 +314,7 @@ def run(hz, amplitude, speed, cycles, show=False, loop=False, gun_mount="reverse
                 raise RuntimeError(f"Unstable simulation at {t:.3f} s")
             if render and step % 20 == 0:
                 sample = rows[-1]
-                labels = f"Gun mount: {gun_mount}   |   {hz:g} Hz\nCart travel\nWire tip Y\nDOF6\nWire to floor"
+                labels = f"Fixed CAD mount   |   {hz:g} Hz\nCart travel\nWire tip Y\nDOF6\nWire to floor"
                 values = (f"{amplitude*2000:g} mm weave\n{(sample[7] - base_x) * 1000:.1f} mm\n"
                           f"{sample[5] * 1000:+.1f} mm\n{sample[19]:+.1f} deg\n{tilt:.2f} deg")
                 if not render(data, lambda scene: draw_traces(scene, rows, hz, dt), labels, values):
@@ -335,21 +332,21 @@ def main():
     parser.add_argument("--view", action="store_true", help="show one pass in the MuJoCo window")
     parser.add_argument("--loop", action="store_true", help="open the viewer and repeat until closed")
     parser.add_argument("--plan", action="store_true", help="inspect requested path with the CAD arm stationary")
-    parser.add_argument("--gun-mount", choices=("reversed", "cad"), default="reversed",
-                        help="clock the gun 180 degrees in its clamp, or use the original CAD assembly")
-    parser.add_argument("--work-angle-deg", type=float, default=45, help="outward wire inclination to the floor")
+    parser.add_argument("--gun-mount", choices=("cad",), help=argparse.SUPPRESS)
+    parser.add_argument("--wire-to-floor-deg", "--work-angle-deg", type=float, default=WIRE_TO_FLOOR_DEG,
+                        help="wire inclination in the seam's longitudinal plane (default 80 degrees)")
     parser.add_argument("--csv", help="write world-frame targets, measured tip, base and wheel rates")
     args = parser.parse_args()
     if not (1 <= args.hz <= 3 and 0 <= args.amplitude_mm <= 1000 * SEAM_WIDTH/2
             and 0 < args.speed_mm_s < np.inf and args.cycles > 0):
         parser.error("use 1–3 Hz, amplitude 0–10 mm, positive finite feed, and at least one cycle")
-    if not 0 < args.work_angle_deg <= 90:
-        parser.error("work angle must be greater than zero and at most 90 degrees")
-    pitch = np.deg2rad(args.work_angle_deg)
-    wire = np.array([-np.cos(pitch), 0., -np.sin(pitch)])
-    print(f"Simulated gun mount: {args.gun_mount} | requested wire angle: {args.work_angle_deg:g} deg", flush=True)
+    if not 0 < args.wire_to_floor_deg <= 90:
+        parser.error("wire inclination must be greater than zero and at most 90 degrees")
+    wire = wire_direction(args.wire_to_floor_deg)
+    print(f"Fixed CAD gun | wire to floor {args.wire_to_floor_deg:g} deg | "
+          f"travel angle {90 - args.wire_to_floor_deg:g} deg drag", flush=True)
     options = (args.hz, args.amplitude_mm / 1000, args.speed_mm_s / 1000, args.cycles,
-               args.view, args.loop, args.gun_mount, wire)
+               args.view, args.loop, wire)
     if args.plan:
         if args.csv:
             parser.error("--csv records measured motion and cannot be used with --plan")

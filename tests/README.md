@@ -7,7 +7,7 @@ skip when those dependencies are unavailable; a passing CTest run alone does
 not establish that those optional cases ran.
 
 - `encos_protocol_test.c`: query/position/velocity codec vectors and malformed frames.
-- `test_weave_xy_z.py`: floor seam, two gun mountings, measured 1–3 Hz wheel and wrist motion, and repeat playback. Run with `.venv/bin/python -m unittest discover -s tests -p test_weave_xy_z.py`.
+- `test_weave_xy_z.py`: centered floor seam, fixed CAD gun, measured 1–3 Hz wheel and wrist motion, and repeat playback. Run with `.venv/bin/python -m unittest discover -s tests -p test_weave_xy_z.py`.
 - `test_imu_viewer.py`: orientation rotation, invalid/replayed/stale sample rejection.
 - `test_system_test_wrapper.py`: hardware-default elevation, explicit simulation, and CLI override checks using stub commands (no motor access).
 - `test_system_test_launch.py`: physical-motor confirmation, separate Ethernet and serial-port guards.

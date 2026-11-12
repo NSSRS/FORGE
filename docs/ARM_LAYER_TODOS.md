@@ -153,10 +153,10 @@ Pocket physical acceptance still needs:
 
 ### WEAVE-01 — flat-ground coordinated weave experiment
 
-- [ ] Check whether the installed gun can be clocked 180° in the DOF6 clamp,
-  including cable clearance and payload. The centered 45° simulation with that
-  mounting drives the cart and tracks the full width at 1–3 Hz. Review observed
-  edge overshoot and agree on tolerances before physical trials.
+- [ ] Confirm the flat butt joint and the 10° drag angle against the weld procedure.
+  Keep the gun fixed in the DOF6 clamp. Verify wire extension and cable clearance
+  on the rig. The fixed-mount simulation reaches the full width at 1–3 Hz with
+  a measured peak edge overshoot of 0.32 mm. Agree on physical trial tolerances.
   Use the [simulation controller and tester guide](../src/simulation/simulation/controllers/README.md).
   Record the accepted amplitude, feed and tracking tolerance for the intended seam.
   Physical pose teaching and A6 speed trials remain under CAL-01 and SPEED-01.

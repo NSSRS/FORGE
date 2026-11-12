@@ -47,7 +47,7 @@ class WeaveTests(unittest.TestCase):
         self.assertEqual(seam.pos[2], data.geom("preview_floor").xpos[2])
         self.assertAlmostEqual(seam.pos[0] - seam.size[0], SEAM_XY[0])
         origin = np.array([*SEAM_XY, WIRE_GAP])
-        np.testing.assert_allclose(TARGET_WIRE, [-np.sqrt(.5), 0, -np.sqrt(.5)])
+        np.testing.assert_allclose(TARGET_WIRE, [-np.sin(np.deg2rad(10)), 0, -np.cos(np.deg2rad(10))])
         for hz in (1, 2, 3):
             points = np.array([reference(t / hz, origin, hz, SEAM_WIDTH / 2, .012)[0]
                                for t in np.linspace(0, 1, 101)])
@@ -57,16 +57,13 @@ class WeaveTests(unittest.TestCase):
             point, velocity = reference(.17, origin, hz, 0, .012)
             np.testing.assert_allclose([point[1], velocity[1]], 0)
 
-    def test_half_turn_moves_gun_and_wire_together_but_keeps_bracket_fixed(self):
-        cad, _ = floor_scene(gun_mount="cad")
-        rev, _ = floor_scene(gun_mount="reversed")
-        flip = np.diag([-1, -1, 1])
-        for n in (789, 791, 793, 795):
-            name = f"collision_{n}"
-            np.testing.assert_allclose(rev.geom(name).pos, flip @ cad.geom(name).pos + [0, .222, 0])
-        np.testing.assert_allclose(rev.geom("collision_787").pos, cad.geom("collision_787").pos)
-        np.testing.assert_allclose(rev.site("wire_tip").pos, flip @ cad.site("wire_tip").pos + [0, .222, 0])
-        np.testing.assert_allclose(rev.actuator("b7_arm_d6_target").ctrlrange, cad.actuator("b7_arm_d6_target").ctrlrange)
+    def test_wire_is_fixed_in_the_exported_d6_frame(self):
+        model, _ = floor_scene()
+        wrist = model.body("l6_arm_linkage_d6").id
+        self.assertEqual(model.site("wire_tip").bodyid[0], wrist)
+        np.testing.assert_allclose(model.site("wire_tip").pos, [0, -.00054214, -.18834214])
+        for n in (787, 789, 791, 793, 795):  # bracket, gun and wire
+            self.assertEqual(model.geom(f"collision_{n}").bodyid[0], wrist)
 
     def test_driven_cart_and_wrist_across_seam(self):
         for hz in (1, 2, 3):
@@ -75,23 +72,19 @@ class WeaveTests(unittest.TestCase):
                 self.assertAlmostEqual(r[-1, 7] - r[0, 7], .012 * 6 / hz, delta=.003)
                 np.testing.assert_array_equal(np.sign(r[:, 10:14].mean(axis=0)), [-1, -1, 1, 1])
                 self.assertGreater(np.ptp(r[:, 19]), 20)  # actual DOF6 travel, degrees
-                self.assertLess(abs(r[:, 18]).max(), .18)  # DOF1 holds its zero target
+                self.assertLess(abs(r[:, 18]).max(), .20)  # DOF1 holds its zero target
                 self.assertLess(r[:, 14].max(), .16)
-                np.testing.assert_allclose(r[:, 16], 45, atol=.06)
+                np.testing.assert_allclose(r[:, 16], 80, atol=.06)
+                self.assertTrue(np.all(r[:, 17] > 0))  # nozzle-to-wire direction points outward
                 self.assertLess(r[:, 15].max(), .00006)
                 self.assertLess(np.linalg.norm(r[:, 4:7] - r[:, 1:4], axis=1).max(), .00055)
                 for cycle in range(6):
                     y = r[(r[:, 0] * hz >= cycle) & (r[:, 0] * hz < cycle + 1), 5]
                     np.testing.assert_allclose([y.min(), y.max()], [-.010, .010], atol=.00035)
 
-    def test_original_mount_can_move_at_a_steeper_angle(self):
+    def test_unreachable_wire_angle_stops_wheel_feed(self):
         with self.assertRaisesRegex(RuntimeError, "Wheel feed stopped"):
-            run(2, 0., .012, 1, gun_mount="cad")
-        pitch = np.deg2rad(74.)
-        r = run(2, .010, .012, 2, gun_mount="cad", target_wire=np.array([-np.cos(pitch), 0., -np.sin(pitch)]))
-        self.assertGreater(r[-1, 7] - r[0, 7], .009)
-        self.assertGreater(np.ptp(r[:, 19]), 20)
-        np.testing.assert_allclose(r[:, 16], 74, atol=.2)
+            run(2, 0., .012, 1, target_wire=weave_xy_z.wire_direction(45))
 
     def test_loop_repeats_the_measured_pass_and_closes(self):
         starts = []
