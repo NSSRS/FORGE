@@ -21,7 +21,7 @@
       "lower_rad": -12.5,
       "upper_rad": 12.5,
       "speed_rad_s": 0.08726646259971647,
-      "speed_trip_rad_s": 0.3,
+      "speed_trip_rad_s": 1.5,
       "torque_trip_nm": 20,
       "delta_degrees": 2
     },

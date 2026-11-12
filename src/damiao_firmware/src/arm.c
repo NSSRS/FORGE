@@ -83,8 +83,12 @@ bool arm_prepare_routed(arm_controller *a,unsigned i,const arm_config *c,uint8_t
        These are configuration ceilings, not current clamps or permission to
        apply rated torque to an assembled linkage. Profiles may choose less. */
     const bool manual_travel=(mode & ARM_ROUTED_MANUAL_TRAVEL)!=0;
-    mode &= (uint8_t)~ARM_ROUTED_MANUAL_TRAVEL;
+    const bool position_hold=(mode & ARM_ROUTED_POSITION_HOLD)!=0;
+    const bool group_hold=(mode & ARM_ROUTED_GROUP_HOLD)!=0;
+    mode &= (uint8_t)~(ARM_ROUTED_MANUAL_TRAVEL | ARM_ROUTED_POSITION_HOLD | ARM_ROUTED_GROUP_HOLD);
     if(manual_travel && mode!=2) return false;
+    if(position_hold && (!manual_travel || mode!=2)) return false;
+    if(group_hold && !position_hold) return false;
     const float max_speed=model==1?10.4719755f:model==3?12.5663706f:1.5f;
     const float max_torque=model==1?20.0f:model==3?3.5f:12.0f;
     if(i>=ARM_COUNT || a->id_commissioning || a->fault || busy(a) || a->diagnostic.state==1 ||
@@ -104,6 +108,8 @@ bool arm_prepare_routed(arm_controller *a,unsigned i,const arm_config *c,uint8_t
     if(!arm_configure(a,i,c)) { a->bench=old_bench; a->routed_bench=old_routed; return false; }
     a->joints[i].bench_mode=mode; a->joints[i].model=model;
     a->joints[i].manual_travel=manual_travel;
+    a->joints[i].position_hold=position_hold;
+    a->joints[i].group_hold=group_hold;
     return true;
 }
 bool arm_routed_write(arm_controller *a,unsigned i,uint8_t reg,uint32_t value,uint32_t now) {
@@ -221,6 +227,7 @@ static bool special(arm_controller *a, arm_joint *j, uint8_t code) {
 void arm_stop(arm_controller *a) {
     for(unsigned i=0;i<ARM_COUNT;i++) if(a->joints[i].configured) {
         arm_joint *j=&a->joints[i]; j->enabled=false; j->enable_confirmed=false; j->command_seen=false;
+        j->smooth_jog=false;
         j->stopping=true; j->probing=false; j->feedback_seen=false;
     }
 }
@@ -258,13 +265,30 @@ bool arm_set(arm_controller *a,unsigned i,const dm_command *c,uint32_t now) {
     if(j->enabled && !j->enable_confirmed &&
        (c->p!=j->cmd.p || c->v!=(posvel(a,j)?j->cmd.v:0) || c->t!=0 || c->kp!=j->cmd.kp || c->kd!=j->cmd.kd)) return false;
     if(posvel(a,j) && fabsf(c->p-j->p)>(a->routed_bench?3.2f:1.0f)) return false;
-    j->cmd=*c; j->command_at=now; j->command_seen=true; return true;
+    j->cmd=*c; j->command_at=now; j->command_seen=true;
+    j->smooth_jog=false; /* Release/hold commands bypass the jog slew. */
+    return true;
+}
+bool arm_set_smooth(arm_controller *a,unsigned i,const dm_command *c,uint32_t now) {
+    if(i>=ARM_COUNT) return false;
+    arm_joint *j=&a->joints[i];
+    /* Only explicit, already-confirmed manual holding sessions may ramp.
+       Keep the operator-requested 10 deg/s ceiling separate from speed trips. */
+    if(!a->routed_bench || !j->position_hold || !j->manual_travel || j->bench_mode!=2 ||
+       !j->enabled || !j->enable_confirmed || !bounded(c->v,0.001f,0.17453294f)) return false;
+    if(!arm_set(a,i,c,now)) return false;
+    j->smooth_jog=true;
+    return true;
 }
 static bool can_enable(arm_controller *a,unsigned i,uint32_t now) {
     if(i>=ARM_COUNT || a->id_commissioning || a->fault || a->diagnostic.state==1) return false;
     /* Keep register polling out of the loaded control bus. */
     for(unsigned k=0;k<ARM_COUNT;k++) if(a->joints[k].probing) return false;
     arm_joint *j=&a->joints[i];
+    /* Single-axis hold cannot be mixed with another active axis. */
+    for(unsigned k=0;k<ARM_COUNT;k++) if(k!=i && a->joints[k].enabled &&
+        (j->position_hold || a->joints[k].position_hold) &&
+        !(j->group_hold && a->joints[k].group_hold)) return false;
     if(!j->configured || j->enabled || j->stopping || j->registers!=31 || !j->command_seen ||
        now-j->command_at>=ARM_LEASE_MS || !j->feedback_seen || now-j->feedback_at>=ARM_FEEDBACK_MS ||
        j->status!=0 || fabsf(j->cmd.p-j->p)>0.05f || (!posvel(a,j) && j->cmd.v!=0) || j->cmd.t!=0) return false;
@@ -274,23 +298,39 @@ static bool can_enable(arm_controller *a,unsigned i,uint32_t now) {
        j->cfg.hi-j->cfg.lo>(a->routed_bench?3.25f:1.1f)) return false;
     return true;
 }
-bool arm_enable(arm_controller *a,unsigned i,uint32_t now) {
+static bool enable_slot(arm_controller *a,unsigned i,uint32_t now) {
     if(!can_enable(a,i,now)) return false;
     arm_joint *j=&a->joints[i];
     /* Preload a bounded command while disabled before enabling. */
     uint8_t d[8]; if(!pack_command(a,j,&j->cmd,d)) return false;
     if(!tracked_send(a,j->cfg.bus,command_id(a,j),d,8)) { arm_fault(a,5,i,now); return false; }
+    j->sent_position=j->cmd.p; j->smooth_jog=false;
     j->enable_confirmed=false; j->enabled=true; j->enabled_at=now;
     if(!special(a,j,0xfc)) { arm_fault(a,5,i,now); return false; }
     if(a->fault || !j->enabled) return false;
     if(a->bench) a->bench_enabled_at=now;
     j->enabled=true; j->enabled_at=now; return true;
 }
+bool arm_enable(arm_controller *a,unsigned i,uint32_t now) {
+    if(i>=ARM_COUNT) return false;
+    for(unsigned k=0;k<ARM_COUNT;k++)
+        if(a->joints[k].configured && a->joints[k].group_hold) return false;
+    return enable_slot(a,i,now);
+}
 bool arm_enable_group(arm_controller *a,uint8_t mask,uint32_t now) {
     if(!a->routed_bench || mask==0 || (mask & ~63u)) return false;
+    uint8_t configured=0,group=0;
+    for(unsigned i=0;i<ARM_COUNT;i++) if(a->joints[i].configured) {
+        configured |= 1u<<i;
+        if(a->joints[i].group_hold) group |= 1u<<i;
+    }
+    /* Never energize a partial or mixed hold group. All preloads must pass. */
+    if(group && (group!=configured || mask!=group)) return false;
+    for(unsigned i=0;i<ARM_COUNT;i++) if((mask & (1u<<i)) && a->joints[i].position_hold && !a->joints[i].group_hold &&
+        (mask & (mask-1u))) return false;
     /* Validate every selected slot before sending the first enable frame. */
     for(unsigned i=0;i<ARM_COUNT;i++) if((mask & (1u<<i)) && !can_enable(a,i,now)) return false;
-    for(unsigned i=0;i<ARM_COUNT;i++) if((mask & (1u<<i)) && !arm_enable(a,i,now)) {
+    for(unsigned i=0;i<ARM_COUNT;i++) if((mask & (1u<<i)) && !enable_slot(a,i,now)) {
         arm_fault(a,5,i,now); return false;
     }
     return true;
@@ -322,13 +362,24 @@ void arm_tick(arm_controller *a,uint32_t now) {
             if(j->registers==31) j->probing=false;
         }
         if(!j->enabled) continue;
-        if(a->routed_bench && now-j->enabled_at>=15000u) { arm_fault(a,10,i,now); return; }
+        if(a->routed_bench && !j->position_hold && now-j->enabled_at>=15000u) { arm_fault(a,10,i,now); return; }
         if(!j->command_seen || now-j->command_at>=ARM_LEASE_MS) { arm_fault(a,1,i,now); return; }
         if(!j->feedback_seen || now-j->feedback_at>=ARM_FEEDBACK_MS) { arm_fault(a,2,i,now); return; }
         if(!j->enable_confirmed && now-j->enabled_at>=ARM_ENABLE_CONFIRM_MS) { arm_fault(a,3,i,now); return; }
         uint8_t d[8];
-        if(!pack_command(a,j,&j->cmd,d)) { arm_fault(a,4,i,now); return; }
+        dm_command command=j->cmd;
+        if(j->smooth_jog) {
+            /* Slew from the last transmitted target, never from noisy feedback.
+               No extrapolation beyond the host endpoint, lease renewal or
+               catch-up jump after a late tick. CAN rate remains 500 Hz. */
+            float step=command.v*(ARM_CONTROL_PERIOD_MS*0.001f);
+            float delta=command.p-j->sent_position;
+            if(delta>step) command.p=j->sent_position+step;
+            else if(delta< -step) command.p=j->sent_position-step;
+        }
+        if(!pack_command(a,j,&command,d)) { arm_fault(a,4,i,now); return; }
         if(!tracked_send(a,j->cfg.bus,command_id(a,j),d,8)) { arm_fault(a,5,i,now); return; }
+        j->sent_position=command.p;
     }
 }
 void arm_receive(arm_controller *a,uint8_t bus,uint16_t id,const uint8_t *d,uint8_t len,uint32_t now) {

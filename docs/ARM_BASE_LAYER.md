@@ -36,6 +36,37 @@ remain separate work; see [current status](ARM_SESSION_HANDOFF.md).
 
 ## CAN capacity and information policy
 
+Optional `--smooth-jog` requires capability bit 18 (`0x40000`) and USB type 25,
+using the same slot + five-float payload as type 4. Only confirmed enabled,
+manual mode-2 holding accepts it. Capability bit 19 (`0x80000`) extends its
+ceiling from 5 to 10 deg/s for the requested holding-mode trial. The host checks
+this before H preloads/enables at 10 deg/s. It slews from the last
+transmitted target toward the host endpoint by at most `v × 2 ms` each tick;
+late ticks drop missed advancement and endpoints are never extrapolated.
+This keeps the existing 500 Hz CAN rate. Each accepted host command renews its
+150 ms lease; interpolation and telemetry never do. Type 4 cancels smoothing
+and applies the new target on the next tick, preserving immediate release/hold
+semantics. Stop/fault clears the ramp. This is a commissioning experiment,
+not acceleration planning or physical jitter qualification.
+
+The optional keyboard selected-joint hold path uses capability bit 16
+(`0x10000`) and routed configure mode flag `0x40` together with manual-travel
+flag `0x80` and mode 2. Those policy bits never reach the drive's CTRL_MODE.
+Only that explicitly configured path omits the 15-second bench cutoff; command
+and feedback leases, enable confirmation and all trip checks remain unchanged.
+Firmware rejects group enable or another enabled joint while this hold policy
+is active. The host holds one fixed measured release target and never treats
+telemetry as a command refresh. See [operator behavior](ARM_RIG_TEST.md#optional-selected-joint-position-hold).
+
+Explicit group hold adds capability bit 17 (`0x20000`) and policy flag `0x20`
+alongside those existing flags. Firmware permits only the complete configured
+group, with every preload/freshness/enable check passing before the first enable;
+individual enable and mixed policies are rejected. The host group adapter owns
+all fixed targets and refreshes all leases, moving only the selected target.
+Selection preserves torque and revokes jog authorization. A fault on any joint
+still stops all joints. This is powered mode-2 holding, not a mechanical brake
+or the production ROS lifecycle; physical bus/load/thermal acceptance is pending.
+
 The recorded temporary topology is **A1 alone on CAN1; A2..A6 on CAN2**.
 The planned final topology is A1/CAN1, A2..A3/CAN2, A4..A6/CAN3. If a speaker
 calls the five-motor bus CAN1, confirm physical mapping before changing config.

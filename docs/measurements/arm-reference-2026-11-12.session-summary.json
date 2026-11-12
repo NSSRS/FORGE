@@ -1,0 +1,283 @@
+{
+  "source_report": "build/arm_tests/positions-20261112-185018-9RFbJ3/session.json",
+  "source_sha256": "dc6466e1f8a18e5b12b4293dcb09ece5886fc8bd17424593e21e79194b1179fc",
+  "note": "Selected original fields only. Complete position capture succeeded; final stationary-disable cleanup did not.",
+  "base_info": {
+    "api_version": 1,
+    "capabilities": 1048463,
+    "control_period_ms": 2,
+    "command_lease_ms": 150,
+    "feedback_timeout_ms": 100,
+    "enable_timeout_ms": 250,
+    "can_bitrate": 1000000,
+    "configured_mask": 63,
+    "id_session_locked": 0,
+    "build_id": 3592383766
+  },
+  "exit_code": 2,
+  "error": "Cleanup failed: Disable not confirmed: turn OFF motor PSU; fresh stationary disable acknowledgement failed; A2: speed -0.1685 rad/s; waiting for stationary shaft",
+  "disable_acknowledged": false,
+  "mode_restoration_verified": false,
+  "disable_timeout_states": {
+    "0": {
+      "fault": 0,
+      "enabled": 0,
+      "registers": 31,
+      "status": 0,
+      "mos_c": 30,
+      "rotor_c": 29,
+      "stopping": 0,
+      "age_ms": 4,
+      "position": -2.536240577697754,
+      "velocity": -0.010990142822265625,
+      "torque": -0.013187408447265625,
+      "pmax": 12.5,
+      "vmax": 45.0,
+      "tmax": 54.0,
+      "fault_reason": 0,
+      "fault_status": 0,
+      "fault_slot": 0,
+      "enable_flags": 0,
+      "fault_command_age_ms": 0,
+      "fault_feedback_age_ms": 0,
+      "fault_at_ms": 0
+    },
+    "1": {
+      "fault": 0,
+      "enabled": 0,
+      "registers": 31,
+      "status": 0,
+      "mos_c": 32,
+      "rotor_c": 31,
+      "stopping": 0,
+      "age_ms": 4,
+      "position": -1.9121465682983398,
+      "velocity": -0.16849803924560547,
+      "torque": 1.1692314147949219,
+      "pmax": 12.5,
+      "vmax": 10.0,
+      "tmax": 28.0,
+      "fault_reason": 0,
+      "fault_status": 0,
+      "fault_slot": 0,
+      "enable_flags": 0,
+      "fault_command_age_ms": 0,
+      "fault_feedback_age_ms": 0,
+      "fault_at_ms": 0
+    },
+    "2": {
+      "fault": 0,
+      "enabled": 0,
+      "registers": 31,
+      "status": 0,
+      "mos_c": 32,
+      "rotor_c": 35,
+      "stopping": 0,
+      "age_ms": 4,
+      "position": 1.3036928176879883,
+      "velocity": -0.0024423599243164062,
+      "torque": -0.0068378448486328125,
+      "pmax": 12.5,
+      "vmax": 10.0,
+      "tmax": 28.0,
+      "fault_reason": 0,
+      "fault_status": 0,
+      "fault_slot": 0,
+      "enable_flags": 0,
+      "fault_command_age_ms": 0,
+      "fault_feedback_age_ms": 0,
+      "fault_at_ms": 0
+    },
+    "3": {
+      "fault": 0,
+      "enabled": 0,
+      "registers": 31,
+      "status": 0,
+      "mos_c": 30,
+      "rotor_c": 30,
+      "stopping": 0,
+      "age_ms": 5,
+      "position": 3.127145767211914,
+      "velocity": -0.0073261260986328125,
+      "torque": -0.012209892272949219,
+      "pmax": 12.5,
+      "vmax": 30.0,
+      "tmax": 10.0,
+      "fault_reason": 0,
+      "fault_status": 0,
+      "fault_slot": 0,
+      "enable_flags": 0,
+      "fault_command_age_ms": 0,
+      "fault_feedback_age_ms": 0,
+      "fault_at_ms": 0
+    },
+    "4": {
+      "fault": 0,
+      "enabled": 0,
+      "registers": 31,
+      "status": 0,
+      "mos_c": 31,
+      "rotor_c": 30,
+      "stopping": 0,
+      "age_ms": 5,
+      "position": 0.24280929565429688,
+      "velocity": -0.0073261260986328125,
+      "torque": -0.0024423599243164062,
+      "pmax": 12.5,
+      "vmax": 30.0,
+      "tmax": 10.0,
+      "fault_reason": 0,
+      "fault_status": 0,
+      "fault_slot": 0,
+      "enable_flags": 0,
+      "fault_command_age_ms": 0,
+      "fault_feedback_age_ms": 0,
+      "fault_at_ms": 0
+    },
+    "5": {
+      "fault": 0,
+      "enabled": 0,
+      "registers": 31,
+      "status": 0,
+      "mos_c": 32,
+      "rotor_c": 29,
+      "stopping": 0,
+      "age_ms": 5,
+      "position": 1.1202030181884766,
+      "velocity": -0.0073261260986328125,
+      "torque": -0.0024423599243164062,
+      "pmax": 12.5,
+      "vmax": 30.0,
+      "tmax": 10.0,
+      "fault_reason": 0,
+      "fault_status": 0,
+      "fault_slot": 0,
+      "enable_flags": 0,
+      "fault_command_age_ms": 0,
+      "fault_feedback_age_ms": 0,
+      "fault_at_ms": 0
+    }
+  },
+  "capture_events": [
+    {
+      "at_monotonic_s": 10948.523635565,
+      "selected_joint": 1,
+      "message": "NOT SAVED \u2014 A1: Waiting for stationary holding: 0.16 / 0.50 s collected."
+    },
+    {
+      "at_monotonic_s": 10951.703820909,
+      "selected_joint": 1,
+      "message": "Saving A1 reference: raw -174.692\u00b0\u2026"
+    },
+    {
+      "at_monotonic_s": 10951.734206985,
+      "selected_joint": 1,
+      "message": "Saved A1 reference: raw -174.692\u00b0."
+    },
+    {
+      "at_monotonic_s": 10992.796017745,
+      "selected_joint": 2,
+      "message": "NOT SAVED \u2014 A2: Press Space to pause/hold before capturing."
+    },
+    {
+      "at_monotonic_s": 10996.524215587,
+      "selected_joint": 2,
+      "message": "Saving A2 CW extreme: raw -141.731\u00b0\u2026"
+    },
+    {
+      "at_monotonic_s": 10996.535411013,
+      "selected_joint": 2,
+      "message": "Saved A2 CW extreme: raw -141.731\u00b0."
+    },
+    {
+      "at_monotonic_s": 11055.417782177,
+      "selected_joint": 2,
+      "message": "NOT SAVED \u2014 A2: Press H to activate holding before capturing."
+    },
+    {
+      "at_monotonic_s": 11062.129471191,
+      "selected_joint": 2,
+      "message": "NOT SAVED \u2014 A2: Press H to activate holding before capturing."
+    },
+    {
+      "at_monotonic_s": 11067.118949644,
+      "selected_joint": 2,
+      "message": "Saving A2 CCW extreme: raw -3.115\u00b0\u2026"
+    },
+    {
+      "at_monotonic_s": 11067.133483561,
+      "selected_joint": 2,
+      "message": "Saved A2 CCW extreme: raw -3.115\u00b0."
+    },
+    {
+      "at_monotonic_s": 11119.936709563,
+      "selected_joint": 3,
+      "message": "NOT SAVED \u2014 A3: Press Space to pause/hold before capturing."
+    },
+    {
+      "at_monotonic_s": 11122.599610372,
+      "selected_joint": 3,
+      "message": "Saving A3 CW extreme: raw +152.922\u00b0\u2026"
+    },
+    {
+      "at_monotonic_s": 11122.611616415,
+      "selected_joint": 3,
+      "message": "Saved A3 CW extreme: raw +152.922\u00b0."
+    },
+    {
+      "at_monotonic_s": 11206.423679896,
+      "selected_joint": 3,
+      "message": "NOT SAVED \u2014 A3: Press Space to pause/hold before capturing."
+    },
+    {
+      "at_monotonic_s": 11211.346923631,
+      "selected_joint": 3,
+      "message": "Saving A3 CCW extreme: raw +72.139\u00b0\u2026"
+    },
+    {
+      "at_monotonic_s": 11211.380173346,
+      "selected_joint": 3,
+      "message": "Saved A3 CCW extreme: raw +72.139\u00b0."
+    },
+    {
+      "at_monotonic_s": 11296.642097005,
+      "selected_joint": 4,
+      "message": "NOT SAVED \u2014 A4: Press Space to pause/hold before capturing."
+    },
+    {
+      "at_monotonic_s": 11299.885389047,
+      "selected_joint": 4,
+      "message": "Saving A4 reference: raw +173.183\u00b0\u2026"
+    },
+    {
+      "at_monotonic_s": 11299.920785604,
+      "selected_joint": 4,
+      "message": "Saved A4 reference: raw +173.183\u00b0."
+    },
+    {
+      "at_monotonic_s": 11327.221684656,
+      "selected_joint": 5,
+      "message": "Saving A5 reference: raw +8.754\u00b0\u2026"
+    },
+    {
+      "at_monotonic_s": 11327.239518882,
+      "selected_joint": 5,
+      "message": "Saved A5 reference: raw +8.754\u00b0."
+    },
+    {
+      "at_monotonic_s": 11355.883723862,
+      "selected_joint": 6,
+      "message": "NOT SAVED \u2014 A6: Waiting for stationary holding: 0.12 / 0.50 s collected."
+    },
+    {
+      "at_monotonic_s": 11360.363695144,
+      "selected_joint": 6,
+      "message": "Saving A6 reference: raw +64.161\u00b0\u2026"
+    },
+    {
+      "at_monotonic_s": 11360.401193012,
+      "selected_joint": 6,
+      "message": "Saved A6 reference: raw +64.161\u00b0. All joints recorded."
+    }
+  ]
+}

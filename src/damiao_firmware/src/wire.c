@@ -26,6 +26,7 @@ static bool dispatch(arm_wire *w,uint32_t now,uint8_t *out) {
             ok=!a->bench && arm_configure(a,i,&c);
         } else if(type==3) ok=arm_probe(a,i);
         else if(type==4) { dm_command c={f32(p+1),f32(p+5),f32(p+9),f32(p+13),f32(p+17)}; ok=arm_set(a,i,&c,now); }
+        else if(type==25) { dm_command c={f32(p+1),f32(p+5),f32(p+9),f32(p+13),f32(p+17)}; ok=arm_set_smooth(a,i,&c,now); }
         else if(type==5) ok=arm_enable(a,i,now);
         else if(type==7 && i<6) {
             arm_joint *j=&a->joints[i]; ok=true;

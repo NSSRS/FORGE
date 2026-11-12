@@ -128,6 +128,7 @@ class RoutedRoundTrip(unittest.TestCase):
         cls.lib.fake_exchange.argtypes = [ctypes.c_char_p, ctypes.c_void_p]
         cls.lib.fake_torque.argtypes = [ctypes.c_uint, ctypes.c_float]
         cls.lib.fake_position.argtypes = [ctypes.c_uint, ctypes.c_float]
+        cls.lib.fake_position_gain.argtypes = [ctypes.c_uint, ctypes.c_float]
         cls.lib.fake_speed.argtypes = [ctypes.c_uint, ctypes.c_float]
 
     @classmethod
@@ -293,14 +294,187 @@ class RoutedRoundTrip(unittest.TestCase):
                 request.assert_not_called()
             self.assertIn('0x4000',json.loads(report.read_text())['error'])
 
-    def manual_port(self, *, speed_trip=None):
+    def manual_port(self, *, speed_trip=None, include_a1=False, position_hold=False):
         from motors import arm_position as pos
-        p=json.loads((ROOT/'src/robot_description/config/arm_rig_a2_a6.json').read_text())
+        profile='arm_rig_a1_a6.json' if include_a1 else 'arm_rig_a2_a6.json'
+        p=json.loads((ROOT/'src/robot_description/config'/profile).read_text())
         p.update(fixture_confirmed=True,supported_confirmed=True)
         if speed_trip is not None:
             for joint in p['active_joints']:p['motors'][joint-1]['speed_trip_rad_s']=speed_trip
-        self.lib.fake_missing(0)
-        return pos.ArmPositionPort(p,bus=self.bus,window_degrees=None)
+        if not include_a1:self.lib.fake_missing(0)
+        return pos.ArmPositionPort(p,bus=self.bus,window_degrees=None,position_hold=position_hold)
+
+    def test_position_hold_requires_capability_before_motor_operations(self):
+        from motors.arm import CAP_POSITION_HOLD
+        self.bus.capabilities &= ~CAP_POSITION_HOLD
+        with patch.object(self.bus,'_request',wraps=self.bus._request) as request:
+            with self.assertRaisesRegex(RuntimeError,'0x10000'):
+                self.manual_port(position_hold=True)
+            request.assert_not_called()
+        self.assertEqual(self.lib.fake_parameter_writes(),0)
+
+    def test_position_hold_release_fixed_target_long_idle_and_resume_without_disable(self):
+        from motors import arm_position as pos
+        with patch.object(pos,'time',bench.time):
+            port=self.manual_port(position_hold=True)
+            try:
+                port.arm();port.jog(1,math.radians(5))
+                for _ in range(20):self.lib.fake_advance(20);port.poll()
+                disables=self.lib.fake_disables(1)
+                writes=self.lib.fake_parameter_writes()
+                port.release();target=port.target
+                self.assertTrue(port.holding and port.armed);self.assertFalse(port.moving)
+                self.lib.fake_position(1,target-.02)
+                for _ in range(1050):
+                    self.lib.fake_advance(20);self.assertFalse(port.poll())
+                    self.assertEqual(port.target,target)
+                self.assertTrue(self.bus.state(1).enabled)
+                self.assertAlmostEqual(self.bus.state(1).position,target,delta=.001)
+                self.assertEqual(self.lib.fake_disables(1),disables)
+                self.assertEqual(self.lib.fake_parameter_writes(),writes)
+                self.assertEqual([self.lib.fake_status(i) for i in range(6)],[0,1,0,0,0,0])
+                with self.assertRaisesRegex(ValueError,'disable torque'):port.select(3)
+                with self.assertRaisesRegex(RuntimeError,'Release motion'):port.recover('unused.json')
+                port.pause();self.assertFalse(port.armed);self.assertTrue(port.holding)
+                with patch.object(self.bus,'enable_bench_group',wraps=self.bus.enable_bench_group) as enable:
+                    port.arm();port.jog(-1,math.radians(5));enable.assert_not_called()
+                self.lib.fake_advance(20);port.poll();port.release()
+                self.assertEqual(self.lib.fake_disables(1),disables)
+                self.assertEqual(port.report['motion_summary']['2']['last_sample']['phase'],'hold')
+                port.stop();self.assertFalse(port.holding or port.moving or port.armed)
+                self.assertEqual(self.lib.fake_status(1),0)
+                port.select(3)
+            finally:port.close()
+        self.assertTrue(port.report['mode_restoration_verified'])
+
+    def test_position_hold_long_jog_keeps_feedback_lead_bounded(self):
+        from motors import arm_position as pos
+        with patch.object(pos,'time',bench.time):
+            port=self.manual_port(position_hold=True)
+            try:
+                port.arm();self.lib.fake_stall(1)
+                for direction in (1,-1):
+                    port.jog(direction,math.radians(5));origin=port.jog_origin
+                    self.assertAlmostEqual(direction*(port.target-origin),math.radians(.5))
+                    for _ in range(1050):
+                        previous=port.target;at=port.last_ramp_at
+                        self.lib.fake_advance(20);self.assertTrue(port.poll())
+                        self.assertLessEqual(direction*(port.target-origin),math.radians(5.01))
+                        self.assertLessEqual(direction*(port.target-previous),port.speed*(port.last_ramp_at-at)+1e-9)
+                    self.assertTrue(port.lead_limited)
+                    self.assertTrue(self.bus.state(1).enabled);self.assertIsNone(port.deadline)
+                    port.release();self.assertTrue(port.holding)
+                    self.assertAlmostEqual(port.target,origin,delta=.001)
+            finally:port.close()
+
+    def test_position_hold_jog_reaches_requested_speed_with_position_loop_lag(self):
+        from motors import arm_position as pos
+        with patch.object(pos,'time',bench.time):
+            port=self.manual_port(position_hold=True)
+            try:
+                # A simple lag model, not hardware calibration: 5 deg/s needs
+                # about 3.85 degrees of following error instead of 0.5 degrees.
+                self.lib.fake_position_gain(1,1.3)
+                port.arm()
+                for direction in (1,-1):
+                    port.jog(direction,math.radians(5));observations=[]
+                    for step in range(600):
+                        self.lib.fake_advance(20);port.poll()
+                        sample=port.report['motion_summary']['2']['last_sample']
+                        if step>=400:observations.append(sample)
+                    first,last=observations[0],observations[-1]
+                    velocity=direction*(last['position_rad']-first['position_rad'])/(last['at_monotonic_s']-first['at_monotonic_s'])
+                    self.assertAlmostEqual(math.degrees(velocity),5.,delta=.15)
+                    self.assertTrue(all(s['requested_speed_rad_s']==math.radians(5) for s in observations))
+                    self.assertFalse(any(s['lead_limited'] for s in observations))
+                    port.release();target=port.target
+                    for _ in range(100):self.lib.fake_advance(20);port.poll()
+                    self.assertEqual(port.target,target);self.assertTrue(port.holding)
+                    self.assertAlmostEqual(self.bus.state(1).position,target,delta=math.radians(.1))
+            finally:port.close()
+
+    def test_position_hold_display_reads_do_not_renew_command_lease_and_recovery_disarms(self):
+        from motors import arm_position as pos
+        with patch.object(pos,'time',bench.time), tempfile.TemporaryDirectory() as directory:
+            port=self.manual_port(position_hold=True)
+            try:
+                port.arm();port.jog(1,math.radians(5));port.release()
+                # Six fake state requests also advance time by 30 ms. Keep
+                # the display reads strictly inside the 150 ms lease instead
+                # of depending on the MCU tick's odd/even starting phase.
+                for _ in range(2):self.lib.fake_advance(40);port.positions()
+                self.lib.fake_advance(80)
+                with self.assertRaisesRegex(RuntimeError,'lease expired'):port.poll()
+                self.assertEqual(port.report['fault_snapshot']['reason'],1)
+                self.assertFalse(port.holding or port.armed)
+                port.recover(Path(directory)/'fault.json')
+                self.assertFalse(port.holding or port.armed or port.moving)
+                self.assertEqual([self.lib.fake_status(i) for i in range(6)],[0]*6)
+            finally:port.close()
+
+    def test_position_hold_torque_fault_disables_and_preserves_evidence(self):
+        from motors import arm_position as pos
+        with patch.object(pos,'time',bench.time):
+            port=self.manual_port(position_hold=True)
+            try:
+                port.arm();port.jog(1,math.radians(5));port.release()
+                self.lib.fake_torque(1,12.1);self.lib.fake_advance(2)
+                with self.assertRaisesRegex(RuntimeError,'measured torque limit'):port.poll()
+                self.assertEqual(port.report['fault_snapshot']['reason'],9)
+                self.assertFalse(port.holding or port.armed or port.moving)
+                self.assertEqual(self.lib.fake_status(1),0)
+            finally:port.close()
+
+    def test_position_hold_feedback_watchdog_still_trips_with_fresh_commands(self):
+        from motors import arm_position as pos
+        with patch.object(pos,'time',bench.time):
+            port=self.manual_port(position_hold=True)
+            try:
+                port.arm();port.jog(1,math.radians(5));port.release()
+                self.lib.fake_route(1,3,2,18)  # Active route stops receiving replies.
+                with self.assertRaises(RuntimeError):
+                    for _ in range(8):
+                        self.lib.fake_advance(20)
+                        self.bus.command(1,port.target,velocity=port.speed)
+                self.assertEqual(self.bus.fault_snapshot()['reason'],2)
+                self.lib.fake_route(1,2,2,18)
+                with self.assertRaisesRegex(RuntimeError,'CAN feedback expired'):port.poll()
+                self.assertFalse(port.holding or port.armed)
+            finally:
+                self.lib.fake_route(1,2,2,18);port.close()
+
+    def test_position_hold_cancellation_during_first_enable_never_leaves_torque_on(self):
+        from motors import arm_position as pos
+        with patch.object(pos,'time',bench.time):
+            port=self.manual_port(position_hold=True);allowed=[True]
+            port.motion_allowed=lambda:allowed[0]
+            try:
+                port.arm();enable=self.bus.enable_bench_group
+                def cancel(slots):enable(slots);allowed[0]=False
+                with patch.object(self.bus,'enable_bench_group',side_effect=cancel):
+                    with self.assertRaises(pos.MotionCancelled):port.jog(1,math.radians(5))
+                self.assertFalse(port.holding or port.armed or port.moving)
+                self.assertEqual(self.lib.fake_status(1),0)
+            finally:port.close()
+
+    def test_position_hold_firmware_rejects_wrong_flags_and_multi_axis_enable(self):
+        from motors import arm_position as pos
+        with patch.object(pos,'time',bench.time):
+            port=self.manual_port(position_hold=True)
+            try:
+                for mode in (0x42,0xc1,0xa2,0xf2):
+                    with self.subTest(mode=mode), self.assertRaises(RuntimeError):
+                        self.bus._request(16,struct.pack('<BBHHBB4f',1,2,2,18,2,mode,-12.5,12.5,1.5,12.))
+                states=port._stop_session()
+                for slot in (1,2):self.bus.command(slot,states[slot].position,velocity=math.radians(5))
+                with self.assertRaises(RuntimeError):self.bus.enable_bench_group([1,2])
+                self.assertEqual([self.lib.fake_status(i) for i in range(6)],[0]*6)
+                port.arm();port.jog(1,math.radians(5));port.release()
+                # A second single-axis enable must not turn this into group holding.
+                self.bus.command(2,states[2].position,velocity=math.radians(5))
+                with self.assertRaises(RuntimeError):self.bus.enable_bench_group([2])
+                self.assertEqual([self.lib.fake_status(i) for i in range(6)],[0,1,0,0,0,0])
+            finally:port.close()
 
     def check_a6_speed_quantization(self, injected, expected):
         from motors import arm_position as pos
@@ -329,19 +503,25 @@ class RoutedRoundTrip(unittest.TestCase):
         self.check_a6_speed_quantization(-.30,-.3003654479980469)
 
     def test_rig_all_active_joints_share_speed_trip_across_host_and_firmware(self):
+        self.check_rig_speed_trips(include_a1=False)
+
+    def test_six_axis_rig_speed_trip_and_recovery_across_host_and_firmware(self):
+        self.check_rig_speed_trips(include_a1=True)
+
+    def check_rig_speed_trips(self, *, include_a1):
         from motors import arm_position as pos
         with patch.object(pos,'time',bench.time), tempfile.TemporaryDirectory() as directory:
-            port=self.manual_port()
+            port=self.manual_port(include_a1=include_a1)
             try:
-                self.assertEqual(port.available_joints,(2,3,4,5,6))
+                self.assertEqual(port.available_joints,tuple(range(1 if include_a1 else 2,7)))
                 for joint in port.available_joints:
                     slot=joint-1
                     for direction in (1,-1):
                         with self.subTest(joint=joint,direction=direction):
                             port.select(joint);port.arm();port.jog(direction,math.radians(5))
-                            # Firmware and host must both accept the old A6
+                            # Firmware and host must both accept the old A1/A6
                             # incident values, without increasing commanded speed.
-                            for speed in (.3151,.5,1.45):
+                            for speed in (.3151,.3626,.5,1.45):
                                 self.lib.fake_speed(slot,direction*speed);self.lib.fake_advance(2)
                                 self.assertTrue(port.poll());self.assertFalse(self.bus.state(slot).fault)
                                 self.assertAlmostEqual(port.speed,math.radians(5),places=7)
@@ -355,7 +535,7 @@ class RoutedRoundTrip(unittest.TestCase):
                             self.lib.fake_speed(slot,0)
                             port.recover(Path(directory)/'speed-trip.json')
                             self.assertFalse(port.armed or port.moving)
-                self.assertEqual(self.lib.fake_commands(0),0)
+                if not include_a1:self.assertEqual(self.lib.fake_commands(0),0)
             finally:port.close()
 
     def trip_position_port(self, port, reason=9):

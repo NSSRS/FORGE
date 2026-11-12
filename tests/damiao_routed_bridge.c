@@ -7,7 +7,7 @@ typedef struct {
     unsigned coasting_replies, disables, saves, stored_id, stored_rx;
     uint32_t save_at; bool saving;
     bool ignore_ids, drop_save;
-    float pmax,vmax,tmax,p,target,speed,v,torque;
+    float pmax,vmax,tmax,p,target,speed,v,torque,position_gain;
     bool present, ignore_mode, stalled;
 } motor;
 static motor motors[6];
@@ -93,6 +93,8 @@ void fake_advance(unsigned ms) {
             motor *m=&motors[i];
             if(m->status==1 && m->mode==2 && !m->stalled) {
                 float step=m->speed*.001f, diff=m->target-m->p;
+                /* Optional lagging position loop; zero retains the ideal plant. */
+                if(m->position_gain>0) diff*=m->position_gain*.001f;
                 float move=diff>step?step:diff< -step?-step:diff;
                 m->p+=move; m->v=move*1000;
             }
@@ -119,9 +121,12 @@ void fake_stall(unsigned i) { motors[i].stalled=true; }
 void fake_ignore_mode(unsigned i) { motors[i].ignore_mode=true; }
 void fake_torque(unsigned i,float torque) { motors[i].torque=torque; }
 void fake_position(unsigned i,float position) { motors[i].p=position; }
+void fake_position_gain(unsigned i,float gain) { motors[i].position_gain=gain; }
 void fake_speed(unsigned i,float speed) { motors[i].stalled=true; motors[i].v=speed; }
 void fake_coast(unsigned i,unsigned replies) { motors[i].coasting_replies=replies; }
 unsigned fake_disables(unsigned i) { return motors[i].disables; }
+float fake_target(unsigned i) { return motors[i].target; }
+unsigned fake_smoothing(unsigned i) { return a.joints[i].smooth_jog; }
 
 unsigned fake_id(unsigned i) { return motors[i].id; }
 unsigned fake_rx(unsigned i) { return motors[i].rx; }

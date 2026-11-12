@@ -2,10 +2,13 @@
 
 Motor control, IMU acquisition, teleoperation, and visualization for the magnetic wall-climbing welding robot.
 
-**Arm status (2026-11-10): the operator verified movement of all five active
-A2–A6 motors.** For the next test, follow the [pose teaching and speed-trial
-procedure](docs/ARM_POSE_TEST.md). It lists the six hand placements, the model
-goal for each joint, the A1 fixture profile, and the A6 response comparison.
+**Arm status (2026-11-12): all six motors are connected and the eight requested
+raw positions are recorded:** A1/A4/A5/A6 initial, both CW/CCW ends for A2/A3.
+The [reference data](src/robot_description/config/arm_reference_positions_2026-11-12.json)
+matches the original capture. Model mapping, repeatability and loaded stopping
+remain unqualified; the capture session's final stationary-disable check failed
+on A2. The [pose teaching and speed-trial procedure](docs/ARM_POSE_TEST.md) documents
+the portable recorder and remaining validation.
 Start with the [current arm handoff](docs/ARM_SESSION_HANDOFF.md) and
 [keyboard rig instructions](docs/ARM_RIG_TEST.md); the keyboard needs no radio.
 

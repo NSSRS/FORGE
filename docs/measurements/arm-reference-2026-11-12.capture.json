@@ -1,0 +1,446 @@
+{
+  "version": 2,
+  "capture_mode": "reference",
+  "simulated": false,
+  "created_utc": "2026-11-12T10:50:18.791067+00:00",
+  "capture_steps": {
+    "1": [
+      "reference"
+    ],
+    "2": [
+      "cw_extreme",
+      "ccw_extreme"
+    ],
+    "3": [
+      "cw_extreme",
+      "ccw_extreme"
+    ],
+    "4": [
+      "reference"
+    ],
+    "5": [
+      "reference"
+    ],
+    "6": [
+      "reference"
+    ]
+  },
+  "coordinate_system": "raw output-shaft radians; current encoder branch",
+  "bounds_basis": "operator-chosen clearance endpoints in recorded arm configurations",
+  "viewing_convention": "CW/CCW viewed from the output-shaft side, looking toward the motor body",
+  "fixture_note": "",
+  "plan": {
+    "fixture_confirmed": false,
+    "sequence": "Disabled connection/encoder check, then explicitly armed single-joint manual jogging; no automatic sweep",
+    "current_protection_verified": false,
+    "timing_note": "Supported jogging defaults to 5 deg/s. The keyboard --speed-trial option permits staged manual trials up to 10 deg/s. Hardware qualification pending.",
+    "limits_basis": "Protocol bounds for disabled probing. Manual session windows are not calibrated mechanical limits.",
+    "motors": [
+      {
+        "unit": "A1",
+        "model": "8009P",
+        "bus": 1,
+        "can_id": 1,
+        "feedback_id": 17,
+        "identity_confirmed": true,
+        "individual_test_passed": true,
+        "ranges": {
+          "pmax": 12.5,
+          "vmax": 45,
+          "tmax": 54
+        },
+        "lower_rad": -12.5,
+        "upper_rad": 12.5,
+        "speed_rad_s": 0.08726646259971647,
+        "speed_trip_rad_s": 1.5,
+        "torque_trip_nm": 20,
+        "delta_degrees": 2
+      },
+      {
+        "unit": "A2",
+        "model": "4340P",
+        "bus": 2,
+        "can_id": 2,
+        "feedback_id": 18,
+        "identity_confirmed": true,
+        "individual_test_passed": true,
+        "ranges": {
+          "pmax": 12.5,
+          "vmax": 10,
+          "tmax": 28
+        },
+        "lower_rad": -12.5,
+        "upper_rad": 12.5,
+        "speed_rad_s": 0.08726646259971647,
+        "speed_trip_rad_s": 1.5,
+        "torque_trip_nm": 12,
+        "delta_degrees": 2
+      },
+      {
+        "unit": "A3",
+        "model": "4340P",
+        "bus": 2,
+        "can_id": 3,
+        "feedback_id": 19,
+        "identity_confirmed": true,
+        "individual_test_passed": false,
+        "ranges": {
+          "pmax": 12.5,
+          "vmax": 10,
+          "tmax": 28
+        },
+        "lower_rad": -12.5,
+        "upper_rad": 12.5,
+        "speed_rad_s": 0.08726646259971647,
+        "speed_trip_rad_s": 1.5,
+        "torque_trip_nm": 12,
+        "delta_degrees": 2
+      },
+      {
+        "unit": "A4",
+        "model": "4310P",
+        "bus": 2,
+        "can_id": 4,
+        "feedback_id": 20,
+        "identity_confirmed": true,
+        "individual_test_passed": true,
+        "ranges": {
+          "pmax": 12.5,
+          "vmax": 30,
+          "tmax": 10
+        },
+        "lower_rad": -12.5,
+        "upper_rad": 12.5,
+        "speed_rad_s": 0.08726646259971647,
+        "speed_trip_rad_s": 1.5,
+        "torque_trip_nm": 3.5,
+        "delta_degrees": 2
+      },
+      {
+        "unit": "A5",
+        "model": "4310P",
+        "bus": 2,
+        "can_id": 5,
+        "feedback_id": 21,
+        "identity_confirmed": true,
+        "individual_test_passed": false,
+        "ranges": {
+          "pmax": 12.5,
+          "vmax": 30,
+          "tmax": 10
+        },
+        "lower_rad": -12.5,
+        "upper_rad": 12.5,
+        "speed_rad_s": 0.08726646259971647,
+        "speed_trip_rad_s": 1.5,
+        "torque_trip_nm": 3.5,
+        "delta_degrees": 2
+      },
+      {
+        "unit": "A6",
+        "model": "4310P",
+        "bus": 2,
+        "can_id": 6,
+        "feedback_id": 22,
+        "identity_confirmed": true,
+        "individual_test_passed": false,
+        "ranges": {
+          "pmax": 12.5,
+          "vmax": 30,
+          "tmax": 10
+        },
+        "lower_rad": -12.5,
+        "upper_rad": 12.5,
+        "speed_rad_s": 0.08726646259971647,
+        "speed_trip_rad_s": 1.5,
+        "torque_trip_nm": 3.5,
+        "delta_degrees": 2
+      }
+    ],
+    "4340p_guard_basis": "12 Nm manual-rated output torque ceiling; requires MC02 capability 0x2000. Reactive torque and measured-speed stops are not motor current clamps. Supported manual commissioning only; see docs/DAMIAO_TORQUE_LIMITS.md.",
+    "test_scope": "Six-axis commissioning on the new supported base with A1 rotation and cable clearance. Verify all six disabled identities and stationary feedback before teaching.",
+    "active_joints": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ],
+    "fixture_mode": "supported",
+    "supported_confirmed": false,
+    "speed_guard_basis": "A1-A6 measured-speed trips are 1.5 rad/s. A1 matches the existing A2-A6 setting at the operator's request. Supported jog commands remain 5 deg/s; trial command speeds are independent of these reactive guards."
+  },
+  "model_initial_rad": {
+    "1": 0.0,
+    "2": 0.0942,
+    "3": -0.44,
+    "4": 0.0,
+    "5": -0.188,
+    "6": 0.0
+  },
+  "production_qualified": false,
+  "power_cycle_repeatability_verified": false,
+  "model_sign": null,
+  "model_offset": null,
+  "external_ratio": null,
+  "complete": true,
+  "joints": {
+    "1": {
+      "reference_raw_rad": -3.048943519592285,
+      "reference_kind": "initial",
+      "physical_instruction": "point the arm forward in its initial position",
+      "initial_raw_rad": -3.048943519592285,
+      "model_initial_rad": 0.0,
+      "reference": {
+        "raw_rad": -3.048943519592285,
+        "raw_deg": -174.69159564640077,
+        "feedback_age_ms": 11,
+        "at_monotonic_s": 10951.702885005,
+        "captured_utc": "2026-11-12T10:51:08.023880+00:00",
+        "settled_span_s": 0.5022255900003074,
+        "settled_samples": 26,
+        "group_raw_rad": {
+          "1": -3.048943519592285,
+          "2": -1.5604257583618164,
+          "3": 1.8511104583740234,
+          "4": 3.193140983581543,
+          "5": 0.15659618377685547,
+          "6": 1.1209659576416016
+        },
+        "group_feedback_age_ms": {
+          "1": 11,
+          "2": 10,
+          "3": 9,
+          "4": 8,
+          "5": 7,
+          "6": 6
+        }
+      }
+    },
+    "2": {
+      "model_reference_rad": null,
+      "endstop_contact_verified": false,
+      "raw_cw_rad": -2.4736785888671875,
+      "cw_extreme": {
+        "raw_rad": -2.4736785888671875,
+        "raw_deg": -141.73134301396698,
+        "feedback_age_ms": 10,
+        "at_monotonic_s": 10996.523825297,
+        "captured_utc": "2026-11-12T10:51:52.844799+00:00",
+        "settled_span_s": 0.5020035430006828,
+        "settled_samples": 26,
+        "group_raw_rad": {
+          "1": -2.5301361083984375,
+          "2": -2.4736785888671875,
+          "3": 1.8503475189208984,
+          "4": 3.192378044128418,
+          "5": 0.15697765350341797,
+          "6": 1.1209659576416016
+        },
+        "group_feedback_age_ms": {
+          "1": 10,
+          "2": 10,
+          "3": 8,
+          "4": 8,
+          "5": 6,
+          "6": 6
+        }
+      },
+      "raw_ccw_rad": -0.054360389709472656,
+      "raw_lower_rad": -2.4736785888671875,
+      "raw_upper_rad": -0.054360389709472656,
+      "ccw_extreme": {
+        "raw_rad": -0.054360389709472656,
+        "raw_deg": -3.1146209030391745,
+        "feedback_age_ms": 8,
+        "at_monotonic_s": 11067.118423576,
+        "captured_utc": "2026-11-12T10:53:03.439467+00:00",
+        "settled_span_s": 0.5004827699995076,
+        "settled_samples": 26,
+        "group_raw_rad": {
+          "1": -2.530517578125,
+          "2": -0.054360389709472656,
+          "3": 1.8793392181396484,
+          "4": 3.1935224533081055,
+          "5": -1.6435871124267578,
+          "6": 1.1209659576416016
+        },
+        "group_feedback_age_ms": {
+          "1": 9,
+          "2": 8,
+          "3": 7,
+          "4": 7,
+          "5": 6,
+          "6": 7
+        }
+      }
+    },
+    "3": {
+      "model_reference_rad": null,
+      "endstop_contact_verified": false,
+      "raw_cw_rad": 2.6689939498901367,
+      "cw_extreme": {
+        "raw_rad": 2.6689939498901367,
+        "raw_deg": 152.92208887465597,
+        "feedback_age_ms": 7,
+        "at_monotonic_s": 11122.599050434,
+        "captured_utc": "2026-11-12T10:53:58.920043+00:00",
+        "settled_span_s": 0.5198436709997623,
+        "settled_samples": 27,
+        "group_raw_rad": {
+          "1": -2.530517578125,
+          "2": -0.054741859436035156,
+          "3": 2.6689939498901367,
+          "4": 3.193903923034668,
+          "5": -1.6439685821533203,
+          "6": 1.4837493896484375
+        },
+        "group_feedback_age_ms": {
+          "1": 8,
+          "2": 8,
+          "3": 7,
+          "4": 6,
+          "5": 6,
+          "6": 7
+        }
+      },
+      "raw_ccw_rad": 1.2590599060058594,
+      "raw_lower_rad": 1.2590599060058594,
+      "raw_upper_rad": 2.6689939498901367,
+      "ccw_extreme": {
+        "raw_rad": 1.2590599060058594,
+        "raw_deg": 72.13881876827388,
+        "feedback_age_ms": 7,
+        "at_monotonic_s": 11211.346447725,
+        "captured_utc": "2026-11-12T10:55:27.667470+00:00",
+        "settled_span_s": 0.5020462499996938,
+        "settled_samples": 26,
+        "group_raw_rad": {
+          "1": -2.5312814712524414,
+          "2": -1.7153043746948242,
+          "3": 1.2590599060058594,
+          "4": 4.092279434204102,
+          "5": -1.7298011779785156,
+          "6": 1.483367919921875
+        },
+        "group_feedback_age_ms": {
+          "1": 8,
+          "2": 8,
+          "3": 7,
+          "4": 6,
+          "5": 6,
+          "6": 7
+        }
+      }
+    },
+    "4": {
+      "reference_raw_rad": 3.0226211547851562,
+      "reference_kind": "initial",
+      "physical_instruction": "align the wrist to its initial position",
+      "initial_raw_rad": 3.0226211547851562,
+      "model_initial_rad": 0.0,
+      "reference": {
+        "raw_rad": 3.0226211547851562,
+        "raw_deg": 173.1834352361486,
+        "feedback_age_ms": 8,
+        "at_monotonic_s": 11299.884694723,
+        "captured_utc": "2026-11-12T10:56:56.205700+00:00",
+        "settled_span_s": 0.5004341650001152,
+        "settled_samples": 26,
+        "group_raw_rad": {
+          "1": -2.5312814712524414,
+          "2": -1.7153043746948242,
+          "3": 1.2590599060058594,
+          "4": 3.0226211547851562,
+          "5": 0.15278053283691406,
+          "6": 1.483367919921875
+        },
+        "group_feedback_age_ms": {
+          "1": 10,
+          "2": 10,
+          "3": 8,
+          "4": 8,
+          "5": 7,
+          "6": 6
+        }
+      }
+    },
+    "5": {
+      "reference_raw_rad": 0.15278053283691406,
+      "reference_kind": "initial",
+      "physical_instruction": "align the wrist to its initial position",
+      "initial_raw_rad": 0.15278053283691406,
+      "model_initial_rad": -0.188,
+      "reference": {
+        "raw_rad": 0.15278053283691406,
+        "raw_deg": 8.753679723315061,
+        "feedback_age_ms": 6,
+        "at_monotonic_s": 11327.221211235,
+        "captured_utc": "2026-11-12T10:57:23.542180+00:00",
+        "settled_span_s": 0.5204901569995855,
+        "settled_samples": 27,
+        "group_raw_rad": {
+          "1": -2.5308990478515625,
+          "2": -1.7153043746948242,
+          "3": 1.2590599060058594,
+          "4": 3.0230026245117188,
+          "5": 0.15278053283691406,
+          "6": 1.483367919921875
+        },
+        "group_feedback_age_ms": {
+          "1": 9,
+          "2": 8,
+          "3": 7,
+          "4": 6,
+          "5": 6,
+          "6": 7
+        }
+      }
+    },
+    "6": {
+      "reference_raw_rad": 1.119821548461914,
+      "reference_kind": "initial",
+      "physical_instruction": "align the tool to its initial position",
+      "initial_raw_rad": 1.119821548461914,
+      "model_initial_rad": 0.0,
+      "reference": {
+        "raw_rad": 1.119821548461914,
+        "raw_deg": 64.16104853467226,
+        "feedback_age_ms": 6,
+        "at_monotonic_s": 11360.362988446,
+        "captured_utc": "2026-11-12T10:57:56.683991+00:00",
+        "settled_span_s": 0.5018948460001411,
+        "settled_samples": 26,
+        "group_raw_rad": {
+          "1": -2.5308990478515625,
+          "2": -1.7153043746948242,
+          "3": 1.2590599060058594,
+          "4": 3.0226211547851562,
+          "5": 0.15316200256347656,
+          "6": 1.119821548461914
+        },
+        "group_feedback_age_ms": {
+          "1": 10,
+          "2": 10,
+          "3": 8,
+          "4": 8,
+          "5": 6,
+          "6": 6
+        }
+      }
+    }
+  },
+  "base_info": {
+    "api_version": 1,
+    "capabilities": 1048463,
+    "control_period_ms": 2,
+    "command_lease_ms": 150,
+    "feedback_timeout_ms": 100,
+    "enable_timeout_ms": 250,
+    "can_bitrate": 1000000,
+    "configured_mask": 63,
+    "id_session_locked": 0,
+    "build_id": 3592383766
+  }
+}

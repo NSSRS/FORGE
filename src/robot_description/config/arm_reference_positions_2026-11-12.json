@@ -1,0 +1,155 @@
+{
+  "schema": "forge.arm.operator_reference",
+  "version": 1,
+  "recorded_date": "2026-11-12",
+  "source": "operator-provided readings in conversation",
+  "source_text": "-174,692\n2cw -141.731\n2ccw -3.115\n3cw +152.922\n3ccw +72.139\n4 173.183\n5 8.754\n6 64.161",
+  "interpretation": {
+    "input_unit": "degrees",
+    "coordinate_system": "raw output-shaft encoder angles in the observed branch",
+    "a1_input": "-174,692",
+    "a1_decimal_separator": ",",
+    "a1_normalized_deg": -174.692,
+    "viewing_convention": "CW/CCW viewed from the output-shaft side toward the motor body, as instructed during recording"
+  },
+  "rig_profile": "src/robot_description/config/arm_rig_a1_a6.json",
+  "simulated": false,
+  "recording_complete": true,
+  "observation_count": 8,
+  "production_qualified": false,
+  "power_cycle_repeatability_verified": false,
+  "feedback_freshness_verified": true,
+  "stationary_window_verified": true,
+  "hardware_rechecked_during_transcription": false,
+  "model_sign": null,
+  "model_offset": null,
+  "external_ratio": null,
+  "applied_as_operating_limits": false,
+  "automatic_homing_configured": false,
+  "bounds_basis": "Operator-reported CW/CCW extremes; clearance and hard-contact measurements were not supplied with the readings.",
+  "joints": {
+    "1": {
+      "reference_kind": "initial",
+      "initial": {
+        "raw_deg": -174.692,
+        "raw_rad": -3.0489505768939344,
+        "feedback_age_ms": null,
+        "captured_utc": null,
+        "group_raw_rad": null
+      },
+      "initial_raw_deg": -174.692,
+      "initial_raw_rad": -3.0489505768939344,
+      "physical_instruction": "point the arm forward in its initial position",
+      "raw_lower_rad": null,
+      "raw_upper_rad": null
+    },
+    "2": {
+      "reference_kind": "cw_ccw_extremes",
+      "cw_extreme": {
+        "raw_deg": -141.731,
+        "raw_rad": -2.473672602144083,
+        "feedback_age_ms": null,
+        "captured_utc": null,
+        "group_raw_rad": null
+      },
+      "ccw_extreme": {
+        "raw_deg": -3.115,
+        "raw_rad": -0.05436700619962337,
+        "feedback_age_ms": null,
+        "captured_utc": null,
+        "group_raw_rad": null
+      },
+      "raw_cw_rad": -2.473672602144083,
+      "raw_ccw_rad": -0.05436700619962337,
+      "raw_lower_deg": -141.731,
+      "raw_upper_deg": -3.115,
+      "raw_lower_rad": -2.473672602144083,
+      "raw_upper_rad": -0.05436700619962337,
+      "raw_span_deg": 138.616,
+      "raw_span_rad": 2.41930559594446,
+      "initial_raw_rad": null,
+      "model_reference_rad": null,
+      "endstop_contact_verified": false
+    },
+    "3": {
+      "reference_kind": "cw_ccw_extremes",
+      "cw_extreme": {
+        "raw_deg": 152.922,
+        "raw_rad": 2.6689923987347686,
+        "feedback_age_ms": null,
+        "captured_utc": null,
+        "group_raw_rad": null
+      },
+      "ccw_extreme": {
+        "raw_deg": 72.139,
+        "raw_rad": 1.2590630690961893,
+        "feedback_age_ms": null,
+        "captured_utc": null,
+        "group_raw_rad": null
+      },
+      "raw_cw_rad": 2.6689923987347686,
+      "raw_ccw_rad": 1.2590630690961893,
+      "raw_lower_deg": 72.139,
+      "raw_upper_deg": 152.922,
+      "raw_lower_rad": 1.2590630690961893,
+      "raw_upper_rad": 2.6689923987347686,
+      "raw_span_deg": 80.783,
+      "raw_span_rad": 1.4099293296385793,
+      "initial_raw_rad": null,
+      "model_reference_rad": null,
+      "endstop_contact_verified": false
+    },
+    "4": {
+      "reference_kind": "initial",
+      "initial": {
+        "raw_deg": 173.183,
+        "raw_rad": 3.0226135584813396,
+        "feedback_age_ms": null,
+        "captured_utc": null,
+        "group_raw_rad": null
+      },
+      "initial_raw_deg": 173.183,
+      "initial_raw_rad": 3.0226135584813396,
+      "physical_instruction": "align to its initial position",
+      "raw_lower_rad": null,
+      "raw_upper_rad": null
+    },
+    "5": {
+      "reference_kind": "initial",
+      "initial": {
+        "raw_deg": 8.754,
+        "raw_rad": 0.1527861227195836,
+        "feedback_age_ms": null,
+        "captured_utc": null,
+        "group_raw_rad": null
+      },
+      "initial_raw_deg": 8.754,
+      "initial_raw_rad": 0.1527861227195836,
+      "physical_instruction": "align to its initial position",
+      "raw_lower_rad": null,
+      "raw_upper_rad": null
+    },
+    "6": {
+      "reference_kind": "initial",
+      "initial": {
+        "raw_deg": 64.161,
+        "raw_rad": 1.1198207013720818,
+        "feedback_age_ms": null,
+        "captured_utc": null,
+        "group_raw_rad": null
+      },
+      "initial_raw_deg": 64.161,
+      "initial_raw_rad": 1.1198207013720818,
+      "physical_instruction": "align to its initial position",
+      "raw_lower_rad": null,
+      "raw_upper_rad": null
+    }
+  },
+  "verification_basis": "Saved capture software accepted all eight samples; no new hardware query was performed during transcription.",
+  "full_precision_capture": {
+    "path": "docs/measurements/arm-reference-2026-11-12.capture.json",
+    "sha256": "d368629178b51df20b6f81cadb6477b5b87cf920b5c2f5aa1d43c814815e318f",
+    "all_eight_match_operator_values_to_three_decimals": true
+  },
+  "derived_span_basis": "Differences of the operator-supplied degree values; use the linked capture for full-precision radians."
+}

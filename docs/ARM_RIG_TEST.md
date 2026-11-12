@@ -44,6 +44,156 @@ arrow**. A retained startup fault opens in lockout with R available. See
 The keyboard uses no radio. Current firmware already supports it; normal
 sessions need no reboot or flash.
 
+## Optional selected-joint position hold
+
+The default jogger is a short bench test: a held jog expires after 12 seconds
+on the host, with a separate 15-second MCU enable cutoff. Release disables
+torque, so a gravity-loaded joint can fall. These duration bounds are separate
+from the 150 ms command lease and 100 ms MCU feedback watchdog.
+
+`--hold-position` explicitly selects a different keyboard policy for supported
+fixture trials. It requires matching MC02 firmware with capability **0x10000**;
+the previously deployed `156f20c8` image cannot run it. Follow the
+[build/flash procedure](DAMIAO_ARM.md#build-flash-run), with motor PSU off and
+all links mechanically supported, then verify the new build identity before use.
+
+After a disabled six-axis check, launch from this checkout:
+
+```bash
+python3 scripts/jog_dm_arm.py --execute --supported --manual-travel \
+  --hold-position --speed-deg-s 5 \
+  --plan src/robot_description/config/arm_rig_a1_a6.json \
+  --port /dev/ttyACM0 \
+  --report "build/arm_tests/hold-$(date +%Y%m%d-%H%M%S).json"
+```
+
+- Select a joint while disabled, press **E**, then hold an arrow. E alone
+  authorizes motion; the first arrow performs current-position preload and enable.
+- **Release** captures the fresh measured position once and keeps the selected
+  joint enabled at that fixed mode-2 target. A further arrow resumes jogging
+  without disabling/re-enabling. Drive position control supplies holding torque;
+  no guessed constant torque, current limit or gain is written.
+- Jogging starts with 100 ms of target lead, then advances at the selected
+  rate with up to 5 degrees of forward lead over feedback. This accommodates
+  position-loop lag: a 0.5-degree lead cap reduced recorded A2 motion from
+  approximately 5 to 0.6 deg/s. At the cap, missed travel is discarded;
+  release still replaces the moving target with the measured release position.
+  This host correction needs no firmware reflash. Its physical retest is pending.
+- **Space / Escape / focus loss** stop travel and retain the hold, while
+  revoking arrow authorization. Use fresh E and arrow to resume. The UI shows
+  HOLDING separately from motion authorization.
+- **D / Disable torque / Q / closing the window** disable torque. Mechanically
+  support the load before these actions. Selection is locked while the selected
+  joint is enabled; explicitly disable before changing joints. Other joints stay
+  disabled. This is not coordinated whole-arm holding.
+- This mode has no 12/15-second bench cutoff. Its fixed hold target is refreshed
+  by the existing control loop; telemetry reads do not renew the lease. Command
+  loss, stale feedback, stalled UI, USB/CAN faults, drive faults and configured
+  speed/torque/temperature trips still disable and require explicit recovery.
+  A cancelled initial enable also disables. Power loss cannot provide holding.
+
+First acceptance: under mechanical support, raise A2 only a small distance and
+release. Measure hold drift, tracking error, torque feedback and temperatures;
+test Space/focus loss, fresh E resume, and a supported D disable. Cross 15 seconds
+only after the initial short hold behaves correctly. Save the report and physical
+observations. Software/fake-motor checks do not qualify loaded holding or thermal
+capacity; keep production confirmation flags false.
+
+## Hold all connected joints
+
+For group holding, use the explicit mode below; the original `--hold-position`
+selection lock remains appropriate for a single energized joint.
+
+`--hold-all` adds an explicit **H / Hold all connected joints** activation.
+It implies `--hold-position` and still requires supported manual travel. A new
+firmware image with capability **0x20000** is required; the earlier selected-joint
+hold firmware intentionally rejects group enable. The prepared build is
+`82794a1b` / capabilities `0x3FF8F`, saved under `build/dm_mc02/group-hold/`.
+Do not flash, close a holding session or turn off power while the load depends
+on motor torque. Park/rest or restrain the complete arm first. These commands
+do not qualify unsupported operation or replace a brake/restraint on torque loss.
+
+After flashing with motor PSU off, reconnect motor power and complete the
+disabled six-joint check. Then launch from the task checkout:
+
+```bash
+python3 scripts/jog_dm_arm.py --execute --supported --manual-travel \
+  --hold-all --speed-deg-s 5 \
+  --plan src/robot_description/config/arm_rig_a1_a6.json \
+  --port /dev/ttyACM0 \
+  --report "build/arm_tests/group-hold-$(date +%Y%m%d-%H%M%S).json"
+```
+
+The window starts disabled. **H** captures fresh stationary positions for all
+configured joints, preloads each target, validates the complete enable mask and
+enables the group. It stays disarmed for jogging. Use **1–6**, **E**, then an
+arrow; release captures the selected joint's measured position once. Other
+targets remain fixed. Selecting another joint pauses travel and disarms jogging
+without disabling any joint; use fresh E and arrow after selection. Repeated H
+does not adopt passive drift as new targets. Space/focus loss hold the whole
+group and disarm movement. The UI shows fresh feedback for every held joint.
+
+**D / Q / closing** disable the complete group. Any joint's trip, missing
+feedback or expired command lease also disables the group. Recovery remains
+explicit and disabled; another H is required. The firmware rejects partial
+group enable, mixed group/single-axis hold policies and individual enable on a
+group-configured slot. No background owner or motor parameter polling is added.
+
+Firmware and fake-motor/Qt checks passed, and an operator-run group session is
+recorded. A1/A4/A5/A6 moving jitter and an A4 hold overspeed need investigation;
+see the current handoff. Physical loaded holding, CAN timing and thermal behavior
+remain unqualified. Do not interpret average 5 deg/s travel as smoothness acceptance.
+
+## Optional smooth jog trial
+
+The operator reports no improvement from the 5 deg/s smoothing trial and requested
+doubling all six jog speeds. Build `d61f6d16` / capabilities `0xFFF8F` enables
+10 deg/s `--smooth-jog`; holding-mode defaults are now 10 deg/s. It advances
+moving targets at the existing 2 ms CAN cadence. Release/Space/focus loss still capture a fixed hold target
+without applying the jog ramp to that stop. It changes no drive gains or trips.
+The forward-lead limit scales with speed (5 degrees at 5 deg/s, 10 at 10) to
+avoid slowing the lagging A2/A3 position loops. This trial has passed software
+checks; physical jitter reduction is unverified.
+
+Park/rest or restrain the arm so it cannot fall when torque is removed. Close
+the previous owner and turn motor PSU **off** before flashing. From this checkout:
+
+```bash
+sudo /home/forge2/Documents/Codex/2026-10-30/read/tools/STM32CubeProgrammer/bin/STM32_Programmer_CLI \
+  -c port=SWD freq=240 mode=NORMAL reset=SWrst \
+  -w "$PWD/build/dm_mc02/jog-10/forge_arm.elf" -v -rst
+```
+
+Only after programming/verification succeed, turn motor PSU on. With the fixture
+able to carry the links on torque loss, run:
+
+```bash
+run="build/arm_tests/jog-10-$(date +%Y%m%d-%H%M%S)"
+mkdir -p "$run"
+python3 scripts/test_dm_arm.py --all --check --feedback --supported \
+  --plan src/robot_description/config/arm_rig_a1_a6.json \
+  --port /dev/ttyACM0 --report "$run/disabled.json" &&
+python3 scripts/jog_dm_arm.py --execute --supported --manual-travel \
+  --hold-all --smooth-jog --speed-deg-s 10 \
+  --plan src/robot_description/config/arm_rig_a1_a6.json \
+  --port /dev/ttyACM0 --report "$run/holding.json"
+```
+
+The UI should say **Smooth jog (2 ms)**. H holds all, then 1 → E → arrow tests
+A1. Start with a brief press each direction within known clearance, releasing
+between directions; compare moving smoothness and steady hold. Repeat for A4,
+A5 and A6, then use A2 as a comparison. Space pauses/holds; D/Q/close/fault
+removes all torque. Park/rest before closing to save the report.
+
+For an A/B session on the same firmware, omit `--smooth-jog` and use a different
+report path. Holding reports include firmware identity, target policy and every
+existing host sample in an 18,000-row ring. At six joints and 50 Hz that is
+roughly the most recent minute; sample timing depends on actual owner cadence.
+Targets in this report are host endpoints, not a capture of every smoothed CAN
+target. Feedback/command batch durations and whole owner-poll time are recorded
+without extra control traffic; cached MCU timing/error counters are read after
+disabled cleanup. A physical CAN capture is still needed to resolve faster oscillations.
+
 ## Fixture and first startup
 
 All attached links, including the unpowered A1 axis, must be mechanically

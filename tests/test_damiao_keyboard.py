@@ -11,6 +11,55 @@ from motors.arm_position import ArmPositionPort, JointPosition, SimulatedPositio
 from teleop.arm_keyboard import ArmJogKeys,make_window
 
 class KeyboardTests(unittest.TestCase):
+    def test_position_hold_release_pause_selection_lock_and_explicit_disable(self):
+        with patch('motors.arm_position.time.monotonic',return_value=1.) as clock:
+            port=SimulatedPositionPort(window_degrees=None,position_hold=True)
+            keys=ArmJogKeys(port,speed_deg_s=5)
+            keys.press('2');keys.press('e');keys.press('up')
+            clock.return_value=1.1;keys.tick();keys.release('up')
+            self.assertTrue(port.holding);target=port.target
+            for step in range(1,220):
+                clock.return_value=1.1+step*.1;keys.tick()
+            self.assertEqual(port.values[1],target)
+            keys.press('3');self.assertEqual(port.selected,2);self.assertTrue(port.holding)
+            keys.press('r');self.assertFalse(keys.recovering);self.assertTrue(port.holding)
+            keys.press(' ');self.assertFalse(port.armed);self.assertTrue(port.holding)
+            keys.press('left');self.assertFalse(port.moving);keys.release('left')
+            keys.press('e');keys.press('left');self.assertTrue(port.moving)
+            keys.release('left');keys.press('d')
+            self.assertFalse(port.holding or port.moving or port.armed)
+            keys.press('3');self.assertEqual(port.selected,3)
+            port.close()
+
+    def test_position_hold_qt_focus_loss_holds_and_close_disables(self):
+        from PyQt5 import QtCore,QtWidgets,QtTest
+        app=QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+        port=SimulatedPositionPort(window_degrees=None,position_hold=True)
+        window=make_window(port,'SIMULATION',speed_deg_s=5);window.show();app.processEvents()
+        try:
+            QtTest.QTest.keyClick(window,QtCore.Qt.Key_E)
+            QtTest.QTest.keyPress(window,QtCore.Qt.Key_Up)
+            with patch.object(window,'isActiveWindow',return_value=False):
+                app.sendEvent(window,QtCore.QEvent(QtCore.QEvent.ActivationChange))
+            self.assertTrue(port.holding);self.assertFalse(port.armed or port.moving)
+            window.update_state();self.assertIn('HOLDING',window.title.text())
+            QtTest.QTest.keyRelease(window,QtCore.Qt.Key_Up)
+            QtTest.QTest.keyClick(window,QtCore.Qt.Key_E)
+            QtTest.QTest.keyPress(window,QtCore.Qt.Key_Down)
+            QtTest.QTest.keyRelease(window,QtCore.Qt.Key_Down)
+            self.assertTrue(port.holding)
+            window.close();self.assertFalse(port.holding or port.armed or port.moving)
+        finally:window.close();port.close()
+
+    def test_position_hold_ui_stall_disables_instead_of_renewing_hold(self):
+        with patch('motors.arm_position.time.monotonic',return_value=1.) as clock:
+            port=SimulatedPositionPort(window_degrees=None,position_hold=True)
+            keys=ArmJogKeys(port,speed_deg_s=5);keys.press('e');keys.press('up');keys.release('up')
+            clock.return_value=1.16
+            with self.assertRaisesRegex(RuntimeError,'UI stalled'):keys.tick()
+            self.assertFalse(port.holding or port.armed or port.moving)
+            port.close()
+
     def test_fault_table_ages_cached_samples_and_hides_old_enabled_values(self):
         from PyQt5 import QtWidgets
         app=QtWidgets.QApplication.instance() or QtWidgets.QApplication([])

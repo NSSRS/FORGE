@@ -184,6 +184,45 @@ No motor hardware or ROS runtime is needed for those tests.
 
 ### A2–A6 supported rig (A1 disconnected)
 
+The suites also cover the six-axis profile and optional keyboard position hold:
+fixed release targets, >15-second hold/jog execution, requested speed with a
+lagging position-loop plant, bounded target lead during a stall in both directions,
+uninterrupted resume, selection locking, focus-loss pause, explicit
+disable, capability/mode gating, single-axis firmware authorization, retained
+command/feedback watchdogs, torque trips and disarmed recovery. These use the
+native firmware and fake motors; they are not physical load/thermal acceptance.
+
+`test_arm_group_hold.py` adds complete/sparse group activation at current positions,
+selection without disabling, fresh jog authorization, fixed nonselected targets,
+position-loop lag, whole-group shutdown on an unselected joint's torque/feedback
+fault or missing command lease, old-firmware/partial-mask/mixed-policy rejection,
+activation cancellation, display reads without lease refresh, disarmed recovery,
+Qt focus/close and UI-stall handling. All motor access uses the fake native plant.
+
+`test_arm_capture.py` checks eight-position recording without mandatory notes:
+A1/A4/A5/A6 initial and both CW/CCW ends for each of A2/A3, with no invented model
+mapping for the ends. Completion and Qt Next require both endpoint saves;
+failed second saves preserve the first. It also checks optional endpoint/initial recording in both raw-angle
+orders, complete-group context, stationary/freshness/wrap validation, partial
+progress, file reuse rejection, atomic save failures and slow background writes.
+Native-backed capture adds no bus requests or disables; Qt/CLI tests cover the
+capture button and finishing an outstanding save on normal shutdown. These are
+software checks, not physical calibration evidence.
+Startup tests inject A1 drive status 9 and missing A4 feedback: diagnostics
+identify the joint, the GUI stays visible and locked, and recovery never enables
+motors or clears a nonexistent controller fault. Existing active-owner rejection
+and stationary/feedback interlocks remain covered.
+
+`test_arm_smooth_jog.py` exercises the new command through the native firmware
+and fake CAN plant: capability rejection before motor operations, selected-only
+smoothing, immediate release/pause/selection targets, all-six 10 deg/s travel,
+lagging A2 at 5 and 10 deg/s in both directions, old-firmware speed gating,
+holding-mode CLI defaults, expired command leases and disarmed recovery.
+`damiao_smooth_jog_test.c` checks individual 2 ms CAN targets, endpoint saturation,
+immediate hold bypass, direction changes, delayed ticks, rollover, invalid
+commands, feedback loss and transmit failure at 5 and 10 deg/s. CTest runs it as `damiao_smooth_jog`.
+No test result establishes physical jitter improvement.
+
 The [operator guide](../docs/ARM_RIG_TEST.md) and
 [current milestone](../docs/ARM_SESSION_HANDOFF.md) distinguish physical
 observations from these hardware-free regressions. Install `python3-pyqt5` for
@@ -193,7 +232,7 @@ Qt checks; source the ROS environment for launch/PTY tests.
 source scripts/ros2_env.sh
 QT_QPA_PLATFORM=offscreen PYTHONDONTWRITEBYTECODE=1 \
   PYTHONPATH="tests:src:$PYTHONPATH" python3 -m unittest -v \
-  test_arm_pose_teach test_damiao_arm test_damiao_bench test_damiao_keyboard \
+  test_arm_capture test_arm_smooth_jog test_arm_group_hold test_arm_pose_teach test_damiao_arm test_damiao_bench test_damiao_keyboard \
   test_pocket_controls test_pocket_gui test_radio_port test_system_test_launch
 ROS_DOMAIN_ID=94 PYTHONDONTWRITEBYTECODE=1 \
   PYTHONPATH="tests:src:$PYTHONPATH" python3 -m unittest -v test_ros_pocket

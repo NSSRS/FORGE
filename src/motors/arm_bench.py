@@ -14,7 +14,7 @@ import tempfile
 import time
 
 from .arm import (ArmBus, BENCH_MODEL_LIMITS, CAP_CONTROL_READBACK,
-                  CAP_MANUAL_TRAVEL, CONTROL_REGISTERS, DISCOVERY_REGISTERS, decode_register)
+                  CAP_MANUAL_TRAVEL, CAP_POSITION_HOLD, CAP_GROUP_HOLD, CONTROL_REGISTERS, DISCOVERY_REGISTERS, decode_register)
 
 
 def number(value, label):
@@ -102,6 +102,33 @@ class LatchedControllerFault(RuntimeError):
     """Retained controller fault; an idle UI may offer explicit recovery."""
 
 
+def stationary_disabled(state):
+    return (not state.enabled and not state.stopping and state.status == 0 and
+            state.age_ms < 80 and math.isfinite(state.velocity) and abs(state.velocity) <= .03)
+
+
+class DisableAcknowledgementTimeout(TimeoutError):
+    """Keep the final per-joint feedback when a disabled check cannot pass."""
+    def __init__(self, states):
+        self.states = dict(states)
+        details = []
+        for i, state in states.items():
+            if stationary_disabled(state):
+                continue
+            reasons = []
+            if state.status != 0:
+                label = ' (undervoltage)' if state.status == 9 else ''
+                reasons.append(f'drive status {state.status}{label}')
+            if state.enabled:reasons.append('still enabled')
+            if state.stopping:reasons.append('disable not acknowledged')
+            if state.age_ms >= 80:
+                reasons.append('no valid feedback' if state.age_ms == 0xffffffff else f'feedback age {state.age_ms} ms')
+            if not math.isfinite(state.velocity) or abs(state.velocity) > .03:
+                reasons.append(f'speed {state.velocity:.4f} rad/s; waiting for stationary shaft')
+            details.append(f'A{i+1}: '+', '.join(reasons))
+        super().__init__('fresh stationary disable acknowledgement failed; '+'; '.join(details))
+
+
 def read_settings(bus, channel, mid, rx, stop=None):
     values = {}
     for register in DISCOVERY_REGISTERS:
@@ -176,11 +203,10 @@ class BenchSession:
         self.bus.stop()
         deadline = time.monotonic() + 1
         next_disable = time.monotonic() + .02
+        states = {}
         while time.monotonic() < deadline:
             states = {i: self.bus.state(i) for i in self.configured}
-            if all(not s.enabled and not s.stopping and s.status == 0
-                   and s.age_ms < 80 and math.isfinite(s.velocity) and abs(s.velocity) <= .03
-                   for s in states.values()):
+            if all(stationary_disabled(s) for s in states.values()):
                 return states
             # A disabled reply can arrive before the shaft stops coasting. The
             # motor only replies to commands; request fresh disable feedback.
@@ -188,7 +214,8 @@ class BenchSession:
                 self.bus.stop()
                 next_disable = time.monotonic() + .02
             time.sleep(.005)
-        raise TimeoutError('fresh stationary disable acknowledgement')
+        self.report['disable_timeout_states'] = {i: asdict(s) for i, s in states.items()}
+        raise DisableAcknowledgementTimeout(states)
 
     def capture_failure(self):
         # Disable first; diagnostics must never delay the stop request.
@@ -208,7 +235,7 @@ class BenchSession:
             self.poll(i, lambda s: s.registers & 15 == 15, 'initial range/mode probe')
         return self.stop()
 
-    def prepare(self, *, jog_window_rad=None, manual_travel=False):
+    def prepare(self, *, jog_window_rad=None, manual_travel=False, position_hold=False, group_hold=False):
         if jog_window_rad is not None and not 0 < jog_window_rad <= math.pi/2:
             raise ValueError("Jog window must be within +/-90 degrees of session start")
         if manual_travel:
@@ -216,6 +243,10 @@ class BenchSession:
                 raise ValueError("Choose manual travel or a startup window")
             if not self.bus.capabilities & CAP_MANUAL_TRAVEL:
                 raise RuntimeError("Manual travel requires MC02 capability 0x8000; flash the updated firmware")
+        if position_hold and (not manual_travel or not self.bus.capabilities & CAP_POSITION_HOLD):
+            raise RuntimeError('Position hold requires manual travel and MC02 capability 0x10000')
+        if group_hold and (not position_hold or not self.bus.capabilities & CAP_GROUP_HOLD):
+            raise RuntimeError('Group hold requires position hold and MC02 capability 0x20000')
         initial = self.probe_disabled()
         for i in self.slots:
             m = self.motors[i]
@@ -231,10 +262,14 @@ class BenchSession:
             if not manual_travel and not (m['lower_rad'] <= lo < hi <= m['upper_rad']):
                 raise RuntimeError(f"{m['unit']}: measured start/target corridor exceeds fixture limits")
             self.origins[i], self.bounds[i] = origin, (lo, hi)
-        self.prepare_motion(manual_travel=manual_travel)
+        self.prepare_motion(manual_travel=manual_travel,position_hold=position_hold,group_hold=group_hold)
 
-    def prepare_motion(self, *, manual_travel=False, observed=None):
+    def prepare_motion(self, *, manual_travel=False, observed=None, position_hold=False, group_hold=False):
         """Reverify mode/timeout/routes without changing origins or bounds."""
+        if position_hold and (not manual_travel or not self.bus.capabilities & CAP_POSITION_HOLD):
+            raise RuntimeError('Position hold requires manual travel and MC02 capability 0x10000')
+        if group_hold and (not position_hold or not self.bus.capabilities & CAP_GROUP_HOLD):
+            raise RuntimeError('Group hold requires position hold and MC02 capability 0x20000')
         current = self.observed if observed is None else observed
         for i in self.configured:
             self.stop()
@@ -245,7 +280,8 @@ class BenchSession:
                 self.bus.write_routed_bench(i, 10, 2)
         for i in self.slots:
             m = self.motors[i]
-            self.bus.prepare_routed_bench(i, m, *self.bounds[i], 2, manual_travel=manual_travel)
+            self.bus.prepare_routed_bench(i, m, *self.bounds[i], 2, manual_travel=manual_travel,
+                                          position_hold=position_hold,group_hold=group_hold)
         for i in self.configured:
             self.bus.probe(i)
             s = self.poll(i, lambda s: s.registers == 31, 'verified mode/ranges/timeout')

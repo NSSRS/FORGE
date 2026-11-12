@@ -1,6 +1,6 @@
 # Arm cross-layer TODO registry
 
-Updated 2026-11-11, based on branch `nathan`. This registry contains **open work only**.
+Updated 2026-11-12, based on branch `nathan`. This registry contains **open work only**.
 Read [current status](ARM_SESSION_HANDOFF.md) and [the base contract](ARM_BASE_LAYER.md)
 first. Stable IDs link package responsibilities; update the owning entry when
 work changes, and retire completed tasks instead of appending session history.
@@ -13,11 +13,13 @@ in the guides; full hardware qualification below remains separate.
 
 ## Immediate priorities
 
-1. Operator builds a base allowing A1 to spin; commission A1 in that fixture
-   (**SUPPORT-01**, **DEPLOY-01**).
-2. Verify taught pose replay, implement production position initialization and identify travel limits
-   (**CAL-01**).
-3. Qualify faster commanded movement on the supported fixture (**SPEED-01**).
+1. Validate the recorded raw references (**CAL-01**): power-cycle repeatability,
+   remaining travel bounds, A2/A3 initial poses and model sign/offset/ratio.
+   The eight requested readings are saved in [the handoff](ARM_SESSION_HANDOFF.md).
+2. Establish resting support for torque loss and finish loaded stopping/holding
+   qualification (**SUPPORT-01**, **DEPLOY-01**).
+3. Resume jitter investigation and qualify commanded speeds later (**SPEED-01**),
+   explicitly deferred by the operator on 2026-11-12.
 
 ### SUPPORT-01 — base, gravity support and physical stopping
 
@@ -30,6 +32,10 @@ Owner: operator/mechanical integration, `src/bringup/`.
 - [ ] Measure stop/hold behavior before unsupported loaded operation. The current
   jogger disables torque at release; nonselected joints stay disabled. MC02
   disable is not a brake. Coordinated holding belongs to ROS-02.
+- [ ] Resolve the 2026-11-12 capture session's stationary-disable/mode-restoration
+  failure: A2 still reported -0.168498 rad/s after disabling. Preserve the saved
+  [shutdown evidence](measurements/arm-reference-2026-11-12.session-summary.json)
+  and verify shutdown on a supported fixture before treating cleanup as qualified.
 
 ### CAL-01 — motor-position initialization and physical calibration
 
@@ -37,6 +43,15 @@ Owner: `src/robot_description/`, `src/motors/`, ROS coordinate adapter.
 
 Bench acceptance uses the [joint reference table and pose procedure](ARM_POSE_TEST.md).
 Record fixture measurements before promoting any calibration to production.
+The initial eight requested observations are preserved in the
+[dated reference record](../src/robot_description/config/arm_reference_positions_2026-11-12.json).
+Validation and full coordinate mapping remain open.
+The hold-all jogger's `--capture-file` defaults to initial references for
+A1/A4/A5/A6 and both CW/CCW ends for A2/A3, preserving all holds and saving all
+joint angles for context. The longer two-ends-plus-initial workflow for every
+motor remains available through `--capture-mode bounds`.
+These observations are not automatic homing or globally valid collision limits.
+See the [capture procedure](ARM_POSE_TEST.md#current-procedure-initial-positions-and-a2a3-travel-ends).
 
 - [ ] Record known physical-pose/raw-angle pairs for each DOF: sign, zero offset,
   any external ratio, wrap branch and units. Separate model zero from session zero.
@@ -55,6 +70,20 @@ Record fixture measurements before promoting any calibration to production.
 
 Owner: `src/motors/arm_position.py`, `src/teleop/`, firmware/profile commissioning.
 
+- [ ] **Deferred:** investigate moving-only A1/A4/A5/A6 jitter; A2/A3 are smooth
+  and stationary holding is steady by operator report. The 5 deg/s MCU smoothing
+  trial did not fix it. Its saved report verifies the build and clean exit, but
+  evicted all jittering-joint jog traces; it cannot clear command timing.
+  Compare 5 versus 10 deg/s with short saved runs, raw command/feedback timing
+  and independent motion observation. Distinguish angle-repeating cogging/torque
+  ripple or friction from drive-loop oscillation and time-repeating command gaps.
+  Motor/gearbox differences are plausible, not a diagnosis: rotor speeds at
+  5 deg/s output are 7.5 rpm (A1), 8.33 rpm (A4–A6), 33.33 rpm (A2/A3).
+  Record actual gains/ACC/DEC/MAX_SPD while disabled; Deta was already 4 on all
+  six, and MIT gain advice does not directly apply to the current mode-2 loop.
+  Separately correlate A4's reported 2.4542 rad/s hold sample with encoder
+  displacement before calling it physical overspeed or a reading error.
+  Preserve trips and leases. See the [research and evidence](ARM_SESSION_HANDOFF.md#research-physical-torque-ripple-versus-drivetiming-effects).
 - [ ] Test the 5 deg/s baseline and opt-in 7.5/10 deg/s trials on the supported
   fixture. Compare A6 tracking, host sample timing and release travel with A4/A5.
   Record the accepted speed for each joint and direction.
@@ -123,6 +152,13 @@ command lease renewal; expose missing/stale samples rather than restamping them.
 ### ROS-02 — production lifecycle and coordinated holding
 
 Owner: ROS arm driver, base API and `src/bringup/launch/arm.launch.py`.
+
+The keyboard now has opt-in selected-joint and complete-group mode-2 hold implementations; see
+[its fixture procedure](ARM_RIG_TEST.md#optional-selected-joint-position-hold).
+Physical hold drift, thermal behavior and fault/disable acceptance remain open.
+The group path has an operator-run physical session; jitter, hold overspeed and
+physical load/fault qualification remain open.
+These keyboard paths do not complete the coordinated ROS lifecycle below.
 Select the production mode explicitly; the ROS MIT path is not qualified by
 mode-2 bench success. Separate configure/activate, stop, supported disable,
 recover and re-arm. For holding, require fresh complete feedback, current-angle

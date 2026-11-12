@@ -21,7 +21,7 @@
       "lower_rad": -12.5,
       "upper_rad": 12.5,
       "speed_rad_s": 0.08726646259971647,
-      "speed_trip_rad_s": 0.3,
+      "speed_trip_rad_s": 1.5,
       "torque_trip_nm": 20,
       "delta_degrees": 2
     },
@@ -138,5 +138,5 @@
   ],
   "fixture_mode": "supported",
   "supported_confirmed": false,
-  "speed_guard_basis": "A2-A6 measured-speed trips are 1.5 rad/s. Trial command speeds are independent of these reactive guards."
+  "speed_guard_basis": "A1-A6 measured-speed trips are 1.5 rad/s. A1 matches the existing A2-A6 setting at the operator's request. Supported jog commands remain 5 deg/s; trial command speeds are independent of these reactive guards."
 }

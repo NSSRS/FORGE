@@ -7,8 +7,14 @@
 #define ARM_CAP_RATED_4340_TORQUE (1u << 13) /* Rated 12 Nm configuration ceiling. */
 #define ARM_CAP_CONTROL_READBACK (1u << 14) /* Disabled-only control/protection reads. */
 #define ARM_CAP_MANUAL_TRAVEL (1u << 15) /* Explicit mode-2 manual travel, no startup corridor. */
+#define ARM_CAP_POSITION_HOLD (1u << 16) /* Explicit leased mode-2 hold; no bench-duration cutoff. */
+#define ARM_CAP_GROUP_HOLD (1u << 17) /* Explicit whole configured group hold activation. */
+#define ARM_CAP_SMOOTH_JOG (1u << 18) /* Type 25: leased mode-2 target slew; type 4 holds immediately. */
+#define ARM_CAP_SMOOTH_JOG_10 (1u << 19) /* Operator-requested smooth jog extension to 10 deg/s. */
 #define ARM_ROUTED_MANUAL_TRAVEL 0x80u /* USB configure mode flag; never sent to motor. */
-#define ARM_CAPABILITIES (8079u | ARM_CAP_RATED_4340_TORQUE | ARM_CAP_CONTROL_READBACK | ARM_CAP_MANUAL_TRAVEL)
+#define ARM_ROUTED_POSITION_HOLD 0x40u /* Requires manual travel and mode 2; leases still apply. */
+#define ARM_ROUTED_GROUP_HOLD 0x20u /* Requires position hold; complete group enable only. */
+#define ARM_CAPABILITIES (8079u | ARM_CAP_RATED_4340_TORQUE | ARM_CAP_CONTROL_READBACK | ARM_CAP_MANUAL_TRAVEL | ARM_CAP_POSITION_HOLD | ARM_CAP_GROUP_HOLD | ARM_CAP_SMOOTH_JOG | ARM_CAP_SMOOTH_JOG_10)
 #define ARM_BASE_API_VERSION 1u
 #ifndef FORGE_BUILD_ID
 #define FORGE_BUILD_ID 0u /* native tests/nonstandard builds */
@@ -24,9 +30,9 @@ typedef struct { uint8_t bus; uint16_t id, feedback_id; float lo, hi, speed, tor
 typedef bool (*arm_send_fn)(void *, uint8_t, uint16_t, const uint8_t *, uint8_t);
 typedef struct {
     arm_config cfg; dm_range range; dm_command cmd;
-    float p, v, t; uint32_t feedback_at, command_at, enabled_at;
+    float p, v, t, sent_position; uint32_t feedback_at, command_at, enabled_at;
     uint8_t registers, status, mos, rotor, probe_index, bench_mode, model;
-    bool configured, probing, feedback_seen, command_seen, enabled, stopping, enable_confirmed, manual_travel;
+    bool configured, probing, feedback_seen, command_seen, enabled, stopping, enable_confirmed, manual_travel, position_hold, group_hold, smooth_jog;
 } arm_joint;
 /* Diagnostics: unconfigured bus or fresh, acknowledged-disabled bench motor. */
 typedef struct {
@@ -69,6 +75,7 @@ bool arm_read_register(arm_controller *, uint8_t, uint16_t, uint8_t, uint32_t);
 bool arm_configure(arm_controller *, unsigned, const arm_config *);
 bool arm_probe(arm_controller *, unsigned);
 bool arm_set(arm_controller *, unsigned, const dm_command *, uint32_t);
+bool arm_set_smooth(arm_controller *, unsigned, const dm_command *, uint32_t);
 bool arm_enable_group(arm_controller *, uint8_t, uint32_t);
 bool arm_enable(arm_controller *, unsigned, uint32_t);
 void arm_stop(arm_controller *);

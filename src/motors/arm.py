@@ -18,6 +18,10 @@ import zlib
 CAP_RATED_4340_TORQUE = 1 << 13
 CAP_CONTROL_READBACK = 1 << 14
 CAP_MANUAL_TRAVEL = 1 << 15
+CAP_POSITION_HOLD = 1 << 16
+CAP_GROUP_HOLD = 1 << 17
+CAP_SMOOTH_JOG = 1 << 18
+CAP_SMOOTH_JOG_10 = 1 << 19
 # P-series manual register maps. These are reads only; write whitelist stays
 # TIMEOUT/CTRL_MODE. Imax/VBus are documented for 4340P/4310P, not 8009P V1.1.
 CONTROL_REGISTERS = {
@@ -305,7 +309,7 @@ class ArmBus:
         self._request(15, bytes([mode]))
         self._verify_write(2, 1, 10, (0, mode))
 
-    def prepare_routed_bench(self, slot, motor, lower, upper, mode, *, manual_travel=False):
+    def prepare_routed_bench(self, slot, motor, lower, upper, mode, *, manual_travel=False, position_hold=False, group_hold=False):
         """Configure one explicit P-series test slot; requires firmware capability 0x100."""
         if not self.capabilities & 256:
             raise RuntimeError('Flash the routed arm-test firmware first (capability 0x100)')
@@ -332,11 +336,21 @@ class ArmBus:
                 raise ValueError("Manual travel requires position-velocity mode")
             if not self.capabilities & CAP_MANUAL_TRAVEL:
                 raise RuntimeError("Manual travel requires MC02 capability 0x8000; flash the updated firmware")
+        if position_hold:
+            if not manual_travel or mode != 2:
+                raise ValueError('Position hold requires manual travel and position-velocity mode')
+            if not self.capabilities & CAP_POSITION_HOLD:
+                raise RuntimeError('Position hold requires MC02 capability 0x10000; flash the updated firmware')
+        if group_hold:
+            if not position_hold:raise ValueError('Group hold requires position hold')
+            if not self.capabilities & CAP_GROUP_HOLD:
+                raise RuntimeError('Group hold requires MC02 capability 0x20000; flash the updated firmware')
         # Mark cleanup responsibility BEFORE transmission: the ACK may be lost.
         self.configured = self.bench = True
         self.bench_routes[slot] = (bus, can_id, feedback_id)
         self._request(16, struct.pack('<BBHHBB4f', slot, bus, can_id, feedback_id,
-                                     model, mode | (0x80 if manual_travel else 0), lower, upper, speed, torque))
+                                     model, mode | (0x80 if manual_travel else 0) | (0x40 if position_hold else 0) | (0x20 if group_hold else 0),
+                                     lower, upper, speed, torque))
 
     def enable_bench_group(self, slots):
         """MCU validates every slot before enabling any; feedback confirmation is separate."""
@@ -412,11 +426,19 @@ class ArmBus:
         """Read range, mode and timeout registers. No enable or register writes."""
         self._request(3,self._slot(slot))
 
-    def command(self, slot, position, velocity=0., kp=0., kd=0., torque=0.):
+    def check_smooth_jog_speed(self, velocity):
+        """Reject an incompatible MCU before preloading/enabling at the new rate."""
+        if not self.capabilities & CAP_SMOOTH_JOG:
+            raise RuntimeError('Smooth jog requires MC02 capability 0x40000; flash the updated firmware')
+        if velocity>math.radians(5) and not self.capabilities & CAP_SMOOTH_JOG_10:
+            raise RuntimeError('10 deg/s smooth jog requires MC02 capability 0x80000; flash the updated firmware')
+
+    def command(self, slot, position, velocity=0., kp=0., kd=0., torque=0., *, smooth=False):
         values=(position,velocity,kp,kd,torque)
         if not all(math.isfinite(v) for v in values):
             raise ValueError('nonfinite command')
-        self._request(4,self._slot(slot)+struct.pack('<5f',*values))
+        if smooth:self.check_smooth_jog_speed(velocity)
+        self._request(25 if smooth else 4,self._slot(slot)+struct.pack('<5f',*values))
 
     def enable(self, slot):
         """Requires fresh disabled feedback and a fresh command near measured position."""
