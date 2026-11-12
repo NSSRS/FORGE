@@ -1,5 +1,7 @@
 """Single-threaded MuJoCo display for the weave controller."""
 from contextlib import contextmanager
+import os
+import platform
 
 import mujoco as mj
 
@@ -7,6 +9,12 @@ import mujoco as mj
 @contextmanager
 def weave_viewer(model, lookat, distance, azimuth, elevation):
     import glfw
+
+    wsl = "microsoft" in platform.release().lower()
+    if wsl:
+        os.environ.pop("LIBGL_ALWAYS_SOFTWARE", None)
+        os.environ["GALLIUM_DRIVER"] = "d3d12"
+        os.environ.setdefault("MESA_D3D12_DEFAULT_ADAPTER_NAME", "NVIDIA")
 
     if not glfw.init():
         raise RuntimeError("GLFW could not initialize the display")
@@ -17,6 +25,12 @@ def weave_viewer(model, lookat, distance, azimuth, elevation):
         if not window:
             raise RuntimeError("Could not create the FORGE weave window")
         glfw.make_context_current(window)
+        from OpenGL.GL import GL_RENDERER, glGetString
+
+        renderer = (glGetString(GL_RENDERER) or b"unknown").decode(errors="replace")
+        print(f"OpenGL renderer: {renderer}", flush=True)
+        if wsl and (not renderer.startswith("D3D12 (") or "basic render" in renderer.lower() or "warp" in renderer.lower()):
+            raise RuntimeError(f"WSLg hardware rendering unavailable ({renderer}). Check the Windows GPU driver and WSLg.")
         glfw.swap_interval(1)
         context = mj.MjrContext(model, mj.mjtFontScale.mjFONTSCALE_150)
         scene = mj.MjvScene(model, maxgeom=3000)

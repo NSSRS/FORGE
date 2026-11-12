@@ -19,7 +19,7 @@ class ModelingLayoutTests(unittest.TestCase):
     def test_no_modeling_implementations_or_assets_at_root(self):
         for name in ('forge_sim', 'model', 'requirements-sim.txt', *(n+'.py' for n in ENTRIES)):
             self.assertFalse((ROOT/name).exists(), name)
-        for package in ('simulation','robot_description'):
+        for package in ('controls','simulation','robot_description'):
             base=ROOT/'src'/package
             for name in ('package.xml','setup.py','setup.cfg','resource/'+package,package+'/__init__.py'):
                 self.assertTrue((base/name).is_file(), name)

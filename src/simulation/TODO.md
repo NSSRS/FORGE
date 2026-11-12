@@ -20,4 +20,4 @@ Keep session jog bounds, sampled model intervals and calibrated physical
 limits distinct; coordinated gravity holding remains a separate controller.
 
 [WEAVE-01](../../docs/ARM_LAYER_TODOS.md#weave-01--flat-ground-coordinated-weave-experiment)
-tracks the tester review of the [flat-ground chassis and arm weave](simulation/controllers/README.md).
+tracks the tester review of the [flat-ground chassis and arm weave](../controls/README.md).

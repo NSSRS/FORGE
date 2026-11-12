@@ -14,7 +14,8 @@ Native Linux is the deployment target. The ROS Python packages use ament_python:
 | seam_detection | RGB joint edge candidates and annotated/edge images; no motor output |
 | teleop | Keyboard/radio command generation; uses motor_control command helpers |
 | visualization | Read-only relay and measured-state MuJoCo display |
-| simulation | MuJoCo preview/export implementations, terrain, linkage closure and simulation controls |
+| controls | [Coordinated motion](../src/controls/README.md), shared weave trajectory and simulation controller |
+| simulation | MuJoCo model integration, previews, rendering, terrain and linkage closure |
 | robot_description | Shared MJCF/meshes and resource lookup, chassis/arm motor inventories and Xacro macros |
 | bringup | Shared YAML/DDS profiles, ROS launch files, four-pane session manager |
 

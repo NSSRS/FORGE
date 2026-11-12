@@ -48,5 +48,6 @@ Thumbs.db
 /src/robot_description/mujoco/.cache/
 
 # Local Python package build products.
+/src/controls/build/
 /src/simulation/build/
 /src/robot_description/build/

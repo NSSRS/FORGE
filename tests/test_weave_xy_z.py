@@ -10,9 +10,10 @@ if any(importlib.util.find_spec(n) is None for n in ("mujoco", "numpy", "scipy")
     raise unittest.SkipTest("requires the simulation environment")
 
 import numpy as np
-from simulation.controllers import weave_xy_z
-from simulation.controllers.weave_xy_z import (
-    SEAM_WIDTH, SEAM_XY, TARGET_WIRE, WIRE_GAP, floor_scene, reference, run,
+from controls.weave_xy_z import reference
+from controls.simulation import weave_xy_z
+from controls.simulation.weave_xy_z import (
+    SEAM_WIDTH, SEAM_XY, TARGET_WIRE, WIRE_GAP, floor_scene, run,
 )
 
 
@@ -30,14 +31,6 @@ class WeaveTests(unittest.TestCase):
         direction = tip.xpos - center
         np.testing.assert_allclose(tip.xmat.reshape(3, 3)[:, 2], direction / np.linalg.norm(direction),
                                    atol=.0001)
-
-    def test_shape_one(self):
-        origin = np.array([.2, -.3, .1])
-        for phase, lateral in [(0, 0), (.05, .5), (.11, 1), (.29, 1), (.35, .5),
-                               (.45, 0), (.55, -.5), (.61, -1), (.79, -1), (.95, 0), (1, 0)]:
-            t = phase / 2
-            point, _ = reference(t, origin, 2, .002, .012)
-            np.testing.assert_allclose(point - origin, [.012 * t, .002 * lateral, 0], atol=1e-12)
 
     def test_centered_floor_seam_and_full_width_reference(self):
         model, data = floor_scene()

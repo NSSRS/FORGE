@@ -56,8 +56,9 @@ unqualified. Do not promote production confirmation flags from this motion check
 
 ## Modeling
 
-Read `docs/ONSHAPE_ARM_PREVIEW.md` before model edits. Reusable code lives in
-`src/simulation/simulation/`, shared assets in `src/robot_description/mujoco/`.
+Read `docs/ONSHAPE_ARM_PREVIEW.md` before model edits. MuJoCo model and rendering code lives in
+`src/simulation/simulation/`, coordinated motion in `src/controls/controls/`,
+and shared assets in `src/robot_description/mujoco/`.
 Preserve D3 closure and the 150 mm connection-center spacing; keep simulation
 coordinates separate from hardware calibration. Run the relevant layout/model,
 overview, color, magnetic, terrain and actuator checks. Never commit

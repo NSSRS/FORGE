@@ -11,17 +11,15 @@ import mujoco as mj
 import numpy as np
 from scipy.optimize import least_squares
 
+from controls.weave_xy_z import PHASE, reference
 from simulation.arm_closure import ArmClosure
 from simulation.arm_sweep import descendant_bodies
-from simulation.controllers.weave_viewer import weave_viewer
 from simulation.paths import MODEL_DIR
 from simulation.preview_sim import ARM_DRIVES
 from simulation.velocity_control import DRIVEN_JOINTS, WHEEL_DIRECTIONS
+from simulation.weave_viewer import weave_viewer
 
 
-# Dimensionless phase and transverse displacement, traced from Shape 1.
-PHASE = np.array([0, .10, .30, .40, .50, .60, .80, .90, 1])
-LEVEL = np.array([0, 1, 1, 0, 0, -1, -1, 0, 0])
 WIRE_TIP = (0, -.00054214, -.18834214)  # distal wire face in the D6 CAD frame, m
 WIRE_AXIS = (0, -1, -1)  # nozzle-to-tip direction of the APW503 wire in the D6 frame
 WIRE_GAP = .002  # wire tip above the actual wheel-contact floor, m
@@ -30,14 +28,6 @@ SEAM_WIDTH = .020  # edge to edge, m
 WIRE_TO_FLOOR_DEG = 80.  # flat butt joint, 10° drag along +X travel
 POSE_GAIN = 400.  # resolved-rate pose feedback, per second
 WHEEL_RADIUS = .040  # nominal rolling radius, m
-
-
-def reference(t, origin, hz, amplitude, speed):
-    phase = (t * hz) % 1
-    i = np.searchsorted(PHASE, phase, side="right") - 1
-    slope = (LEVEL[i + 1] - LEVEL[i]) / (PHASE[i + 1] - PHASE[i])
-    position = origin + [speed * t, amplitude * np.interp(phase, PHASE, LEVEL), 0]
-    return position, np.array([speed, amplitude * hz * slope, 0])
 
 
 def wire_direction(floor_angle_deg):

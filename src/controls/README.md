@@ -1,4 +1,11 @@
-# WEAVE_XY_Z = 1 on a 20 mm floor seam
+# Coordinated controls
+
+[The Shape 1 trajectory](controls/weave_xy_z.py) produces wire positions and
+velocities for both simulation and future hardware use. The [MuJoCo controller](controls/simulation/weave_xy_z.py)
+drives the simulated chassis and arm. Future rig controllers belong under
+[`controls/hardware/`](controls/hardware) and can use the same trajectory with the existing motor drivers.
+
+## WEAVE_XY_Z = 1 on a 20 mm floor seam
 
 The ENCOS wheel drives feed the chassis along +X at a requested 12 mm/s. The arm
 weaves the APW503 wire tip from −10 to +10 mm across the centered seam, 2 mm
@@ -21,6 +28,13 @@ angle is typical for an equal-leg fillet between perpendicular plates.
 ```bash
 .venv/bin/python scripts/preview_weave.py --hz 2 --cycles 16 --loop
 ```
+
+After building and sourcing the controls ROS package in the simulation Python environment,
+use `ros2 run controls preview_weave --hz 2 --cycles 16 --loop`.
+
+On WSLg the viewer requests the NVIDIA GPU through Mesa D3D12 and prints the
+active OpenGL renderer when the window opens. The viewer stops on a software
+fallback. Physics and arm control run on the CPU.
 
 Amber shows the commanded path and teal shows the measured wire tip. The
 overlay reports cart travel, lateral wire position, DOF6 angle and wire
@@ -51,7 +65,7 @@ at 3 Hz. The 16-cycle viewer run at 2 Hz advanced the cart 94.5 mm.
    check the outward lean. In the top view check the centered stroke. Compare
    tip position, DOF6 travel, cart motion and D3 closure in the CSV. Record the
    accepted tracking tolerance for the intended seam. These are motion trials.
-3. For the physical motor checks, follow the [pose and speed trial guide](../../../../docs/ARM_POSE_TEST.md).
+3. For the physical motor checks, follow the [pose and speed trial guide](../../docs/ARM_POSE_TEST.md).
 
 ```bash
 mkdir -p build/weave

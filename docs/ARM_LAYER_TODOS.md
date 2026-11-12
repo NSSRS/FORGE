@@ -157,7 +157,7 @@ Pocket physical acceptance still needs:
   Keep the gun fixed in the DOF6 clamp. Verify wire extension and cable clearance
   on the rig. The fixed-mount simulation reaches the full width at 1–3 Hz with
   a measured peak edge overshoot of 0.32 mm. Agree on physical trial tolerances.
-  Use the [simulation controller and tester guide](../src/simulation/simulation/controllers/README.md).
+  Use the [simulation controller and tester guide](../src/controls/README.md).
   Record the accepted amplitude, feed and tracking tolerance for the intended seam.
   Physical pose teaching and A6 speed trials remain under CAL-01 and SPEED-01.
 

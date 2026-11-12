@@ -146,7 +146,8 @@ src/
   encos_driver/    ENCOS chassis C11 EtherCAT driver and bench utilities
   damiao_firmware/ DM-MC02 arm firmware, USB protocol and watchdogs
   robot_description/ Shared MJCF/meshes, chassis/arm inventories and motor Xacro macros
-  simulation/     MuJoCo previews, CAD integration, terrain and simulation controls
+  controls/       Coordinated trajectories, simulation control and future hardware control
+  simulation/     MuJoCo previews, CAD integration, terrain and rendering
   motors/         Python motor API, simulator and native commissioning
   motor_control/  ROS motor driver, chassis mixing and ROS commissioning
   imu/            ROS IMU node, serial protocol and terminal reader
