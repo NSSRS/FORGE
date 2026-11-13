@@ -1,0 +1,82 @@
+{
+  "schema": "forge.operator_arm_return_check_summary",
+  "version": 1,
+  "date": "2026-11-13",
+  "all_six_return_observations_recorded": true,
+  "remaining_joint_observations": [],
+  "hardware_accessed_by_agent": false,
+  "runtime_configuration_changed": false,
+  "production_qualified": false,
+  "use_as_calibration_anchors": false,
+  "rows": [
+    {
+      "joint": 1,
+      "start_raw_deg": -174.67,
+      "moved_raw_deg": -188.79,
+      "returned_raw_deg": -175.0,
+      "displayed_return_difference_deg": -0.33,
+      "movement_sequence_basis": "established_test_protocol_context",
+      "source": "Operator-supplied Nov 13 readings and established off-power return procedure; A6 additionally supported by screenshot readout."
+    },
+    {
+      "joint": 2,
+      "start_raw_deg": -117.93,
+      "moved_raw_deg": -95.48,
+      "returned_raw_deg": -117.62,
+      "displayed_return_difference_deg": 0.31,
+      "movement_sequence_basis": "established_test_protocol_context",
+      "source": "Operator-supplied Nov 13 readings and established off-power return procedure; A6 additionally supported by screenshot readout."
+    },
+    {
+      "joint": 3,
+      "start_raw_deg": 117.8,
+      "moved_raw_deg": 99.94,
+      "returned_raw_deg": 118.02,
+      "displayed_return_difference_deg": 0.22,
+      "movement_sequence_basis": "established_test_protocol_context",
+      "source": "Operator-supplied Nov 13 readings and established off-power return procedure; A6 additionally supported by screenshot readout."
+    },
+    {
+      "joint": 4,
+      "start_raw_deg": 173.16,
+      "moved_raw_deg": 192.85,
+      "returned_raw_deg": 172.68,
+      "displayed_return_difference_deg": -0.48,
+      "movement_sequence_basis": "established_test_protocol_context",
+      "source": "Operator-supplied Nov 13 readings and established off-power return procedure; A6 additionally supported by screenshot readout."
+    },
+    {
+      "joint": 5,
+      "start_raw_deg": 7.73,
+      "moved_raw_deg": -49.01,
+      "returned_raw_deg": 8.49,
+      "displayed_return_difference_deg": 0.76,
+      "movement_sequence_basis": "explicit_operator_confirmation",
+      "source": "Operator-supplied Nov 13 readings and established off-power return procedure; A6 additionally supported by screenshot readout."
+    },
+    {
+      "joint": 6,
+      "start_raw_deg": 64.34,
+      "moved_raw_deg": 53.25,
+      "returned_raw_deg": 64.34,
+      "displayed_return_difference_deg": 0.0,
+      "movement_sequence_basis": "explicit_operator_confirmation",
+      "source": "Operator-supplied Nov 13 readings and established off-power return procedure; A6 additionally supported by screenshot readout."
+    }
+  ],
+  "max_absolute_displayed_return_difference_deg": 0.76,
+  "stationary_cycle_max_absolute_displayed_change_deg": 0.02,
+  "conclusion": "One return observation is recorded for each joint under the established off-power movement procedure. Each displayed return is near its starting value; maximum absolute displayed difference is 0.76 deg. This completes collection of this six-joint test round, not overall CAL-01 qualification.",
+  "limitations": [
+    "Manual return alignment, load/support differences, and encoder error are not separated.",
+    "A1/A4 powered readings extend beyond -180/+180 deg; the tests do not establish every power-up branch or retained multi-turn identity.",
+    "Normal CAN feedback versus documented p_m/xout, where supported, remains part of CAL-01."
+  ],
+  "next_calibration_work": [
+    "Derive pose-dependent bounds from model geometry and record real obstacles/gear constraints with scripts/calibrate_arm.py.",
+    "Validate candidate raw-to-model mappings against additional independently identified physical poses.",
+    "Reconcile the A3 saved model initial pose with its geometric stop before choosing an initial target.",
+    "Complete measured-coordinate startup/preload and versioned calibration acceptance before production use."
+  ],
+  "todo_source": "docs/ARM_LAYER_TODOS.md#cal-01--motor-position-initialization-and-physical-calibration"
+}

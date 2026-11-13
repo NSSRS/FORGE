@@ -213,7 +213,8 @@ class ArmJogKeys:
             self.port.report['position_capture']=self.capture.records
 
 
-def make_window(port,mode,*,speed_deg_s=45,recovery_report_path=None,teach=None,capture=None):
+def make_window(port,mode,*,speed_deg_s=45,recovery_report_path=None,teach=None,capture=None,
+                keys_factory=ArmJogKeys,panel_factory=None,table_factory=None):
     from PyQt5 import QtCore,QtWidgets
     from .arm_widgets import JointPositionTable
     class RecoveryThread(QtCore.QThread):
@@ -225,7 +226,7 @@ def make_window(port,mode,*,speed_deg_s=45,recovery_report_path=None,teach=None,
 
     class Window(QtWidgets.QWidget):
         def __init__(self):
-            super().__init__();self.keys=ArmJogKeys(port,speed_deg_s,recovery_report_path=recovery_report_path,teach=teach,capture=capture);self.next_display=0
+            super().__init__();self.keys=keys_factory(port,speed_deg_s,recovery_report_path=recovery_report_path,teach=teach,capture=capture);self.next_display=0
             self.recovery_thread=None;self.close_after_recovery=False
             self.starting=False;self.cancel_start=False;self.close_after_start=False
             self.setWindowTitle('FORGE • Arm joint jog • '+mode);self.resize(880,420)
@@ -233,30 +234,11 @@ def make_window(port,mode,*,speed_deg_s=45,recovery_report_path=None,teach=None,
             self.title=QtWidgets.QLabel();layout.addWidget(self.title)
             shortcuts=QtWidgets.QLabel('1–6 select   •   E arm   •   Hold ↑/→ positive, ↓/← negative   •   '+
                 ('Space pause/hold   •   D disable   •   R recover' if self.keys.position_hold else 'Space stop   •   R recover'))
-            shortcuts.setWordWrap(True);layout.addWidget(shortcuts)
+            shortcuts.setWordWrap(True);layout.addWidget(shortcuts);self.shortcuts=shortcuts
             if capture:
-                panel=QtWidgets.QGroupBox('Position recording')
-                capture_layout=QtWidgets.QVBoxLayout(panel)
-                self.capture_label=QtWidgets.QLabel();self.capture_label.setWordWrap(True)
-                capture_layout.addWidget(self.capture_label)
-                self.capture_result=QtWidgets.QLabel(self.keys.capture_message)
-                self.capture_result.setWordWrap(True)
-                self.capture_result.setTextFormat(QtCore.Qt.PlainText)
-                font=self.capture_result.font();font.setBold(True);self.capture_result.setFont(font)
-                capture_layout.addWidget(self.capture_result)
-                self.capture_readiness=QtWidgets.QLabel();self.capture_readiness.setWordWrap(True)
-                capture_layout.addWidget(self.capture_readiness)
-                self.capture_progress=QtWidgets.QLabel();self.capture_progress.setWordWrap(True)
-                capture_layout.addWidget(self.capture_progress)
-                self.capture_button=QtWidgets.QPushButton('CAPTURE SHOWN STEP (C) — save measured position')
-                self.capture_button.setFocusPolicy(QtCore.Qt.NoFocus)
-                self.capture_button.clicked.connect(lambda:self.invoke(lambda:self.keys.press('c')))
-                capture_layout.addWidget(self.capture_button)
-                self.capture_next=QtWidgets.QPushButton()
-                self.capture_next.setFocusPolicy(QtCore.Qt.NoFocus)
-                self.capture_next.clicked.connect(self.select_next_capture)
-                capture_layout.addWidget(self.capture_next)
-                layout.addWidget(panel)
+                from .arm_recording import CapturePanel
+                self.recording_panel=CapturePanel(self,port,capture)
+                layout.addWidget(self.recording_panel)
             if teach:
                 layout.addWidget(QtWidgets.QLabel('C reference   •   B inward sample   •   T save aligned goal   •   Hold H toward goal   •   Arrows trim 1°'))
                 self.pose_label=QtWidgets.QLabel();self.pose_label.setWordWrap(True);layout.addWidget(self.pose_label)
@@ -280,17 +262,18 @@ def make_window(port,mode,*,speed_deg_s=45,recovery_report_path=None,teach=None,
                 b.clicked.connect(lambda checked=False,n=n:self.invoke(lambda:self.keys.press(str(n))))
                 buttons.addWidget(b)
             arm=QtWidgets.QPushButton('Arm selected (E)');arm.setFocusPolicy(QtCore.Qt.NoFocus)
-            arm.clicked.connect(lambda:self.invoke(lambda:self.keys.press('e')));buttons.addWidget(arm)
+            arm.clicked.connect(lambda:self.invoke(lambda:self.keys.press('e')));buttons.addWidget(arm);self.arm_button=arm
             self.recover_button=QtWidgets.QPushButton('Recover fault (R)')
             self.recover_button.setFocusPolicy(QtCore.Qt.NoFocus)
             self.recover_button.clicked.connect(self.start_recovery);buttons.addWidget(self.recover_button)
-            self.table=JointPositionTable()
+            self.table=table_factory() if table_factory else JointPositionTable()
             table_font=self.table.font();table_font.setPointSize(10);self.table.setFont(table_font)
             self.table.verticalHeader().setMinimumSectionSize(20)
             self.table.verticalHeader().setDefaultSectionSize(22)
             self.table.setMinimumHeight(self.table.horizontalHeader().sizeHint().height()+6*22+2*self.table.frameWidth())
             layout.addWidget(self.table)
             self.status=QtWidgets.QLabel();self.status.setWordWrap(True);layout.addWidget(self.status)
+            if panel_factory:panel_factory(self,layout)
             if self.keys.group_hold:
                 self.hold_all_button=QtWidgets.QPushButton('HOLD ALL CONNECTED JOINTS (H)')
                 self.hold_all_button.setFocusPolicy(QtCore.Qt.NoFocus)
@@ -350,26 +333,7 @@ def make_window(port,mode,*,speed_deg_s=45,recovery_report_path=None,teach=None,
                 ('HOLDING — ARMED' if port.armed else 'HOLDING — MOTION DISARMED') if getattr(port,'holding',False) else 'ARMED' if port.armed else 'DISARMED'))
             self.status.setText(self.keys.message)
             if teach:self.pose_label.setText(teach.describe(port.selected))
-            if capture:
-                self.capture_label.setText(capture.describe(port.selected))
-                self.capture_result.setText(self.keys.capture_message)
-                self.capture_progress.setText(capture.progress())
-                remaining=capture.remaining_joints()
-                reason=self.keys.capture_block_reason()
-                self.capture_readiness.setText('Saving to disk…' if capture.pending else
-                    'All requested positions are saved.' if not remaining else
-                    'Selected motor is saved. Continue with the next motor.' if port.selected not in remaining else
-                    reason or 'Ready — press C or click Capture to save this position.')
-                self.capture_button.setEnabled(not (capture.pending or self.keys.failed or self.keys.recovering)
-                    and port.selected in remaining)
-                self.capture_next.setText(f'Finish the shown A{port.selected} step before Next'
-                    if port.selected in remaining else
-                    f'NEXT: select A{remaining[0]} ({remaining[0]}) — other joints keep holding'
-                    if remaining else 'All positions saved')
-                self.capture_next.setEnabled(bool(remaining) and port.selected not in remaining
-                    and not (capture.pending or self.keys.failed or self.keys.recovering))
-                for label in (self.capture_label,self.capture_result,self.capture_readiness,self.capture_progress):
-                    label.setMinimumHeight(label.heightForWidth(max(1,label.width())))
+            if capture:self.recording_panel.refresh()
             self.status.setMinimumHeight(self.status.heightForWidth(max(1,self.status.width())))
             if time.monotonic()>=self.next_display and not self.keys.recovering:
                 def refresh():
@@ -428,7 +392,7 @@ def make_window(port,mode,*,speed_deg_s=45,recovery_report_path=None,teach=None,
     return Window()
 
 
-def main(argv=None):
+def main(argv=None, *, recording=False):
     parser=argparse.ArgumentParser(description=__doc__)
     action=parser.add_mutually_exclusive_group()
     action.add_argument('--simulate',action='store_true',help='offline window; default')
@@ -450,12 +414,13 @@ def main(argv=None):
     parser.add_argument('--smooth-jog',action='store_true',
                         help='hardware trial: ramp jog targets at 2 ms; requires holding mode and updated firmware')
     parser.add_argument('--teach-file', type=Path, help='save fixture references and tuned raw goal offsets')
-    parser.add_argument('--capture-file',type=Path,
-                        help='new JSON file: guided initial positions and travel endpoints while all joints hold; C saves')
-    parser.add_argument('--capture-mode',choices=('reference','bounds'),default='reference',
-                        help='reference: A1/A4/A5/A6 initial, A2/A3 CW then CCW ends; bounds: two ends plus initial for every joint')
-    parser.add_argument('--fixture-note',default='',
-                        help='optional capture context')
+    if recording:
+        parser.add_argument('--capture-file',type=Path,required=True,
+                            help='new JSON output for the separate position recorder')
+        parser.add_argument('--capture-mode',choices=('reference','bounds'),default='reference')
+        parser.add_argument('--fixture-note',default='')
+    else:
+        parser.set_defaults(capture_file=None,capture_mode='reference',fixture_note='')
     parser.add_argument('--stop-map', nargs=3, action='append', default=[],
                         metavar=('DOF','MODEL_STOP_DEG','SIGNED_RAW_PER_MODEL'),
                         help='measured stop mapping for A2/A3/A5; used on C')
@@ -519,6 +484,7 @@ def main(argv=None):
         window=make_window(port,'HARDWARE (SUPPORTED)' if args.execute and args.supported else
                            'HARDWARE (UNLOADED)' if args.execute else 'SIMULATION',speed_deg_s=args.speed_deg_s,
                            recovery_report_path=args.report,teach=teach,capture=capture)
+        if recording:window.setWindowTitle('FORGE • Position recorder')
         window.show();app.exec_();result=1 if window.keys.failed else 0
     except KeyboardInterrupt:error='Interrupted';result=130
     except Exception as exc:error=str(exc)

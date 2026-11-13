@@ -260,3 +260,16 @@ instructions in [DAMIAO_ARM.md](../docs/DAMIAO_ARM.md); this build never flashes
 Physical bus timing, current/torque accuracy, position calibration, higher speeds,
 loaded holding and fault-stop latency remain acceptance work in
 [the open registry](../docs/ARM_LAYER_TODOS.md).
+
+### Model-guided arm calibration
+
+Install `src/simulation/calibration-requirements.txt` in the model environment.
+`test_arm_calibration.py` covers path authorization/cancellation, one-degree
+waypoints through the fake C firmware, complete fresh-pose validation, constraint
+identity/backoff, disk failures, Space with text-field focus, and actual model
+closure/adjacent-stop checks. No hardware is opened.
+
+```bash
+QT_QPA_PLATFORM=offscreen PYTHONPATH=src .venv/bin/python -m unittest discover -s tests -p test_arm_calibration.py -v
+QT_QPA_PLATFORM=offscreen PYTHONPATH=src .venv/bin/python -m unittest discover -s tests -p test_arm_capture.py -v
+```

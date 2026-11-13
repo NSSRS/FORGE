@@ -46,7 +46,7 @@ Record fixture measurements before promoting any calibration to production.
 The initial eight requested observations are preserved in the
 [dated reference record](../src/robot_description/config/arm_reference_positions_2026-11-12.json).
 Validation and full coordinate mapping remain open.
-The hold-all jogger's `--capture-file` defaults to initial references for
+The separate `record_arm_positions.py --capture-file` recorder defaults to initial references for
 A1/A4/A5/A6 and both CW/CCW ends for A2/A3, preserving all holds and saving all
 joint angles for context. The longer two-ends-plus-initial workflow for every
 motor remains available through `--capture-mode bounds`.
@@ -55,15 +55,19 @@ See the [capture procedure](ARM_POSE_TEST.md#current-procedure-initial-positions
 
 - [ ] Record known physical-pose/raw-angle pairs for each DOF: sign, zero offset,
   any external ratio, wrap branch and units. Separate model zero from session zero.
-- [ ] Verify disabled startup readings after power cycles, first without motion
-  and then after controlled off-power movement. Check normal CAN feedback versus
+- [ ] Complete encoder-branch coverage and compare normal CAN feedback with
   documented `p_m`/`xout` where supported; do not assume retained multi-turn state.
+  The stationary six-axis cycle and one controlled off-power return per joint
+  are recorded in [Nov 13 observations](measurements/arm-return-checks-2026-11-13.json);
+  manual return differences do not isolate encoder precision.
 - [ ] Implement startup initialization from fresh measured coordinates and
   current-position preload. No jump toward guessed zero, automatic homing or
   automatic return to the simulation pose; a home move needs a separate request
   and a validated path.
 - [ ] Identify physical travel/cable/clearance limits under support, save a
-  versioned calibration, and verify round trips at additional poses. Keep null
+  versioned calibration, and verify round trips at additional poses. The
+  [model-guided tool](ARM_MODEL_CALIBRATION.md) now derives pose-dependent paths
+  and records operator constraints; physical qualification remains open. Keep null
   calibration/false production flags until measured acceptance is complete.
 
 ### SPEED-01 — faster commanded movement

@@ -6,10 +6,14 @@ and [the reference JSON](../src/robot_description/config/arm_reference_positions
 Repeatability, model mapping and loaded stopping remain unqualified. Run from the patched
 FORGE checkout on the Ubuntu rig. One keyboard window owns the controller.
 
+Manual jogging now uses `bash scripts/control_arm.sh` with no capture panel.
+Reference recording is a separate application; model-derived paths and obstacle
+retuning use [the reusable calibration tool](ARM_MODEL_CALIBRATION.md).
+
 ## Current procedure: initial positions and A2/A3 travel ends
 
 The requested workflow is **A1/A4/A5/A6 initial positions and both CW/CCW ends
-for each of A2/A3**, with no notes questionnaire. Use `--capture-file`
+for each of A2/A3**, with no notes questionnaire. Use `scripts/record_arm_positions.py --capture-file`
 (default `--capture-mode reference`) with group hold. From the repository root,
 `bash scripts/record_arm_positions.sh` starts this workflow and writes a fresh
 `build/arm_tests/positions-.../initial-positions.json`. It never loads the saved
@@ -110,7 +114,7 @@ From the repository root, after the existing six-joint disabled connection check
 ```bash
 run="build/arm_tests/positions-$(date +%Y%m%d-%H%M%S)"
 mkdir -p "$run"
-python3 scripts/jog_dm_arm.py --execute --supported --manual-travel \
+python3 scripts/record_arm_positions.py --execute --supported --manual-travel \
   --hold-all --smooth-jog --speed-deg-s 10 \
   --plan src/robot_description/config/arm_rig_a1_a6.json \
   --port /dev/ttyACM0 --capture-mode bounds \

@@ -1,0 +1,95 @@
+{
+  "version": 1,
+  "equipment_revision": "forge-arm-2026-11-13-candidate",
+  "production_qualified": false,
+  "units": "q_model_deg = model_per_raw * raw_output_shaft_deg + model_intercept_deg",
+  "source_repository_commit": "01a56e35c63e4ec6d2e58dcac3b2d55eb4c31818",
+  "basis": "A1/A4/A5/A6 Nov 12 physical initial anchors; A2 geometric stops and recorded endpoints; A3 Nov 13 corrected CW/CCW endpoints. These are candidate mappings for supported commissioning.",
+  "initial_pose_target_authorized": false,
+  "notes": [
+    "Arbitrary power-cycle test poses are not calibration anchors.",
+    "A3 saved model initial pose overlaps its mechanical stop; no automatic initial/home move.",
+    "For a different mounting or transmission, update the raw-to-model map and equipment revision; never assume unchanged zero, ratio, or branch."
+  ],
+  "joints": {
+    "1": {
+      "model_joint": "b2_arm_d1",
+      "model_per_raw": -1.0,
+      "model_intercept_deg": -174.69159564640077,
+      "raw_branch_deg": [
+        -354.69159564640074,
+        5.308404353599229
+      ],
+      "basis": "candidate_reference_mapping_derived"
+    },
+    "2": {
+      "model_joint": "b3_arm_d2",
+      "model_per_raw": -1.0065837694510555,
+      "model_intercept_deg": -56.36405827599418,
+      "raw_branch_deg": [
+        -141.73134301396698,
+        -3.1146209030391745
+      ],
+      "basis": "geometric_endpoint_mapping_derived; candidate_initial_inside_both_intervals"
+    },
+    "3": {
+      "model_joint": "b4_arm_d3",
+      "model_per_raw": -0.9973092711144689,
+      "model_intercept_deg": 126.42606714947841,
+      "raw_branch_deg": [
+        72.77,
+        151.39
+      ],
+      "basis": "operator_labeled_screenshot_candidate; original_model_initial_outside_contact_interval"
+    },
+    "4": {
+      "model_joint": "b5_arm_d4",
+      "model_per_raw": -1.0,
+      "model_intercept_deg": 173.1834352361486,
+      "raw_branch_deg": [
+        -6.816564763851403,
+        353.1834352361486
+      ],
+      "basis": "candidate_reference_mapping_derived"
+    },
+    "5": {
+      "model_joint": "b6_arm_d5",
+      "model_per_raw": -1.0,
+      "model_intercept_deg": -2.017926825144416,
+      "raw_branch_deg": [
+        -171.24632027668494,
+        188.75367972331506
+      ],
+      "basis": "candidate_reference_mapping_derived"
+    },
+    "6": {
+      "model_joint": "b7_arm_d6",
+      "model_per_raw": -1.0,
+      "model_intercept_deg": 64.16104853467226,
+      "raw_branch_deg": [
+        -115.83895146532774,
+        244.16104853467226
+      ],
+      "basis": "candidate_reference_mapping_derived"
+    }
+  },
+  "adjacent_stop_pairs": [
+    [
+      "collision_411",
+      "collision_463"
+    ],
+    [
+      "collision_469",
+      "collision_519"
+    ]
+  ],
+  "simulation_model_deg": {
+    "1": 0.0,
+    "2": 5.397262430132355,
+    "3": -20.0,
+    "4": 0.0,
+    "5": -10.771606548459477,
+    "6": 0.0
+  },
+  "simulation_pose_note": "Offline demonstration only, chosen inside the A3 stop; never sent to hardware."
+}

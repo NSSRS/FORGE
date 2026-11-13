@@ -55,6 +55,12 @@ Production ROS, calibrated joint limits and loaded-arm operation remain unvalida
 
 ## Manual arm joint control
 
+Use `bash scripts/control_arm.sh` for the supported six-axis manual panel,
+without position capture. `bash scripts/record_arm_positions.sh` opens the
+separate reference recorder. The reusable [model-guided calibration tool](docs/ARM_MODEL_CALIBRATION.md)
+calculates paths at measured poses and records constraints for changed gear.
+
+
 [Position API and keyboard joint jog](docs/ARM_POSITION_JOG.md): run
 `python3 scripts/jog_dm_arm.py --simulate`, select 1..6, press E once and hold an arrow in the desktop window; release stops.
 Hardware execution requires the documented unloaded or mechanically supported fixture.

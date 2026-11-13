@@ -137,7 +137,7 @@ generated. Rebuild the affected ROS package after changing an installed asset.
 | Check entry point | [scripts/test_dm_arm.py](../scripts/test_dm_arm.py), a thin wrapper over [src/motors/arm_bench.py](../src/motors/arm_bench.py) |
 | Motor transport, disabled probing/explicit recovery, manual position lifecycle and fault capture | [src/motors/arm.py](../src/motors/arm.py), [arm_bench.py](../src/motors/arm_bench.py), [arm_position.py](../src/motors/arm_position.py) |
 | Explicit group holding and selection without torque disable | [src/motors/arm_group_hold.py](../src/motors/arm_group_hold.py), exercised by [tests/test_arm_group_hold.py](../tests/test_arm_group_hold.py) |
-| Guided raw bounds and initial-position capture from cached group feedback | [src/motors/arm_capture.py](../src/motors/arm_capture.py), `jog_dm_arm.py --capture-file`, exercised by [tests/test_arm_capture.py](../tests/test_arm_capture.py) |
+| Guided raw bounds and initial-position capture from cached group feedback | [src/motors/arm_capture.py](../src/motors/arm_capture.py), `record_arm_positions.py --capture-file`, exercised by [tests/test_arm_capture.py](../tests/test_arm_capture.py) |
 | Portable eight-position recording launcher | [scripts/record_arm_positions.sh](../scripts/record_arm_positions.sh) |
 | Historical saved-report jitter analysis (no hardware access) | [src/motors/arm_jitter_report.py](../src/motors/arm_jitter_report.py), [scripts/analyze_arm_jitter.py](../scripts/analyze_arm_jitter.py) |
 | Recorded raw references and original sample evidence | [2026-11-12 reference JSON](../src/robot_description/config/arm_reference_positions_2026-11-12.json), [capture evidence](measurements/arm-reference-2026-11-12.capture.json); observation only, not runtime limits |
@@ -180,3 +180,9 @@ configuration and summarized measured outcomes in tracked documentation.
 Package `TODO.md` files point to owning IDs. Completed implementation belongs
 in the API/operator guides; old incidents and exact measurements stay in dated
 evidence. This avoids conflicting deployment/acceptance status across files.
+
+Model-guided calibration: `scripts/calibrate_arm.py` → `teleop.arm_calibration`
+(UI), `motors.arm_calibration` (mapping/records/bounded waypoint policy),
+`simulation.arm_calibration` (offline collision/closure planner).
+Manual controls use `scripts/control_arm.sh`; the capture panel lives separately
+in `teleop.arm_recording`. See [operation and retuning](ARM_MODEL_CALIBRATION.md).

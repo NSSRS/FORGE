@@ -16,6 +16,10 @@ The [source and artifact map](SOURCE_LAYOUT.md#arm-controls-and-rig-test-file-ma
 lists the exact owning files and report/log folders. The canonical source checkout
 on this machine is `/home/forge2/forge2_ws`.
 
+Manual-only six-axis controls: `bash scripts/control_arm.sh`. Position recording
+is a separate application (`bash scripts/record_arm_positions.sh`); model-guided
+calibration and obstacle retuning are in [ARM_MODEL_CALIBRATION.md](ARM_MODEL_CALIBRATION.md).
+
 ## Current keyboard workflow
 
 The current operator path uses the keyboard, without a radio.

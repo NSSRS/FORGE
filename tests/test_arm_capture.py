@@ -13,7 +13,8 @@ from unittest.mock import patch
 import source_paths
 from motors.arm_capture import ArmCapture
 from motors.arm_group_hold import SimulatedGroupHoldPort
-from teleop.arm_keyboard import ArmJogKeys, main, make_window
+from teleop.arm_keyboard import ArmJogKeys, make_window
+from teleop.arm_recording import main
 import test_arm_group_hold as group_tests
 from motors import arm_position as pos, arm_bench as bench
 

@@ -20,7 +20,7 @@ The Position recording panel shows Saved and the measured angle, or NOT SAVED wi
 After each Saved, follow the displayed next step. A2/A3 require both ends before Next.
 Eight saves total. Other joints keep holding. D / Q / closing disables torque.
 EOF
-exec python3 scripts/jog_dm_arm.py --execute --supported --manual-travel \
+exec python3 scripts/record_arm_positions.py --execute --supported --manual-travel \
   --hold-all --smooth-jog --speed-deg-s 10 \
   --plan src/robot_description/config/arm_rig_a1_a6.json \
   --port /dev/ttyACM0 --capture-mode reference \

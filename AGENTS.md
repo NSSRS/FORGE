@@ -8,19 +8,26 @@ for open work; remove completed tasks instead of appending incident histories.
 Operator procedures belong in `docs/ARM_RIG_TEST.md`; architecture and ownership
 are in `docs/ARM_BASE_LAYER.md` and `docs/SOURCE_LAYOUT.md`.
 
-Current arm status (2026-11-12): A1 is reconnected; all six disabled identity/
-feedback checks passed. The operator completed eight requested raw recordings:
-A1 front/initial, A2 CW and CCW ends, A3 CW and CCW ends, A4/A5/A6 initial.
-The dated reference JSON under `src/robot_description/config/` preserves the
-operator's readings; `docs/measurements/` preserves the matching full-precision
-capture and final cleanup summary. Read the handoff for exact angles. No values
-were installed as runtime limits, motor zero or automatic startup targets.
-A2/A3 initial poses, other joints' bounds, model sign/offset/ratio and power-cycle
-repeatability remain open under CAL-01. Keep unknown fields null and production
-flags false. The operator input `-174,692` means A1 -174.692 degrees, corroborated
-by the original capture.
+Current arm status (2026-11-13): all six motors are connected. The Nov 12 eight
+reference readings remain in the dated reference JSON; the Nov 13 stationary
+cycle and all six off-power return observations are recorded in
+`docs/measurements/arm-return-checks-2026-11-13.json`. Do not repeat that same
+round solely because manually returned angles differ slightly. CAL-01 still
+needs broader encoder-branch coverage, independent model alignment and physical
+qualification. The candidate map preserves the Nov 13 corrected A3 endpoint
+labels (CW 72.77°, CCW 151.39°); arbitrary return-test poses are not anchors.
 
-The same saved session verifies firmware `d61f6d16`, capabilities `0xFFF8F`, but
+Manual control is `bash scripts/control_arm.sh`, with no position capture UI.
+Reference recording is separate (`scripts/record_arm_positions.py` / its shell
+launcher). `scripts/calibrate_arm.py` is the reusable model-guided planner and
+supported calibration UI: measured six-axis pose, explicit path start, bounded
+waypoints, Space pause/hold, disabled hand-position constraint recording, and
+model/mapping/equipment fingerprints for reruns. See `docs/ARM_MODEL_CALIBRATION.md`.
+No new calibration was promoted to production and the agent did not access
+hardware. Keep unknown fields null and production flags false. The saved A3
+model initial pose overlaps its stop; it is not an automatic hardware target.
+
+The Nov 12 saved reference session verifies firmware `d61f6d16`, capabilities `0xFFF8F`, but
 ended with exit 2: final feedback was disabled on all six joints, while A2 speed
 was -0.168498 rad/s and stationary-disable/mode-restoration checks failed.
 Do not infer successful loaded shutdown from successful position capture. No

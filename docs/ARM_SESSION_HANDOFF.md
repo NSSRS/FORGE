@@ -1,9 +1,33 @@
 # Arm session handoff
 
-Updated 2026-11-12, based on branch `nathan` in `NSSRS/FORGE`. This is the current status
+Updated 2026-11-13, based on branch `nathan` in `NSSRS/FORGE`. This is the current status
 for operators and future agents. Keep open requirements in
 [the cross-layer registry](ARM_LAYER_TODOS.md), run instructions in
 [the rig guide](ARM_RIG_TEST.md), and detailed measurements in dated reports.
+
+## Current calibration workflow
+
+Manual control (`bash scripts/control_arm.sh`), reference recording
+(`bash scripts/record_arm_positions.sh`) and model-guided calibration
+(`.venv/bin/python scripts/calibrate_arm.py`) now have separate entry points.
+See [calculation, controls and retuning](ARM_MODEL_CALIBRATION.md). The tool
+calculates pose-dependent paths from measured coordinates, retains D3 closure,
+checks explicit adjacent A2/A3 stops, and stores real obstacle constraints for
+reuse only with matching model/mapping/mounting identity. Hardware execution
+still requires the operator's explicit H and path-start action.
+
+The [Nov 13 return observations](measurements/arm-return-checks-2026-11-13.json)
+complete collection of the stationary cycle and one off-power return per joint.
+Return-minus-start: A1 −0.33°, A2 +0.31°, A3 +0.22°, A4 −0.48°, A5 +0.76°,
+A6 0.00°. These include manual positioning uncertainty and are not precision
+qualification or calibration anchors. Broader encoder branch checks remain open.
+
+The candidate mapping derives A2/A3 from model stop geometry and recorded ends;
+Nov 13 A3 labels are **CW 72.77°, CCW 151.39°**, superseding the Nov 12 A3 labels
+below. The A3 saved model initial pose remains about 0.65° beyond its modeled
+CCW contact. It is not an automatic target. No hardware session was launched,
+interrupted or flashed by this software change; loaded stop/hold qualification
+remains open.
 
 ## Verified milestone
 
@@ -59,7 +83,7 @@ The operator deferred jitter investigation under SPEED-01 and returned to
 CAL-01 on 2026-11-12. The current task is A1 front/initial, A2 CW then CCW ends,
 A3 CW then CCW ends, and A4/A5/A6 initial. Eight saves; no notes questionnaire.
 This supersedes the earlier one-position-per-motor interpretation.
-`scripts/jog_dm_arm.py --hold-all --capture-file ...` now defaults to this
+`scripts/record_arm_positions.py --hold-all --capture-file ...` now defaults to this
 reference mode. The portable `scripts/record_arm_positions.sh` launcher writes `initial-positions.json` and prints
 the physical instructions. `--capture-mode bounds` retains the longer two-end
 plus initial sequence for later. Both use cached feedback while all connected
@@ -340,9 +364,9 @@ evidence is in `logs/arm_tests/hold-jog-speed/`. Loaded holding remains unqualif
    six-joint disabled identity/feedback check has passed. Qualify the requested
    selected-joint/group holding modes and corrected jog rate under mechanical support.
 2. **Reference validation — CAL-01.** The eight requested raw positions are now
-   recorded above. Verify power-cycle/off-power repeatability, measure the
-   remaining bounds and A2/A3 initial poses, and establish model sign/offset/ratio
-   before deriving startup goals. Production coordinate initialization and
+   recorded above. Use the model-guided tool for pose-dependent bounds and real-obstacle
+   constraints, validate candidate mappings at independent poses, and complete
+   broader encoder-branch/register checks before deriving startup goals. Production coordinate initialization and
    physical travel qualification remain open.
 3. **Faster movement and A6 response — SPEED-01.** Follow the same procedure
    for separate 5, 7.5 and 10 deg/s runs. Compare A6 with A4/A5 and return
