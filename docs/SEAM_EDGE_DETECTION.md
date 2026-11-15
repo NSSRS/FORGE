@@ -14,7 +14,7 @@ occluded edges need a later detector.
 Already built on the NUC. After pulling onto another built ROS workspace:
 
 ```bash
-cd ~/forge2_ws
+cd /path/to/FORGE
 source scripts/ros2_env.sh
 colcon --log-base logs/colcon build --base-paths src --build-base build/ros2 --install-base install/ros2 --symlink-install --packages-up-to bringup
 ```
@@ -23,14 +23,14 @@ If the camera is already streaming, leave its driver running and only start the
 detector. Otherwise start RGB in one terminal:
 
 ```bash
-cd ~/forge2_ws
+cd /path/to/FORGE
 bash scripts/run_stereo_cam.sh show_video:=false color_fps:=30
 ```
 
 In another terminal:
 
 ```bash
-cd ~/forge2_ws
+cd /path/to/FORGE
 bash scripts/run_seam_edges.sh
 ```
 

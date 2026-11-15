@@ -1,6 +1,6 @@
 # Damiao torque ratings and the A2 rig trips
 
-Reviewed 2026-11-10. This separates manufacturer ratings, FORGE configuration
+Manufacturer/incident review: 2026-11-10; current profile updated 2026-11-15. This separates manufacturer ratings, FORGE configuration
 ceilings, per-test trip thresholds and motor-side current protection.
 
 ## Manufacturer manuals
@@ -35,12 +35,13 @@ No current, temperature, persistent zero or calibration register was changed.
 
 ## Current profile and command path
 
-The operator confirmed A2–A6 manual motion on 2026-11-10. The current rig
-commands **5 deg/s** in position–velocity mode 2, with explicit manual travel
-instead of the former +/-3-degree window. All five active measured-speed trips
-are **1.5 rad/s**; torque trips are **12 Nm for A2/A3**, **3.5 Nm for A4–A6**.
-A1 is omitted. These trips are reactive feedback stops, not drive-current clamps.
-Faster commanded speed and physical position initialization are the next work.
+The current supported rig includes all six axes. Manual mode-2 non-holding/
+teaching uses 5 deg/s; holding-mode jogs default to 10 deg/s. The separate
+[weld controller](WELD_MOTION.md) uses 5 deg/s initial/approach and equal
+68.7549 deg/s weld caps. All measured-speed trips remain **1.5 rad/s**;
+torque trips are **20 Nm A1, 12 Nm A2/A3, 3.5 Nm A4-A6**. These are reactive
+feedback stops, not drive-current clamps or physical operating qualifications.
+The candidate pose mapping and derived standby still need independent validation.
 
 The mode-2 CAN payload contains position and maximum speed float32 values at
 CAN ID + 0x100. MIT kp/kd/torque arguments are not transmitted. Drive loops
@@ -50,17 +51,18 @@ See the pinned 4340P manual pp. 12/16 for the mode-2 command/feedback format.
 
 Python/routed firmware permit torque configuration ceilings of 20/12/3.5 Nm
 for 8009P/4340P/4310P. Profiles can request less. Capability 0x2000 gates
-4340P trips above the old 3 Nm ceiling. Deployed build **156f20c8 / 0xFF8F**
-also supports disabled control reads (0x4000) and manual travel (0x8000).
+4340P trips above the old 3 Nm ceiling. The Nov 12 saved deployed build
+**d61f6d16 / 0xFFF8F** retains disabled control reads (0x4000) and manual travel
+(0x8000), with additional explicit holding and optional jog-smoothing capabilities.
 The separate legacy CAN2/ID1 bench retains its 3 Nm trip and is not the rig path.
 
 | Layer | Current behavior / remaining bound |
 | --- | --- |
-| Keyboard/Pocket | Fresh held intent; release/focus/neutral/selection stop policies; supported command <=5 deg/s |
-| Position port | Rolling manual target; current-position preload; 12 s host hold cutoff |
+| Keyboard/Pocket | Fresh held intent; explicit stop policies; non-holding/Pocket 5 deg/s, opt-in keyboard hold defaults to 10 deg/s |
+| Position port | Rolling manual target and current-position preload; 12 s host cutoff in default bench mode, command leases retained in explicit hold mode |
 | Host feedback | Profile speed/torque trips, 80 ms freshness and temperature checks |
 | USB/MCU mode 2 | Position/speed payload; no torque or motor-current command |
-| Routed MCU | Protocol position range, near-position preload and 3.2 rad target-distance guard; 15 s enable cutoff, 150 ms command lease, 100 ms feedback timeout, speed/torque/temperature trips |
+| Routed MCU | Protocol range, preload and 3.2 rad target-distance guard; default bench 15 s cutoff, explicit holding without duration cutoff; 150 ms command lease, 100 ms feedback timeout and speed/torque/temperature trips remain |
 | Board transport | CAN completion/abort, bus-off, USB loss and hardware watchdog stops |
 | Motor drive | Existing current thresholds, ACC/DEC/MAX_SPD and loop gains; reads below, no gain/current writes |
 

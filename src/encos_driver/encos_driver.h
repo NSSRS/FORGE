@@ -18,6 +18,23 @@ typedef struct {
     uint32_t error;
 } encos_motor_state_t;
 
+/* Additive telemetry ABI: one mutex-protected cache copy, no bus exchange.
+ * Times are host PDO observations, NOT proven CAN reception timestamps.
+ * Existing read/state ABI remains unchanged. */
+typedef struct {
+    encos_motor_state_t state;
+    double position_observed_s, velocity_observed_s, electrical_observed_s;
+    uint32_t motor_id, slot;
+} encos_motor_telemetry_t;
+
+typedef struct {
+    uint32_t api_version, motor_count, fault, reserved;
+    uint64_t exchanges, failed_exchanges;
+    int32_t last_wkc, expected_wkc;
+    double captured_monotonic_s, max_cycle_gap_s;
+    encos_motor_telemetry_t motors[4];
+} encos_snapshot_t;
+
 typedef struct encos_driver encos_driver_t;
 /* Returns NULL on invalid config/open failure; never issues motion on open. */
 encos_driver_t *encos_driver_open(const char *interface_name,
@@ -30,6 +47,7 @@ encos_driver_t *encos_driver_open_mapped(const char *interface_name,
  * within 250 ms, including a stationary position hold. Failure latches globally. */
 int encos_driver_command(encos_driver_t *driver, uint16_t id, int mode, float target);
 int encos_driver_read(encos_driver_t *driver, uint16_t id, encos_motor_state_t *state);
+int encos_driver_snapshot(encos_driver_t *driver, encos_snapshot_t *snapshot, size_t size);
 /* 0 running; 1 command timeout; 2 EtherCAT; 3 feedback/limit; 4 closing. */
 int encos_driver_status(encos_driver_t *driver);
 /* Best-effort zero-speed commands for 500ms then empty PDOs; not a brake. */

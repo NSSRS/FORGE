@@ -2,13 +2,23 @@
 
 Motor control, IMU acquisition, teleoperation, and visualization for the magnetic wall-climbing welding robot.
 
-**Arm status (2026-11-12): all six motors are connected and the eight requested
-raw positions are recorded:** A1/A4/A5/A6 initial, both CW/CCW ends for A2/A3.
-The [reference data](src/robot_description/config/arm_reference_positions_2026-11-12.json)
-matches the original capture. Model mapping, repeatability and loaded stopping
-remain unqualified; the capture session's final stationary-disable check failed
-on A2. The [pose teaching and speed-trial procedure](docs/ARM_POSE_TEST.md) documents
-the portable recorder and remaining validation.
+**Software status (2026-11-15):** both motor families have cached telemetry;
+the arm has measurement-derived candidate alignment, constrained MuJoCo planning,
+multi-start CMA-ES and a real-motor welding controller. The sequence is measured
+current pose -> controller standby -> weld start -> explicit weld -> hold, with
+independent arm/chassis output switches. The target remains **2 Hz / 12 mm/s**;
+the best complete-route checked CMA-ES plan reaches **1.815288 Hz / 10.891728 mm/s**
+under provisional model acceleration bounds. Six-axis weld speed caps are
+**68.7549 deg/s**; the temporary A1 cap is withdrawn. Standby/approach use 5 deg/s.
+See [weld planning, execution and animation](docs/WELD_MOTION.md).
+
+**Physical evidence:** all six motors are connected; the Nov 12 reference capture
+and Nov 13 return observations are saved. The original A3 endpoint labels were
+corrected on Nov 13. Candidate alignment and animated/fake-motor replay have not
+qualified physical welding, loaded tracking or shutdown. The Nov 12 final
+stationary-disable check failed on A2. Preserve the
+[original reference data](src/robot_description/config/arm_reference_positions_2026-11-12.json)
+and use the [pose procedure](docs/ARM_POSE_TEST.md) for further qualification.
 Start with the [current arm handoff](docs/ARM_SESSION_HANDOFF.md) and
 [keyboard rig instructions](docs/ARM_RIG_TEST.md); the keyboard needs no radio.
 
@@ -19,7 +29,9 @@ without breaking an existing SE prime. See [mapping capture and launch](docs/POC
 
 The [assembled-arm handoff](docs/ASSEMBLED_ARM_BRINGUP.md) records the control
 changes, encoder/startup behavior, model constraints and next steps for physical
-calibration and gravity holding. The jog adapters require unloaded shafts or mechanical support and disable torque on release.
+calibration and gravity holding. Default jog adapters disable torque on release;
+explicit selected/group hold and weld modes retain position until supported
+disable or a fault. Loaded stop/hold qualification remains open.
 
 ENCOS motors are the **chassis** actuators. The six Damiao motors are **arm**
 actuators controlled by a DM-MC02 over USB. See [Damiao arm implementation and
@@ -91,7 +103,8 @@ GALLIUM_DRIVER=d3d12 MESA_D3D12_DEFAULT_ADAPTER_NAME=NVIDIA .venv/bin/python scr
 ```
 
 The default arm angles are [0, 0.0942, -0.44, 0, -0.188, 0] radians.
-Only DOF1's zero was rebased. These are not calibrated hardware encoder coordinates.
+These are the CAD preview defaults, separate from the measurement-derived
+controller standby and raw hardware encoder coordinates.
 
 For the six-joint collision-clearance study, run
 `.venv/bin/python scripts/preview_arm_sweep.py`. See
@@ -114,6 +127,7 @@ IDs 1/2 on CAN1 and ID 3 on CAN2:
 | `bus.velocity(id, rpm)` | Mode 2: signed output-shaft speed |
 | `bus.position(id, degrees)` | Mode 1: absolute output-shaft position |
 | `bus.state(id)` | Position, velocity, phase current, temperature, motor error |
+| `bus.snapshot()` | Cached per-field telemetry ages and EtherCAT health, without new bus queries |
 | `bus.stop()` | Request zero speed for all active motors |
 | `bus.check()` | Raise on a latched fault |
 
@@ -155,7 +169,7 @@ src/
   encos_driver/    ENCOS chassis C11 EtherCAT driver and bench utilities
   damiao_firmware/ DM-MC02 arm firmware, USB protocol and watchdogs
   robot_description/ Shared MJCF/meshes, chassis/arm inventories and motor Xacro macros
-  controls/       Coordinated trajectories, simulation control and future hardware control
+  controls/       Shared planners, simulation control and real ENCOS/Damiao weld execution
   simulation/     MuJoCo previews, CAD integration, terrain and rendering
   motors/         Python motor API, simulator and native commissioning
   motor_control/  ROS motor driver, chassis mixing and ROS commissioning
@@ -220,6 +234,10 @@ the combined motor launch retains its existing transport settings.
 | [Bench procedure and record](docs/ENCOS_TEST_BENCH.md) | Wiring, acceptance checks, dated measurements and outcomes |
 | [Protocol reference](docs/ENCOS_BRINGUP.md) | Packet units/encoding, vendor findings, and original bring-up design |
 | [Platform roadmap](docs/ROBOT_PLATFORM_ROADMAP.md) | Planned chassis control, localization, and safety architecture |
+| [Motor telemetry](docs/MOTOR_TELEMETRY.md) | ENCOS/Damiao cached data, ROS topics, units and freshness limits |
+| [Weld motion](docs/WELD_MOTION.md) | Measured alignment, motor constraints, CMA-ES, hardware control and plan animation |
+| [Open work](docs/ARM_LAYER_TODOS.md) | Arm welding acceptance, deferred load compensation and sensor/ESO feedback |
+| [Chassis/model open work](docs/CHASSIS_MODEL_COMMS_TODOS.md) | Geometry, four-wheel mapping, communication and physical acceptance |
 | [Tests](tests/README.md) | Coverage and native/portable test commands |
 
 ## Live motor visualization
@@ -270,7 +288,8 @@ configuration and source-tree `motors` API. Native library output is now under
 
 [8009P, 4310P and full-arm test preparation](docs/DAMIAO_MOTOR_TESTS.md) provides
 individual outward/return and six-motor sequential/concurrent tests through
-`scripts/test_dm_arm.py`. CAN1 is reserved for the 8009P alone. Rebuild/flash
-matching MC02 firmware and fill the deliberately unconfirmed bench plans from
-measured hardware before execution. The previous 4340P result remains the only
-physical arm-motor validation; these new paths have software coverage.
+`scripts/test_dm_arm.py`. CAN1 is reserved for the 8009P alone. All six motors
+passed the saved unloaded sequence on Nov 5; six-axis disabled checks and
+reference capture followed on Nov 12. These dated results do not qualify the
+new welding trajectory. Use the current inventory and matching firmware;
+normal sessions do not require reflashing or resetting motor configuration.

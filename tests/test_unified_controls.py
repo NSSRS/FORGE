@@ -3,6 +3,7 @@ import source_paths  # source-checkout package imports
 import importlib.util
 from pathlib import Path
 import sys
+import time
 from types import SimpleNamespace as NS
 import unittest
 from unittest.mock import Mock, patch
@@ -16,6 +17,8 @@ class Message:
         self.header = NS(stamp=NS(sec=10, nanosec=0), frame_id="base_link")
         self.twist = NS(linear=NS(x=0.0, y=0.0, z=0.0), angular=NS(x=0.0, y=0.0, z=0.0))
         self.data = []
+        self.status = []
+        self.values = []
 
 
 class FakeNode:
@@ -57,6 +60,8 @@ class UnifiedTests(unittest.TestCase):
                    "sensor_msgs.msg": NS(JointState=Message),
                    "std_msgs.msg": NS(Float64MultiArray=Message),
                    "geometry_msgs.msg": NS(TwistStamped=Message)}
+        modules['diagnostic_msgs.msg'] = NS(DiagnosticArray=Message,
+                                           DiagnosticStatus=Message, KeyValue=Message)
         self.facade = patch.dict(sys.modules, modules)
         self.facade.start()
         self.addCleanup(self.facade.stop)
@@ -64,6 +69,16 @@ class UnifiedTests(unittest.TestCase):
         self.addCleanup(patch.stopall)
         self.bus = self.bus_class.return_value
         self.bus.state.return_value = NS(position_deg=0.0, velocity_rpm=0.0)
+        def snapshot():
+            now = time.monotonic()
+            return dict(api_version=1, simulated=True, fault=0, timestamp_basis='simulation',
+                can_freshness_verified=False, captured_monotonic_s=now,
+                motors=[dict(motor_id=c.motor_id, slot=slot, position_deg=0., velocity_rpm=0.,
+                    current_a=0., temperature_c=25., error=0, position_observed_s=now,
+                    velocity_observed_s=now, electrical_observed_s=now)
+                    for c, slot in zip(self.bus_class.call_args.args[0],
+                                       self.bus_class.call_args.kwargs['motor_slots'])])
+        self.bus.snapshot.side_effect = snapshot
 
     def load(self, name):
         package = 'teleop' if name == 'keyboard_teleop' else 'motor_control'

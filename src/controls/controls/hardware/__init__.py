@@ -1,1 +1,1 @@
-"""Reserved for coordinated motion on the physical rig."""
+"""Model-checked weld motion and single-owner supported commissioning adapters."""

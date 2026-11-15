@@ -32,7 +32,7 @@ Stop the old driver, keyboard, relay and viewer, then run as your normal desktop
 user (no sudo on the launcher):
 
 ```bash
-cd /home/forge2/forge2_ws
+cd /path/to/FORGE
 ./scripts/run_motor_test.sh
 ```
 
@@ -65,7 +65,7 @@ Run these additional panes:
 
 ```bash
 sudo bash -lc '
-cd /home/forge2/forge2_ws
+cd /path/to/FORGE
 source scripts/ros2_env.sh
 export ROS_DOMAIN_ID=44
 ros2 run visualization motor_state_relay
@@ -75,7 +75,7 @@ ros2 run visualization motor_state_relay
 **MuJoCo window, normal desktop account (no sudo):**
 
 ```bash
-cd /home/forge2/forge2_ws
+cd /path/to/FORGE
 ./scripts/run_motor_viewer.sh
 ```
 
@@ -130,7 +130,7 @@ STALE; it is never fabricated from another motor or the requested command.
 ## Setup on a fresh checkout
 
 ```bash
-cd /home/forge2/forge2_ws
+cd /path/to/FORGE
 ./scripts/setup_motor_viewer.sh
 source /opt/ros/jazzy/setup.bash
 colcon --log-base logs/colcon build --base-paths src \

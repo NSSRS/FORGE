@@ -94,10 +94,17 @@ unrelated masters do not honor that lock.
 | `velocity(id, rpm)` | Mode 2; signed output speed with a fixed 60 RPM/s protective slew |
 | `position(id, degrees)` | Mode 1; absolute target with configured speed/current ceilings |
 | `state(id)` | Read `MotorState`, including after a fault; unknown position/velocity are `None` |
+| `snapshot()` | Copy cached per-field telemetry/observation ages and EtherCAT health; no new queries or command refresh |
 | `wait_ready(timeout=2)` | Wait for initial position observations; no activation or command refresh |
 | `check()` | Raise `MotorError` on a latched session fault |
 | `stop()` | Request zero velocity on active motors |
 | `close()` | Best-effort immediate zero speed for 500 ms, then empty PDOs and release |
+
+`snapshot()` is available in native and simulated backends. The native path
+requires the additive `encos_driver_snapshot` ABI; rebuild an older library to
+use telemetry. Existing `state()` and command APIs remain compatible. PDO
+observation time is distinct from per-motor CAN receive time; details and ROS
+units are in [MOTOR_TELEMETRY.md](MOTOR_TELEMETRY.md).
 
 Context-manager exit calls `close()`. Normal `stop()` is nonblocking and does not
 disarm, engage a brake, or hold chassis position. Neither a zero-speed command nor

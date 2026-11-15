@@ -1,6 +1,14 @@
 # Individual and six-motor arm tests
 
-## Current status — 2026-11-05
+## Current scope
+
+This guide owns the unloaded individual/group bench procedures and dated results.
+For the six-axis supported rig, candidate calibration and actual weld controller,
+use [the current handoff](ARM_SESSION_HANDOFF.md) and [WELD_MOTION.md](WELD_MOTION.md).
+The Nov 12 capture verifies deployed firmware `d61f6d16` / `0xFFF8F`, including
+cached telemetry. Physical bus/load and welding acceptance remain open.
+
+## Saved unloaded bench evidence — 2026-11-05
 
 All six IDs were written and read back: A1..A6 command IDs 1..6, feedback
 IDs 17..22; A1 is on CAN1, A2..A6 on CAN2. A1 power-cycle persistence is
@@ -16,8 +24,7 @@ E once per selection, held arrows at 45°/s and release-to-stop; default window
 is ±90° from startup. Focus loss, selection changes and explicit stop disarm.
 59 Python tests, including native-backed firmware and Qt events, pass; physical
 window jogging remains unverified. Existing 180° firmware supports this window
-without a new flash. The separate cached-telemetry firmware is built and tested
-but still awaits deployment and bus qualification. See [cross-layer TODOs](ARM_LAYER_TODOS.md).
+without a new flash. Cached telemetry was subsequently deployed; bus qualification is still open. See [cross-layer TODOs](ARM_LAYER_TODOS.md).
 
 ## Repeat runs without MCU reset (2026-11-05)
 

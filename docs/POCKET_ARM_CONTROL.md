@@ -105,7 +105,7 @@ Stop other radio readers, then capture from the existing ESP32 port. The tool
 opens only that port: no ROS command publisher or motor connection.
 
 ```bash
-cd /home/forge2/forge2_ws
+cd /path/to/FORGE
 python3 scripts/calibrate_pocket.py \
   --port /dev/serial/by-path/pci-0000:00:14.0-usb-0:6.3:1.0-port0 \
   --template src/bringup/config/pocket_controls.json \
@@ -223,7 +223,7 @@ first. `/dev/ttyACM0` is the previously used MC02 path; substitute its actual
 port if enumeration changed.
 
 ```bash
-cd /home/forge2/forge2_ws
+cd /path/to/FORGE
 python3 scripts/jog_dm_arm.py --execute --unloaded \
   --plan src/robot_description/config/arm_jog.json \
   --port /dev/ttyACM0 --window-deg 10 \
@@ -253,7 +253,7 @@ not establish the physical CW signs.
 Stop the previous Pocket launch and radio monitor before restarting:
 
 ```bash
-cd /home/forge2/forge2_ws
+cd /path/to/FORGE
 source scripts/ros2_env.sh
 ROS_DOMAIN_ID=93 ros2 launch bringup pocket.launch.py \
   simulate:=true arm_execute:=false
@@ -348,7 +348,8 @@ use 5 degrees/s and operator-controlled manual travel (`window_deg: null`),
 with no startup-angle window. This requires MC02 capability 0x8000; image
 156f20c8 / capabilities 0xFF8F was verified deployed on 2026-11-10. Each continuous hold retains a 12-second host
 timeout (15 seconds independently on MCU). `arm_supported:=true` requires
-mechanical support throughout travel and torque loss. A1 is unavailable;
+mechanical support throughout travel and torque loss. A1 is unavailable only in
+this explicit subset; the current six-axis rig includes A1;
 A2–A6 retain the existing SB/SC positions. This is a supported commissioning
 mode, not an assembled-arm holding controller. The default six-motor unloaded
 profile remains unchanged.

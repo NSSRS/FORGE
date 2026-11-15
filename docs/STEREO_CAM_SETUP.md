@@ -221,17 +221,17 @@ CSV recording and standalone benchmark code have been removed.
 Start one driver, then open viewers in separate terminals:
 
 ```bash
-cd ~/forge2_ws
+cd /path/to/FORGE
 bash scripts/run_stereo_cam.sh show_video:=false color_fps:=60 enable_depth:=true depth_fps:=60 enable_point_cloud:=true
 ```
 
 ```bash
-cd ~/forge2_ws
+cd /path/to/FORGE
 bash scripts/view_stereo_cam.sh --display-fps 60
 ```
 
 ```bash
-cd ~/forge2_ws
+cd /path/to/FORGE
 bash scripts/view_stereo_cam.sh --topic /stereo_cam/depth/image_raw --display-fps 60
 ```
 

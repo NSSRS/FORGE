@@ -55,7 +55,7 @@ For the optional explicit-port commands below, set the IMU path and discover
 only the radio (no motor device is opened):
 
 ```bash
-cd /home/forge2/forge2_ws
+cd /path/to/FORGE
 source scripts/ros2_env.sh
 export IMU_PORT=/dev/serial/by-path/pci-0000:00:14.0-usb-0:1:1.0-port0
 RADIO_PORT=$(python3 -m bringup.radio_port --exclude "$IMU_PORT" --exclude /dev/ttyACM0)
@@ -67,7 +67,7 @@ launches perform this discovery themselves; no shell variable is required.
 To verify assignments individually without motor commands:
 
 ```bash
-cd ~/forge2_ws
+cd /path/to/FORGE
 source scripts/ros2_env.sh
 python3 scripts/read_imu.py --port "$IMU_PORT" --samples 5
 ros2 run teleop keyboard_teleop --ros-args -p input_source:=radio_monitor -p serial_port:="$RADIO_PORT"
@@ -91,7 +91,7 @@ colcon --log-base logs/colcon build --base-paths src --build-base build/ros2 --i
 ## Optional first pass: sensors and controller, simulated motors
 
 ```bash
-cd ~/forge2_ws
+cd /path/to/FORGE
 bash scripts/run_system_test.sh simulate:=true imu_port:="$IMU_PORT" radio_port:="$RADIO_PORT"
 ```
 
@@ -140,7 +140,7 @@ requests. No native EtherCAT library is used in simulation.
 In a second terminal:
 
 ```bash
-cd ~/forge2_ws
+cd /path/to/FORGE
 source scripts/ros2_env.sh
 ROS_DOMAIN_ID=44 ros2 run bringup check_system --duration 10
 ```
@@ -178,7 +178,7 @@ unreliable mixed root/user DDS delivery. The wrapper preserves desktop display c
 and sources the ROS environment itself:
 
 ```bash
-cd ~/forge2_ws
+cd /path/to/FORGE
 bash scripts/run_system_test.sh
 ```
 
@@ -188,7 +188,7 @@ and inspect topics; do not relax display access globally.
 Read-only check from a second terminal, under the same account/domain:
 
 ```bash
-cd ~/forge2_ws
+cd /path/to/FORGE
 sudo bash -c 'source scripts/ros2_env.sh; ROS_DOMAIN_ID=44 ros2 run bringup check_system --duration 10'
 ```
 

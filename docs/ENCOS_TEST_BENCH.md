@@ -92,14 +92,14 @@ MotorTool is not assumed to work through the EtherCAT bridge. Do not buy USB-CAN
 
 ## 5. Ubuntu workspace preparation
 
-This workspace is now on the Ubuntu 24.04 NUC at `/home/forge2/forge2_ws`.
+This workspace is now on the Ubuntu 24.04 NUC at `/path/to/FORGE`.
 Original vendor files are preserved in `vendor/encos/`; use its README to locate active references. The historical C demo working copy was `src/soem_demo_c/`. Current builds use project-owned code in `src/encos_driver/`; no demo extraction is needed.
 
 Install dependencies using the [workspace build guide](ENCOS_WORKSPACE.md#build-on-ubuntu),
 then confirm the host and available interfaces:
 
 ```bash
-cd /home/forge2/forge2_ws
+cd /path/to/FORGE
 uname -a
 cat /etc/os-release
 ip -br link

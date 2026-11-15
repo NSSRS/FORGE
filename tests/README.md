@@ -1,10 +1,12 @@
 # Controls, sensors, and robot-model tests
 
 Follow the [Ubuntu build guide](../docs/ENCOS_WORKSPACE.md#build-on-ubuntu);
-`./scripts/build.sh` builds the native driver and runs CTest, including Python
-test discovery. Cases requiring ROS, MuJoCo, or an explicit fake-native library
-skip when those dependencies are unavailable; a passing CTest run alone does
-not establish that those optional cases ran.
+`./scripts/build.sh` builds both native drivers and runs CTest: ENCOS codec,
+Python MotorBus/native fake-bridge tests, and Damiao firmware tests. The ENCOS
+CTest target explicitly selects `test_python_motors` and `test_native_driver`;
+it does not discover unrelated ROS/Qt/MuJoCo tests with the system interpreter.
+Run the complete suite separately in the configured environment below. A passing
+native build alone does not establish ROS/model coverage; report optional skips.
 
 - `encos_protocol_test.c`: query/position/velocity codec vectors and malformed frames.
 - `test_weave_reference.py` checks the shared trajectory with NumPy. `test_weave_xy_z.py` checks the fixed CAD gun, 1–3 Hz wheel and wrist motion, and repeat playback. Run both with `.venv/bin/python -m unittest discover -s tests -p 'test_weave*.py'`.
@@ -45,17 +47,17 @@ feedback mapping and optional MuJoCo model checks, and `test_ros_motor_mirror.py
 for the read-only ROS-to-UDP relay. The latter requires ROS and loopback sockets;
 run it on an isolated domain with no hardware publishers.
 
-Portable Python-only tests:
+Portable motor API tests:
 
 ```bash
-PYTHONPATH=src python3 -m unittest discover -s tests -p 'test_*.py' -v
+PYTHONPATH=src python3 -m unittest discover -s tests -p 'test_python_motors.py' -v
 ```
 
 On PowerShell:
 
 ```powershell
 $env:PYTHONPATH = 'src'
-python -m unittest discover -s tests -p 'test_*.py' -v
+python -m unittest discover -s tests -p 'test_python_motors.py' -v
 ```
 
 These checks do not validate physical stopping or bridge feedback freshness.
@@ -67,11 +69,15 @@ source scripts/ros2_env.sh
 ROS_DOMAIN_ID=84 python3 -m unittest discover -s tests -p test_ros_radio.py -v
 ```
 
-For the combined native and ROS suite after building both layers:
+For the complete native, ROS, Qt and model suite, install the simulation,
+calibration and controls search requirements in `.venv`, with system site
+packages available for ROS/PyQt5, then build/source the ROS packages:
 
 ```bash
 source scripts/ros2_env.sh
-ROS_DOMAIN_ID=91 ENCOS_TEST_LIBRARY="$PWD/build/encos_driver/libencos_driver_test.so" python3 -m unittest discover -s tests -p 'test_*.py'
+QT_QPA_PLATFORM=offscreen ROS_DOMAIN_ID=91 ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST \
+  ENCOS_TEST_LIBRARY="$PWD/build/encos_driver/libencos_driver_test.so" \
+  .venv/bin/python -m unittest discover -s tests -p 'test_*.py'
 ```
 
 Keep this ROS domain free of hardware publishers. Optional MuJoCo checks can be
@@ -97,6 +103,32 @@ ROS_DOMAIN_ID=91 python3 -m unittest discover -s tests -p 'test_seam_edges*.py' 
 The ROS test requires the installed `seam_detection` package. It starts only the
 detector and synthetic publisher, never camera acquisition or motor control.
 These tests do not establish real-weld recognition or millimeter accuracy.
+
+## Motor telemetry for both families
+
+`test_motor_telemetry.py` covers per-field freshness, missing/nonfinite feedback,
+snapshot generation replay/wrap, conservative timestamps, units and passive
+consumers. `test_native_driver.py` also verifies ENCOS snapshot ABI, independent
+field times, transport-fault counters and unchanged command leases.
+`test_ros_motor_telemetry.py` exercises both ROS drivers together with simulated
+ENCOS and a fake Damiao owner, including command callback latency and stale
+feedback. [Topic and timing semantics](../docs/MOTOR_TELEMETRY.md) distinguish
+ENCOS PDO observation time from Damiao MCU feedback age.
+
+After the native build, from the repository root:
+
+```bash
+source /opt/ros/jazzy/setup.bash
+export PYTHONPATH="$PWD/src:$PWD/tests:$PWD/src/motor_control${PYTHONPATH:+:$PYTHONPATH}"
+export ROS_DOMAIN_ID=93 ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
+export ENCOS_TEST_LIBRARY="$PWD/build/encos_driver/libencos_driver_test.so"
+python3 -m unittest test_motor_telemetry test_native_driver test_python_motors test_unified_controls
+python3 -m unittest test_ros_motor_telemetry test_ros_chassis
+python3 -m unittest test_damiao_arm test_damiao_bench
+```
+
+Keep the ROS domain isolated from hardware nodes. These tests open no physical
+motor transport and do not establish real bus timing or loaded acceptance.
 
 ## Damiao arm
 
@@ -273,3 +305,36 @@ closure/adjacent-stop checks. No hardware is opened.
 QT_QPA_PLATFORM=offscreen PYTHONPATH=src .venv/bin/python -m unittest discover -s tests -p test_arm_calibration.py -v
 QT_QPA_PLATFORM=offscreen PYTHONPATH=src .venv/bin/python -m unittest discover -s tests -p test_arm_capture.py -v
 ```
+## Supported weld-motion controller
+
+The path tests also verify exact interior spline extrema, immutable input
+snapshots and defensive peak-cache results. No hardware is opened. They include native C fake Damiao motors,
+an ENCOS Python simulator and the Qt panel/control thread:
+
+```bash
+QT_QPA_PLATFORM=offscreen .venv/bin/python -m unittest discover -s tests -p 'test_weld_*.py' -v
+.venv/bin/python scripts/control_weld.py --audit
+```
+
+The default audit uses the measured-bound standby and automatically retimes the
+checked solution. `--plan-only --cycles 1` also validates the full approach.
+To inspect the preserved original A3 conflict, explicitly pass the old mapping
+and MuJoCo initial pose. `--strict-timing` rejects infeasible timing.
+The full-model case takes roughly a minute; it includes actual MuJoCo closure,
+triangle clearance, reduced-inertia calculations and fake-shaft replay.
+See [weld-motion flow, limits and model validation](../docs/WELD_MOTION.md).
+
+`test_weld_search.py` covers mobility-versus-penalty semantics, lower-speed
+rewards at a fixed clock, explicitly supplied A1 timing caps, extra reversals and rejection of stale
+model/mapping/limit fingerprints. Install `src/controls/search-requirements.txt`
+to run actual CMA-ES searches. Search-generated plans still require full-model
+route validation and a fake-shaft replay; optimizer scores alone are not control
+authorization or measured performance.
+
+The optional `scripts/render_weld.py` replays a saved checked plan with MuJoCo;
+see the [animation workflow](../docs/WELD_MOTION.md#render-the-actual-optimized-plan).
+Use `--preview-only` to inspect standby, approach, weld and hold frames before
+encoding. Model/mapping/constraint identity, stage continuity and exact spline
+speed/acceleration bounds are checked before rendering; weld playback is 1x.
+Image/video outputs remain generated artifacts and do not establish loaded
+dynamics or hardware tracking performance.

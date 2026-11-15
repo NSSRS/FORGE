@@ -4,8 +4,11 @@ Start with [cross-layer registry](../../docs/ARM_LAYER_TODOS.md) and
 [base API contract](../../docs/ARM_BASE_LAYER.md). Relevant stable IDs: **PLAN-01, CAL-01**.
 
 The simulation-only [single-joint collision study](../../docs/ARM_COLLISION_STUDY.md)
-implements candidate range scans and MuJoCo playback for PLAN-01. Combined-pose
-validation, calibrated limits and loaded operation remain pending. The D3 rod
+implements candidate range scans and MuJoCo playback for PLAN-01. The weld
+planner now checks sampled combined poses and complete paths; its checked-plan
+renderer is in `simulation/weld_animation.py`. Physical clearance, calibrated
+limits and loaded dynamics remain unqualified. Follow LOAD-01 for model mass/
+inertia identification and FEEDBACK-01 for sensor-frame validation. The D3 rod
 assembly uses the operator-confirmed 150 mm between connection centers; see the
 [model guide](../../docs/ONSHAPE_ARM_PREVIEW.md#joint-coordinates-and-defaults).
 

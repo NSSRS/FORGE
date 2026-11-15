@@ -1,5 +1,21 @@
 # FORGE robot platform development roadmap
 
+For the current implementation/qualification gaps, use the
+[chassis model and motor communication open-work list](CHASSIS_MODEL_COMMS_TODOS.md).
+
+## Arm welding and telemetry update — 2026-11-15
+
+Cached telemetry now covers ENCOS and Damiao, with freshness/health diagnostics
+from existing owners; see [MOTOR_TELEMETRY.md](MOTOR_TELEMETRY.md). Measured candidate
+alignment, closed-chain planning, physical motor envelopes, multi-start CMA-ES,
+actual motor adapters and checked plan animation are implemented in
+[the weld controller](WELD_MOTION.md). Independent arm/chassis switches gate output.
+The configured target remains 2 Hz; the checked provisional-model solution is
+about 1.815288 Hz. Physical welding acceptance is still open under WEAVE-01.
+LOAD-01 weight compensation and FEEDBACK-01 sensor/ESO feedback follow the first
+arm welding run. These additions do not complete localization or production
+hold/stop qualification; the proposed system below remains a roadmap.
+
 ## IMU implementation update — 2026-10-15
 
 HWT9052 serial acquisition and a ROS sensor node are implemented and tested
@@ -16,7 +32,7 @@ integration does not complete the state-estimation milestones below.
 Implementation update: [differential chassis control](DIFFERENTIAL_DRIVE.md) now
 integrates differential mixing into `motor_driver`, with stamped chassis
 commands and WASD in `keyboard_teleop`, using
-the four driven wheels from `forge_sim`. Geometry is provisional and hardware
+the four driven wheels in the integrated `robot_description` MuJoCo model. Geometry is provisional and hardware
 mapping awaits commissioning. Odometry, arbitration, localization and the safety
 supervisor described below remain planned.
 
@@ -88,7 +104,8 @@ through `ctypes`; a native worker owns the SOEM EtherCAT loop. ROS and Python mu
 not perform individual EtherCAT cycles.
 
 Target responsibilities (the current ROS node accepts velocity commands and
-publishes position/velocity only; native MotorBus also supports position mode):
+publishes position/velocity plus cached current, temperature, errors and health
+diagnostics; native MotorBus also supports position mode):
 
 - Open and exclusively own the dedicated EtherCAT interface.
 - Map four configured motors to bridge slots and CAN buses.

@@ -14,6 +14,7 @@ from geometry_msgs.msg import TwistStamped
 
 from motors import MotorBus, MotorConfig, MotorError
 from .differential import CommandLease, DifferentialDrive
+from .telemetry import TelemetryPublisher, encos_frame
 
 
 class ForgeMotorDriver(Node):
@@ -95,12 +96,19 @@ class ForgeMotorDriver(Node):
             "execute": True,
         }
         self._bus = MotorBus(configs, motor_slots=motor_slots, **kwargs)
-        self._bus.wait_ready(timeout=3.0)
+        try:
+            self._bus.wait_ready(timeout=3.0)
+            self._bus.snapshot()  # Require the additive native telemetry ABI before commands.
+        except Exception:
+            self._bus.close()
+            raise
         self._targets = [0.0] * len(self._motor_ids)
         self._last_command: float | None = None
         self._closed = False
 
         self._state_publisher = self.create_publisher(JointState, "/joint_states", 10)
+        self._telemetry = TelemetryPublisher(self, self._state_publisher,
+                                            'encos:simulation' if simulate else 'encos:' + interface)
         topic = "/cmd_vel" if self._lease is not None else "/drive/motor_rpm_commands"
         self._command_subscription = self.create_subscription(
             TwistStamped if self._lease is not None else Float64MultiArray,
@@ -138,15 +146,8 @@ class ForgeMotorDriver(Node):
         self._last_command = time.monotonic()
 
     def _publish_state(self) -> None:
-        message = JointState()
-        message.header.stamp = self.get_clock().now().to_msg()
-        message.name = [f"motor_{motor_id}_output" for motor_id in self._motor_ids]
-        states = [self._bus.state(motor_id) for motor_id in self._motor_ids]
-        if all(state.position_deg is not None for state in states):
-            message.position = [math.radians(state.position_deg) for state in states]
-        if all(state.velocity_rpm is not None for state in states):
-            message.velocity = [state.velocity_rpm * math.tau / 60.0 for state in states]
-        self._state_publisher.publish(message)
+        sample = self._bus.snapshot()
+        self._telemetry.publish(*encos_frame(sample, self._motor_ids, time.monotonic()))
 
     def _update(self) -> None:
         try:
@@ -174,6 +175,10 @@ class ForgeMotorDriver(Node):
                     self._bus.velocity(motor_id, target)
             self._publish_state()
         except (MotorError, ValueError) as error:
+            try:
+                self._publish_state()  # Preserve the latched fault before closing the owner.
+            except (MotorError, ValueError) as telemetry_error:
+                self._telemetry.error('encos', telemetry_error)
             self.get_logger().fatal(f"Motor session fault: {error}")
             self.close()
             if rclpy.ok():

@@ -71,7 +71,7 @@ package using [the ROS build instructions](ROS2_MOTOR_CONTROL_STATUS.md#build-an
 Run the read-only monitor, replacing the path with the actual port:
 
 ```bash
-cd /home/forge2/forge2_ws
+cd /path/to/FORGE
 source scripts/ros2_env.sh
 ros2 run teleop keyboard_teleop --ros-args \
   -p input_source:=radio_monitor -p serial_port:=/dev/serial/by-id/ACTUAL_DEVICE
@@ -106,17 +106,17 @@ not newly validated loaded-robot limits.
 Stop the monitor before opening the same USB device. In the driver terminal:
 
 ```bash
-cd /home/forge2/forge2_ws
+cd /path/to/FORGE
 source scripts/ros2_env.sh
 export ROS_DOMAIN_ID=42
 ros2 launch bringup chassis.launch.py \
-  config:=/home/forge2/forge2_ws/src/bringup/config/chassis_bench.yaml
+  config:=/path/to/FORGE/src/bringup/config/chassis_bench.yaml
 ```
 
 In the radio terminal, replace the calibration path:
 
 ```bash
-cd /home/forge2/forge2_ws
+cd /path/to/FORGE
 source scripts/ros2_env.sh
 export ROS_DOMAIN_ID=42
 ros2 run teleop keyboard_teleop --ros-args \
@@ -170,7 +170,7 @@ In terminal 1, run the actual driver with its simulated MotorBus backend and
 optional target logging:
 
 ```bash
-cd /home/forge2/forge2_ws
+cd /path/to/FORGE
 source scripts/ros2_env.sh
 export ROS_DOMAIN_ID=42
 ros2 run motor_control motor_driver --ros-args \

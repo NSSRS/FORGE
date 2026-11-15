@@ -1,16 +1,23 @@
 # Damiao arm commissioning
 
-## Current status — 2026-11-10
+## Current status — 2026-11-15
 
-The operator verified manual movement of all five active **A2–A6** motors.
-A1 is omitted until the operator builds a base that allows it to rotate.
-Next: A1 fixture commissioning, motor-position initialization and faster commanded
-movement. The current keyboard path uses 5 deg/s manual travel, common 1.5 rad/s
-measured-speed trips and explicit R recovery. Read
-[the current handoff](ARM_SESSION_HANDOFF.md) and [rig procedure](ARM_RIG_TEST.md).
-Deployed MC02 firmware is `156f20c8` / `0xFF8F`; no additional flash is needed.
-Calibration, delivered torque/current, bus qualification and loaded holding remain
-open. Use [the registry](ARM_LAYER_TODOS.md) for acceptance criteria.
+The supported rig includes **A1-A6**. Six-axis disabled checks and reference
+capture were recorded on Nov 12; return observations and corrected A3 endpoint
+labels followed on Nov 13. The capture verifies deployed MC02 firmware
+`d61f6d16` / `0xFFF8F`. Normal host workflow updates need no new flash.
+
+Cached dual-family telemetry, measurement-derived candidate alignment, constrained
+planning/CMA-ES and an actual mode-2 welding controller are implemented. See
+[the current handoff](ARM_SESSION_HANDOFF.md), [rig procedure](ARM_RIG_TEST.md)
+and [weld guide](WELD_MOTION.md). The target remains 2 Hz; the checked model plan
+is retimed to about 1.815288 Hz. Weld caps are 68.7549 deg/s on all axes,
+initial/approach 5 deg/s; manual hold jogs default to 10 deg/s and non-holding
+jogs to 5 deg/s. Measured-speed trips remain 1.5 rad/s.
+
+Candidate alignment, delivered torque/current, bus timing, loaded hold/stop and
+physical welding remain unqualified. Weight and external position compensation
+are deferred. Use [the registry](ARM_LAYER_TODOS.md) for acceptance criteria.
 
 <a id="current-status--2026-11-05"></a>
 ## Earlier six-motor bench evidence — 2026-11-05
@@ -26,7 +33,7 @@ These are unloaded shaft checks, not joint calibration or loaded-arm validation.
 
 The [position API and PyQt window](ARM_POSITION_JOG.md) also retain a separate
 six-motor unloaded profile (45 deg/s, +/-90-degree session window). That profile
-is distinct from the current supported A2–A6 rig procedure above.
+is distinct from the current supported six-axis rig procedure above.
 
 ENCOS motors are chassis actuators. Damiao motors are arm actuators on a
 separate DM-MC02 controller: Python on the NUC → USB CDC → C11 firmware on
@@ -175,7 +182,7 @@ The 2026-11-10 [torque review](DAMIAO_TORQUE_LIMITS.md) rechecks these manuals,
 records the repeated A2 trip and separates rated ceilings from active rig trips.
 The new routed 4340P ceiling requires capability 0x2000, verified on the
 post-flash controller. The supported rig profile now uses 12 Nm for A2/A3 after
-operator clearance confirmation; A4-A6 remain 3.5 Nm and A1 is omitted. This is
+operator clearance confirmation; A4-A6 remain 3.5 Nm and reconnected A1 uses 20 Nm. This is
 not a motor current clamp or loaded-motion acceptance; see the review and rig
 guide for the unchanged support, speed and travel requirements.
 

@@ -24,6 +24,49 @@ class NativeTests(unittest.TestCase):
         with self.assertRaises(MotorError):
             MotorBus(self.configs, interface="forge-test", execute=True, library=self.path)
 
+    def test_snapshot_is_read_only_and_retains_unknown_fields(self):
+        sample = self.bus.snapshot()
+        self.assertEqual(sample['api_version'], 1)
+        self.assertEqual(sample['expected_wkc'], 3)
+        self.assertGreater(sample['exchanges'], 0)
+        self.assertFalse(sample['can_freshness_verified'])
+        self.assertEqual([r['motor_id'] for r in sample['motors']], [1, 2])
+        for row in sample['motors']:
+            self.assertIsNotNone(row['position_observed_s'])
+            self.assertIsNone(row['velocity_rpm'])
+            self.assertIsNone(row['velocity_observed_s'])
+            self.assertIsNone(row['current_a'])
+            self.assertIsNone(row['electrical_observed_s'])
+        for _ in range(20): self.bus.snapshot()
+        self.assertEqual(self.fake.fake_controls(), 0)
+
+    def test_snapshot_preserves_per_field_observation_times(self):
+        self.bus.velocity(1, 1)
+        time.sleep(.06)
+        row = self.bus.snapshot()['motors'][0]
+        self.assertNotEqual(row['position_observed_s'], row['velocity_observed_s'])
+        self.assertEqual(row['electrical_observed_s'],
+                         max(row['position_observed_s'], row['velocity_observed_s']))
+
+    def test_snapshot_never_renews_lease_and_is_available_after_fault(self):
+        self.bus.velocity(1, 1)
+        deadline = time.monotonic() + .85
+        while time.monotonic() < deadline:
+            self.bus.snapshot()
+            time.sleep(.02)
+        sample = self.bus.snapshot()
+        self.assertEqual(sample['fault'], 1)
+        for _ in range(20): self.assertEqual(self.bus.snapshot()['exchanges'], sample['exchanges'])
+        with self.assertRaises(MotorError): self.bus.velocity(1, 1)
+
+    def test_snapshot_exposes_transport_fault_evidence(self):
+        self.fake.fake_fault(1)
+        time.sleep(.04)
+        sample = self.bus.snapshot()
+        self.assertEqual(sample['fault'], 2)
+        self.assertGreater(sample['failed_exchanges'], 0)
+        self.assertLess(sample['last_wkc'], sample['expected_wkc'])
+
     def test_bad_layout_rejected_and_owner_released(self):
         self.bus.close()
         with self.assertRaises(MotorError):

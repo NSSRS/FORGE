@@ -68,6 +68,20 @@ class _State(ct.Structure):
     _fields_ += [("observed_monotonic_s", ct.c_double), ("flags", ct.c_uint32), ("error", ct.c_uint32)]
 
 
+class _MotorTelemetry(ct.Structure):
+    _fields_ = [("state", _State), ("position_observed_s", ct.c_double),
+                ("velocity_observed_s", ct.c_double), ("electrical_observed_s", ct.c_double),
+                ("motor_id", ct.c_uint32), ("slot", ct.c_uint32)]
+
+
+class _Snapshot(ct.Structure):
+    _fields_ = [(name, ct.c_uint32) for name in ('api_version', 'motor_count', 'fault', 'reserved')]
+    _fields_ += [("exchanges", ct.c_uint64), ("failed_exchanges", ct.c_uint64),
+                 ("last_wkc", ct.c_int32), ("expected_wkc", ct.c_int32),
+                 ("captured_monotonic_s", ct.c_double), ("max_cycle_gap_s", ct.c_double),
+                 ("motors", _MotorTelemetry * 4)]
+
+
 class _Native:
     def __init__(self, interface, configs, library, motor_slots=None):
         path = library or os.environ.get("FORGE_MOTORS_LIBRARY") or (
@@ -87,6 +101,10 @@ class _Native:
         for name, (args, result) in signatures.items():
             f = getattr(self.lib, "encos_driver_" + name)
             f.argtypes, f.restype = args, result
+        self._snapshot_reader = getattr(self.lib, 'encos_driver_snapshot', None)
+        if self._snapshot_reader is not None:
+            self._snapshot_reader.argtypes = [ct.c_void_p, ct.POINTER(_Snapshot), ct.c_size_t]
+            self._snapshot_reader.restype = ct.c_int
         array = (_Config * len(configs))(*(_Config(**vars(c)) for c in configs))
         if motor_slots is None:
             self.handle = self.lib.encos_driver_open(interface.encode(), array, len(array))
@@ -124,15 +142,45 @@ class _Native:
         self.lib.encos_driver_close(self.handle)
         self.handle = None
 
+    def snapshot(self):
+        # Optional additive symbol: old libraries still support the old API,
+        # but telemetry consumers must rebuild instead of fabricating ages.
+        reader = self._snapshot_reader
+        if reader is None:
+            raise MotorError('Rebuild native driver for cached telemetry snapshots')
+        value = _Snapshot()
+        if reader(self.handle, ct.byref(value), ct.sizeof(value)):
+            raise MotorError('ENCOS telemetry ABI mismatch')
+        if value.api_version != 1 or not 1 <= value.motor_count <= 4:
+            raise MotorError('Unsupported ENCOS telemetry snapshot')
+        rows = []
+        for m in value.motors[:value.motor_count]:
+            s = m.state
+            rows.append(dict(motor_id=m.motor_id, slot=m.slot, error=s.error,
+                position_deg=s.position_deg if s.flags & 1 else None,
+                velocity_rpm=s.velocity_rpm if s.flags & 2 else None,
+                current_a=s.current_a if s.flags & 4 else None,
+                temperature_c=s.temperature_c if s.flags & 4 else None,
+                position_observed_s=m.position_observed_s if s.flags & 1 else None,
+                velocity_observed_s=m.velocity_observed_s if s.flags & 2 else None,
+                electrical_observed_s=m.electrical_observed_s if s.flags & 4 else None))
+        return dict(api_version=1, simulated=False, fault=value.fault,
+            captured_monotonic_s=value.captured_monotonic_s,
+            timestamp_basis='host_pdo_observation', can_freshness_verified=False,
+            exchanges=value.exchanges, failed_exchanges=value.failed_exchanges,
+            last_wkc=value.last_wkc, expected_wkc=value.expected_wkc,
+            max_cycle_gap_s=value.max_cycle_gap_s, motors=rows)
+
 
 class _Sim:
     """Ideal kinematic model, not a model of torque, traction or ENCOS firmware."""
-    def __init__(self, configs, clock=time.monotonic):
+    def __init__(self, configs, clock=time.monotonic, motor_slots=None):
         self.clock, self.last, self.fault = clock, clock(), 0
         self.configs = {c.motor_id: c for c in configs}
         self.positions = {c.motor_id: min(max(0., c.min_position_deg), c.max_position_deg) for c in configs}
         self.velocities = dict.fromkeys(self.configs, 0.)
         self.commands = {}
+        self.slots = dict(zip(self.configs, motor_slots if motor_slots is not None else range(len(configs))))
 
     def _advance(self):
         now = self.clock()
@@ -174,6 +222,18 @@ class _Sim:
         self._advance()
         return MotorState(self.positions[motor_id], self.velocities[motor_id], 0., 25., self.last, 0)
 
+    def snapshot(self):
+        self._advance()
+        return dict(api_version=1, simulated=True, fault=self.fault,
+            captured_monotonic_s=self.last, timestamp_basis='simulation',
+            can_freshness_verified=False, exchanges=None, failed_exchanges=None,
+            last_wkc=None, expected_wkc=None, max_cycle_gap_s=None,
+            motors=[dict(motor_id=i, slot=self.slots[i], error=0,
+                position_deg=self.positions[i], velocity_rpm=self.velocities[i],
+                current_a=0., temperature_c=25., position_observed_s=self.last,
+                velocity_observed_s=self.last, electrical_observed_s=self.last)
+                for i in self.configs])
+
     def close(self):
         self.fault = 4
         self.velocities = dict.fromkeys(self.configs, 0.)
@@ -205,7 +265,8 @@ class MotorBus:
         self._lock = threading.RLock()
         self._closed = False
         self._active = set()
-        self._backend = _Sim(configs) if simulate else _Native(interface, configs, library, motor_slots)
+        self._backend = (_Sim(configs, motor_slots=motor_slots) if simulate
+                         else _Native(interface, configs, library, motor_slots))
 
     def _check(self):
         if self._closed:
@@ -255,6 +316,17 @@ class MotorBus:
         """Raise on a latched fault, including during otherwise idle application work."""
         with self._lock:
             self._check()
+
+    def snapshot(self):
+        """Passive whole-bridge cache copy, also readable after a latched fault.
+
+        Per-field times are PDO observation times, not proven CAN freshness.
+        No commands, bus exchanges, fault reset or motion lease renewal.
+        """
+        with self._lock:
+            if self._closed:
+                raise MotorError('MotorBus is closed')
+            return self._backend.snapshot()
 
     def wait_ready(self, timeout=2.0):
         """Wait for initial positions; does not activate or refresh motors."""

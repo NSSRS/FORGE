@@ -26,6 +26,7 @@ typedef struct {
     int mode;
     float target, sent_rpm;
     double command_time, feedback_time;
+    double position_observed_s, velocity_observed_s, electrical_observed_s;
     unsigned ack;
 } motor_t;
 
@@ -35,6 +36,9 @@ struct encos_driver {
     motor_t motors[MAX_MOTORS];
     size_t count;
     int fault, expected_wkc, lock_fd;
+    int last_wkc;
+    uint64_t exchanges, failed_exchanges;
+    double max_cycle_gap_s;
     uint8_t io_map[4096];
 };
 
@@ -58,7 +62,10 @@ static void sleep_until(double deadline)
 static int exchange(encos_driver_t *d)
 {
     ec_send_processdata();
-    return ec_receive_processdata(2000) >= d->expected_wkc;
+    d->last_wkc = ec_receive_processdata(2000);
+    d->exchanges++;
+    if (d->last_wkc < d->expected_wkc) d->failed_exchanges++;
+    return d->last_wkc >= d->expected_wkc;
 }
 
 static motor_t *find_motor(encos_driver_t *d, uint16_t id)
@@ -82,6 +89,7 @@ static void read_feedback(encos_driver_t *d, motor_t *m, double now)
             m->state.position_deg = position;
             m->state.error = error;
             m->state.flags |= 1;
+            m->position_observed_s = now;
             seen = true;
         } else if (m->mode && encos_parse_type2_feedback(f, m->config.motor_id, &p)) {
             m->state.position_deg = p.position_deg;
@@ -89,6 +97,7 @@ static void read_feedback(encos_driver_t *d, motor_t *m, double now)
             m->state.temperature_c = p.temperature_c;
             m->state.error = p.error;
             m->state.flags |= 5;
+            m->position_observed_s = m->electrical_observed_s = now;
             seen = true;
         } else if (m->mode && encos_parse_type3_feedback(f, m->config.motor_id, &v)) {
             m->state.velocity_rpm = v.velocity_rpm;
@@ -96,6 +105,7 @@ static void read_feedback(encos_driver_t *d, motor_t *m, double now)
             m->state.temperature_c = v.temperature_c;
             m->state.error = v.error;
             m->state.flags |= 6;
+            m->velocity_observed_s = m->electrical_observed_s = now;
             seen = true;
         }
         if (!seen) continue;
@@ -150,6 +160,7 @@ static void *run(void *context)
         pthread_mutex_lock(&d->mutex);
         double now = now_s(), dt = now - previous;
         previous = now;
+        if (dt > d->max_cycle_gap_s) d->max_cycle_gap_s = dt;
         if (!d->fault && dt > 0.1) {
             fprintf(stderr, "ENCOS fault: native EtherCAT loop gap %.6f s exceeds 0.1 s.\n", dt);
             d->fault = 2;
@@ -339,6 +350,34 @@ int encos_driver_read(encos_driver_t *d, uint16_t id, encos_motor_state_t *state
     if (m) *state = m->state;
     pthread_mutex_unlock(&d->mutex);
     return m ? 0 : -1;
+}
+
+int encos_driver_snapshot(encos_driver_t *d, encos_snapshot_t *snapshot, size_t size)
+{
+    if (!d || !snapshot || size != sizeof(*snapshot)) return -1;
+    pthread_mutex_lock(&d->mutex);
+    memset(snapshot, 0, sizeof(*snapshot));
+    snapshot->api_version = 1;
+    snapshot->motor_count = (uint32_t)d->count;
+    snapshot->fault = (uint32_t)d->fault;
+    snapshot->exchanges = d->exchanges;
+    snapshot->failed_exchanges = d->failed_exchanges;
+    snapshot->last_wkc = d->last_wkc;
+    snapshot->expected_wkc = d->expected_wkc;
+    snapshot->captured_monotonic_s = now_s();
+    snapshot->max_cycle_gap_s = d->max_cycle_gap_s;
+    for (size_t i = 0; i < d->count; ++i) {
+        const motor_t *m = &d->motors[i];
+        encos_motor_telemetry_t *out = &snapshot->motors[i];
+        out->state = m->state;
+        out->motor_id = m->config.motor_id;
+        out->slot = m->slot;
+        out->position_observed_s = m->position_observed_s;
+        out->velocity_observed_s = m->velocity_observed_s;
+        out->electrical_observed_s = m->electrical_observed_s;
+    }
+    pthread_mutex_unlock(&d->mutex);
+    return 0;
 }
 
 int encos_driver_status(encos_driver_t *d)

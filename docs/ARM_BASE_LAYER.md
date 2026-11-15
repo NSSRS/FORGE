@@ -1,7 +1,7 @@
 # Arm base-layer contract and implementation plan
 
-Status: 2026-11-10, `nathan`. This is the base transport/execution layer, not
-an arm planner. All project code/builds live in `forge2_ws`; deployment tools
+Status: 2026-11-15, `nathan`. This is the base transport/execution layer, not
+an arm planner. Code/build paths are relative to the FORGE checkout; deployment tools
 may be installed elsewhere. Cross-layer work: [ARM_LAYER_TODOS.md](ARM_LAYER_TODOS.md).
 
 ## Layer boundaries
@@ -92,9 +92,10 @@ CAN send waits also affect scheduling even if the theoretical bus load fits.
 
 Position/velocity/torque/status and drive temperatures already arrive in normal
 feedback. Expose cached data to upper layers instead of adding CAN queries.
-Start upper-layer snapshot publication at 20–50 Hz and health at 1–5 Hz;
-measure host command latency before raising these rates. These are proposed
-consumer rates, not new CAN rates or automatic background threads.
+The ROS arm consumer publishes snapshots at 25 Hz and reads health at 2 Hz on
+the existing owner. [Dual-family ROS telemetry](MOTOR_TELEMETRY.md) documents
+ages, diagnostics, ENCOS observation limits and offline validation. Measure
+physical host command latency before raising these rates; the CAN rate is unchanged.
 
 Registers (identity, mode, ranges, version/current protection) belong in
 startup/disabled commissioning, not steady-state polling. The five-motor bus

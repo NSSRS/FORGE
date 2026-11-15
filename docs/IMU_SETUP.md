@@ -45,7 +45,7 @@ Run only one reader at a time; stop it with Ctrl+C before switching.
 ### Standalone terminal reader
 
 ```bash
-python3 ~/forge2_ws/scripts/read_imu.py
+python3 /path/to/FORGE/scripts/read_imu.py
 ```
 
 A small launch wrapper using the shared IMU module, requiring system Python and pyserial. No ROS setup
@@ -57,7 +57,7 @@ to select a different device. Reported sensor acceleration includes gravity.
 ### ROS sensor node
 
 ```bash
-cd ~/forge2_ws
+cd /path/to/FORGE
 ./scripts/run_imu.sh
 ```
 
@@ -82,7 +82,7 @@ not a synchronized sensor acquisition clock.
 To view ROS angles from another Ubuntu terminal:
 
 ```bash
-cd ~/forge2_ws
+cd /path/to/FORGE
 source scripts/ros2_env.sh
 export ROS_DOMAIN_ID=42
 ros2 topic echo /imu/data_rpy --qos-reliability best_effort
@@ -114,7 +114,7 @@ If the device exists but this terminal lacks permission:
 
 ```bash
 newgrp dialout
-cd ~/forge2_ws
+cd /path/to/FORGE
 ./scripts/run_imu.sh
 ```
 

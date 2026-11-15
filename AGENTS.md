@@ -8,7 +8,7 @@ for open work; remove completed tasks instead of appending incident histories.
 Operator procedures belong in `docs/ARM_RIG_TEST.md`; architecture and ownership
 are in `docs/ARM_BASE_LAYER.md` and `docs/SOURCE_LAYOUT.md`.
 
-Current arm status (2026-11-13): all six motors are connected. The Nov 12 eight
+Last physical evidence (2026-11-13): all six motors are connected. The Nov 12 eight
 reference readings remain in the dated reference JSON; the Nov 13 stationary
 cycle and all six off-power return observations are recorded in
 `docs/measurements/arm-return-checks-2026-11-13.json`. Do not repeat that same
@@ -48,6 +48,27 @@ operator request; non-holding/teaching remains 5 deg/s. All six measured-speed
 trips remain 1.5 rad/s. Current protection, loaded holding and physical stopping
 remain unqualified. Do not increase reactive trips or claim jitter resolved.
 The operator confirmed the earlier A1 undervoltage issue was fixed.
+
+## Current welding implementation (2026-11-15)
+
+`src/controls/controls/hardware/` and `simulation/` are siblings;
+`controller/` owns shared calibration, physical envelopes, closed-chain IK,
+retiming and CMA-ES. See `docs/WELD_MOTION.md`. The real path uses existing
+Damiao mode-2 and ENCOS owners; the animation is kinematic playback and the
+execution report uses fake motors, not a physical welding acceptance run.
+The target remains 2 Hz / 12 mm/s. The checked optimized candidate reaches
+1.815288 Hz under provisional CAD acceleration bounds; all six weld command
+caps are 68.7549 deg/s, with no temporary A1 cap. Initial/approach use 5 deg/s.
+Independent switches only gate outputs; assume the other subsystem follows its
+nominal motion. Do not add arm compensation for a disabled chassis switch.
+
+The candidate sign/offset map uses unit gain; output-shaft feedback is already
+geared. The controller's derived A3 standby is raw 149.39 deg, 2 deg inside the
+corrected CCW endpoint, not the conflicting original CAD initial pose or a
+newly measured six-axis home. Production confirmation remains false.
+Prioritize WEAVE-01 physical acceptance; LOAD-01 compensation and FEEDBACK-01
+sensor/ESO work follow the first arm welding run. No active ESO, Cartesian
+position correction or load/gravity feedforward is installed in the hardware path.
 
 ## Source and verification
 

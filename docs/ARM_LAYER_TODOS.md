@@ -1,11 +1,12 @@
 # Arm cross-layer TODO registry
 
-Updated 2026-11-12, based on branch `nathan`. This registry contains **open work only**.
+Updated 2026-11-15, based on branch `nathan`. This registry contains **open work only**.
 Read [current status](ARM_SESSION_HANDOFF.md) and [the base contract](ARM_BASE_LAYER.md)
 first. Stable IDs link package responsibilities; update the owning entry when
 work changes, and retire completed tasks instead of appending session history.
 
-The operator verified manual movement of **A2–A6**. Completed implementation
+The six-axis fixture is connected; disabled identity/feedback and reference
+capture are recorded, alongside operator-observed manual motion. Completed implementation
 includes cached base identity/snapshots/health (former BASE-01..03), subset
 checks, manual travel, guarded software recovery, disabled control-register
 readback, fault reporting and the compact keyboard UI. These are documented
@@ -13,8 +14,18 @@ in the guides; full hardware qualification below remains separate.
 
 ## Immediate priorities
 
+Current development order (operator request, 2026-11-15): finish and run through
+the arm welding sequence in **WEAVE-01**, then implement weight compensation in
+**LOAD-01**. LOAD-01 is deferred work, not a prerequisite for the present offline
+trajectory/animation milestone. Physical acceptance below remains separate.
+Sensor feedback and bounded weld-tip correction, including an optional ESO
+evaluation, are recorded in **FEEDBACK-01** for after the first welding run;
+they do not change the current controller or independent-switch behavior.
+
 1. Validate the recorded raw references (**CAL-01**): power-cycle repeatability,
-   remaining travel bounds, A2/A3 initial poses and model sign/offset/ratio.
+   remaining travel bounds and independent validation of the candidate initial
+   poses/sign/offset map. The controller standby is already derived; A2/A3
+   initial anchors were not independently captured.
    The eight requested readings are saved in [the handoff](ARM_SESSION_HANDOFF.md).
 2. Establish resting support for torque loss and finish loaded stopping/holding
    qualification (**SUPPORT-01**, **DEPLOY-01**).
@@ -25,13 +36,14 @@ in the guides; full hardware qualification below remains separate.
 
 Owner: operator/mechanical integration, `src/bringup/`.
 
-- [ ] Build and document the base with A1 rotation and cable clearance; establish
+- [ ] Document/qualify the existing base with A1 rotation and cable clearance; establish
   supported rest poses and support for every attached link during torque loss.
 - [ ] Define brakes/counterbalance/support, emergency stop, power loss, drive
   timeout and recovery. Distinguish controlled stopping from torque disable.
 - [ ] Measure stop/hold behavior before unsupported loaded operation. The current
-  jogger disables torque at release; nonselected joints stay disabled. MC02
-  disable is not a brake. Coordinated holding belongs to ROS-02.
+  default jogger disables torque at release; explicit group/weld modes hold
+  position. Qualify both behaviors. MC02 disable is not a brake; the production
+  coordinated ROS lifecycle remains under ROS-02.
 - [ ] Resolve the 2026-11-12 capture session's stationary-disable/mode-restoration
   failure: A2 still reported -0.168498 rad/s after disabling. Preserve the saved
   [shutdown evidence](measurements/arm-reference-2026-11-12.session-summary.json)
@@ -60,8 +72,8 @@ See the [capture procedure](ARM_POSE_TEST.md#current-procedure-initial-positions
   The stationary six-axis cycle and one controlled off-power return per joint
   are recorded in [Nov 13 observations](measurements/arm-return-checks-2026-11-13.json);
   manual return differences do not isolate encoder precision.
-- [ ] Implement startup initialization from fresh measured coordinates and
-  current-position preload. No jump toward guessed zero, automatic homing or
+- [ ] Qualify the implemented welding startup from fresh measured coordinates,
+  current-position preload and the checked transition to derived standby. No jump toward guessed zero, automatic homing or
   automatic return to the simulation pose; a home move needs a separate request
   and a validated path.
 - [ ] Identify physical travel/cable/clearance limits under support, save a
@@ -87,7 +99,7 @@ Owner: `src/motors/arm_position.py`, `src/teleop/`, firmware/profile commissioni
   six, and MIT gain advice does not directly apply to the current mode-2 loop.
   Separately correlate A4's reported 2.4542 rad/s hold sample with encoder
   displacement before calling it physical overspeed or a reading error.
-  Preserve trips and leases. See the [research and evidence](ARM_SESSION_HANDOFF.md#research-physical-torque-ripple-versus-drivetiming-effects).
+  Preserve trips and leases. See the [retained findings](ARM_SESSION_HANDOFF.md#remaining-work-and-findings).
 - [ ] Test the 5 deg/s baseline and opt-in 7.5/10 deg/s trials on the supported
   fixture. Compare A6 tracking, host sample timing and release travel with A4/A5.
   Record the accepted speed for each joint and direction.
@@ -107,6 +119,11 @@ Use CAN capture as well as cached counters; correlate retransmissions, FIFO
 loss, bus-off and late ticks. Repeat the final split-bus layout. Investigate
 A1's delayed register replies. Acceptance: explained losses, measured deadlines
 and margin; a configured 500 Hz rate is not proof of achieved physical timing.
+The [dual-family ROS telemetry](MOTOR_TELEMETRY.md) now exposes cached snapshots
+and bus health. Measure real ROS command latency with these readers active;
+fake-owner callback timing does not qualify physical USB/CAN timing. ENCOS
+additionally needs independent CAN freshness verification because bridge PDO
+observation timestamps can reflect retained frames.
 
 ### BASE-05 — typed errors and active configuration readback
 
@@ -144,15 +161,6 @@ support, units/scaling, application limits, persistence and fault behavior.
 Compare feedback with independent load/phase-current evidence. Reactive torque
 trips and PSU DC current are not motor current clamps or measured shaft torque.
 
-### ROS-01 — cached telemetry consumer
-
-Owner: `src/motor_control/motor_control/arm_driver.py`.
-Consume `base_info`, `snapshot` and `bus_health` on the existing serial owner.
-Publish valid raw-shaft samples with age/status, generation/capture timing and
-receipt-time accounting. Start with 20–50 Hz feedback / 1–5 Hz health, then
-measure command latency. No enabled CAN register polling or telemetry-driven
-command lease renewal; expose missing/stale samples rather than restamping them.
-
 ### ROS-02 — production lifecycle and coordinated holding
 
 Owner: ROS arm driver, base API and `src/bringup/launch/arm.launch.py`.
@@ -174,9 +182,10 @@ re-enable after a fault/reconnect.
 
 ### PLAN-01 — paths, trajectories and input acceptance
 
-Owner: `src/simulation/`, `src/teleop/`, future planner.
-Implement joint-space speed/acceleration/jerk policy, combined-pose/path collision
-validation and coordinated timing above the transport. Invalidate plans on stale
+Owner: `src/controls/controls/controller/`, `src/simulation/`, `src/teleop/`.
+The weld planner implements speed/acceleration bounds, sampled combined-pose/path
+collision checks, D3 closure and common retiming. Qualify these against the
+physical assembly; explicit jerk policy and atomic target timing remain open. Invalidate plans on stale
 state or faults; do not replay old commands to hide host stalls. Depends on
 CAL-01, ROS-02 and BASE-06. The existing D3-closed single-joint clearance study
 is documented in [ARM_COLLISION_STUDY.md](ARM_COLLISION_STUDY.md); its sampled
@@ -193,6 +202,24 @@ Pocket physical acceptance still needs:
 
 ### WEAVE-01 — flat-ground coordinated weave experiment
 
+Owner: `src/controls/controls/`, `src/simulation/`, operator.
+The [implemented sequence](WELD_MOTION.md) is measured current pose -> derived
+standby -> checked weld start -> explicit weld -> hold, with independent output
+switches. Calibration, motor constraints, CMA-ES and the actual hardware path
+exist; their animation/fake replay does not qualify physical execution.
+The target remains 2 Hz / 12 mm/s. The best checked candidate reaches 1.815288 Hz
+under provisional CAD acceleration bounds, with six equal 68.7549 deg/s weld
+caps and 5 deg/s initial/approach. Temporary A1 limiting is withdrawn. No firmware
+or reactive trip was raised. Chassis gaps are in [the chassis list](CHASSIS_MODEL_COMMS_TODOS.md).
+
+- [ ] Validate the unit-gain sign/offset map and derived standby at independent
+  physical poses; raw A3 149.39 deg is a calculated 2-degree backoff, not a newly
+  measured initial anchor. Retain the original conflicting CAD pose as evidence.
+- [ ] Run the complete supported arm sequence and save timing, feedback ages,
+  dispatched targets, tracking, stops and attained frequency. Confirm arm-only,
+  chassis-only and combined output gating without switch compensation. Keep
+  physical load/hold acceptance separate from model feasibility.
+
 - [ ] Confirm the flat butt joint and the 10° drag angle against the weld procedure.
   Keep the gun fixed in the DOF6 clamp. Verify wire extension and cable clearance
   on the rig. The fixed-mount simulation reaches the full width at 1–3 Hz with
@@ -200,6 +227,86 @@ Pocket physical acceptance still needs:
   Use the [simulation controller and tester guide](../src/controls/README.md).
   Record the accepted amplitude, feed and tracking tolerance for the intended seam.
   Physical pose teaching and A6 speed trials remain under CAL-01 and SPEED-01.
+
+### LOAD-01 — weight compensation after the first arm welding run
+
+Owner: `src/controls/controls/controller/`, `src/robot_description/`, operator.
+Deferred by the operator until the arm's initial-pose -> weld-start -> welding
+sequence has been run through under WEAVE-01. Keep this separate from chassis
+participation: disabling one subsystem must not introduce arm compensation.
+
+- [ ] Reconcile the operator estimate: A1 supply 24 V, moving load about 6.5 kg,
+  COM extension about 0.30 m, and rough A2/A3 posture range 30-45 degrees.
+  Confirm total versus added mass, angle convention, perpendicular COM radius
+  and floor/wall orientation; measure each link and the gun/cable payload.
+- [ ] Update link mass, COM and inertia in the model. The current CAD A1
+  descendant mass is about 0.898 kg; a previously selected weld center had
+  reduced A1 inertia about 0.0611 kg m^2. A 6.5 kg point mass at perpendicular
+  radius 0.30 m contributes at least 0.585 kg m^2. Ground A1 is almost vertical;
+  the worst 19.13 Nm gravity moment is not its ground-scene drive torque.
+- [ ] Implement and qualify pose-dependent gravity/load compensation with
+  explicit torque/current limits and supported hold/stop tests. Select a motor
+  interface that actually accepts the required feedforward; native mode 2
+  currently sends position/speed only.
+- [ ] Recompute acceleration/torque margins and rerun CMA-ES with the measured
+  load. Acceptance requires measured tracking and thermal/torque evidence;
+  the present kinematic animation is not loaded-dynamics validation.
+
+### FEEDBACK-01 — sensor feedback and bounded weld-tip correction
+
+Owner: `src/controls/controls/controller/` (estimation/correction),
+`src/controls/controls/hardware/` (execution and cached sensor interfaces),
+sensor integration and `src/robot_description/` (frames/calibration).
+Requested 2026-11-15; deferred until WEAVE-01's first arm welding run.
+Coordinate with LOAD-01 and CHASSIS-04; this is not implemented compensation.
+
+- [ ] Record a baseline using timestamped commanded/measured joint positions,
+  velocities, actual dispatched position/speed limits and feedback ages.
+  Measure delay, jitter, quantization and tracking error; reuse cached telemetry,
+  without enabled-state register polling or another motor owner.
+- [ ] Select and calibrate sensing of the wire tip relative to the weld seam,
+  including lateral/height error and any required orientation. Establish camera/
+  laser/sensor-to-tool/base transforms, timestamps, latency and valid-data rules.
+  Encoder forward kinematics alone cannot distinguish configurations with the
+  same joint readings but different base slip, tool mounting or structural flex.
+- [ ] Implement a bounded outer correction around the existing planned weave:
+  measured seam-relative error -> smooth Cartesian correction -> constrained
+  IK -> current execution interface. Enforce correction magnitude/rate,
+  joint speed/acceleration, closure and clearance after correction. Define
+  pause behavior for missing/stale measurements and retain explicit restart.
+  Participation OFF must not silently enable compensation for that subsystem.
+- [ ] Evaluate a discrete linear extended state observer (LESO) offline first,
+  using the measured input/output behavior of the selected control interface.
+  Current mode 2 exposes position and a speed magnitude/limit, not commanded
+  torque; identify its closed-loop gain/order/delay before defining observer
+  input and disturbance units. Do not treat the current speed limit or position
+  target as a torque input, or label an effective residual as measured N m.
+  A later torque/current feedforward interface requires separate qualification.
+- [ ] Compare a simple feedback baseline against ESO-assisted correction using
+  replay and simulation with payload changes, friction, coupling, sensor noise,
+  delay, dropped samples and saturation. First run the estimator without applying
+  its correction. Select bandwidth from measured dynamics and sample timing,
+  not a guessed multiple of the 2 Hz weave frequency. Bound correction and
+  observer transients; account for the command actually applied after limiting.
+- [ ] Combine any qualified LOAD-01 feedforward with estimation of residual
+  disturbance without double compensation. An ESO does not create observations
+  of unmeasured seam displacement or raise motor speed/torque/acceleration limits.
+  Do not claim it makes the current 2 Hz request feasible without new evidence.
+
+Acceptance: compare measured wire-tip RMS/peak error, joint tracking, phase lag,
+command peaks and fault behavior against the same trajectory/load baseline;
+define thresholds before promotion. Keep model-only, fake-motor and physical
+evidence distinct. The present host update period is nominally 20 ms; effective
+feedback timing and inner-drive dynamics still need measurement.
+
+Research basis: [Han's ESO/ADRC formulation](https://doi.org/10.1109/TIE.2008.2011621)
+uses measured output, known control input and an approximate input gain.
+[A manipulator LESO study](https://doi.org/10.3390/electronics9091355) treats
+friction/external disturbances with a torque-input model and simulation evidence;
+it is not validation of FORGE's mode-2 interface.
+[ESO measurement-noise analysis](https://arxiv.org/abs/2004.01483) documents the
+trade-off between fast estimation and noise amplification. Applying these
+methods to FORGE is an engineering proposal requiring the checks above.
 
 ### DEPLOY-01 — fixture, configuration and evidence
 

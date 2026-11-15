@@ -1,8 +1,8 @@
 # Motor protection verification
 
-Updated 2026-11-10. Open work under **PROTECT-01** in the
-[cross-layer registry](ARM_LAYER_TODOS.md). A2–A6 basic manual movement is verified
-by the operator; that does not establish current protection or loaded operation.
+Updated 2026-11-15. Open work under **PROTECT-01** in the
+[cross-layer registry](ARM_LAYER_TODOS.md). All six motors are connected;
+recorded checks/manual movement do not establish protection or loaded operation.
 
 Guarded, disabled-only readback is implemented. The operator's A2–A6 inspection
 completed at 19:56 on 2026-11-10; see [values and interpretation](DAMIAO_TORQUE_LIMITS.md).
@@ -10,7 +10,7 @@ No gains or current limits were written. Remaining work:
 
 - [ ] Record and verify model/revision, firmware, bus/IDs, current/protection
   settings, units/scaling and timeout behavior for every Damiao and ENCOS unit.
-  Extend the current A2–A6 record to A1 when its fixture is ready; do not assume
+  Extend the A2–A6 protection record to reconnected A1 under support; do not assume
   the 4310P Imax/VBus registers exist on the 8009P.
 - [ ] Distinguish current-command clamping, overcurrent fault shutdown and
   FORGE's reactive measured-torque trips. Verify drive torque/current reporting

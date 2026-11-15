@@ -1,0 +1,2 @@
+-r ../simulation/calibration-requirements.txt
+cma==4.5.0

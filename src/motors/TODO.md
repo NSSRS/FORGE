@@ -4,6 +4,10 @@ The [cross-layer registry](../../docs/ARM_LAYER_TODOS.md) is the status authorit
 Owning IDs: **BASE-04, BASE-05, BASE-06, PROTECT-01, CAL-01, SPEED-01**. Read [current hardware status](../../docs/ARM_SESSION_HANDOFF.md)
 and [the base contract](../../docs/ARM_BASE_LAYER.md) before continuing.
 
+Both families now expose cached telemetry through existing owners; see
+[MOTOR_TELEMETRY.md](../../docs/MOTOR_TELEMETRY.md). The real weld adapters reuse
+these APIs; no enabled register polling or second owner is added.
+
 Next: run the [pose teaching and speed trials](../../docs/ARM_POSE_TEST.md) on the supported fixture. Verify encoder repeatability, physical alignment, stopping and A6 tracking. Production position initialization still needs a calibrated joint mapping.
 
 Completed implementation and run instructions belong in the

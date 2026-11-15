@@ -6,11 +6,25 @@ three-motor bench and requests sudo when needed. Use `simulate:=true` for
 simulated motors. See [full-system setup](FULL_SYSTEM_TEST.md) for saved ports,
 limits, viewer behavior, and the RGB-only 30 FPS default and camera-only shared-memory transport.
 
-The active control path is chassis W/S/A/D, using `keyboard_teleop` with
+The active ROS chassis control path is W/S/A/D, using `keyboard_teleop` with
 keyboard or proportional single-stick radio input. Both publish
 `geometry_msgs/msg/TwistStamped` on `/cmd_vel`; `motor_driver` performs
 differential mixing and owns MotorBus, C11/SOEM and the EtherCAT-CAN bridge.
 See [radio calibration](RADIO_CONTROL.md) for ESP32 input.
+
+## Arm and dual-family telemetry
+
+The existing ROS owners publish cached ENCOS `/joint_states` at 50 Hz and
+Damiao `/arm/joint_states` at 25 Hz, plus `/diagnostics` at 2 Hz/on status change.
+ENCOS effort stays empty: phase current is not torque. Damiao effort is the
+drive-reported torque estimate. Freshness and transport health are described in
+[MOTOR_TELEMETRY.md](MOTOR_TELEMETRY.md); PDO ages do not prove fresh CAN replies.
+
+The separate [weld controller](WELD_MOTION.md) uses Damiao mode-2 position/speed
+and ENCOS MotorBus directly, with one owner per transport. It must not run beside
+the ROS owners on the same devices. Its implementation/fake replay do not qualify
+the production ROS arm MIT lifecycle. Chassis localization-based tracking and
+command-source arbitration remain future work.
 
 ## Current bench
 
@@ -37,7 +51,7 @@ ceiling. Physical wheel assignments and signs still need commissioning.
 ## Build and run
 
 ```bash
-cd /home/forge2/forge2_ws
+cd /path/to/FORGE
 source /opt/ros/jazzy/setup.bash
 colcon --log-base logs/colcon build --base-paths src \
   --build-base build/ros2 --install-base install/ros2 --symlink-install

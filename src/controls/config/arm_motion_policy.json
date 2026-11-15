@@ -1,0 +1,16 @@
+{
+  "schema": "forge.arm_motion_policy",
+  "version": 1,
+  "angle_basis": "raw motor output shaft, degrees per second",
+  "max_speed_deg_s": {
+    "A1": null,
+    "A2": null,
+    "A3": null,
+    "A4": null,
+    "A5": null,
+    "A6": null
+  },
+  "basis": "Operator withdrew the temporary per-axis speed caps. All axes are null: no additional joint-specific speed cap. Existing physical, protocol, measured-speed guard and debug/transition limits remain separately applicable. Protocol VMAX is an encoding range, not a manufacturer operating-speed limit.",
+  "gearing": "No additional external ratio has been verified; preserve raw output-shaft units and calibration without dividing by internal gearing again.",
+  "hardware_qualified": false
+}

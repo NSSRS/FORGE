@@ -1,19 +1,21 @@
 # Joint-angle API and manual arm jog
 
-Updated 2026-11-11. This is a reusable position port and fixture commissioning UI.
+Updated 2026-11-15. This is a reusable position port and fixture commissioning UI.
 For `--teach-file`, `--stop-map` and `--speed-trial`, see the [pose and speed tester guide](ARM_POSE_TEST.md).
 It is separate from ENCOS WASD driving. No hardware is automatically enabled
-at startup. Production ROS, calibrated arm coordinates, multi-axis trajectories,
-collision checking and gravity holding remain upper-layer integration work.
+at startup. Candidate measured alignment, multi-axis trajectories and collision
+checks now exist in the separate [weld controller](WELD_MOTION.md). Production
+ROS, physical coordinate qualification and loaded holding remain open.
 
-The [2026-11-09 assembled-arm handoff](ASSEMBLED_ARM_BRINGUP.md) explains
+The [assembled-arm handoff](ASSEMBLED_ARM_BRINGUP.md) explains
 session zero versus absolute encoder/model position, the Pocket changes,
 constraint study and supported calibration/holding work still required.
 
-The operator verified A2–A6 movement. For the current 5 deg/s supported manual
+All six axes are now connected. For supported non-holding 5 deg/s manual
 travel command, use [the rig guide](ARM_RIG_TEST.md); the generic six-motor
-unloaded defaults below are separate. Next work is the A1 base, measured position
-initialization and faster movement; see [current status](ARM_SESSION_HANDOFF.md).
+unloaded defaults below are separate. Explicit holding-mode jogs default to
+10 deg/s. Current work is arm welding acceptance with the derived initial
+transition; see [current status](ARM_SESSION_HANDOFF.md).
 
 ## Survey and design choice
 
@@ -36,7 +38,7 @@ press/release events are ignored; they do not queue moves.
 
 ## Run
 
-From `/home/forge2/forge2_ws`, try the UI offline first:
+From `/path/to/FORGE`, try the UI offline first:
 
 ```bash
 python3 scripts/jog_dm_arm.py --simulate

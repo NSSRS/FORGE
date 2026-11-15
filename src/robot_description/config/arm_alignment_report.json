@@ -1,0 +1,133 @@
+{
+  "schema": "forge.measured_alignment",
+  "version": 1,
+  "fit": {
+    "1": {
+      "method": "sign_plus_offset",
+      "gain": -1.0,
+      "offset_deg": -174.69159564640077,
+      "residual_deg": [
+        0.0
+      ],
+      "affine_comparison": null,
+      "reference_basis": "Nov 12 full-precision physical initial anchor"
+    },
+    "2": {
+      "method": "sign_plus_offset",
+      "gain": -1.0,
+      "offset_deg": -55.88724205982144,
+      "residual_deg": [
+        0.4563102702196957,
+        -0.4563102702196957
+      ],
+      "affine_comparison": {
+        "gain": -1.0065837694510555,
+        "offset_deg": -56.36405827599419,
+        "residual_deg": [
+          7.105427357601002e-15,
+          7.105427357601002e-15
+        ]
+      },
+      "reference_basis": "measured endpoints paired with prior CAD stop estimates; contact not independently verified"
+    },
+    "3": {
+      "method": "sign_plus_offset",
+      "gain": -1.0,
+      "offset_deg": 126.72764404296873,
+      "residual_deg": [
+        -0.10577255249022244,
+        0.10577255249022244
+      ],
+      "affine_comparison": {
+        "gain": -0.9973092711144685,
+        "offset_deg": 126.4260671494783,
+        "residual_deg": [
+          8.526512829121202e-14,
+          5.684341886080802e-14
+        ]
+      },
+      "reference_basis": "measured endpoints paired with prior CAD stop estimates; contact not independently verified"
+    },
+    "4": {
+      "method": "sign_plus_offset",
+      "gain": -1.0,
+      "offset_deg": 173.1834352361486,
+      "residual_deg": [
+        0.0
+      ],
+      "affine_comparison": null,
+      "reference_basis": "Nov 12 full-precision physical initial anchor"
+    },
+    "5": {
+      "method": "sign_plus_offset",
+      "gain": -1.0,
+      "offset_deg": -2.017926825144416,
+      "residual_deg": [
+        0.0
+      ],
+      "affine_comparison": null,
+      "reference_basis": "Nov 12 full-precision physical initial anchor"
+    },
+    "6": {
+      "method": "sign_plus_offset",
+      "gain": -1.0,
+      "offset_deg": 64.16104853467226,
+      "residual_deg": [
+        0.0
+      ],
+      "affine_comparison": null,
+      "reference_basis": "Nov 12 full-precision physical initial anchor"
+    }
+  },
+  "initial": [
+    {
+      "joint": 1,
+      "requested_raw_deg": -174.69159564640077,
+      "standby_raw_deg": -174.69159564640077,
+      "measured_initial": true,
+      "adjusted": false
+    },
+    {
+      "joint": 2,
+      "requested_raw_deg": -61.357358006883345,
+      "standby_raw_deg": -61.357358006883345,
+      "measured_initial": false,
+      "adjusted": false
+    },
+    {
+      "joint": 3,
+      "requested_raw_deg": 152.0453228774108,
+      "standby_raw_deg": 149.39,
+      "measured_initial": false,
+      "adjusted": true
+    },
+    {
+      "joint": 4,
+      "requested_raw_deg": 173.1834352361486,
+      "standby_raw_deg": 173.1834352361486,
+      "measured_initial": true,
+      "adjusted": false
+    },
+    {
+      "joint": 5,
+      "requested_raw_deg": 8.753679723315061,
+      "standby_raw_deg": 8.753679723315061,
+      "measured_initial": true,
+      "adjusted": false
+    },
+    {
+      "joint": 6,
+      "requested_raw_deg": 64.16104853467226,
+      "standby_raw_deg": 64.16104853467226,
+      "measured_initial": true,
+      "adjusted": false
+    }
+  ],
+  "endpoint_backoff_deg": 2.0,
+  "source_fingerprints": {
+    "prior_mapping": "d7c6c37a7f9ae6abe76045bfd9c54801483cb9e4d99352148a34dcdf89463764",
+    "capture": "e5f589dc8dfa8455ed5c3a31e319b51aa22a810dcdbb2f06b4a5c109b1da71bd",
+    "authored_pose": "6b1ccddb43a27b961cda02a2e37b7bd419df490f0fc23039c8648d43ce208d21"
+  },
+  "production_qualified": false
+}

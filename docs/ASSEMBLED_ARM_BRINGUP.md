@@ -1,14 +1,17 @@
 # Assembled arm handoff
 
-Updated 2026-11-10, branch `nathan`. The operator verified manual movement of
-all five active A2–A6 motors. The operator will now build a base that permits
-A1 rotation, followed by motor-position initialization and faster commanded
-movement. Read [the current session handoff](ARM_SESSION_HANDOFF.md) for the
-active profile, firmware and keyboard command. The MuJoCo study visualizes
-candidate travel around the saved initial pose. The assembled arm still needs
-physical calibration, a controller that holds all load-bearing joints, and a
-defined response to loss of torque. The operator reports that it falls when
-unpowered; the current commissioning adapter disables torque when jogging stops.
+Updated 2026-11-15, branch `nathan`. A1 is reconnected and all six motors
+passed disabled identity/feedback checks on Nov 12. The operator confirmed base
+rotation/cable clearance and support; a dependable rest/restraint on torque
+loss still needs qualification. Read [the current handoff](ARM_SESSION_HANDOFF.md)
+for firmware, reference evidence and the current welding milestone.
+
+Manual selected/group holding and an actual six-axis welding execution path now
+exist. The latter uses measurement-derived standby, closed-chain IK, motor
+constraints and CMA-ES, with independent arm/chassis switches. See
+[WELD_MOTION.md](WELD_MOTION.md). Physical calibration, loaded hold/stop behavior
+and welding acceptance remain open. Default jog release disables torque;
+explicit hold modes retain position, but are not mechanical brakes.
 
 ## Motor controls delivered
 
@@ -36,7 +39,7 @@ after restarting the ER12 receiver. These observations do not establish
 physical joint/model signs, encoder offsets, or formal stop/failsafe acceptance.
 
 Both interfaces use the existing real `ArmPositionPort`/DM-MC02 routed
-position-velocity path. The current supported rig uses 5 deg/s manual travel
+position-velocity path. Non-holding/teaching uses 5 deg/s manual travel
 without a startup-angle window. The separate six-motor unloaded profile retains
 a +/-90-degree session window and 45 deg/s command. Selecting a different
 motor or re-priming does not recenter the window. A readout such as -89.55 degrees
@@ -47,7 +50,10 @@ remove drive torque through the current adapter; nonselected motors remain
 disabled. Keeping the SE prime preserves authorization, not holding torque.
 Use the [Pocket guide](POCKET_ARM_CONTROL.md) and
 [keyboard/API guide](ARM_POSITION_JOG.md) for the unloaded-fixture launch commands.
-There is no assembled-arm hold launch yet.
+For selected/group keyboard holding use the explicit modes in
+[ARM_RIG_TEST.md](ARM_RIG_TEST.md). Holding-mode manual jogs default to 10 deg/s.
+The separate weld controller has its own stage limits and stopping policy;
+these do not change Pocket release-disable behavior.
 
 ## Model and constraint work delivered
 
@@ -99,7 +105,8 @@ The motors start disabled; knowing the current angle does not command a return
 to the model pose. Sources are the pinned
 [manufacturer manuals](DAMIAO_ARM.md#verified-manufacturer-references), sections
 "Motor Features", feedback-frame notes and the read/write parameter table.
-Actual power-cycle/wrap behavior still needs measurement on all six units.
+One stationary cycle and one off-power return per joint were recorded on
+Nov 13; broader wrap/branch behavior and precision still need qualification.
 
 Three references must remain distinct:
 
@@ -127,49 +134,34 @@ The stable acceptance requirements remain in the
 [cross-layer TODO registry](ARM_LAYER_TODOS.md). Perform these stages in order;
 none is completed by the simulation study or the unloaded jogging reports.
 
-1. **Build the base and define stopping — SUPPORT-01.** The operator will build
-   a base allowing A1 rotation. Record its mounting/cable clearance, then verify
-   A1 identity, disabled feedback and controlled motion on that fixture. Establish
-   a repeatable supported rest pose and suitable fixture, brake or counterbalance for loss
-   of power/drive torque. Define emergency stop, command loss, drive fault,
-   controlled stopping and supported disable. Verify this arrangement before
-   removing support from an energized arm. MC02 disable is not a brake.
-2. **Initialize measured motor positions — CAL-01, DEPLOY-01.** With the arm
-   supported and drives disabled, record each motor's identity/firmware,
-   raw angle and known physical/model angle at a repeatable pose. Power-cycle
-   without movement, then make a controlled off-power position change and
-   compare startup feedback modulo one turn. Determine wrap ambiguity, joint
-   sign, offset and any external ratio; save a versioned calibration and
-   verify it at additional known poses. Do not let the arm fall as a test or
-   silently declare each new startup pose to be the model zero. Initialize
-   from fresh positions while disabled; an intentional home move is separate.
-3. **Qualify joint and path constraints — CAL-01, PLAN-01.** Compare the actual
-   assembly with CAD, inspect excluded contact pairs and check cables, hard
-   stops and clearances. Test combined configurations and whole motion paths,
-   then derive conservative operating limits with stopping/tolerance margins.
-   Approach boundaries under support at low speed; deliberate impacts or a
-   reactive torque threshold are not the normal limit-calibration method.
-4. **Qualify faster commanded movement — SPEED-01.** After the base and initial
-   position reference are ready, increase command speed in measured stages.
-   Compare requested/actual speed, tracking and stopping in both directions,
-   including A6, and record temperature/current evidence. Current supported
-   commands remain 5 deg/s; a 1.5 rad/s reactive trip is not a speed command.
-5. **Implement assembled-arm holding — ROS-02, BASE-06, SUPPORT-01.** Add a
-   separate lifecycle that reads fresh valid angles for all six joints,
-   preloads current-position targets, requires explicit arming and holds all
-   load-bearing joints together. Define neutral/SE release as stopping a jog
-   while maintaining the authorized hold, separately from supported drive
-   disable. Preserve the unloaded adapter's existing release-disable behavior.
-   A return to a saved/home pose must be a separate requested, path-checked
-   motion. Preserve one transport owner, fault latches and explicit recovery;
-   never automatically re-enable after a fault or reconnect.
+1. **Qualify support and stopping — SUPPORT-01, DEPLOY-01.** Document the
+   existing six-axis fixture, supported rest pose, cable clearance and response
+   to loss of power/torque. Resolve the saved A2 shutdown failure. MC02 disable
+   is not a brake; loaded hold/stop acceptance remains unconfirmed.
+2. **Validate measured alignment — CAL-01.** The eight reference readings and
+   Nov 13 return round already exist. Independently verify the candidate unit-gain
+   sign/offset map, raw branches and derived standby at additional poses.
+   The original A3 CAD pose conflicts with its stop; the controller's 2-degree
+   raw backoff is a calculated candidate, not a new physical measurement.
+3. **Qualify the complete arm weld — WEAVE-01, PLAN-01.** Existing planning
+   checks D3 closure, sampled collision clearance, raw bounds and speed/acceleration
+   through initial, approach and weld stages. Verify the assembly, cables,
+   actual tracking and stops. Keep the configured 2 Hz goal; the checked CMA-ES
+   candidate is retimed to about 1.815288 Hz under provisional CAD constraints.
+   No physical welding acceptance has been completed.
+4. **Qualify commanded movement and lifecycle — SPEED-01, ROS-02, BASE-06.**
+   Manual jitter investigation is deferred. Distinguish manual 5/10 deg/s
+   settings, 5 deg/s initial/approach, 68.7549 deg/s weld command caps and
+   1.5 rad/s reactive trips. The existing mode-2 group/weld controller does not
+   qualify the separate production ROS MIT lifecycle or atomic target dispatch.
+5. **After the first arm weld — LOAD-01, FEEDBACK-01.** Identify actual load
+   properties before adding gravity compensation. Add calibrated tool/seam
+   sensing, bounded outer correction and an observation-first ESO evaluation.
+   Independent participation switches remain output gates without compensation.
 6. **Qualify load and failures — PROTECT-01, BASE-04, BASE-07, DEPLOY-01.**
-   Verify motor-side current/protection settings and persistence. With support
-   retained, measure holding capacity, temperature, feedback age, bus timing,
-   stop latency and behavior on host/USB/CAN/command loss. Progress from small
-   supported motions to coordinated motion only with attributable test reports.
-   Release production confirmation flags only after their acceptance criteria
-   have measured evidence.
+   Measure motor protection, persistence, thermal behavior, bus/host timing and
+   stop responses on the supported fixture. Preserve production flags until
+   their acceptance criteria have attributable physical evidence.
 
 ## Evidence recorded on 2026-11-09
 
@@ -188,10 +180,10 @@ none is completed by the simulation study or the unloaded jogging reports.
   Full radio stop/failsafe acceptance, assembled calibration, holding and
   loaded operation remain pending.
 
-## Supported rig preparation update (2026-11-10)
+## Historical subset preparation (2026-11-10)
 
 A [connection/encoder check and bounded A2–A6 manual jog](ARM_RIG_TEST.md) is
-now prepared for A1 temporarily disconnected. The fixture must support all
+available when A1 is deliberately disconnected; the current rig includes A1. The fixture must support all
 links, including A1, throughout movement and torque disable. This adds a narrow
 commissioning step; coordinated holding, physical calibration and loaded
 acceptance in the ordered steps above remain pending.

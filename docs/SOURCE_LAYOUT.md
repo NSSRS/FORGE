@@ -14,7 +14,7 @@ Native Linux is the deployment target. The ROS Python packages use ament_python:
 | seam_detection | RGB joint edge candidates and annotated/edge images; no motor output |
 | teleop | Keyboard/radio command generation; uses motor_control command helpers |
 | visualization | Read-only relay and measured-state MuJoCo display |
-| controls | [Coordinated motion](../src/controls/README.md), shared weave trajectory and simulation controller |
+| controls | [Coordinated motion](../src/controls/README.md): shared planning/CMA-ES, simulation controller and real ENCOS/Damiao weld execution |
 | simulation | MuJoCo model integration, previews, rendering, terrain and linkage closure |
 | robot_description | Shared MJCF/meshes and resource lookup, chassis/arm motor inventories and Xacro macros |
 | bringup | Shared YAML/DDS profiles, ROS launch files, four-pane session manager |
@@ -24,6 +24,25 @@ Full physics simulation and the arm/chassis CAD model live in this checkout.
 The previews and motor overview read src/robot_description/mujoco/ directly.
 The seam_detection package contains the initial image-space edge detector.
 robot_description contains the shared MJCF model, motor inventories and Xacro macros; no localization package has been created.
+
+## Weld planning and telemetry ownership
+
+`src/controls/controls/controller/` owns measured sign/offset alignment, Damiao
+constraints, MuJoCo D3-closed IK, retiming and CMA-ES. Sibling `hardware/` owns
+`weld_ports.py`, `weld_control.py` and `weld_app.py`; sibling `simulation/` keeps
+the original dynamic weave controller. The hardware `weld_plan.py` is a small
+compatibility export; all planner implementation lives in `controller/`.
+
+`scripts/control_weld.py`, `fit_arm_model.py` and `optimize_weld.py` are thin
+entry points. `scripts/render_weld.py` delegates to
+`src/simulation/simulation/weld_animation.py` for checked saved-plan playback.
+Motion policy is in `src/controls/config/`; candidate alignment/standby and
+their provenance are in `src/robot_description/config/`. See [WELD_MOTION.md](WELD_MOTION.md).
+
+ENCOS snapshot ABI/cache belongs to `src/encos_driver/`, its Python wrapper to
+`src/motors/`. ROS messages are built in `src/motor_control/motor_control/telemetry.py`
+and published by the existing arm/chassis owners. No extra bus owner or enabled
+CAN register polling is added. See [MOTOR_TELEMETRY.md](MOTOR_TELEMETRY.md).
 
 ## Scripts audit
 
@@ -55,7 +74,9 @@ the rig test's sources, profiles and generated evidence.
 source /opt/ros/jazzy/setup.bash
 colcon --log-base logs/colcon build --base-paths src --build-base build/ros2 --install-base install/ros2 --symlink-install
 source scripts/ros2_env.sh
-ROS_DOMAIN_ID=90 python3 -m unittest discover -s tests -p 'test_*.py'
+QT_QPA_PLATFORM=offscreen ROS_DOMAIN_ID=90 ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST \
+  ENCOS_TEST_LIBRARY="$PWD/build/encos_driver/libencos_driver_test.so" \
+  .venv/bin/python -m unittest discover -s tests -p 'test_*.py'
 ./scripts/run_motor_test.sh --simulate --dry-run
 ./scripts/run_motor_viewer.sh --check
 ```
@@ -64,6 +85,9 @@ encos_driver and motors carry COLCON_IGNORE because their CMake and Python API
 builds are independent of colcon. The environment helper adds the source API
 to PYTHONPATH. The GUI pane manager and viewer wrappers are checkout tools;
 they intentionally locate models/config relative to this workspace.
+The complete suite needs the configured simulation/calibration/search environment
+and ROS/PyQt5 system packages; see [test setup](../tests/README.md). Native CTest
+only runs the driver/firmware tests and has no model dependency.
 
 ## Generated folders
 
@@ -75,6 +99,7 @@ they intentionally locate models/config relative to this workspace.
 | `build/motor_viewer/` | Viewer Python environment |
 | `build/arm_tests/` | Generated arm commissioning/check/jog JSON reports |
 | `build/simulation/` | Generated clearance-study JSON, MP4 and still images |
+| `build/weld/` | Candidate search reports, fingerprinted plans, controller traces and rendered animations |
 | `install/ros2/` | Installed ROS executables, resources, and environment setup |
 | `logs/` | Colcon and local run logs |
 | `logs/arm_tests/` | Dated software-test/build evidence and artifact manifests; not physical acceptance |
@@ -126,7 +151,7 @@ requires a source checkout; generated backups go under build/simulation/backups/
 ## Arm controls and rig test file map
 
 All source paths below are relative to the FORGE checkout (locally
-`/home/forge2/forge2_ws`). Edit source/config here; `build/` and `install/` are
+`/path/to/FORGE`). Edit source/config here; `build/` and `install/` are
 generated. Rebuild the affected ROS package after changing an installed asset.
 
 | What | Source location and owner |

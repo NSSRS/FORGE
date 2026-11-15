@@ -66,8 +66,9 @@ target_include_directories(encos_driver_test PRIVATE ../../tests/fake_soem)
 target_compile_options(encos_driver_test PRIVATE -Wall -Wextra -Werror)
 target_link_libraries(encos_driver_test PRIVATE encos_protocol pthread)
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
+# Keep native-driver checks independent of optional ROS/GUI/model environments.
+# Run the complete repository suite separately as documented in tests/README.md.
 add_test(NAME python_motors COMMAND ${CMAKE_COMMAND} -E env
-    "PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}/..:$ENV{PYTHONPATH}"
+    "PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}/..:${CMAKE_CURRENT_SOURCE_DIR}/../../tests:$ENV{PYTHONPATH}"
     "ENCOS_TEST_LIBRARY=$<TARGET_FILE:encos_driver_test>"
-    ${Python3_EXECUTABLE} -m unittest discover
-    -s ${CMAKE_CURRENT_SOURCE_DIR}/../../tests -p "test_*.py" -v)
+    ${Python3_EXECUTABLE} -m unittest -v test_python_motors test_native_driver)

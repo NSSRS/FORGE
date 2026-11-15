@@ -1,0 +1,12 @@
+{
+  "schema": "forge.weld_experiment",
+  "version": 1,
+  "frequency_hz": 2.0,
+  "amplitude_mm": 10.0,
+  "feed_mm_s": 12.0,
+  "feed_distance_per_cycle_mm": 6.0,
+  "basis": "Operator reaffirmed the original 2 Hz target; 1.73 Hz is an acceptable fallback, not the optimization target. Temporary per-axis speed caps are withdrawn; original six-axis 68.7549 deg/s project guards remain. Preserve 6 mm feed per cycle. Weight compensation and measured-load dynamics follow the first arm welding run under LOAD-01.",
+  "initial_approach_speed_deg_s": 5.0,
+  "initial_approach_acceleration_deg_s2": 30.0,
+  "hardware_qualified": false
+}

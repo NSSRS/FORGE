@@ -160,7 +160,13 @@ Use --scene to explicitly select another scene. The historical chassis-only
 fetch and --local-model snapshot option have been removed. Existing ignored
 build/motor_viewer/model snapshots are no longer used.
 
-Arm preview coordinates are simulation-only; no arm hardware driver or calibrated encoder mapping is included.
+These preview coordinates retain their CAD meaning. A separate real-motor
+controller and measurement-derived candidate encoder mapping now exist in
+`src/controls/controls/hardware/` and `controller/`; production calibration remains
+unconfirmed. [Weld planning and animation](WELD_MOTION.md) uses that mapping and
+a checked saved path. `render_weld.py` is kinematic playback, while the original
+`preview_weave.py` runs the separate full-physics baseline; neither is measured
+hardware tracking.
 
 ## Verification
 

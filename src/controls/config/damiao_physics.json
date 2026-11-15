@@ -1,0 +1,29 @@
+{
+  "schema": "forge.damiao_physics",
+  "version": 1,
+  "hardware_qualified": false,
+  "models": {
+    "8009P": {
+      "rated_output_rpm_24v": 100,
+      "rated_output_rpm_48v": 200,
+      "rated_output_torque_nm": 20,
+      "reduction_ratio": 9,
+      "source": "https://github.com/dmBots/DM-J8009P-2EC/blob/42eaaf7f05cccba18d182b51504ee0349e16cff6/manual/DM-J8009P-2EC%20V1.1%20Gear%20Motor%20User%20Manual%20V1.0%202026-09-10.pdf"
+    },
+    "4340P": {
+      "rated_output_rpm_24v": 36,
+      "rated_output_rpm_48v": 36,
+      "rated_output_torque_nm": 12,
+      "reduction_ratio": 40,
+      "source": "https://github.com/dmBots/DM-J4340P-2EC/blob/98a29a9df67c83512795f8bb9ca2bdd2423f66dd/manual/DM-J4340P-2EC%20V1.1%20Geared%20Motor%20User%20Manual%20V1.4%202026-09-14.pdf"
+    },
+    "4310P": {
+      "rated_output_rpm_24v": 120,
+      "rated_output_rpm_48v": 120,
+      "rated_output_torque_nm": 3.5,
+      "reduction_ratio": 10,
+      "hardware_revision_verified": false,
+      "source": "https://github.com/dmBots/DM-J4310P-2EC/blob/9e728c9a42b498380ae43964636b3d66d01f42c7/manual/DM-J4310P-2EC%20Geared%20Motor%20User%20Manual%20V1.3%202026-09-14.pdf"
+    }
+  }
+}

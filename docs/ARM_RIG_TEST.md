@@ -1,31 +1,35 @@
-# A2–A6 rig test, A1 temporarily disconnected
+# Supported arm rig controls
 
-The operator verified manual movement of all five A2–A6 motors on 2026-11-10.
-For reference capture, model-pose replay, the new six-axis fixture and
+The current fixture includes all six motors, including reconnected A1. Use
+`bash scripts/control_arm.sh` for the six-axis manual interface and the
+[current handoff](ARM_SESSION_HANDOFF.md) for firmware and evidence. The optional
+A2-A6 subset below is for an explicitly disconnected A1 only.
+For reference capture, model-pose replay and
 opt-in speed trials, use the [next bench test](ARM_POSE_TEST.md).
 The inventory remains A1/CAN1 and A2–A6/CAN2 with command
 IDs 1–6 and feedback IDs 17–22. `arm_rig_a2_a6.json` selects physical joints
-2–6 without renumbering IDs or MCU slots. A1 is unavailable. Another missing
+2–6 without renumbering IDs or MCU slots. In that subset only, A1 is unavailable. Another missing
 motor fails the check; the code never silently drops a joint or clears faults.
 
-This is a disabled connection/encoder check followed by optional slow manual
+The subset procedure is a disabled connection/encoder check followed by optional slow manual
 jogging. It is not gravity holding, homing, joint calibration, or an automatic
 collision-limit test. Model sweep angles are not sent to the motors.
 
 The [source and artifact map](SOURCE_LAYOUT.md#arm-controls-and-rig-test-file-map)
-lists the exact owning files and report/log folders. The canonical source checkout
-on this machine is `/home/forge2/forge2_ws`.
+lists the owning files and report/log folders. In commands below, replace
+`/path/to/FORGE` with your checkout root.
 
 Manual-only six-axis controls: `bash scripts/control_arm.sh`. Position recording
 is a separate application (`bash scripts/record_arm_positions.sh`); model-guided
 calibration and obstacle retuning are in [ARM_MODEL_CALIBRATION.md](ARM_MODEL_CALIBRATION.md).
 
-## Current keyboard workflow
+## Optional A2-A6 keyboard workflow, A1 disconnected
 
-The current operator path uses the keyboard, without a radio.
+This subset uses the keyboard, without a radio. Use the six-axis launcher above
+when A1 is connected. The following example retains release-disable behavior.
 
 ```bash
-cd /home/forge2/forge2_ws
+cd /path/to/FORGE
 source scripts/ros2_env.sh
 python3 scripts/jog_dm_arm.py --execute --supported \
   --plan src/robot_description/config/arm_rig_a2_a6.json \
@@ -227,7 +231,7 @@ readback (0x4000). No additional flash is required. Older images refuse this man
 From the workspace:
 
 ```bash
-cd /home/forge2/forge2_ws
+cd /path/to/FORGE
 python3 scripts/test_dm_arm.py \
   --plan src/robot_description/config/arm_rig_a2_a6.json \
   --all --check --feedback --supported \
@@ -258,7 +262,7 @@ Stop the previous Pocket/keyboard process. Check the cause of the trip (for
 A2, support, clearance and binding) with all links supported. Then run:
 
 ```bash
-cd /home/forge2/forge2_ws
+cd /path/to/FORGE
 source scripts/ros2_env.sh
 python3 scripts/test_dm_arm.py \
   --plan src/robot_description/config/arm_rig_a2_a6.json \
@@ -358,11 +362,11 @@ Disabled readback completed for A2–A6 at 19:56; see
 closed and all links supported, a new read can be recorded with:
 
 ```bash
-python3 /home/forge2/forge2_ws/scripts/test_dm_arm.py \
-  --plan /home/forge2/forge2_ws/src/robot_description/config/arm_rig_a2_a6.json \
+python3 /path/to/FORGE/scripts/test_dm_arm.py \
+  --plan /path/to/FORGE/src/robot_description/config/arm_rig_a2_a6.json \
   --all --check --feedback --supported --inspect-control \
   --port /dev/ttyACM0 \
-  --report "/home/forge2/forge2_ws/build/arm_tests/rig-control-registers-$(date +%Y%m%d-%H%M%S).json"
+  --report "/path/to/FORGE/build/arm_tests/rig-control-registers-$(date +%Y%m%d-%H%M%S).json"
 ```
 
 This disables and verifies stationary feedback before each register read; it

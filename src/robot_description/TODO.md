@@ -1,8 +1,12 @@
 # Robot description and calibration: open arm work
 
 The [cross-layer registry](../../docs/ARM_LAYER_TODOS.md) is the status authority.
-Owning IDs: **SUPPORT-01, CAL-01, SPEED-01, DEPLOY-01**. Read [current hardware status](../../docs/ARM_SESSION_HANDOFF.md)
+Owning IDs: **SUPPORT-01, CAL-01, SPEED-01, DEPLOY-01, LOAD-01, FEEDBACK-01**. Read [current hardware status](../../docs/ARM_SESSION_HANDOFF.md)
 and [the base contract](../../docs/ARM_BASE_LAYER.md) before continuing.
+
+The measured unit-gain sign/offset mapping and derived controller standby now
+exist; their source provenance is retained. Load/COM/inertia identification and
+external sensor/tool transforms are deferred follow-ups after the first arm weld.
 
 Next: validate the candidate model mappings at additional physical poses and record unmodeled cable/tool constraints using the reusable model-guided calibration tool. The stationary six-axis power cycle and one off-power return observation per joint are recorded; broader encoder-branch and precision qualification remain open. IDs and simulator poses are not physical calibration. Preserve unknown values and false production flags until measured acceptance; faster-motion settings need separate qualification.
 

@@ -1,4 +1,4 @@
-# Cross-layer TODOs: ROS-01 / ROS-02 / CAL-01; see ../TODO.md and docs/ARM_LAYER_TODOS.md.
+# Cross-layer TODOs: ROS-02 / CAL-01; see ../TODO.md and docs/ARM_LAYER_TODOS.md.
 """Separate ROS arm transport; never routes Damiao commands to the chassis bus."""
 import json
 import math
@@ -17,12 +17,14 @@ def validate_command(msg, names, now_ns):
     return stamp
 
 
-def main(args=None):
+def driver_class():
+    """Load ROS lazily so command validation remains usable offline."""
     import rclpy
     from rclpy.node import Node
     from sensor_msgs.msg import JointState
     from std_srvs.srv import Trigger
     from motors.arm import ArmBus
+    from .telemetry import DamiaoTelemetry, TelemetryPublisher
 
     class ArmDriver(Node):
         def __init__(self):
@@ -41,8 +43,6 @@ def main(args=None):
             self.last_stamp=0
             self.last_command_at=0.0
             self.running=False
-            self.slot=0
-            self.states=[None]*6
             self.bus=ArmBus(self.get_parameter('port').value)
             try:
                 self.bus.configure(self.profile)
@@ -51,11 +51,18 @@ def main(args=None):
                 self.bus.close()
                 raise
             self.publisher=self.create_publisher(JointState,'/arm/joint_states',10)
+            self.telemetry_publisher=TelemetryPublisher(self,self.publisher,'damiao:DM-MC02')
+            try:
+                self.telemetry=DamiaoTelemetry(self.bus,self.telemetry_publisher,self.names,
+                    [joint['bus'] for joint in self.profile['joints']])
+            except Exception:
+                self.bus.close()
+                raise
             self.subscription=self.create_subscription(JointState,'/arm/command',self.command,1)
             self.enable_service=self.create_service(Trigger,'~/enable',self.enable)
             self.disable_service=self.create_service(Trigger,'~/disable',self.disable)
             self.reset_service=self.create_service(Trigger,'~/reset',self.reset)
-            self.timer=self.create_timer(.01,self.poll)
+            self.timer=self.create_timer(.04,self.poll)
 
         def command(self,msg):
             try:
@@ -108,28 +115,24 @@ def main(args=None):
 
         def poll(self):
             try:
-                state=self.bus.state(self.slot)
-                self.states[self.slot]=(time.monotonic(),state)
-                self.slot=(self.slot+1)%6
-                if state.fault:
+                sample=self.telemetry.poll()
+                if sample['fault']:
                     if self.running: self.fail(RuntimeError('MC02 latched an arm fault'))
-                    return
-                now=time.monotonic()
-                if all(s and s[1].age_ms+(now-s[0])*1000 < 100 for s in self.states):
-                    msg=JointState(); msg.header.stamp=self.get_clock().now().to_msg()
-                    msg.header.frame_id='arm_motor_shafts'
-                    msg.name=self.names
-                    msg.position=[s[1].position for s in self.states]
-                    msg.velocity=[s[1].velocity for s in self.states]
-                    msg.effort=[s[1].torque for s in self.states]
-                    self.publisher.publish(msg)
-            except Exception as exc: self.fail(exc)
+            except Exception as exc:
+                self.telemetry_publisher.error('damiao',exc)
+                self.fail(exc)
 
         def destroy_node(self):
             try:
                 if self.bus: self.bus.close()
             finally: super().destroy_node()
 
+    return ArmDriver
+
+
+def main(args=None):
+    import rclpy
+    ArmDriver=driver_class()
     rclpy.init(args=args)
     node=None
     try:

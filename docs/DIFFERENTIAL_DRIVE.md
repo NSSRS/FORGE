@@ -140,11 +140,11 @@ Stop the previous driver and keyboard before switching profiles. Driver pane:
 
 ```bash
 sudo bash -lc '
-cd /home/forge2/forge2_ws
+cd /path/to/FORGE
 source scripts/ros2_env.sh
 export ROS_DOMAIN_ID=44
 ros2 launch bringup chassis.launch.py \
-  config:=/home/forge2/forge2_ws/src/bringup/config/chassis_bench.yaml \
+  config:=/path/to/FORGE/src/bringup/config/chassis_bench.yaml \
   simulate:=false execute:=true mapping_confirmed:=true
 '
 ```
@@ -153,7 +153,7 @@ Keyboard pane:
 
 ```bash
 sudo bash -lc '
-cd /home/forge2/forge2_ws
+cd /path/to/FORGE
 source scripts/ros2_env.sh
 export ROS_DOMAIN_ID=44
 ros2 run teleop keyboard_teleop --ros-args \

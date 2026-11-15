@@ -1,9 +1,10 @@
 # Arm pose teaching and jog-speed bench test
 
-Updated November 12, 2026. The eight requested raw positions are recorded in
-[the current handoff](ARM_SESSION_HANDOFF.md#recorded--initial-positions-and-both-a2a3-travel-ends)
+Updated November 15, 2026. The eight requested raw positions are recorded in
+[the current handoff](ARM_SESSION_HANDOFF.md#calibration-and-recorded-evidence)
 and [the reference JSON](../src/robot_description/config/arm_reference_positions_2026-11-12.json).
-Repeatability, model mapping and loaded stopping remain unqualified. Run from the patched
+Candidate model alignment and controller standby are now derived separately;
+independent pose validation, repeatability and loaded stopping remain unqualified. Run from the patched
 FORGE checkout on the Ubuntu rig. One keyboard window owns the controller.
 
 Manual jogging now uses `bash scripts/control_arm.sh` with no capture panel.
