@@ -43,7 +43,6 @@ interface, motor descriptions, manufacturer manuals and outstanding hardware map
 - **[`physics-analysis`](https://github.com/NSSRS/FORGE/tree/physics-analysis)**:
   thermal/magnetic adhesion and suspension/wheel/terrain simulators, preserved
   from the former `main` at `324d21e`.
-- **`encos-motor-workspace`**: preserved earlier combined workspace.
 
 ## Arm base-layer APIs and cross-layer work
 
