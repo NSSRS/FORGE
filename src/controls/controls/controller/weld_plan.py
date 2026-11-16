@@ -14,6 +14,7 @@ from scipy.interpolate import PchipInterpolator, CubicSpline
 
 from motors.arm_calibration import CalibrationMap, DRIVES, digest
 from .limits import motor_constraints, dynamics_constraints, trajectory_feasibility
+from .recovery import recovery_path
 
 
 def finite_vector(values, label, size=6):
@@ -54,9 +55,10 @@ class Settings:
     lock_base_yaw: bool = False
     limit_profile: str = "debug"
     search_solution: dict | None = None
+    preparation_target_s: float = 5.0
 
     def __post_init__(self):
-        for name in ("hz", "time_scale", "max_speed_deg_s", "max_accel_deg_s2", "control_period_s"):
+        for name in ("hz", "time_scale", "max_speed_deg_s", "max_accel_deg_s2", "control_period_s", "preparation_target_s"):
             positive(getattr(self, name), name)
         if not 0 < self.hz <= 3 or not 1 <= self.time_scale <= 1000:
             raise ValueError("Require 0 < frequency <=3 Hz and 1 <= time scale <=1000")
@@ -150,6 +152,25 @@ class JointPath:
             interpolation=self.interpolation,
         )
 
+    def position_bounds(self):
+        """Exact cubic position extrema; knots alone miss periodic overshoot."""
+        low, high = np.empty(6), np.empty(6)
+        all_roots = self._velocity.roots(extrapolate=False)
+        for axis in range(6):
+            roots = all_roots[axis]
+            times = np.r_[self.times, roots[np.isfinite(roots)]]
+            values = self.curve(times)[:, axis]
+            low[axis], high[axis] = np.min(values), np.max(values)
+        return low, high
+
+    def check_raw_bounds(self, bounds):
+        low, high = self.position_bounds()
+        if not np.isfinite([low, high]).all():
+            raise ValueError('Nonfinite trajectory position envelope')
+        for axis, (lo, hi) in enumerate(bounds):
+            if low[axis] < lo or high[axis] > hi:
+                raise ValueError(f'A{axis+1}: trajectory exceeds fixed travel envelope; turn back without wrapping')
+
     @classmethod
     def from_document(cls, value):
         return cls(value["times_s"], value["raw_deg"], value.get("interpolation", "pchip"))
@@ -193,8 +214,45 @@ class WeldGeometry:
         self.stops = ExplicitStops(
             self.model, self.data, mapping.document.get("adjacent_stop_pairs", [])
         )
+        # These concave CAD parts overlap only in their convex envelopes at the
+        # recorded lowered pose. Refine this reviewed pair with the full triangle
+        # surfaces; keep every other contact filter and clearance unchanged.
+        self.concave_pair = ("collision_139", "collision_463")
+        self.concave = ExplicitStops(self.model, self.data, [self.concave_pair])
+        self.contact_report = []
 
-    def check(self, raw):
+    def inspect_contacts(self, clearance_mm):
+        """Report convex candidates and the reviewed pair's mesh narrow phase."""
+        candidates = {}
+        for contact in self.data.contact:
+            ids = tuple(int(g) for g in contact.geom)
+            if contact.dist * 1000 >= clearance_mm or not any(
+                int(self.model.geom_bodyid[g]) in self.arm_bodies for g in ids
+            ):
+                continue
+            names = tuple(self.model.geom(g).name for g in ids)
+            row = dict(geom_names=list(names), distance_mm=float(contact.dist)*1000,
+                       convex_distance_mm=float(contact.dist)*1000,
+                       point=np.asarray(contact.pos).tolist(), basis="convex hull")
+            key = tuple(sorted(names))
+            if key not in candidates or row['distance_mm'] < candidates[key]['distance_mm']:
+                candidates[key] = row
+        key = tuple(sorted(self.concave_pair))
+        if key in candidates:
+            measured = next(self.concave.measure(nearest_points=True))
+            candidates[key].update(measured, basis="triangle mesh")
+            if "nearest_points" in measured:
+                candidates[key]['point'] = np.mean(measured['nearest_points'], axis=0).tolist()
+        for row in candidates.values():
+            row['blocked'] = row['distance_mm'] < clearance_mm
+        return list(candidates.values())
+
+    def check(self, raw, *, clearance_mm=None):
+        self.contact_report = []
+        clearance = self.clearance if clearance_mm is None else positive(clearance_mm, "clearance") / 1000
+        # The live guard uses the same contact envelope as offline recovery.
+        if clearance * 2 > float(np.min(self.model.geom_margin)):
+            raise ValueError("Requested clearance exceeds the configured contact envelope")
         raw = finite_vector(raw, "raw pose")
         angles = self.mapping.pose({str(i): float(q) for i, q in enumerate(raw, 1)})
         for i, name in enumerate(DRIVES):
@@ -209,12 +267,13 @@ class WeldGeometry:
         if not self.closure.apply(self.data):
             raise ValueError("D3 linkage cannot close at the planned pose")
         self.mj.mj_forward(self.model, self.data)
-        for contact in self.data.contact:
-            if contact.dist < self.clearance and any(
-                int(b) in self.arm_bodies for b in self.model.geom_bodyid[contact.geom]
-            ):
-                names = [self.model.geom(int(g)).name for g in contact.geom]
-                raise ValueError(f"Arm/floor clearance: {names}, {contact.dist*1000:.3f} mm")
+        self.contact_report = self.inspect_contacts(clearance * 1000)
+        for contact in self.contact_report:
+            if contact['blocked']:
+                detail = ("triangle mesh intersection" if contact['basis'] == "triangle mesh"
+                          and contact['distance_mm'] < 0 else
+                          f"{contact['distance_mm']:.3f} mm ({contact['basis']})")
+                raise ValueError(f"Arm/environment clearance: {contact['geom_names']}, {detail}")
         stop = self.stops.check(0.1)
         if stop:
             raise ValueError(f"Adjacent mechanical stop: {stop}")
@@ -240,10 +299,13 @@ class WeldGeometry:
             row = self.mapping.joints[str(i + 1)]
             measured = np.sort(
                 np.radians(
-                    np.asarray(row["raw_branch_deg"]) * row["model_per_raw"]
+                    np.asarray(self.mapping.raw_limits(i+1)) * row["model_per_raw"]
                     + row["model_intercept_deg"]
                 )
             )
+            if i == 3 and not self.model.jnt_limited[joints[i-first]]:
+                # A4 has a cable envelope, not a periodic +/-pi IK coordinate.
+                bounds[:, i-first] = measured
             bounds[0, i - first] = max(bounds[0, i - first], measured[0] + math.radians(0.1))
             bounds[1, i - first] = min(bounds[1, i - first], measured[1] - math.radians(0.1))
         if not free_yaw:
@@ -298,7 +360,8 @@ class WeldGeometry:
         self.check(raw)
         return raw
 
-    def validate_path(self, path):
+    def validate_path(self, path, *, clearance_mm=None):
+        path.check_raw_bounds([self.mapping.raw_limits(i) for i in range(1,7)])
         # Bound each interval by its exact cubic speed maximum, not endpoint distance.
         peak = max(path.peaks()[0])
         dt = min(0.02, 0.20 / max(peak, 1e-9))
@@ -306,7 +369,7 @@ class WeldGeometry:
         if count > 150000:
             raise ValueError("Path exceeds offline validation budget; shorten the pass")
         for t in np.linspace(0, path.duration, count):
-            self.check(path.sample(float(t))[0])
+            self.check(path.sample(float(t))[0], clearance_mm=clearance_mm)
 
 
 def smooth_level(phase):
@@ -626,6 +689,7 @@ def build_plan(request):
     settings = Settings(**request.get("settings", {}))
     from simulation.arm_calibration import scene_fingerprint
     from simulation.paths import MODEL_DIR
+    from .preparation import preparation_timing
 
     fingerprint = scene_fingerprint(MODEL_DIR / "robot.xml")
     if request.get("scene_fingerprint", fingerprint) != fingerprint:
@@ -636,8 +700,7 @@ def build_plan(request):
     geometry = WeldGeometry(mapping)
     geometry.check(current)
     geometry.check(initial)
-    home = move_path(current, initial, settings)
-    geometry.validate_path(home)
+    home, recovery = recovery_path(geometry, current, initial, settings)
     root = Path(__file__).resolve().parents[4]
     weld, optimization = solve_weave(geometry, settings, root)
     weld_limits = np.array(
@@ -662,8 +725,14 @@ def build_plan(request):
     )
     limits = np.minimum(weld_limits, settings.max_speed_deg_s)
     acceleration = np.array(transition_dynamics["raw_acceleration_deg_s2"])
-    home, _ = retime(home, limits, acceleration)
-    approach, _ = retime(approach, limits, acceleration)
+    original_home_duration = home.duration
+    # Reserve acceleration for feedback pacing of the preparation path clock.
+    # Stage limits remain the physical/model envelope, not the smaller reserve.
+    home, _ = retime(home, limits, 0.9 * acceleration)
+    recovery["waypoint_times_s"] = [
+        t * home.duration / original_home_duration for t in recovery["waypoint_times_s"]
+    ]
+    approach, _ = retime(approach, limits, 0.9 * acceleration)
     for name, path in (("initial", home), ("approach", approach)):
         if not speed_report(path, settings)["within_limits"]:
             raise ValueError(f"{name} transition exceeds the speed/acceleration policy")
@@ -678,6 +747,7 @@ def build_plan(request):
         current_raw_deg=current.tolist(),
         initial_raw_deg=initial.tolist(),
         home=home.document(),
+        recovery=recovery,
         approach=approach.document(),
         weld=weld.document(),
         speed_report=report,
@@ -702,6 +772,8 @@ def build_plan(request):
         arm_enabled=bool(request["arm_enabled"]),
         chassis_enabled=bool(request["chassis_enabled"]),
         approach_route=route,
+        preparation_timing=preparation_timing(home, approach, recovery["waypoint_times_s"],
+                                             limits, acceleration, settings.preparation_target_s),
         hardware_qualified=False,
         world_tracking="nominal counterpart assumed even when its output is OFF; no switch compensation",
     )

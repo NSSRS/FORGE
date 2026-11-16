@@ -9,7 +9,10 @@ current pose -> controller standby -> weld start -> explicit weld -> hold, with
 independent arm/chassis output switches. The target remains **2 Hz / 12 mm/s**;
 the best complete-route checked CMA-ES plan reaches **1.815288 Hz / 10.891728 mm/s**
 under provisional model acceleration bounds. Six-axis weld speed caps are
-**68.7549 deg/s**; the temporary A1 cap is withdrawn. Standby/approach use 5 deg/s.
+**68.7549 deg/s**; the temporary A1 cap is withdrawn. The weld panel defaults to
+5 deg/s for standby/approach, with feedback-paced progress. The requested total
+preparation goal is 5 seconds; the panel reports when its plan misses this goal.
+The reported recovery failure and A5 physical motion remain under review.
 See [weld planning, execution and animation](docs/WELD_MOTION.md).
 
 **Physical evidence:** all six motors are connected; the Nov 12 reference capture

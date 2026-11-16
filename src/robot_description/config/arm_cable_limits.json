@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "joint": 4,
+  "reference_raw_deg": 173.1834352361486,
+  "cw_from_reference_deg": 270.0,
+  "ccw_from_reference_deg": 270.0,
+  "basis": "Operator specified CW and CCW travel of 270 degrees each from the preserved A4 initial pose on 2026-11-16.",
+  "reference_source": "arm_reference_positions_2026-11-12.json",
+  "automatic_wrap": false,
+  "reset_reference_on_start": false,
+  "production_qualified": false
+}

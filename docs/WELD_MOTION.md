@@ -24,15 +24,110 @@ From the workspace root, with the existing simulation/calibration environment:
 
 The first command solves and saves the entire route without any motor owners.
 The second opens the offline panel. Both motion switches start OFF. Select the
-outputs, calculate, then choose **Move to initial, then weld start**. Measured
-arrival and stationary confirmation separate the two stages. **Start welding
+outputs, calculate, then choose **Start recovery** to verify hold and reach the weld start.
+Selection and calculation do not enable an unpowered arm. Measured arrival and
+stationary confirmation separate recovery waypoints and the approach. **Start welding
 motion** is enabled after arrival at the weld start; it never energizes a welder.
+
+While solving, the panel shows **Planning**, elapsed time and an activity bar.
+An existing saved solution does not skip checks from the current measured pose.
+Switching windows preserves pending calculation, an unused accepted plan and
+preview playback. Focus loss still pauses active recovery/welding and cancels
+queued starts or an enable in progress; returning never resumes motion. Space/Escape
+or loss of the UI heartbeat cancels the pending plan and pauses motion.
+Cancellation reasons are shown explicitly; discarded results never enable recovery.
+**Calculated** frequency and **Start recovery** become available only after the plan
+is accepted.
+
+The panel now embeds a model view: **Current pose**, **Standby target**, and
+**Checked path**. **Play preview** and the time slider replay the accepted
+recovery/approach/weld paths without sending motor commands. Overview, side and
+wrist cameras help compare modeled contacts with the assembly. Normal views show
+only failed clearance markers; passed mesh-gap diagnostics appear only in the
+explicit **Contact** / **Contact parts** views. Blocked plans have no playable path. The renderer runs
+in its own process and receives only poses, never a transport owner. The gun is
+always included and the chassis stays fixed in this view. See the
+[operator commands and controls](ARM_RIG_TEST.md#weld-panel-with-embedded-model-preview).
+`--start-report PATH` reproduces a saved disabled six-axis pose with fake motors;
+it is rejected in hardware mode. Passive display shows sample age, while explicit
+startup actions refresh disabled feedback through the existing owner before
+stationary checks. An existing powered hold is retained.
+
+### Supported startup and recovery
+
+The requested operating behavior is a secured base with the unpowered arm
+settled in its natural hanging pose, followed by measured-pose capture, motor
+weight pickup and automatic travel to standby. The operator should not need to
+hand-place each joint at standby. This unsupported hanging-start behavior is an
+open physical acceptance requirement, not established by the existing tests.
+`SimulatedArm` models rate-limited shafts without gravity, load or torque pickup;
+its passing replay cannot qualify lifting the real arm. The current fault and
+shutdown policy disables torque, so the resulting passive drop/swing path also
+needs qualification. Software holding cannot persist through loss of power.
+
+Until that behavior is qualified, the existing physical commissioning procedure
+requires a fixture that carries the links on torque loss. This test requirement
+must not be presented as completion of automatic hanging-start recovery.
+
+Keep the unpowered links mechanically supported. The sequence is fresh measured
+pose -> checked recovery route -> current-position preload/enable -> stationary
+hold verification -> checked waypoints -> standby -> weld start -> explicit weld.
+Selecting the arm only selects participation; an already active hold is retained.
+
+`controller/recovery.py` first checks the current pose and standby, then the direct
+joint transition. If obstructed, it searches orders of individual joint moves
+between combinations of the measured and standby angles (at most 64 poses and
+192 graph edges). The order depends on collision results, not a fixed wrist-first
+rule. Each edge and the final interpolated route are checked. No route, an already
+colliding start, an invalid encoder branch or failed D3 closure blocks startup.
+This bounded search does not find every possible detour and never automatically
+escapes contact with a chassis, stop or support fixture.
+
+Pressing Start recovery rechecks the start and modeled clearance. The transport
+owner checks its fresh disabled preload snapshot immediately before enable;
+movement over 0.3 degrees from the planned start rejects activation. Current-angle
+holding must remain stationary for 0.2 seconds, within that same start tolerance,
+before the first recovery command. Failure to settle within 2 seconds pauses and
+requires recalculation. Each intermediate waypoint then requires measured arrival
+within 0.25 degrees and stationary feedback for 0.2 seconds before the next segment.
+The model checks measured poses during holding verification and active motion.
+Faults stay latched and never automatically re-enable or resume.
+
+Recovery uses 2 mm modeled arm/environment clearance; approach/welding retains
+0.5 mm. These are geometric screening margins, not qualified tracking/stopping
+envelopes. Existing collision masks, neighboring-body exclusions and explicit
+A2/A3 triangle stops remain. Cables, support fixtures, calibration uncertainty,
+torque pickup and torque-loss behavior still require physical qualification.
+Old plans without recovery metadata must be recalculated before execution.
+
+The reviewed compact candidate preserves the original A2/A3 standby and changes
+A5 to model +60 degrees, giving approximately 113 mm wire-tip floor clearance.
+It is saved separately from the measurement-derived calibration/defaults:
+
+```bash
+.venv/bin/python scripts/control_weld.py --plan-only --profile weld --cycles 1 \
+  --initial-pose src/robot_description/config/arm_standby_compact.json
+```
+
+Plan-only starts at that candidate, not a measured unpowered pose. The latest
+Nov 16 disabled measurement fails the modeled wrist self-contact and gun/chassis
+checks; the earlier measurement failed floor clearance. Reconcile the actual
+mount and wrist alignment before physical recovery. The operator requires the
+gun geometry to remain in planning even while the physical gun is absent.
+No hardware qualification or production calibration is implied.
 
 The solver automatically slows an infeasible request and displays the resulting
 frequency and nominal feed before motion. `--strict-timing` instead rejects
 infeasible timing. `--time-scale` remains an optional explicit minimum slowdown;
 it is no longer necessary to guess a factor. `--max-speed-deg-s` permits a debug
-ceiling up to 10 deg/s for initial/approach and the debug profile; default is 5 deg/s.
+ceiling up to 10 deg/s for initial/approach and the debug profile. The weld CLI
+profile and debug both default to 5 deg/s for preparation; the automatic 10 deg/s
+increase was withdrawn after the Nov 16 recovery failure. An explicit value
+overrides the CLI default but does not qualify physical tracking.
+`--prep-seconds 5` sets the requested total preparation goal, including initial
+hold verification, standby stops and approach settling. The plan reports nominal
+time and a limits-only lower bound. A missed goal is shown explicitly, not used
+as a motion timeout, an authorization to raise limits, or a preview speed factor.
 
 The operator reaffirmed the original 2 Hz target; 1.73 Hz is an acceptable
 fallback. `--profile weld` loads 2 Hz and 12 mm/s
@@ -44,8 +139,9 @@ measured-speed-trip guard, currently 68.7549 deg/s on A1-A6. The measured-speed
 trip remains 1.5 rad/s; these are project protection values, not factory motor
 register settings. VMAX is only a protocol encoding range. The model-derived
 coupled acceleration box also applies. The solver may reduce the requested 2 Hz
-and feed together to honor the caps. Initial and approach stages remain
-at 5 deg/s and <=30 deg/s^2. The separate `--profile debug` is still the default
+and feed together to honor the caps. Initial and approach stages default to
+5 deg/s in this profile, with the existing <=30 deg/s^2 model envelope.
+The separate `--profile debug` is still the default
 when no profile is supplied; it retains low-speed limits throughout. Profile
 selection never changes measured-speed/torque trips or starts a motor.
 
@@ -240,6 +336,11 @@ A3's controller model coordinate is now -22.662356 degrees. The generated pose
 and fit report retain source fingerprints and each adjustment. This is a
 calculated commissioning standby, not a relabeled six-axis physical measurement.
 It still undergoes raw-branch, authored-joint, D3 closure and collision checks.
+A4 is nonperiodic: CW/CCW 270 degrees from the preserved initial encoder anchor.
+Raw travel is fixed at [-96.816565, +443.183435] degrees and does not reset at
+startup. Exact spline extrema are checked against the cable envelope. A5 cable
+endpoints must be recorded separately from its independent straight-pose offset;
+see [the mirror procedure](ARM_RIG_TEST.md#independent-encoder-to-model-mirror).
 `--mapping` and `--initial-pose` accept a matching reviewed alternative; generated
 pose files carry their mapping fingerprint to prevent mixing coordinate systems.
 Production/hardware qualification flags remain false.
@@ -305,7 +406,7 @@ The 4310P hardware revision remains unverified. Manufacturer references:
 - Executable speed: weld caps take the minimum of physical design speed,
   any explicit per-axis policy and 80% of the measured-speed trip. Debug and
   initial/approach stages additionally apply the selected host ceiling
-  (default 5 deg/s, configurable up to 10 deg/s).
+  (both CLI defaults 5 deg/s; maximum 10 deg/s).
   Type 25 is bypassed for welding; its cap is not a native mode-2 hardware cap.
   Null policy entries for all six axes mean no extra per-axis cap; their
   physical design and 80% trip margin remain (currently 68.7549 deg/s commands).
@@ -341,8 +442,47 @@ There is no odometry, slip or weld-gap compensation in this debugging stage.
 
 This does not mean the joints have no feedback: native mode 2 performs motor
 position control, and the host compares each requested raw angle with cached
-encoder feedback. It adjusts the speed limit using the planned rate and tracking
-error, bounded by the stage envelope, and checks stationary arrival and faults.
+encoder feedback. Preparation now supplies the checked stage's constant speed
+allowance (capped by the selected preparation limit), instead of reducing that
+allowance to 0.1 deg/s near each small reference step. Native position control
+still receives positions on the checked path, without overshoot offsets or a
+backlash kick. This changes a speed allowance, not motor torque or loop gains.
+
+Preparation advances a common six-axis path clock: full progress below 0.5 deg
+tracking error, slowing toward zero at 1.5 deg. Clock slew is bounded using exact
+path speed/acceleration extrema so the reference remains within the stage
+acceleration envelope; planning reserves 10% of that envelope for pacing.
+The clock never reverses or skips a waypoint. Paced travel does not use nominal
+path duration as a wall-clock deadline: doing so caused the recorded Nov 16
+recovery to stop at 54.7% of its home path. Each axis lagging by at least 0.5 deg
+must make 0.1 deg of net progress toward its reference within 10 seconds;
+bounded encoder noise does not reset this watchdog. Once the reference reaches
+the endpoint, a separate 10-second settling timer starts. The 3 deg error trip and
+0.25 deg stationary arrival requirement are unchanged. Persistent lag still
+pauses for inspection rather than advancing to the next stage.
+Welding retains its existing time-indexed path and rate/error-based speed limit.
+The panel shows path-rate percentage, largest-axis error and A1 error/allowance;
+the table separately shows each joint's remaining angle to standby. The report
+records actual path time, clock scale, tracking errors and pause reasons.
+Preview shows nominal timing; physical preparation may take longer while pacing.
+The default total preparation goal is 5 seconds; failure to meet it remains
+visible. The saved 10 deg/s route is nominally 20.93 seconds including minimum
+settling and has a 10.95-second optimistic lower bound under its current limits.
+Route efficiency and mode-2 response must be addressed before that goal is met.
+A separate offline candidate replaces the long standby detour with a lower
+staging pose. It checks at 4.851 seconds nominal (4.92 seconds in ideal fake-shaft
+replay), with 37.65 mm staging wire-tip height, <=10 deg/s speed and the unchanged
+model acceleration/collision checks. It is saved under
+`build/arm_tests/recovery-review-20261116/`; it is not promoted to hardware
+standby, and its fake shafts do not establish physical five-second execution.
+
+`weld_recording.py` writes cached evidence to a live JSONL file on a bounded writer
+thread. It never polls a transport or renews a command lease. The accepted plan,
+targets, feedback, native cached enabled/status/torque samples, pause/fault reasons
+and cleanup are recorded without waiting for the window to close. Records are
+flushed, not guaranteed durable against power loss; queue overflow/disk errors are
+reported. A later cleanup failure cannot overwrite the first controller fault.
+
 The encoder-to-model offsets are static calibration, not online wire-tip correction.
 The current controller has no ESO, sensor-based Cartesian outer loop or load
 feedforward. Those follow-up tasks are recorded under
@@ -353,22 +493,27 @@ are unchanged by this research proposal.
 Changing either switch pauses and invalidates the old plan; calculate again
 before starting. An OFF arm output retains an existing powered hold; **Disable
 arm torque** is separate. Space/Escape/focus loss pause motion, command chassis
-zero and capture fresh measured arm hold targets. No automatic resumption occurs.
+zero and capture fresh measured arm hold targets. This also applies to intent loss
+mid-dispatch after group hold is established; incomplete activation still disables
+the group. No automatic resumption occurs.
 
 Stale feedback, native transport faults and limit violations stop the flow.
 A control gap over 100 ms pauses without catching up; GUI heartbeat loss pauses.
 Tracking error over 3 degrees pauses both outputs. Arrival needs <=0.25 degrees
-and stationary feedback for 0.2 s, with a 10 s extra settling deadline. These
+and stationary feedback for 0.2 s, with a 10 s endpoint-settling deadline. These
 thresholds are commissioning policy, not welding accuracy acceptance.
 
 Model validation samples complete interpolated motion at <=0.2-degree joint
-travel per sample, with 0.5 mm arm/environment clearance and the existing 0.1 mm
+travel per sample, with 2 mm recovery clearance, 0.5 mm approach/weld clearance and the existing 0.1 mm
 adjacent-stop triangle check. Model collision masks/exclusions remain in effect.
 No new clearance of unmodeled cables, fixtures or real stopping distance is claimed.
 
 ## Operator hardware entry points
 
 The operator performs hardware sessions; development/tests did not operate motors.
+Complete recovery retries are currently on hold pending the reported A5 physical
+motion and actual tracking review. The commands below describe the interface,
+not a recommendation to repeat the failed recovery as a diagnostic.
 Use a supported fixture and close competing owners before starting one owner per
 controller. The following commands require actual hardware review of the candidate:
 

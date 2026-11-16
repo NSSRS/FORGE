@@ -62,16 +62,27 @@ class ExplicitStops:
                     shapes[mesh] = shape
                 self.objects[geom] = fcl.CollisionObject(shapes[mesh])
 
-    def check(self, clearance_mm):
+    def measure(self, *, nearest_points=False):
+        """Triangle-surface distances; a negative result denotes intersection."""
         for geom, obj in self.objects.items():
             obj.setTransform(self.fcl.Transform(
                 np.array(self.data.geom_xmat[geom].reshape(3, 3)), np.array(self.data.geom_xpos[geom])))
         for a, b in self.pairs:
+            result = self.fcl.DistanceResult()
             value = self.fcl.distance(self.objects[a], self.objects[b],
-                self.fcl.DistanceRequest(), self.fcl.DistanceResult())
-            if value * 1000 < clearance_mm:
-                return dict(clear=False, reason='adjacent mechanical stop', distance_mm=float(value)*1000,
-                            geom_names=[self.model.geom(a).name, self.model.geom(b).name])
+                self.fcl.DistanceRequest(enable_nearest_points=nearest_points), result)
+            if not math.isfinite(value):
+                raise ValueError('Nonfinite triangle-mesh clearance')
+            row = dict(distance_mm=float(value)*1000,
+                       geom_names=[self.model.geom(a).name, self.model.geom(b).name])
+            if nearest_points and value >= 0:
+                row['nearest_points'] = [np.asarray(p).tolist() for p in result.nearest_points]
+            yield row
+
+    def check(self, clearance_mm):
+        for row in self.measure():
+            if row['distance_mm'] < clearance_mm:
+                return dict(clear=False, reason='adjacent mechanical stop', **row)
         return None
 
 

@@ -66,6 +66,9 @@ def simple_plan(arm=True, chassis=True):
         arm_enabled=arm,
         chassis_enabled=chassis,
         home=home.document(),
+        current_raw_deg=home.positions[0].tolist(),
+        initial_raw_deg=home.positions[-1].tolist(),
+        recovery=dict(version=1, clearance_mm=2.0, waypoint_times_s=[home.duration]),
         approach=approach.document(),
         weld=weld.document(),
         feed_m_s=0.001,
@@ -79,7 +82,8 @@ class WeldControlTests(unittest.TestCase):
         self.clock = Clock()
         self.arm = SimulatedArm([0] * 6, clock=self.clock)
         self.chassis = FakeChassis()
-        self.control = WeldController(self.arm, self.chassis, clock=self.clock)
+        self.control = WeldController(self.arm, self.chassis, clock=self.clock,
+                                      pose_check=lambda raw, **kwargs: None)
 
     def tick(self, n=1):
         for _ in range(n):
@@ -257,7 +261,7 @@ class WeldControlTests(unittest.TestCase):
             clock = Clock()
             arm = SimulatedArm([0] * 6, clock=clock)
             chassis = FakeChassis()
-            control = WeldController(arm, chassis, clock=clock)
+            control = WeldController(arm, chassis, clock=clock, pose_check=lambda raw, **kwargs: None)
             control.select(True, enabled)
             control.load_plan(simple_plan(chassis=enabled))
             control.go_initial()
@@ -286,6 +290,29 @@ class WeldControlTests(unittest.TestCase):
             self.control.select(True, True)
         self.assertFalse(self.arm.enabled)
         self.assertEqual(self.control.state, "fault")
+
+    def test_shutdown_failure_does_not_replace_original_fault(self):
+        self.ready()
+        self.control.fail(RuntimeError("Original A5 feedback failure"))
+        self.arm.close = lambda: (_ for _ in ()).throw(RuntimeError("Mode restoration failure"))
+        self.control.close()
+        self.assertEqual(self.control.fault, "Original A5 feedback failure")
+        self.assertEqual(self.control.events[-1]["event"], "secondary_fault")
+        self.assertIn("Mode restoration", self.control.events[-1]["error"])
+
+    def test_confirmed_dispatch_pause_does_not_become_disable(self):
+        from controls.hardware.weld_control import TrajectoryPaused
+        self.ready()
+        self.control.start_weld()
+        def cancel(raw, speed):
+            self.arm.pause()
+            raise TrajectoryPaused("Operator intent interrupted; hold retained")
+        self.arm.command = cancel
+        self.tick()
+        self.assertEqual(self.control.state, "paused")
+        self.assertIsNone(self.control.fault)
+        self.assertTrue(self.arm.enabled)
+        self.assertEqual(self.chassis.last_feed, 0)
 
 
 class WeldPlanTests(unittest.TestCase):
@@ -441,6 +468,65 @@ class WeldNativeArmTests(unittest.TestCase):
             self.assertEqual(port.hold_targets, target)
             self.assertFalse(port.path_active)
             self.assertTrue(port.holding)
+
+    def test_intent_loss_mid_dispatch_holds_all_without_disabling(self):
+        from motors import arm_position as position, arm_bench as bench
+        from controls.hardware.weld_control import TrajectoryPaused
+        with patch.object(position, "time", bench.time), self.port() as port:
+            port.hold_all()
+            disables = [self.lib.fake_disables(i) for i in range(6)]
+            allowed = [True]
+            port.motion_allowed = lambda: allowed[0]
+            command = self.bus.command
+            def interrupt(slot, *args, **kwargs):
+                command(slot, *args, **kwargs)
+                if slot == 1:
+                    allowed[0] = False
+            with patch.object(self.bus, "command", side_effect=interrupt):
+                with self.assertRaises(TrajectoryPaused):
+                    port.set_targets([.2]*6, [5]*6)
+            self.assertEqual([self.lib.fake_status(i) for i in range(6)], [1]*6)
+            self.assertEqual([self.lib.fake_disables(i) for i in range(6)], disables)
+            self.assertFalse(port.path_active or port.recovery_required)
+            targets = dict(port.hold_targets)
+            for _ in range(5):
+                self.lib.fake_advance(20)
+                port.poll()
+            self.assertEqual(port.hold_targets, targets)
+
+    def test_intent_loss_during_group_activation_still_disables(self):
+        from motors import arm_position as position, arm_bench as bench
+        with patch.object(position, "time", bench.time), self.port() as port:
+            allowed = [True]
+            port.motion_allowed = lambda: allowed[0]
+            enable = self.bus.enable_bench_group
+            def interrupt(slots):
+                enable(slots)
+                allowed[0] = False
+            with patch.object(self.bus, "enable_bench_group", side_effect=interrupt):
+                with self.assertRaises(position.MotionCancelled):
+                    port.hold_all()
+            self.assertEqual([self.lib.fake_status(i) for i in range(6)], [0]*6)
+            self.assertFalse(port.holding)
+
+    def test_native_preload_collision_check_runs_disabled_before_enable(self):
+        from motors import arm_position as position, arm_bench as bench
+        from controls.hardware.weld_ports import ArmOwner
+
+        with patch.object(position, "time", bench.time), self.port() as port:
+            owner = ArmOwner.__new__(ArmOwner)
+            owner.port = port
+            checked = []
+            def reject(raw):
+                checked.append(raw)
+                self.assertEqual([self.lib.fake_status(i) for i in range(6)], [0]*6)
+                raise ValueError("modeled chassis collision")
+            with patch.object(self.bus, "enable_bench_group", wraps=self.bus.enable_bench_group) as enable:
+                with self.assertRaisesRegex(RuntimeError, "collision"):
+                    owner.hold([0]*6, reject)
+                enable.assert_not_called()
+            self.assertEqual(len(checked), 1)
+            self.assertEqual([self.lib.fake_status(i) for i in range(6)], [0]*6)
 
     def test_invalid_sixth_target_does_not_send_first_five(self):
         from motors import arm_position as position, arm_bench as bench

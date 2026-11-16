@@ -16,7 +16,7 @@
     64.16104853467226
   ],
   "description": "Controller model standby dictated by measured raw bounds and anchors.",
-  "mapping_fingerprint": "649d9aab71cd57c34a594ab1d815e9b85912d6c624e59944f39a8a34799ec989",
+  "mapping_fingerprint": "ee33d723e915d69fb26413d64eeae9e4a3e55de3994f294b88257feedb706eff",
   "derivation": {
     "schema": "forge.measured_alignment",
     "version": 1,
@@ -146,7 +146,8 @@
     "source_fingerprints": {
       "prior_mapping": "d7c6c37a7f9ae6abe76045bfd9c54801483cb9e4d99352148a34dcdf89463764",
       "capture": "e5f589dc8dfa8455ed5c3a31e319b51aa22a810dcdbb2f06b4a5c109b1da71bd",
-      "authored_pose": "6b1ccddb43a27b961cda02a2e37b7bd419df490f0fc23039c8648d43ce208d21"
+      "authored_pose": "6b1ccddb43a27b961cda02a2e37b7bd419df490f0fc23039c8648d43ce208d21",
+      "a4_cable_policy": "a906278bff92968a0a1b5ed2b0db597b8e6fb0a0a4b12aeb0f2b8fc08138f829"
     },
     "production_qualified": false
   },

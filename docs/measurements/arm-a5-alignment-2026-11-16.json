@@ -1,0 +1,55 @@
+{
+  "schema": "forge.arm_alignment_observation",
+  "version": 1,
+  "date": "2026-11-16",
+  "source_kind": "operator report and pose-mirror screenshot",
+  "source_image": "codex-clipboard-3ff1ea75-c39e-4e01-9041-f527cc6dd198.png",
+  "joint": 5,
+  "operator_observations": [
+    "Only A5 appears misaligned; the other five axes look correct to the operator.",
+    "At the physical CW maximum, the model appears straight near the middle of its travel.",
+    "The offset remains after leaving the CW maximum.",
+    "Cable routing now restricts A5 CW by a few additional degrees; both CW and CCW usable ends must be re-recorded. These are cable bounds, not known CAD mechanical stops."
+  ],
+  "screenshot_values": {
+    "raw_output_shaft_deg": -92.20351,
+    "model_deg": 90.18558,
+    "view_gain": -1.0,
+    "view_offset_deg": -2.017927,
+    "feedback_age_ms": 5,
+    "enabled": false,
+    "motor_status": 0,
+    "precision_note": "Transcribed rounded GUI values, not a full-precision encoder capture."
+  },
+  "at_physical_cw_limit_in_screenshot": null,
+  "physical_model_angle_deg": null,
+  "direction_independently_confirmed": null,
+  "corrected_offset_deg": null,
+  "assessment": "A5 raw-to-model arithmetic matches the displayed candidate. The physical pose association is disputed; a constant zero/assembly offset is a hypothesis, not a confirmed correction.",
+  "required_evidence": "Check the corrected view away from the straight reference, qualify cable clearance/backoff and the fresh measured recovery path. Both endpoints and a straight reference have now been recorded; do not repeat them solely because the later partial round reset the viewer.",
+  "calibration_anchors_changed": false,
+  "production_qualified": false,
+  "agent_hardware_access": false,
+  "recorded_candidate": {
+    "source_observation": "build/arm_mirror/a5-capture-1794824963125893820/observation.json",
+    "source_mapping": "build/arm_mirror/a5-capture-1794824963125893820/mapping.json",
+    "operator_completed_capture": true,
+    "agent_hardware_access": false,
+    "raw_cw_deg": -98.60760497201417,
+    "raw_ccw_deg": 116.836287036511,
+    "raw_straight_deg": 8.341526593970292,
+    "model_straight_deg": 93.17253128356076,
+    "model_intercept_deg": 101.51405787753104,
+    "model_per_raw": -1.0,
+    "raw_command_bounds_deg": [
+      -96.60760497201417,
+      114.836287036511
+    ],
+    "backoff_deg": 2.0,
+    "independent_away_from_reference_alignment_confirmed": null,
+    "other_five_axis_mappings_changed": false,
+    "production_qualified": false,
+    "later_partial_round": "build/arm_mirror/a5-capture-1794824979794056257/observation.json",
+    "selection_note": "Use the saved complete round. The later CW recapture starts an incomplete round; its value is not merged into this candidate."
+  }
+}

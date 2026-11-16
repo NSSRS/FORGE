@@ -196,7 +196,9 @@ See [the test guide](../docs/DAMIAO_MOTOR_TESTS.md) for physical commissioning.
 
 `test_arm_geometry.py` checks exact 150 mm D3 connection-center spacing across
 all active scenes, preserved CAD meshes, geometry-review rejection and closure
-repair when no independent joint command changed.
+repair when no independent joint command changed. Large D3 edits are compared
+with a dense continuous reference, including repeated straight/standby changes;
+failed intermediate closure must restore the entire previous pose.
 
 `test_arm_sweep.py` checks the full-scene clearance scan, first-boundary brackets,
 D3 closure, fixed independent coordinates/chassis, contact filters, and rejection
@@ -305,11 +307,74 @@ closure/adjacent-stop checks. No hardware is opened.
 QT_QPA_PLATFORM=offscreen PYTHONPATH=src .venv/bin/python -m unittest discover -s tests -p test_arm_calibration.py -v
 QT_QPA_PLATFORM=offscreen PYTHONPATH=src .venv/bin/python -m unittest discover -s tests -p test_arm_capture.py -v
 ```
+### Independent arm pose mirror
+
+`test_arm_pose_mirror.py` exercises raw position decoding through the native C
+fake motors/MC02, physical slot/ID ordering, disabled manual-motion feedback,
+active/fault/missing-axis rejection and absence of enable/target/parameter writes.
+It also checks stale passive cache behavior, direct affine mapping without wrap
+or gearing, view-only edits/full-precision reset, separate observation snapshots,
+and actual MuJoCo drive coordinates/D3 closure without physics or collision gating.
+All tests and GUI rendering are offline; encoder alignment remains a physical test.
+
+`test_arm_endpoint.py` checks live/disabled/settled gates, cable ends independent
+of model zero, straight-pose offset fitting, rejection of swapped/invalid captures,
+invalidation of old opposite endpoints and preservation of other axes. Mirror
+tests exercise the three buttons with a fake source and the actual CAD shaft-axis
+reference. `test_arm_cable_limits.py` checks fixed A4 +/-270-degree bounds across
+session restarts, rejection of extra revolutions and exact cubic overshoot.
+The native fake-motor group test checks holding at the edge and reversing without
+wrapping or dropping the other holds. These are software/model checks, not physical
+cable or alignment qualification.
+
+```bash
+QT_QPA_PLATFORM=offscreen MUJOCO_GL=egl OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 \
+  .venv/bin/python -m unittest discover -s tests -p test_arm_pose_mirror.py -v
+PYTHONPATH=tests .venv/bin/python -m unittest test_arm_endpoint test_arm_cable_limits -v
+```
+
 ## Supported weld-motion controller
+
+`test_weld_preview.py` checks saved-start validation/hardware rejection, path
+playback endpoints, cache-only display, explicit disabled refresh versus retained
+hold, and actual MuJoCo rendering of the blocked measured pose and compact target.
+It reproduces the platform/upper-arm convex false positive, verifies the full
+mesh gap and retained 2 mm blocking threshold, and checks camera projection and
+contact rings drawn above opaque geometry. Passed gap annotations are absent from
+normal views and retained in explicit contact views. Other blocked pairs remain blocked.
+Qt panel tests verify preview playback never commands motors, invalidated plans
+stop playback, renderer failure leaves control responsive, and Space still pauses
+when a preview selector has focus. Switching windows preserves pending calculation
+and preview, but pauses active arm/chassis motion without automatic resume and
+cancels queued starts or an enable in progress, even across a brief focus loss.
+The heartbeat watchdog still cancels planning and pauses motion.
+Preview evidence remains kinematic/offline.
 
 The path tests also verify exact interior spline extrema, immutable input
 snapshots and defensive peak-cache results. No hardware is opened. They include native C fake Damiao motors,
 an ENCOS Python simulator and the Qt panel/control thread:
+
+`test_weld_recovery.py` checks obstacle-dependent recovery ordering, blocked starts,
+exhausted searches, disabled planning, fresh preload gating, hold settling and
+cancellation, measured waypoint arrival and live pose rejection. Native-arm tests
+verify a rejected preload never sends group enable. Model tests retain the rejected
+Nov 16 pose and replay the checked full sequence through fake shafts, including
+a nonzero baseline-to-compact standby recovery with A2/A3 unchanged, followed by
+arm-only approach and one explicitly started weld cycle. These checks do not
+qualify torque pickup, cables or physical recovery/stopping margins.
+
+`test_weld_preparation.py` exercises speed-limited/stalled fake shafts, retained
+stage speed allowances, acceleration-bounded feedback pacing, unchanged checked
+path geometry and waypoint order, hard tracking trips, bounded arrival timeout,
+pause/hold and unchanged welding timing. A first-order lag plant covers a paced
+recovery that must continue beyond its old nominal deadline; separate cases cover
+a stalled axis, encoder noise and final settling. Both CLI profiles default to
+5 deg/s, and the five-second goal cannot override speed/acceleration limits.
+`test_weld_recording.py` verifies live flush, immutable snapshots, bounded queue
+overflow, disk failure reporting and cached-only telemetry. Native fake-wire tests
+cover mid-dispatch intent loss retaining an existing hold while activation
+cancellation and real feedback faults still disable. These artificial plants do
+not identify physical friction, backlash, servo oscillation or torque capability.
 
 ```bash
 QT_QPA_PLATFORM=offscreen .venv/bin/python -m unittest discover -s tests -p 'test_weld_*.py' -v

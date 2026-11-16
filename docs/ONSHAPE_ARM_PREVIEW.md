@@ -45,6 +45,10 @@ Drag Joint sliders; Control sliders do not command motion in static mode.
 D3's rod and passive bearing are solved kinematically after edits; infeasible
 closure edits revert to the last valid pose. This is not collision-aware IK:
 the viewer does not block edits based on collision clearance.
+Large D3 crank edits are subdivided into at most five-degree kinematic increments
+to follow the existing four-bar assembly instead of jumping to the other folded
+solution. Failure restores the entire previous pose. This does not advance physics,
+relax collision checks or establish the physical arm's assembly/alignment.
 
 The initial camera is rotated 180 degrees from the stock model's default view.
 Key 0 > Load key restores the saved pose; native Reset returns the model reference
@@ -138,6 +142,13 @@ Edit scene_template.xml, not generated scene.xml, for changes that must survive 
 ## Collision and planning limits
 
 Collision meshes are convex per part; concave gaps may falsely register contact.
+The welding planner, live geometry guard and embedded preview refine the reviewed
+`collision_139` / `collision_463` pair (arm mounting platform / D2 upper arm) with
+the original triangle meshes when their convex envelopes report proximity.
+The Nov 16 lowered-pose screenshot reproduces a -0.096 mm hull distance but a
+14.883 mm triangle-surface gap. This pair is not excluded: intersections and mesh
+gaps below the requested clearance still block. Other convex checks and explicit
+adjacent stops are unchanged. The standalone sweep remains a convex preview.
 Only these preview self-collision body pairs are excluded:
 - b2_arm_d1 / l3_arm_linkage_d3
 - b4_1_arm_rod_d3 / b4_2_arm_d3

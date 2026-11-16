@@ -23,6 +23,182 @@ Manual-only six-axis controls: `bash scripts/control_arm.sh`. Position recording
 is a separate application (`bash scripts/record_arm_positions.sh`); model-guided
 calibration and obstacle retuning are in [ARM_MODEL_CALIBRATION.md](ARM_MODEL_CALIBRATION.md).
 
+## Independent encoder-to-model mirror
+
+Use this separate diagnostic to compare physical joint motion with raw encoders
+and the candidate model mapping before attempting recovery. The current six
+directions are all `-1`; their offsets/signs still need independent physical
+validation. A collision in that mapped pose is not proof of physical contact.
+
+With the base secured and the catch carrying the links on torque loss, close the
+other arm application yourself and leave all six motors disabled and stationary
+for connection. Only one process may own `/dev/ttyACM0`:
+
+```bash
+cd /home/forge2/forge2_ws
+.venv/bin/python scripts/mirror_arm.py \
+  --port /dev/ttyACM0 --disabled-refresh --supported
+```
+
+This mode verifies IDs/ranges while disabled, configures the MCU's observation
+routes, then sends disable frames at about 10 Hz to obtain new feedback. It never
+enables motors, sends motion targets, writes motor parameters/zeros or resets a
+fault. The motors do not continuously stream fresh feedback while disabled;
+`--port` without `--disabled-refresh` only inspects the cached state, which may
+be stale and has unverified route labels. Active/faulted controllers are refused.
+There is no handoff from a powered owner and no automatic recovery.
+
+A5's current endpoints are cable-constrained. Both ends and an independent
+straight pose were recorded on Nov 16; see the [current handoff](ARM_SESSION_HANDOFF.md).
+Use this procedure when the cable arrangement changes again.
+They are **not** the CAD mechanical stops and cannot identify the model zero.
+No angle entry or manual view-offset adjustment is needed:
+
+1. With torque disabled, gently place A5 at the operator-observed CW usable end,
+   without tensioning the cable, and click **Capture A5 CW limit**.
+2. Place it at the CCW usable end and click **Capture A5 CCW limit**.
+3. Extend the A5 wrist straight, with the forearm roll shaft (A4) and tool roll
+   shaft (A6) pointing along the same line, rather than folded back, and click
+   **Capture A5 straight pose**. The gun is not needed for this reference.
+4. Move away from straight to compare the candidate with the physical arm.
+
+Each capture requires seven fresh, disabled, settled six-axis samples over at
+least 0.5 seconds. Both cable ends define a raw travel interval with a provisional
+2-degree inward command margin. Only the independent straight pose fits A5's
+offset; the model reference is computed from the A4/A6 shaft axes (about +93.17
+model degrees in this CAD). Cable span is never used to fit gain or model zero.
+The margin and candidate alignment still require physical qualification.
+
+Observations are saved under `build/arm_mirror/a5-capture-*/observation.json`.
+Only a consistent complete CW + CCW + straight set exports `mapping.json` and
+applies the candidate to the viewer. A partial/invalid set preserves the original
+view mapping. Recapturing either endpoint after a completed pair invalidates the
+opposite old endpoint; record both again. Each new window starts a fresh recording
+round. A candidate may be reopened explicitly with `--mapping PATH` for inspection.
+The other five axes, A5 gain and source files remain unchanged. This does not
+install a welding map: review independent poses and regenerate raw standby targets
+and recovery/weld plans before adopting it. The earlier single-CW mechanical-stop
+fit is obsolete for the cable-constrained setup and must not be used.
+
+A4 has a separate fixed cable envelope: **CW 270 degrees and CCW 270 degrees from
+the preserved initial raw angle +173.183435236 degrees**, as specified by the
+operator on Nov 16. The resulting absolute raw interval is approximately
+**[-96.816565, +443.183435] degrees** (540 degrees total). This is not a new zero or
+an allowance renewed at launch. Manual sessions configure this interval in the
+existing controller; holding-mode outward jogging reaches a bounded target and
+keeps the existing hold until the operator reverses. Planning checks spline
+extrema as well as sampled poses; no modulo-360 or equivalent-angle substitution
+may cross a boundary. A changed cable installation or encoder reset needs review
+of this fixed reference. Physical stopping and cable-clearance qualification are
+still open; this envelope is not a model of the cable throughout every arm pose.
+
+For general inspection:
+
+1. Compare the resting physical arm with the 3D view. The model includes the gun
+   even when absent physically. **Focus** selects Arm, Wrist or Robot; camera
+   controls and **Show chassis** change only
+   the view; the physical table/catch is not modeled.
+2. Click **Set delta baseline**, then move one disabled joint gently within known
+   free travel. Compare **Raw deg**, **Delta raw deg**, **Model deg** and the
+   corresponding model link. Do not force a joint against a stop. The baseline
+   only starts a delta measurement; it never changes encoder or model zero.
+3. Optional expert inspection: **View gain**
+   and **View offset deg** are temporary hypotheses for this window only; they
+   never alter the production mapping and are not needed for A5 capture. **Reset view mapping** restores the
+   full-precision candidate. Raw readings are never wrapped, clipped or multiplied
+   by the internal gear ratio. Out-of-branch values are shown with warnings.
+4. Add a physical observation and click **Save snapshot**. Reports go to
+   `build/arm_mirror/pose-*.json`, including raw radians/degrees, source age,
+   mapping/fingerprint, model angles and baseline deltas. These are observations,
+   not new calibration anchors or qualification. Check the age/status: a stale
+   or historical pose is not the current arm pose.
+
+The renderer directly sets the six mapped drive angles and solves the D3 passive
+linkage without physics or welding IK. Contacts do not hide this diagnostic pose;
+an infeasible D3 closure withholds the image. This does not relax any execution
+collision checks. `--simulate` gives offline raw-angle controls; `--report PATH`
+shows a saved six-axis feedback report without opening a controller. Both are
+explicitly labeled offline. Code and interface text remain English.
+
+## Weld panel with embedded model preview
+
+The current complete hardware recovery trial is paused pending the reported A5
+physical motion and position-loop response review. Use the offline panel for
+path review; these software fixes do not qualify hanging-load pickup:
+
+```bash
+cd /home/forge2/forge2_ws
+.venv/bin/python scripts/control_weld.py --simulate --arm \
+  --profile weld --cycles 1 --prep-seconds 5 \
+  --mapping build/arm_tests/a5-recovery-20261116/mapping.json \
+  --initial-pose build/arm_tests/a5-recovery-20261116/standby.json
+```
+
+These explicit local files use the complete Nov 16 A5 capture and matching
+standby. Do not substitute the old default raw A5 target. The captured cable
+endpoints lie outside the two-degree inward command bounds; move A5 inward
+while disabled before planning. Reopening this panel does not require another
+capture. Compare **Current pose** with the physical wrist away from its straight
+reference before starting powered recovery; calibration qualification is open.
+
+Both profiles now default to a 5 deg/s preparation allowance. The automatic
+10 deg/s increase is withdrawn; this is not a claim that 5 deg/s is qualified.
+Calculate a fresh path after reopening; saved plans retain their original limits.
+During recovery the panel shows path-rate percentage, worst joint error and A1
+error/speed allowance. A lower percentage means progress is being slowed for
+measured tracking, not that the next waypoint has been skipped. Actual arrival
+and the existing 3 deg tracking / 0.25 deg arrival thresholds still apply.
+The timing goal is five seconds for the whole preparation. The panel reports
+nominal time and explicitly marks a missed target; it does not speed up preview
+to claim a faster motor response. `Remaining to standby` compares feedback with
+the final standby, separately from intermediate-reference tracking error.
+The latest saved run stopped before standby because the old arrival timer ignored
+feedback pacing. This defect is fixed offline; physical A5 behavior and A1 jitter
+remain unresolved. The earlier shutdown fault is distinct from the later report,
+whose disable acknowledgement and mode restoration passed.
+The terminal and panel show a live `.jsonl` evidence path; it can be read without
+closing the window, disabling torque or acquiring another motor owner. Its
+bounded writer reports dropped records or disk errors. The final JSON still
+records cleanup, and neither file implies physical qualification.
+
+Select **Select arm**, then **Calculate and check path**. The embedded
+**Current pose** view displays cached encoder feedback in the model, with sample
+age; **Standby target** shows the target. Choose **Overview**, **Side**, **Wrist**
+or **Contact**; Contact centers the camera on the first blocking or refined pair.
+**Contact parts** hides every other part, colors the two original meshes blue
+and orange, and marks their nearest surface points in white. It changes only
+the rendered view; the full robot remains in every clearance check.
+Selection/calculation refresh disabled feedback through the same owner when no
+hold exists. Display updates never send CAN requests or renew a command lease.
+
+After a plan passes, **Play preview** animates recovery, approach and welding
+without enabling or commanding motors. Use the slider and 1x/2x/4x playback.
+Calculation and preview continue when switching windows; an unused accepted
+plan stays available. If **Play preview** is disabled, wait for calculation to
+finish or resolve the displayed blocking/cancellation reason and calculate again.
+**Start recovery** is the separate physical action; it checks the fresh start,
+verifies hold, then moves to standby and the weld start. **Start welding motion**
+is a further explicit action. Space/Escape pause motion, including when a preview
+control has focus. Focus loss during physical operation pauses motion and requires
+a fresh calculation and explicit restart. Queued starts and an enable in progress
+are cancelled even if focus immediately returns. Closing/disable/fault removes arm torque.
+
+A blocked plan remains blocked: inspect the current/target views and numbered
+screen-space contact rings, which remain visible through occluding surfaces.
+Red means the clearance check failed. Passed mounting-gap labels, rings and leaders
+are hidden in **Overview**, **Side** and **Wrist**, including path playback.
+Only the explicit contact views show blue diagnostics for the reviewed concave
+pair's triangle-mesh gap passing despite overlapping convex envelopes. Labels identify
+the parts and show both mesh and hull distances; these are model measurements,
+not sensors. The gun remains modeled even while physically absent.
+The preview uses a fixed chassis and kinematic posing, not gravity simulation or
+a camera view. It does not include an unmeasured table/catch geometry.
+
+For offline reproduction, use `--simulate`. Add `--start-report PATH` to initialize fake shafts from a
+saved six-axis disabled diagnostic; hardware rejects this option. Without it,
+offline simulation starts at the configured mapping's simulation pose.
+`--no-preview` disables rendering if the graphics backend is unavailable.
+
 ## Optional A2-A6 keyboard workflow, A1 disconnected
 
 This subset uses the keyboard, without a radio. Use the six-axis launcher above

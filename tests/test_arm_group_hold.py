@@ -31,6 +31,22 @@ class GroupHoldTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError,'0x20000'):self.port()
             request.assert_not_called()
 
+    def test_a4_cable_edge_holds_and_operator_can_reverse_without_wrapping(self):
+        from motors.arm_travel import a4_cable_bounds
+        upper = math.radians(a4_cable_bounds()[1])
+        with patch.object(pos,'time',bench.time),self.port() as port:
+            self.lib.fake_position(3,upper-.1)
+            port.hold_all();port.select(4);port.arm();port.jog(1,math.radians(5))
+            for _ in range(200):self.lib.fake_advance(20);port.poll()
+            self.assertLess(port.target,upper)
+            self.assertGreater(port.target,upper-.01)
+            self.assertFalse(port.recovery_required)
+            port.release();before=port.target
+            port.arm();port.jog(-1,math.radians(5))
+            for _ in range(100):self.lib.fake_advance(20);port.poll()
+            self.assertLess(port.target,before-.1)
+            self.assertTrue(all(self.lib.fake_status(i)==1 for i in range(6)))
+
     def test_all_hold_current_positions_select_and_jog_without_disable(self):
         with patch.object(pos,'time',bench.time),self.port() as port:
             self.assertEqual([self.lib.fake_status(i) for i in range(6)],[0]*6)

@@ -1,5 +1,11 @@
 # Workspace guidance
 
+## Language
+
+Keep first-party code, comments, GUI text, logs and documentation in English.
+The language used in a chat does not change the application or repository language.
+Preserve original vendor filenames and quoted identifiers.
+
 ## Start here
 
 Read `README.md`, then `docs/ARM_SESSION_HANDOFF.md` for current arm status and
@@ -58,7 +64,22 @@ Damiao mode-2 and ENCOS owners; the animation is kinematic playback and the
 execution report uses fake motors, not a physical welding acceptance run.
 The target remains 2 Hz / 12 mm/s. The checked optimized candidate reaches
 1.815288 Hz under provisional CAD acceleration bounds; all six weld command
-caps are 68.7549 deg/s, with no temporary A1 cap. Initial/approach use 5 deg/s.
+caps are 68.7549 deg/s, with no temporary A1 cap. Initial/approach default to
+5 deg/s in both CLI profiles; the automatic 10 deg/s increase was withdrawn
+after the reported recovery failure. The operator's requested total preparation
+goal is now 5 seconds, including hold, standby and approach. Report feasibility
+separately from physical tracking; never shorten playback and call it qualified
+motor performance. Preparation uses the checked
+stage speed allowance and an acceleration-bounded path clock that slows for
+lagging joints. This is not torque/backlash compensation; A1 recovery jitter
+remains physically unresolved. Do not raise trips or widen arrival/tracking
+tolerances to hide it.
+The 19:37 Nov 16 report confirms premature arrival timeout during paced recovery;
+only 54.7% of home path time had elapsed. The timeout accounting is corrected
+offline, with separate stalled-axis and endpoint-settling deadlines. A5's reported
+physical drop is unresolved; no fault/disable was recorded during that recovery.
+Do not suggest another complete hardware recovery as proof of these software fixes.
+The panel writes cached evidence to a live JSONL journal without another owner.
 Independent switches only gate outputs; assume the other subsystem follows its
 nominal motion. Do not add arm compensation for a disabled chassis switch.
 
@@ -110,6 +131,13 @@ position correction or load/gravity feedforward is installed in the hardware pat
 - Session zero, raw encoder position, model zero and calibrated physical limits
   are distinct. Keep unknown calibration null and production flags false until
   their documented acceptance criteria are measured.
+- A4 cable travel is fixed at CW/CCW 270 degrees each from the preserved initial
+  raw angle +173.183435236 degrees (`arm_cable_limits.json`). Never rebase that
+  allowance at startup or wrap equivalent orientations across its bounds. A5's
+  Nov 16 cable-constrained CW/CCW ends and independent straight pose are recorded
+  in `docs/measurements/arm-a5-alignment-2026-11-16.json`; ends do not define model
+  zero. The saved complete candidate is separate from the default mapping and
+  still needs alignment checks away from straight and physical qualification.
 - Pocket policy and commissioning live in `docs/POCKET_ARM_CONTROL.md`. Preserve
   original input deadlines, SE priming, diagonal stop/resume and cancellation
   during enable. Its GUI consumes cached telemetry and requests stop; it must

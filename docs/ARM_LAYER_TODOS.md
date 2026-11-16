@@ -67,13 +67,25 @@ See the [capture procedure](ARM_POSE_TEST.md#current-procedure-initial-positions
 
 - [ ] Record known physical-pose/raw-angle pairs for each DOF: sign, zero offset,
   any external ratio, wrap branch and units. Separate model zero from session zero.
+  First resolve the reported A5 encoder/model mismatch with the independent
+  [pose mirror](ARM_RIG_TEST.md#independent-encoder-to-model-mirror) and its
+  recorded A5 CW/CCW cable ends and independent straight-pose candidate
+  (model = -raw +101.514058 degrees). Confirm it away from straight and qualify
+  the 2-degree cable backoff and fresh recovery path; capture alone does not
+  qualify or install the mapping for motion.
+- [ ] Qualify the fixed A4 CW/CCW 270-degree cable envelope from its preserved
+  initial anchor, including reversal, power cycling and changed cable routing.
 - [ ] Complete encoder-branch coverage and compare normal CAN feedback with
   documented `p_m`/`xout` where supported; do not assume retained multi-turn state.
   The stationary six-axis cycle and one controlled off-power return per joint
   are recorded in [Nov 13 observations](measurements/arm-return-checks-2026-11-13.json);
   manual return differences do not isolate encoder precision.
 - [ ] Qualify the implemented welding startup from fresh measured coordinates,
-  current-position preload and the checked transition to derived standby. No jump toward guessed zero, automatic homing or
+  geometry-checked disabled preload, stationary hold verification and checked
+  recovery waypoints to standby. Reconcile the Nov 16 recorded pose with the
+  actual mount and wrist alignment; the latest start fails modeled wrist
+  self-contact and gun/chassis checks. Preserve the gun envelope while it is
+  physically absent, as requested by the operator. No jump toward guessed zero, automatic homing or
   automatic return to the simulation pose; a home move needs a separate request
   and a validated path.
 - [ ] Identify physical travel/cable/clearance limits under support, save a
@@ -86,7 +98,14 @@ See the [capture procedure](ARM_POSE_TEST.md#current-procedure-initial-positions
 
 Owner: `src/motors/arm_position.py`, `src/teleop/`, firmware/profile commissioning.
 
-- [ ] **Deferred:** investigate moving-only A1/A4/A5/A6 jitter; A2/A3 are smooth
+- [ ] Resolve the reported A5 physical drop and establish actual position-loop
+  response before another full recovery trial. The latest saved recovery stopped
+  on a nominal-timeout defect while only 54.7% through its paced home path;
+  software fixes and fake plants do not qualify physical recovery.
+  Meet the requested five-second preparation goal by reducing unnecessary travel
+  and qualifying tracking, not by widening trips or speeding up the renderer.
+  See [current evidence](ARM_SESSION_HANDOFF.md#calibration-and-recorded-evidence).
+- [ ] **Broader manual-jog investigation deferred:** investigate moving-only A1/A4/A5/A6 jitter; A2/A3 are smooth
   and stationary holding is steady by operator report. The 5 deg/s MCU smoothing
   trial did not fix it. Its saved report verifies the build and clean exit, but
   evicted all jittering-joint jog traces; it cannot clear command timing.
@@ -190,6 +209,19 @@ state or faults; do not replay old commands to hide host stalls. Depends on
 CAL-01, ROS-02 and BASE-06. The existing D3-closed single-joint clearance study
 is documented in [ARM_COLLISION_STUDY.md](ARM_COLLISION_STUDY.md); its sampled
 intervals are not independently combinable hardware limits.
+
+- [ ] Qualify recovery from supported rest poses with the installed gun, cables
+  and chassis. The bounded direct/joint-order recovery, pre-enable geometry gate,
+  hold verification and waypoint settling are implemented; audit remaining
+  collision exclusions and establish tracking/stopping margins on the fixture.
+  Contact starts or unsuccessful route searches remain blocked; no automatic
+  contact escape or general-purpose detour planner is implemented.
+- [ ] Complete automatic startup from the operator's intended settled,
+  gravity-hanging pose on a secured base, without hand-positioning each joint.
+  Validate actual load pickup at the measured pose, clearance through the lift
+  to compact standby, and passive drop/swing clearance after torque loss. The
+  rate-limited fake-motor tests have no gravity or load model and do not complete
+  this acceptance. Depends on SUPPORT-01 and independent mount/tool alignment.
 
 Pocket physical acceptance still needs:
 

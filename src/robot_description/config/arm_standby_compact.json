@@ -1,0 +1,36 @@
+{
+  "joint_angles_rad": {
+    "b2_arm_d1": 0.0,
+    "b3_arm_d2": 0.0954715337420781,
+    "b4_arm_d3": -0.39553272770914594,
+    "b5_arm_d4": 0.0,
+    "b6_arm_d5": 1.0471975511965976,
+    "b7_arm_d6": 0.0
+  },
+  "raw_output_shaft_deg": [
+    -174.69159564640077,
+    -61.357358006883345,
+    149.39,
+    173.1834352361486,
+    -62.017926825144414,
+    64.16104853467226
+  ],
+  "description": "Offline compact standby: original A2/A3, gun lifted by A5 posture.",
+  "mapping_fingerprint": "ee33d723e915d69fb26413d64eeae9e4a3e55de3994f294b88257feedb706eff",
+  "derivation": {
+    "baseline": "src/robot_description/config/arm_initial_measured.json",
+    "raw_delta_deg": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      -70.77160654845947,
+      0.0
+    ],
+    "modeled_wire_tip_z_mm": 112.51975954987988,
+    "measured_physical_pose": false,
+    "chassis_placement_unchanged": true
+  },
+  "hardware_qualified": false,
+  "production_qualified": false
+}

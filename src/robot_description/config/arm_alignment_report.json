@@ -127,7 +127,8 @@
   "source_fingerprints": {
     "prior_mapping": "d7c6c37a7f9ae6abe76045bfd9c54801483cb9e4d99352148a34dcdf89463764",
     "capture": "e5f589dc8dfa8455ed5c3a31e319b51aa22a810dcdbb2f06b4a5c109b1da71bd",
-    "authored_pose": "6b1ccddb43a27b961cda02a2e37b7bd419df490f0fc23039c8648d43ce208d21"
+    "authored_pose": "6b1ccddb43a27b961cda02a2e37b7bd419df490f0fc23039c8648d43ce208d21",
+    "a4_cable_policy": "a906278bff92968a0a1b5ed2b0db597b8e6fb0a0a4b12aeb0f2b8fc08138f829"
   },
   "production_qualified": false
 }

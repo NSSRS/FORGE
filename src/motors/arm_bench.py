@@ -15,6 +15,7 @@ import time
 
 from .arm import (ArmBus, BENCH_MODEL_LIMITS, CAP_CONTROL_READBACK,
                   CAP_MANUAL_TRAVEL, CAP_POSITION_HOLD, CAP_GROUP_HOLD, CONTROL_REGISTERS, DISCOVERY_REGISTERS, decode_register)
+from .arm_travel import a4_cable_bounds
 
 
 def number(value, label):
@@ -259,6 +260,11 @@ class BenchSession:
                 lo, hi = min(origin, target) - .05, max(origin, target) + .05
             else:
                 lo, hi = origin-jog_window_rad-.05, origin+jog_window_rad+.05
+            if m['unit'] == 'A4':
+                cable_lo, cable_hi = map(math.radians, a4_cable_bounds())
+                lo, hi = max(lo, cable_lo), min(hi, cable_hi)
+                if not lo <= origin <= hi or lo >= hi:
+                    raise RuntimeError('A4 is outside the fixed cable envelope; do not wrap or reset its reference')
             if not manual_travel and not (m['lower_rad'] <= lo < hi <= m['upper_rad']):
                 raise RuntimeError(f"{m['unit']}: measured start/target corridor exceeds fixture limits")
             self.origins[i], self.bounds[i] = origin, (lo, hi)

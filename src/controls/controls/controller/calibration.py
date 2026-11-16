@@ -7,6 +7,7 @@ from pathlib import Path
 
 import numpy as np
 from motors.arm_calibration import CalibrationMap, DRIVES, digest
+from motors.arm_travel import a4_cable_bounds
 
 
 def fit_alignment(raw_deg, model_deg, *, direction=-1.0, known_ratio=1.0, allow_scale=False):
@@ -85,6 +86,8 @@ def derive_measured_configuration(root, *, backoff_deg=2.0):
             model_intercept_deg=fit["offset_deg"],
             basis="output-shaft sign plus fitted offset; no empirical gear scaling",
         )
+        if i == 4:
+            row['raw_branch_deg'] = list(a4_cable_bounds())
         lo, hi = row["raw_branch_deg"]
         target = float(np.clip(requested_raw, lo + backoff_deg, hi - backoff_deg))
         initial.append(target)
@@ -105,6 +108,7 @@ def derive_measured_configuration(root, *, backoff_deg=2.0):
             "Generated from preserved source measurements; no new hardware evidence.",
             "A2 initial is inherited model intent; A3 standby is projected inside measured bounds with explicit backoff.",
             "No external gear ratio was identified. Dynamics and physical calibration remain unqualified.",
+            "A4 cable travel is fixed at CW/CCW 270 degrees from the preserved initial anchor, per operator on Nov 16; startup does not rebase it.",
         ],
     )
     mapping = CalibrationMap(document)
@@ -128,6 +132,7 @@ def derive_measured_configuration(root, *, backoff_deg=2.0):
             "prior_mapping": digest(prior),
             "capture": digest(capture),
             "authored_pose": digest(pose),
+            "a4_cable_policy": digest(json.loads((root / "src/robot_description/config/arm_cable_limits.json").read_text())),
         },
         production_qualified=False,
     )

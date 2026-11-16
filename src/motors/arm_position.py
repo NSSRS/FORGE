@@ -237,7 +237,8 @@ class ArmPositionPort:
         if self.window is None:
             return self.session.bounds[slot]
         origin=self.session.origins[slot]
-        return origin-self.window,origin+self.window
+        lo,hi=self.session.bounds[slot]
+        return max(origin-self.window,lo),min(origin+self.window,hi)
 
     def move_by(self, delta_rad, speed_rad_s):
         if self.position_hold:raise ValueError('Position hold supports manual jogging only')
@@ -276,6 +277,8 @@ class ArmPositionPort:
         state=self._enabled_sample(i) if continuing_hold else self._stop_session()[i]
         if direction:
             angle_rad=state.position+direction*speed_rad_s*JOG_LEAD_S
+            if self.motors[i]['unit'] == 'A4':
+                angle_rad=max(lo+.001,min(hi-.001,angle_rad))
             if not lo < angle_rad < hi:
                 raise ValueError("Manual target exceeds protocol position range")
         duration=None if self.position_hold else (12. if direction else abs(angle_rad-state.position)/speed_rad_s+2)
@@ -322,21 +325,27 @@ class ArmPositionPort:
         self._remember_sample(slot, sample)
         if sample.status != 1 or not sample.enable_confirmed:
             raise RuntimeError('Joint lost enabled confirmation')
+        lo, hi = self._limits(slot)
+        if self.motors[slot]['unit'] == 'A4' and not lo <= sample.position <= hi:
+            raise RuntimeError(f'A{slot+1}: measured position exceeds configured travel envelope')
         return sample
 
     def _advance_jog(self, now, sample):
         if sample is None:
             self.target = self.jog_origin + self.jog_direction * self.speed * (now - self.jog_started + JOG_LEAD_S)
-            return
-        # Trials keep their short feedback lead. Hold-mode jogging needs room
-        # for normal position-loop lag; its initial target still uses 100 ms.
-        # Discard missed travel at the cap, so recovery cannot replay a backlog.
-        advance = self.speed * (now - self.last_ramp_at)
-        lead = hold_jog_lead(self.speed) if self.position_hold else self.speed * JOG_LEAD_S
-        room = self.jog_direction * (sample.position - self.target) + lead
-        self.lead_limited = room < advance
-        self.target += self.jog_direction * min(advance, max(0., room))
-        self.last_ramp_at = now
+        else:
+            # Discard missed travel at the lead cap; never replay a backlog.
+            advance = self.speed * (now - self.last_ramp_at)
+            lead = hold_jog_lead(self.speed) if self.position_hold else self.speed * JOG_LEAD_S
+            room = self.jog_direction * (sample.position - self.target) + lead
+            self.lead_limited = room < advance
+            self.target += self.jog_direction * min(advance, max(0., room))
+            self.last_ramp_at = now
+        if self.motors[self.selected-1]['unit'] == 'A4':
+            lo,hi = self._limits(self.selected-1)
+            bounded = max(lo+.001,min(hi-.001,self.target))
+            self.lead_limited = self.lead_limited or bounded != self.target
+            self.target = bounded  # Hold at the edge until the operator reverses; never wrap.
 
     def poll(self):
         self._check()

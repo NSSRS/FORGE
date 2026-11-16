@@ -1,0 +1,129 @@
+{
+  "source": "build/weld/weld-1794828901283333587.json",
+  "simulated": false,
+  "root_cause_confirmed": "Paced path was interrupted by a nominal-duration wall-clock arrival timeout before reaching its endpoint.",
+  "nominal_home_duration_s": 12.325299977910152,
+  "wall_time_to_pause_s": 22.349082315999112,
+  "last_path_time_s": 6.745358495939975,
+  "path_time_fraction": 0.547277430004077,
+  "standby_goal_raw_deg": [
+    -174.69159564640077,
+    -61.357358006883345,
+    149.39,
+    173.1834352361486,
+    41.51405787753105,
+    64.16104853467226
+  ],
+  "last_measured_raw_deg": [
+    -179.56567327963523,
+    -86.9141025468989,
+    130.89030283878267,
+    178.6914090658736,
+    27.856680643086886,
+    64.64189385224115
+  ],
+  "remaining_to_standby_deg": [
+    4.874077633234464,
+    25.556744540015558,
+    18.499697161217313,
+    -5.507973829724989,
+    13.657377234444166,
+    -0.4808453175688925
+  ],
+  "max_reference_tracking_error_deg": [
+    0.23822624835696615,
+    1.400394967517812,
+    1.0392476434367524,
+    0.20349960223370545,
+    0.36222005753719344,
+    0.3468715478693838
+  ],
+  "first_measured_raw_deg": [
+    -186.25390379793842,
+    -120.04926266359836,
+    106.93508089112044,
+    186.1883339819063,
+    8.731823117971022,
+    65.4724448553147
+  ],
+  "fault": null,
+  "disable_acknowledged": true,
+  "mode_restoration_verified": true,
+  "physical_A5_drop_cause": null,
+  "physical_model_alignment_qualified": false,
+  "hardware_qualified": false,
+  "evidence_limits": [
+    "Encoder feedback does not independently establish output linkage or physical pose alignment.",
+    "No motor fault or disable event is recorded during this recovery; explicit arm_disabled occurs after the pause.",
+    "The bounded native motion ring evicted recovery torque/enable samples during the later hold. Summary extrema remain, but the full time series is unavailable.",
+    "The later screenshot shows different measured angles; the saved-session metrics above must not be attributed to that unsaved display."
+  ],
+  "preparation_budget": {
+    "target_s": 5.0,
+    "nominal_total_s": 20.927201776383193,
+    "minimum_settling_s": 0.6000000000000001,
+    "lower_bound_total_s": 10.946286560182473,
+    "acceleration_only_lower_bound_s": 5.651437666287192,
+    "nominal_meets_target": false,
+    "ruled_out_by_limits": true,
+    "stages": [
+      {
+        "stage": "home",
+        "nominal_motion_s": 12.325299977910152,
+        "lower_bound_s": 6.202523799004834
+      },
+      {
+        "stage": "approach",
+        "nominal_motion_s": 8.00190179847304,
+        "lower_bound_s": 4.14376276117764
+      }
+    ],
+    "hardware_qualified": false
+  },
+  "A2_median_window_speed_deg_s": 1.6645619937804614,
+  "schema": "forge.arm_recovery_review",
+  "version": 1,
+  "date": "2026-11-16",
+  "offline_five_second_candidate": {
+    "staging_raw_deg": [
+      -180.4727497221696,
+      -109.75545747446237,
+      115.26754899284875,
+      179.87537324515037,
+      10.243940624890124,
+      64.58579582684015
+    ],
+    "staging_wire_tip_z_m": 0.03765278387265718,
+    "timing": {
+      "target_s": 5.0,
+      "nominal_total_s": 4.851128229313499,
+      "minimum_settling_s": 0.6000000000000001,
+      "lower_bound_total_s": 3.5292939957530955,
+      "acceleration_only_lower_bound_s": 3.0538545473415923,
+      "nominal_meets_target": true,
+      "ruled_out_by_limits": false,
+      "stages": [
+        {
+          "stage": "home",
+          "nominal_motion_s": 1.9341657154895582,
+          "lower_bound_s": 1.3627138522469313
+        },
+        {
+          "stage": "approach",
+          "nominal_motion_s": 2.3169625138239414,
+          "lower_bound_s": 1.5665801435061641
+        }
+      ],
+      "hardware_qualified": false
+    },
+    "ideal_fake_replay": {
+      "state": "ready",
+      "elapsed_s": 4.919999999999983,
+      "message": "Weld start reached. Press Start welding motion.",
+      "hardware_accessed": false
+    },
+    "hardware_qualified": false,
+    "applied_to_hardware": false,
+    "source": "build/arm_tests/recovery-review-20261116/staging-candidate.json"
+  }
+}

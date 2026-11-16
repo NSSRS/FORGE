@@ -14,6 +14,7 @@ import time
 
 from .arm_capture import _write
 from .arm_group_hold import ArmGroupHoldPort, SimulatedGroupHoldPort
+from .arm_travel import a4_cable_bounds
 
 DRIVES = ('b2_arm_d1', 'b3_arm_d2', 'b4_arm_d3', 'b5_arm_d4', 'b6_arm_d5', 'b7_arm_d6')
 
@@ -30,6 +31,8 @@ def digest(value):
 
 class CalibrationMap:
     def __init__(self, document):
+        if document.get('a5_cw_alignment'):
+            raise ValueError('Obsolete A5 mechanical-stop alignment: cable endpoints do not define model zero; re-record CW, CCW and straight')
         self.document = deepcopy(document)
         if document.get('version') != 1 or not document.get('equipment_revision'):
             raise ValueError('Calibration requires version 1 and an equipment_revision')
@@ -47,12 +50,22 @@ class CalibrationMap:
             if row['model_joint'] != DRIVES[int(key)-1]:
                 raise ValueError(f'A{key}: unexpected model joint')
         self.fingerprint = digest(self.document)
+        self.a4_bounds = a4_cable_bounds()
+
+    def raw_limits(self, joint):
+        lo, hi = self.joints[str(joint)]['raw_branch_deg']
+        if int(joint) == 4:
+            lo, hi = max(lo, self.a4_bounds[0]), min(hi, self.a4_bounds[1])
+        if lo >= hi:
+            raise ValueError(f'A{joint}: empty travel envelope')
+        return lo, hi
 
     def model(self, joint, raw):
         row = self.joints[str(joint)]
         raw = number(raw, 'raw angle')
-        if not row['raw_branch_deg'][0] <= raw <= row['raw_branch_deg'][1]:
-            raise ValueError(f'A{joint}: raw angle outside configured encoder branch; do not wrap it automatically')
+        lo, hi = self.raw_limits(joint)
+        if not lo <= raw <= hi:
+            raise ValueError(f'A{joint}: raw angle outside configured encoder branch/cable envelope; do not wrap it automatically')
         return row['model_per_raw'] * raw + row['model_intercept_deg']
 
     def raw(self, joint, model):
@@ -94,7 +107,7 @@ def validate_start(plan, current, tolerance_deg=.3):
 
 
 def constraint_limits(mapping, joint, constraints, scene_fingerprint):
-    lower, upper = mapping.joints[str(joint)]['raw_branch_deg']
+    lower, upper = mapping.raw_limits(joint)
     for item in constraints:
         if item['mapping_fingerprint'] != mapping.fingerprint or item['scene_fingerprint'] != scene_fingerprint:
             raise ValueError('Saved constraints belong to a different model/mapping; use a new calibration run')

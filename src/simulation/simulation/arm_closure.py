@@ -1,4 +1,5 @@
 """Project static joint edits onto the D3 rod closure without stepping physics."""
+import math
 import mujoco
 import numpy as np
 from scipy.optimize import least_squares
@@ -11,9 +12,34 @@ class ArmClosure:
         self.sites=[model.site('closing_b4_2_arm_rod_d3_'+str(i)).id for i in (1,2)]
         self.dofs=[*range(model.jnt_dofadr[self.rod],model.jnt_dofadr[self.rod]+3),model.jnt_dofadr[self.bearing]]
         self.qadr=int(model.jnt_qposadr[self.rod]);self.badr=int(model.jnt_qposadr[self.bearing])
+        self.drive_adr=int(model.joint('b4_arm_d3').qposadr[0])
         self.work=mujoco.MjData(model)
         self.last=data.qpos.copy()
     def apply(self,data):
+        # A large direct edit can converge to the other four-bar assembly.
+        # Continue the driven crank from the last closed pose in small increments;
+        # these are kinematic solves, never physics steps or motor commands.
+        previous=self.last.copy()
+        target=data.qpos.copy()
+        delta=target[self.drive_adr]-previous[self.drive_adr]
+        if not np.isfinite(target).all():
+            data.qpos[:]=previous
+            mujoco.mj_forward(self.model,data)
+            return False
+        steps=max(1,math.ceil(abs(delta)/math.radians(5)))
+        for step in range(1,steps+1):
+            data.qpos[:]=target
+            if step<steps:
+                data.qpos[self.drive_adr]=previous[self.drive_adr]+delta*step/steps
+            if not self._apply_step(data):
+                # Do not expose a partly applied edit if an intermediate pose fails.
+                self.last=previous
+                data.qpos[:]=previous
+                mujoco.mj_forward(self.model,data)
+                return False
+        return True
+
+    def _apply_step(self,data):
         m=self.model
         if np.array_equal(data.qpos,self.last):
             # A new model/site or an unclosed initial pose can share the same qpos.

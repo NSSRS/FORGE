@@ -9,7 +9,8 @@
   "notes": [
     "Generated from preserved source measurements; no new hardware evidence.",
     "A2 initial is inherited model intent; A3 standby is projected inside measured bounds with explicit backoff.",
-    "No external gear ratio was identified. Dynamics and physical calibration remain unqualified."
+    "No external gear ratio was identified. Dynamics and physical calibration remain unqualified.",
+    "A4 cable travel is fixed at CW/CCW 270 degrees from the preserved initial anchor, per operator on Nov 16; startup does not rebase it."
   ],
   "joints": {
     "1": {
@@ -47,8 +48,8 @@
       "model_per_raw": -1.0,
       "model_intercept_deg": 173.1834352361486,
       "raw_branch_deg": [
-        -6.816564763851403,
-        353.1834352361486
+        -96.8165647638514,
+        443.1834352361486
       ],
       "basis": "output-shaft sign plus fitted offset; no empirical gear scaling"
     },

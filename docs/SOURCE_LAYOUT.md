@@ -28,10 +28,15 @@ robot_description contains the shared MJCF model, motor inventories and Xacro ma
 ## Weld planning and telemetry ownership
 
 `src/controls/controls/controller/` owns measured sign/offset alignment, Damiao
-constraints, MuJoCo D3-closed IK, retiming and CMA-ES. Sibling `hardware/` owns
+constraints, MuJoCo D3-closed IK, retiming and CMA-ES. `controller/preparation.py`
+owns the acceleration-bounded path clock, progress watchdog and preparation-time
+budget report used during recovery/approach.
+Sibling `hardware/` owns
 `weld_ports.py`, `weld_control.py` and `weld_app.py`; sibling `simulation/` keeps
 the original dynamic weave controller. The hardware `weld_plan.py` is a small
 compatibility export; all planner implementation lives in `controller/`.
+`hardware/weld_recording.py` persists cached evidence on a bounded writer thread;
+it does not own a transport or renew motor leases.
 
 `scripts/control_weld.py`, `fit_arm_model.py` and `optimize_weld.py` are thin
 entry points. `scripts/render_weld.py` delegates to
@@ -211,3 +216,13 @@ Model-guided calibration: `scripts/calibrate_arm.py` → `teleop.arm_calibration
 `simulation.arm_calibration` (offline collision/closure planner).
 Manual controls use `scripts/control_arm.sh`; the capture panel lives separately
 in `teleop.arm_recording`. See [operation and retuning](ARM_MODEL_CALIBRATION.md).
+
+Independent measured-pose comparison: `scripts/mirror_arm.py` →
+`visualization.arm_pose_mirror` (GUI, view-only mapping experiments, snapshots),
+`motors.arm_observation` (exclusive disabled observation with explicit feedback
+refresh), `motors.arm_endpoint` (separate cable-end and straight-pose evidence,
+candidate A5 bounds/offset), `motors.arm_travel` (fixed A4 cable envelope),
+and `simulation.arm_mirror_scene` (direct six-drive kinematic
+rendering and independent straight-shaft reference).
+It does not import welding IK or execution policy. Observation files stay under
+ignored `build/arm_mirror/`; the wheel-only ROS mirror remains separate.

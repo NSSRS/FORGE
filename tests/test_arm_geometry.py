@@ -2,6 +2,7 @@
 import source_paths
 import importlib.util
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 import xml.etree.ElementTree as ET
 
@@ -75,6 +76,49 @@ class ArmGeometryTests(unittest.TestCase):
         fixed[solver.qadr:solver.qadr+4] = False
         fixed[solver.badr] = False
         np.testing.assert_array_equal(d.qpos[fixed], initial[fixed])
+        self.assertEqual(d.time, 0)
+
+    def test_large_d3_edits_follow_the_continuous_assembly(self):
+        m = mujoco.MjModel.from_xml_path(str(MODEL_DIR/'scene.xml'))
+        direct, reference = mujoco.MjData(m), mujoco.MjData(m)
+        reset_to_spawn(m, direct)
+        reference.qpos[:] = direct.qpos
+        solver, continuous = ArmClosure(m, direct), ArmClosure(m, reference)
+        adr = solver.drive_adr
+        # Recorded A3 straight-pose observation and compact standby, in model
+        # coordinates. The old single solve changed assembly on the first return.
+        for angle in (36.687992, -22.662356, 36.687992, -22.662356, 36.687992):
+            target = np.radians(angle)
+            for q in np.linspace(reference.qpos[adr], target, 121)[1:]:
+                reference.qpos[adr] = q
+                self.assertTrue(continuous.apply(reference))
+            direct.qpos[adr] = target
+            self.assertTrue(solver.apply(direct))
+            self.assertEqual(direct.qpos[adr], target)
+            self.assertAlmostEqual(direct.qpos[solver.badr], reference.qpos[solver.badr], places=7)
+            self.assertLess(np.linalg.norm(direct.site_xpos[solver.sites[0]] -
+                                          direct.site_xpos[solver.sites[1]]), 1e-6)
+            self.assertEqual(direct.time, 0)
+
+    def test_failed_continuation_restores_whole_previous_pose(self):
+        m = mujoco.MjModel.from_xml_path(str(MODEL_DIR/'scene.xml'))
+        d = mujoco.MjData(m)
+        reset_to_spawn(m, d)
+        solver = ArmClosure(m, d)
+        previous = d.qpos.copy()
+        d.qpos[solver.drive_adr] += np.radians(40)
+        apply_step = solver._apply_step
+        calls = []
+
+        def fail_second_step(data):
+            calls.append(1)
+            return apply_step(data) if len(calls) == 1 else False
+
+        with patch.object(solver, '_apply_step', side_effect=fail_second_step):
+            self.assertFalse(solver.apply(d))
+        self.assertEqual(len(calls), 2)
+        np.testing.assert_array_equal(d.qpos, previous)
+        np.testing.assert_array_equal(solver.last, previous)
         self.assertEqual(d.time, 0)
 
 

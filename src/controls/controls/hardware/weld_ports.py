@@ -2,14 +2,25 @@
 
 import math
 import time
+from contextlib import contextmanager
 
 import numpy as np
 
 from motors.arm_group_hold import ArmGroupHoldPort
+from motors.arm_position import MotionCancelled
 from motors.arm_calibration import CalibrationMap
-from .weld_control import Feedback
+from .weld_control import Feedback, TrajectoryPaused
 from controls.controller.weld_plan import finite_vector
 from controls.controller.limits import joint_speed_policy
+from controls.controller.recovery import START_TOLERANCE_DEG
+
+
+def check_hold_start(actual, expected, pose_check):
+    actual = finite_vector(actual, "hold preload")
+    expected = finite_vector(expected, "checked recovery start")
+    if max(abs(actual - expected)) > START_TOLERANCE_DEG:
+        raise ValueError("Arm moved before hold activation; calculate a fresh recovery path")
+    pose_check(actual)
 
 
 class TrajectoryArmPort(ArmGroupHoldPort):
@@ -55,6 +66,27 @@ class TrajectoryArmPort(ArmGroupHoldPort):
             if self.path_active:
                 self._check_intent()
             self.bus.command(i, target, velocity=float(self.path_speeds[i]), smooth=False)
+
+    @contextmanager
+    def _guard_motion(self):
+        # Match the panel's pause semantics even if focus/intent changes halfway
+        # through a six-axis dispatch. A partly enabled group cannot use this
+        # exception: it follows the base owner's disable-on-cancel contract.
+        try:
+            yield
+        except TrajectoryPaused:
+            raise  # A nested dispatch guard already completed the hold.
+        except MotionCancelled as exc:
+            if self.holding and self.hold_targets and not self.recovery_required:
+                self.pause_trajectory()
+                raise TrajectoryPaused("Operator intent interrupted; existing arm hold retained; recalculate.") from exc
+            self.stop()
+            raise
+        except Exception as exc:
+            raise RuntimeError(self.capture_failure(exc)) from exc
+        except BaseException:
+            self.stop()
+            raise
 
     def set_targets(self, raw_deg, speed_deg_s):
         raw = finite_vector(raw_deg, "targets")
@@ -105,6 +137,10 @@ class ArmOwner:
 
     def read(self):
         rows = self.port.cached_positions() if self.port.holding else self.port.positions()
+        return self._feedback(rows)
+
+    @staticmethod
+    def _feedback(rows):
         rows = sorted(rows, key=lambda row: row.joint)
         if len(rows) != 6 or [r.joint for r in rows] != list(range(1, 7)):
             raise RuntimeError("Missing arm feedback slots")
@@ -114,8 +150,24 @@ class ArmOwner:
             np.array([r.age_ms for r in rows], float),
         )
 
-    def hold(self):
-        self.port.hold_all(math.radians(min(min(self.port.axis_ceilings), 5.0)))
+    def display_feedback(self):
+        """Copy the owner's aged samples; display must not request bus traffic."""
+        return self._feedback(self.port.cached_positions())
+
+    def read_stationary(self):
+        """Explicit startup action: refresh disabled feedback without enabling."""
+        if not self.port.holding:
+            self.port.stationary_position()
+        return self.read()
+
+    def hold(self, expected, pose_check):
+        def validate(states):
+            check_hold_start(np.degrees([states[i].position for i in range(6)]), expected, pose_check)
+        self.port.path_active = False
+        self.port.path_speeds = np.radians(np.minimum(self.port.axis_ceilings, 5.0))
+        self.port.hold_all(
+            math.radians(min(min(self.port.axis_ceilings), 5.0)), validate_preload=validate
+        )
 
     def poll(self):
         self.port.poll()
@@ -165,8 +217,12 @@ class SimulatedArm:
         self.poll()
         return Feedback(self.q.copy(), self.velocity.copy(), np.zeros(6))
 
-    def hold(self):
+    def display_feedback(self):
+        return self.read()
+
+    def hold(self, expected, pose_check):
         self.poll()
+        check_hold_start(self.q, expected, pose_check)
         self.enabled = True
         self.target = self.q.copy()
         self.speed = np.zeros(6)

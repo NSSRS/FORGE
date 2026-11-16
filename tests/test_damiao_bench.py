@@ -730,7 +730,11 @@ class RoutedRoundTrip(unittest.TestCase):
                         port.release();self.assertFalse(port.moving);self.assertTrue(port.armed)
                         self.assertEqual([self.lib.fake_status(i) for i in range(6)],[0]*6)
                     self.assertEqual(port.session.origins[slot],origin)
-                    self.assertEqual(port.session.bounds[slot],(-12.5,12.5))
+                    if slot == 3:
+                        from motors.arm_travel import a4_cable_bounds
+                        self.assertEqual(port.session.bounds[slot],tuple(map(math.radians,a4_cable_bounds())))
+                    else:
+                        self.assertEqual(port.session.bounds[slot],(-12.5,12.5))
                 self.assertEqual(port.report['travel_policy'],'manual')
                 self.assertFalse(any(e['event']=='reached' for e in port.report['events']))
             finally:port.close()

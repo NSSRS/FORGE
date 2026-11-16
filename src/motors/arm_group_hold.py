@@ -19,7 +19,7 @@ class ArmGroupHoldPort(position.ArmPositionPort):
             self.bus.command(i,target,velocity=self.speed,
                              smooth=self.smooth_jog and self.moving and i==self.selected-1)
 
-    def hold_all(self, speed_rad_s=math.radians(position.HOLD_JOG_DEG_S)):
+    def hold_all(self, speed_rad_s=math.radians(position.HOLD_JOG_DEG_S), *, validate_preload=None):
         """Explicit H activation; never runs automatically on launch/recovery."""
         self._check()
         if self.recovery_required:raise RuntimeError('Recovery required before holding')
@@ -33,6 +33,11 @@ class ArmGroupHoldPort(position.ArmPositionPort):
             states=self._stop_session()
             if any(s.fault or s.enabled or s.age_ms>=80 or abs(s.velocity)>.03 for s in states.values()):
                 raise RuntimeError('Group hold requires fresh stationary disabled feedback for every joint')
+            if any(not self._limits(i)[0] <= states[i].position <= self._limits(i)[1] for i in self.slots):
+                raise ValueError('Group hold preload exceeds the fixed travel envelope')
+            if validate_preload is not None:
+                validate_preload(states)
+                self._check_intent()
             self.speed=speed_rad_s;self.lead_limited=False;self.previous_sample_at=None
             self.hold_targets={i:states[i].position for i in self.slots}
             self.target=self.hold_targets[self.selected-1]
