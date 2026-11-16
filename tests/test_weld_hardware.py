@@ -82,8 +82,12 @@ class WeldControlTests(unittest.TestCase):
         self.clock = Clock()
         self.arm = SimulatedArm([0] * 6, clock=self.clock)
         self.chassis = FakeChassis()
-        self.control = WeldController(self.arm, self.chassis, clock=self.clock,
-                                      pose_check=lambda raw, **kwargs: None)
+        self.control = WeldController(
+            self.arm,
+            self.chassis,
+            clock=self.clock,
+            pose_check=lambda raw, **kwargs: None,
+        )
 
     def tick(self, n=1):
         for _ in range(n):
@@ -111,6 +115,70 @@ class WeldControlTests(unittest.TestCase):
         self.assertTrue(any(v > 0 for v in self.chassis.feeds))
         self.assertEqual(self.chassis.last_feed, 0)
         self.assertTrue(self.arm.enabled)
+
+    def test_prep_arrival_retains_exact_target_and_allowance_during_hold(self):
+        self.ready(chassis=False)
+        goal = self.arm.target.copy()
+        self.assertEqual(self.control.joint_goal()["label"], "Weld start")
+        np.testing.assert_allclose(
+            self.control.joint_goal()["raw_deg"], goal, atol=1e-12, rtol=0
+        )
+        self.assertFalse(np.array_equal(goal, self.control.plan["initial_raw_deg"]))
+        np.testing.assert_array_equal(self.arm.target, goal)
+        np.testing.assert_array_equal(self.arm.speed, [5.0] * 6)
+        sent = len(self.arm.commands)
+        arrival = [e for e in self.control.events if e["event"] == "stage_arrived"][-1]
+        self.assertEqual(arrival["from_stage"], "approach")
+        np.testing.assert_array_equal(arrival["target_raw_deg"], goal)
+        self.assertLessEqual(max(abs(np.asarray(arrival["error_deg"]))), 0.25)
+        # A six-axis disturbance after arrival must not become the new target.
+        self.arm.q -= 0.6
+        self.tick()
+        observation = self.control.last_observation
+        self.assertEqual(observation["stage"], "ready")
+        np.testing.assert_allclose(observation["tracking_error_deg"], [0.5] * 6)
+        self.assertEqual(self.control.events[-1]["event"], "hold_deviation")
+        self.tick(20)
+        np.testing.assert_allclose(self.arm.q, goal, atol=1e-9)
+        np.testing.assert_array_equal(self.arm.target, goal)
+        np.testing.assert_array_equal(self.arm.speed, [5.0] * 6)
+        self.assertEqual(len(self.arm.commands), sent)  # Observation adds no dispatch.
+        self.assertEqual(self.control.events[-1]["event"], "hold_recovered")
+        self.assertEqual(self.control.state, "ready")
+
+    def test_persistent_post_prep_sag_remains_visible_without_target_recapture(self):
+        self.ready(chassis=False)
+        target = self.arm.target.copy()
+        arrival_time = self.clock()
+        self.arm.speed[:] = 0.0  # Fake drive cannot correct the imposed load offset.
+        self.arm.q -= 0.4
+        self.tick(50)
+        np.testing.assert_array_equal(self.arm.target, target)
+        np.testing.assert_allclose(
+            self.control.last_observation["tracking_error_deg"], [0.4] * 6
+        )
+        self.assertGreater(self.control.last_observation["time_s"], arrival_time + 0.9)
+        self.assertEqual(
+            sum(e["event"] == "hold_deviation" for e in self.control.events), 1
+        )
+        with self.assertRaisesRegex(ValueError, "left the weld start"):
+            self.control.start_weld()
+        self.control.pause()
+        self.assertIsNone(self.control.joint_goal())
+
+    def test_settled_endpoint_is_not_recaptured_on_pause(self):
+        self.ready(chassis=False)
+        target = self.arm.target.copy()
+        allowance = self.arm.speed.copy()
+        self.assertTrue(self.arm.endpoint_hold)
+        self.arm.q -= 0.2
+        self.control.pause()
+        np.testing.assert_array_equal(self.arm.target, target)
+        np.testing.assert_array_equal(self.arm.speed, allowance)
+        self.assertTrue(self.arm.enabled)
+        self.tick(10)
+        np.testing.assert_allclose(self.arm.q, target, atol=1e-10)
+        self.assertEqual(self.control.state, "paused")
 
     def test_cannot_skip_initial_or_approach(self):
         self.control.select(True, True)
@@ -261,7 +329,9 @@ class WeldControlTests(unittest.TestCase):
             clock = Clock()
             arm = SimulatedArm([0] * 6, clock=clock)
             chassis = FakeChassis()
-            control = WeldController(arm, chassis, clock=clock, pose_check=lambda raw, **kwargs: None)
+            control = WeldController(
+                arm, chassis, clock=clock, pose_check=lambda raw, **kwargs: None
+            )
             control.select(True, enabled)
             control.load_plan(simple_plan(chassis=enabled))
             control.go_initial()
@@ -294,7 +364,9 @@ class WeldControlTests(unittest.TestCase):
     def test_shutdown_failure_does_not_replace_original_fault(self):
         self.ready()
         self.control.fail(RuntimeError("Original A5 feedback failure"))
-        self.arm.close = lambda: (_ for _ in ()).throw(RuntimeError("Mode restoration failure"))
+        self.arm.close = lambda: (_ for _ in ()).throw(
+            RuntimeError("Mode restoration failure")
+        )
         self.control.close()
         self.assertEqual(self.control.fault, "Original A5 feedback failure")
         self.assertEqual(self.control.events[-1]["event"], "secondary_fault")
@@ -302,11 +374,14 @@ class WeldControlTests(unittest.TestCase):
 
     def test_confirmed_dispatch_pause_does_not_become_disable(self):
         from controls.hardware.weld_control import TrajectoryPaused
+
         self.ready()
         self.control.start_weld()
+
         def cancel(raw, speed):
             self.arm.pause()
             raise TrajectoryPaused("Operator intent interrupted; hold retained")
+
         self.arm.command = cancel
         self.tick()
         self.assertEqual(self.control.state, "paused")
@@ -323,13 +398,17 @@ class WeldPlanTests(unittest.TestCase):
         path = JointPath(times, positions, "periodic_cubic")
         # Each half-cycle is a cubic smoothstep: q=A*(3*t^2-2*t^3).
         expected_speed, expected_acceleration = 1.5 * amplitudes, 6.0 * amplitudes
-        np.testing.assert_allclose(path.peaks(), [expected_speed, expected_acceleration])
+        np.testing.assert_allclose(
+            path.peaks(), [expected_speed, expected_acceleration]
+        )
         speed, acceleration = path.peaks()
         speed[:] = 0.0
         acceleration[:] = 0.0
         times[1] = 9.0
         positions[:] = 999.0
-        np.testing.assert_allclose(path.peaks(), [expected_speed, expected_acceleration])
+        np.testing.assert_allclose(
+            path.peaks(), [expected_speed, expected_acceleration]
+        )
         q, velocity = path.sample(0.5)
         np.testing.assert_allclose(q, 0.5 * amplitudes)
         np.testing.assert_allclose(velocity, expected_speed)
@@ -337,11 +416,15 @@ class WeldPlanTests(unittest.TestCase):
     def test_initial_model_uses_existing_measured_map_and_preserves_conflict(self):
         mapping = CalibrationMap(
             json.loads(
-                (ROOT / "src/robot_description/config/arm_calibration_candidate.json").read_text()
+                (
+                    ROOT / "src/robot_description/config/arm_calibration_candidate.json"
+                ).read_text()
             )
         )
         initial = initial_from_model(
-            json.loads((ROOT / "src/robot_description/mujoco/initial_pose.json").read_text()),
+            json.loads(
+                (ROOT / "src/robot_description/mujoco/initial_pose.json").read_text()
+            ),
             mapping,
         )
         self.assertAlmostEqual(initial[1], -61.357358, places=5)
@@ -359,7 +442,9 @@ class WeldPlanTests(unittest.TestCase):
     def test_common_time_scale_changes_both_feed_and_period(self):
         a = chassis_only_plan(Settings())
         b = chassis_only_plan(Settings(time_scale=10))
-        self.assertAlmostEqual(a["feed_m_s"] * a["duration_s"], b["feed_m_s"] * b["duration_s"])
+        self.assertAlmostEqual(
+            a["feed_m_s"] * a["duration_s"], b["feed_m_s"] * b["duration_s"]
+        )
         self.assertAlmostEqual(a["effective_hz"] / b["effective_hz"], 10)
 
     def test_invalid_requests(self):
@@ -391,7 +476,9 @@ class WeldPlanTests(unittest.TestCase):
         import yaml
 
         config = yaml.safe_load((ROOT / "src/bringup/config/chassis.yaml").read_text())
-        chassis = ChassisOwner(config, simulate=True, execute=False, mapping_confirmed=False)
+        chassis = ChassisOwner(
+            config, simulate=True, execute=False, mapping_confirmed=False
+        )
         try:
             chassis.velocity(0.012)
             targets = chassis.drive.mix(0.012, 0)
@@ -430,7 +517,9 @@ class WeldNativeArmTests(unittest.TestCase):
         from controls.hardware.weld_ports import TrajectoryArmPort
         from motors.arm_calibration import DRIVES
 
-        profile = json.loads((ROOT / "src/robot_description/config/arm_rig_a1_a6.json").read_text())
+        profile = json.loads(
+            (ROOT / "src/robot_description/config/arm_rig_a1_a6.json").read_text()
+        )
         profile.update(fixture_confirmed=True, supported_confirmed=True)
         mapping = dict(
             version=1,
@@ -457,7 +546,9 @@ class WeldNativeArmTests(unittest.TestCase):
             writes = self.lib.fake_parameter_writes()
             for i in range(1, 61):
                 self.lib.fake_advance(20)
-                port.set_targets(np.array([1, -1, 1, -1, 1, -1]) * i * 0.02, np.full(6, 5.0))
+                port.set_targets(
+                    np.array([1, -1, 1, -1, 1, -1]) * i * 0.02, np.full(6, 5.0)
+                )
             self.assertEqual([self.lib.fake_status(i) for i in range(6)], [1] * 6)
             self.assertEqual(self.lib.fake_parameter_writes(), writes)
             port.pause_trajectory()
@@ -469,23 +560,50 @@ class WeldNativeArmTests(unittest.TestCase):
             self.assertFalse(port.path_active)
             self.assertTrue(port.holding)
 
+    def test_native_endpoint_hold_preserves_target_without_motion_intent(self):
+        from motors import arm_position as position, arm_bench as bench
+
+        with patch.object(position, "time", bench.time), self.port() as port:
+            port.hold_all(math.radians(5))
+            port.set_targets([0.2] * 6, [5.0] * 6)
+            targets = dict(port.hold_targets)
+            speeds = port.path_speeds.copy()
+            writes = self.lib.fake_parameter_writes()
+            disables = [self.lib.fake_disables(i) for i in range(6)]
+            port.finish_trajectory()
+            port.motion_allowed = lambda: False
+            for _ in range(20):
+                self.lib.fake_advance(20)
+                port.poll()
+            port.pause_trajectory()
+            self.assertTrue(port.endpoint_hold)
+            self.assertFalse(port.path_active)
+            self.assertEqual(port.hold_targets, targets)
+            np.testing.assert_array_equal(port.path_speeds, speeds)
+            self.assertEqual(self.lib.fake_parameter_writes(), writes)
+            self.assertEqual([self.lib.fake_disables(i) for i in range(6)], disables)
+            self.assertEqual([self.lib.fake_status(i) for i in range(6)], [1] * 6)
+
     def test_intent_loss_mid_dispatch_holds_all_without_disabling(self):
         from motors import arm_position as position, arm_bench as bench
         from controls.hardware.weld_control import TrajectoryPaused
+
         with patch.object(position, "time", bench.time), self.port() as port:
             port.hold_all()
             disables = [self.lib.fake_disables(i) for i in range(6)]
             allowed = [True]
             port.motion_allowed = lambda: allowed[0]
             command = self.bus.command
+
             def interrupt(slot, *args, **kwargs):
                 command(slot, *args, **kwargs)
                 if slot == 1:
                     allowed[0] = False
+
             with patch.object(self.bus, "command", side_effect=interrupt):
                 with self.assertRaises(TrajectoryPaused):
-                    port.set_targets([.2]*6, [5]*6)
-            self.assertEqual([self.lib.fake_status(i) for i in range(6)], [1]*6)
+                    port.set_targets([0.2] * 6, [5] * 6)
+            self.assertEqual([self.lib.fake_status(i) for i in range(6)], [1] * 6)
             self.assertEqual([self.lib.fake_disables(i) for i in range(6)], disables)
             self.assertFalse(port.path_active or port.recovery_required)
             targets = dict(port.hold_targets)
@@ -496,17 +614,20 @@ class WeldNativeArmTests(unittest.TestCase):
 
     def test_intent_loss_during_group_activation_still_disables(self):
         from motors import arm_position as position, arm_bench as bench
+
         with patch.object(position, "time", bench.time), self.port() as port:
             allowed = [True]
             port.motion_allowed = lambda: allowed[0]
             enable = self.bus.enable_bench_group
+
             def interrupt(slots):
                 enable(slots)
                 allowed[0] = False
+
             with patch.object(self.bus, "enable_bench_group", side_effect=interrupt):
                 with self.assertRaises(position.MotionCancelled):
                     port.hold_all()
-            self.assertEqual([self.lib.fake_status(i) for i in range(6)], [0]*6)
+            self.assertEqual([self.lib.fake_status(i) for i in range(6)], [0] * 6)
             self.assertFalse(port.holding)
 
     def test_native_preload_collision_check_runs_disabled_before_enable(self):
@@ -517,16 +638,20 @@ class WeldNativeArmTests(unittest.TestCase):
             owner = ArmOwner.__new__(ArmOwner)
             owner.port = port
             checked = []
+
             def reject(raw):
                 checked.append(raw)
-                self.assertEqual([self.lib.fake_status(i) for i in range(6)], [0]*6)
+                self.assertEqual([self.lib.fake_status(i) for i in range(6)], [0] * 6)
                 raise ValueError("modeled chassis collision")
-            with patch.object(self.bus, "enable_bench_group", wraps=self.bus.enable_bench_group) as enable:
+
+            with patch.object(
+                self.bus, "enable_bench_group", wraps=self.bus.enable_bench_group
+            ) as enable:
                 with self.assertRaisesRegex(RuntimeError, "collision"):
-                    owner.hold([0]*6, reject)
+                    owner.hold([0] * 6, reject)
                 enable.assert_not_called()
             self.assertEqual(len(checked), 1)
-            self.assertEqual([self.lib.fake_status(i) for i in range(6)], [0]*6)
+            self.assertEqual([self.lib.fake_status(i) for i in range(6)], [0] * 6)
 
     def test_invalid_sixth_target_does_not_send_first_five(self):
         from motors import arm_position as position, arm_bench as bench
@@ -547,7 +672,9 @@ class WeldNativeArmTests(unittest.TestCase):
         self.bus.capabilities &= ~(CAP_SMOOTH_JOG | CAP_SMOOTH_JOG_10)
         with patch.object(position, "time", bench.time), self.port() as port:
             port.hold_all(math.radians(5))
-            with patch.object(self.bus, "_request", wraps=self.bus._request) as requests:
+            with patch.object(
+                self.bus, "_request", wraps=self.bus._request
+            ) as requests:
                 self.lib.fake_advance(20)
                 port.set_targets([0.2] * 6, [5] * 6)
                 kinds = [call.args[0] for call in requests.call_args_list]
@@ -560,7 +687,10 @@ class WeldNativeArmTests(unittest.TestCase):
     def test_native_weld_can_exceed_jog_cap_without_raising_speed_trip(self):
         from motors import arm_position as position, arm_bench as bench
 
-        with patch.object(position, "time", bench.time), self.port(math.degrees(1.2)) as port:
+        with (
+            patch.object(position, "time", bench.time),
+            self.port(math.degrees(1.2)) as port,
+        ):
             port.hold_all(math.radians(5))
             self.lib.fake_advance(20)
             port.set_targets([0.2] * 6, [65] * 6)

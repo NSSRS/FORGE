@@ -1,7 +1,7 @@
 # Arm pose teaching and jog-speed bench test
 
 Updated November 15, 2026. The eight requested raw positions are recorded in
-[the current handoff](ARM_SESSION_HANDOFF.md#calibration-and-recorded-evidence)
+[the current handoff](ARM_SESSION_HANDOFF.md#calibration-and-evidence)
 and [the reference JSON](../src/robot_description/config/arm_reference_positions_2026-11-12.json).
 Candidate model alignment and controller standby are now derived separately;
 independent pose validation, repeatability and loaded stopping remain unqualified. Run from the patched

@@ -1,71 +1,36 @@
 # Coordinated controls
 
-[The Shape 1 trajectory](controls/weave_xy_z.py) produces wire positions and
-velocities for the original simulation. The hardware planner preserves the same
-stroke/dwell intent with quintic segments and automatically retimed joint splines. The [MuJoCo controller](controls/simulation/weave_xy_z.py)
-drives the simulated chassis and arm. The
-[supported hardware controller](../../docs/WELD_MOTION.md) now uses the shared
-trajectory with existing ENCOS/Damiao owners, independent participation switches,
-and the initial -> weld start -> explicit weld-motion sequence. Offline solving
-lives in `controls/controller/`: measurement-derived offset alignment, Damiao
-physical envelopes, MuJoCo closed-chain IK and automatic trajectory retiming.
-Its default is a measured-bound controller standby; original sources are retained.
-Physical qualification is still pending.
+The `controls` ROS 2 package contains the offline planner, motor execution and
+original dynamic weave simulation. The `control_weld` console entry point and
+`scripts/control_weld.py` use the same application; there is one transport owner,
+not a second ROS command path.
 
-## Control package layout and hardware boundary
+| Directory | Ownership |
+| --- | --- |
+| `controls/controller/` | Calibration, constraints, D3-closed IK, retiming, preparation/staging search and CMA-ES |
+| `controls/hardware/` | Shared state machine, native/fake adapters, fixed endpoint hold, Qt panel and cached evidence |
+| `controls/simulation/` | Original MuJoCo dynamic weave controller |
+| `config/` | Experiment, motion-policy and pinned motor-physics inputs |
 
-The package is named `controls`. Actual motor execution is in `hardware/`,
-at the same level as `simulation/`; `controller/` is their shared offline
-planning layer:
+Model rendering belongs to the separate `simulation` package. Kinematic preview,
+fake-motor replay and physical execution are distinct evidence types. Hardware
+selection is explicit; no mode energizes a welder. Planner/panel degree units are
+named explicitly; the motor API boundary uses raw output-shaft radians/rad/s.
 
-```text
-src/controls/controls/
-  simulation/                 Original MuJoCo motion controller
-  hardware/                   Real-motor execution and its offline test mode
-    weld_ports.py             Damiao arm and ENCOS chassis owner adapters
-    weld_control.py           Initial -> approach -> ready -> weld -> hold
-    weld_app.py               Panel; explicit real/simulated owner selection
-    weld_plan.py              Compatibility imports from controller/weld_plan.py
-  controller/                 Shared calibration, limits, path planning, CMA-ES
+```bash
+.venv/bin/python scripts/control_weld.py --simulate --profile weld --cycles 1
 ```
 
-The [hardware directory guide](controls/hardware/README.md) identifies the
-physical command path. `--execute` selects real owners; `--simulate` selects
-fake motors while running the same execution state machine. The exported
-CMA-ES animation is a third mode: `simulation/weld_animation.py` in the
-separate simulation package draws the saved controller plan kinematically.
-It does not call the real motor adapters or display measured hardware motion.
-The exact animated plan was separately replayed through `WeldController` with
-fake shafts. These checks establish shared planning/execution code, not loaded
-physical tracking. The renderer is kept with model/rendering code as required
-by the repository layout.
+The current flow is measured pose -> checked recovery -> weld start -> explicit
+weld -> fixed endpoint hold. Preparation defaults to 5 deg/s; the five-second
+staging comparison is offline-only. HOLD-01 owns physical stiffness and post-prep
+sag acceptance. Native mode-2 drive gain writes, gravity feedforward, Cartesian
+outer correction and ESO are not installed.
 
-Run `.venv/bin/python scripts/control_weld.py --simulate --profile weld --cycles 1` from the
-workspace root. No hand-selected time scale is needed. The solver compares fixed
-D1 and free-D1 candidates; `--lock-base-yaw` preserves the older fixed-D1 choice.
-Arm/chassis switches only gate output and never change the nominal arm path.
-The original weld target is 2 Hz / 12 mm/s; 1.73 Hz is an accepted fallback.
-Temporary per-axis caps in
-`config/arm_motion_policy.json` have been withdrawn: all six axes are null.
-The original physical/protection constraints give 68.7549 deg/s weld commands
-with unchanged 1.5 rad/s measured-speed trips. These are project guard values,
-not factory motor register limits or manufacturer rated speeds. The solver weights
-joint motion by available speed and reduces frequency/feed together when needed.
-Initial and approach stages retain their 5 deg/s policy. Without `--profile weld`, the default debug profile
-keeps low speed/acceleration throughout. No physical speed trip is increased.
-The checked CMA-ES candidate reaches 1.815288 Hz / 10.891728 mm/s under
-provisional CAD acceleration bounds. No physical welding acceptance has been
-completed. LOAD-01 weight compensation and FEEDBACK-01 sensor/ESO feedback
-follow that first run; neither is active in the hardware controller.
-The experiment described below is the original simulation baseline.
-
-`scripts/optimize_weld.py` adds offline multi-start CMA-ES over joint mobility,
-center yaw and wrist IK seeds. Larger mobility favors use of that joint; lower
-speed/acceleration and fewer reversals are rewarded at the same requested clock.
-Configured caps and all existing collision/closure/torque checks remain enforced.
-See [search setup, saved candidates and reuse](../../docs/WELD_MOTION.md#offline-cma-es-weight-and-branch-search).
-Reuse an accepted candidate with `control_weld.py --profile weld --solution PATH`;
-it checks identity and regenerates the entire route before motion.
+Start with [WELD_MOTION.md](../../docs/WELD_MOTION.md),
+[the execution API](controls/hardware/README.md),
+[the current handoff](../../docs/ARM_SESSION_HANDOFF.md), and [open work](TODO.md).
+The sections below describe the original dynamic simulation baseline.
 
 ## WEAVE_XY_Z = 1 on a 20 mm floor seam
 

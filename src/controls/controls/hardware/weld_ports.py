@@ -19,7 +19,9 @@ def check_hold_start(actual, expected, pose_check):
     actual = finite_vector(actual, "hold preload")
     expected = finite_vector(expected, "checked recovery start")
     if max(abs(actual - expected)) > START_TOLERANCE_DEG:
-        raise ValueError("Arm moved before hold activation; calculate a fresh recovery path")
+        raise ValueError(
+            "Arm moved before hold activation; calculate a fresh recovery path"
+        )
     pose_check(actual)
 
 
@@ -36,11 +38,15 @@ class TrajectoryArmPort(ArmGroupHoldPort):
         self.mapping = CalibrationMap(mapping)
         plan = args[0] if args else kwargs["plan"]
         # Keep 20% headroom below the actual configured measured-speed stops.
-        native = np.array([0.8 * math.degrees(row["speed_trip_rad_s"]) for row in plan["motors"]])
+        native = np.array(
+            [0.8 * math.degrees(row["speed_trip_rad_s"]) for row in plan["motors"]]
+        )
         if native.shape != (6,) or not np.isfinite(native).all() or np.any(native <= 0):
             raise ValueError("Six finite positive configured speed guards required")
         if not 0 < max_speed_deg_s <= min(max(native), math.degrees(1.2)) + 1e-9:
-            raise ValueError("Trajectory command ceiling exceeds native commissioning guards")
+            raise ValueError(
+                "Trajectory command ceiling exceeds native commissioning guards"
+            )
         policy = joint_speed_policy()["max_speed_deg_s"]
         self.axis_ceilings = np.minimum(native, max_speed_deg_s)
         for i in range(6):
@@ -49,6 +55,7 @@ class TrajectoryArmPort(ArmGroupHoldPort):
                 self.axis_ceilings[i] = min(self.axis_ceilings[i], cap)
         self.path_speeds = np.radians(np.minimum(self.axis_ceilings, 5.0))
         self.path_active = False
+        self.endpoint_hold = False
         self.path_ceiling = max_speed_deg_s
         super().__init__(*args, window_degrees=None, smooth_jog=False, **kwargs)
         self.report.update(
@@ -65,7 +72,9 @@ class TrajectoryArmPort(ArmGroupHoldPort):
         for i, target in self.hold_targets.items():
             if self.path_active:
                 self._check_intent()
-            self.bus.command(i, target, velocity=float(self.path_speeds[i]), smooth=False)
+            self.bus.command(
+                i, target, velocity=float(self.path_speeds[i]), smooth=False
+            )
 
     @contextmanager
     def _guard_motion(self):
@@ -79,7 +88,9 @@ class TrajectoryArmPort(ArmGroupHoldPort):
         except MotionCancelled as exc:
             if self.holding and self.hold_targets and not self.recovery_required:
                 self.pause_trajectory()
-                raise TrajectoryPaused("Operator intent interrupted; existing arm hold retained; recalculate.") from exc
+                raise TrajectoryPaused(
+                    "Operator intent interrupted; existing arm hold retained; recalculate."
+                ) from exc
             self.stop()
             raise
         except Exception as exc:
@@ -107,21 +118,53 @@ class TrajectoryArmPort(ArmGroupHoldPort):
             self.hold_targets = dict(enumerate(targets))
             self.path_speeds = np.radians(speed)
             self.path_active = True
+            self.endpoint_hold = False
             self.poll()
+
+    def stop(self):
+        self.endpoint_hold = False
+        self.path_active = False
+        super().stop()
+
+    def finish_trajectory(self):
+        """Latch the already-dispatched endpoint after measured settling.
+
+        Keep mode, position and speed allowance unchanged. The native owner
+        continues command refresh and protection checks without motion intent.
+        """
+        if not self.holding or not self.hold_targets or not self.path_active:
+            raise ValueError("No active trajectory to finish")
+        with self._guard_motion():
+            self._check_intent()
+            self.endpoint_hold = True
+            self.path_active = False
+            self.moving = False
+            self.armed = False
+            self._refresh_targets()
+            self._event(
+                "weld_endpoint_hold",
+                targets_rad=dict(self.hold_targets),
+                speed_allowance_rad_s=self.path_speeds.tolist(),
+            )
 
     def pause_trajectory(self):
         if not self.hold_targets:
             return
         with self._guard_motion():
-            samples = {i: self._enabled_sample(i) for i in self.slots}
-            self.hold_targets = {i: s.position for i, s in samples.items()}
+            if not self.endpoint_hold:
+                samples = {i: self._enabled_sample(i) for i in self.slots}
+                self.hold_targets = {i: s.position for i, s in samples.items()}
+                self.path_speeds = np.minimum(self.path_speeds, math.radians(5.0))
             self.path_active = False
             self.moving = False
             self.holding = True
             self.armed = False
-            self.path_speeds = np.minimum(self.path_speeds, math.radians(5.0))
             self._refresh_targets()
-            self._event("weld_pause_hold", targets_rad=dict(self.hold_targets))
+            self._event(
+                "weld_pause_hold",
+                targets_rad=dict(self.hold_targets),
+                endpoint_preserved=self.endpoint_hold,
+            )
 
 
 class ArmOwner:
@@ -136,7 +179,9 @@ class ArmOwner:
         self.ceiling = max_speed_deg_s
 
     def read(self):
-        rows = self.port.cached_positions() if self.port.holding else self.port.positions()
+        rows = (
+            self.port.cached_positions() if self.port.holding else self.port.positions()
+        )
         return self._feedback(rows)
 
     @staticmethod
@@ -162,11 +207,16 @@ class ArmOwner:
 
     def hold(self, expected, pose_check):
         def validate(states):
-            check_hold_start(np.degrees([states[i].position for i in range(6)]), expected, pose_check)
+            check_hold_start(
+                np.degrees([states[i].position for i in range(6)]), expected, pose_check
+            )
+
         self.port.path_active = False
+        self.port.endpoint_hold = False
         self.port.path_speeds = np.radians(np.minimum(self.port.axis_ceilings, 5.0))
         self.port.hold_all(
-            math.radians(min(min(self.port.axis_ceilings), 5.0)), validate_preload=validate
+            math.radians(min(min(self.port.axis_ceilings), 5.0)),
+            validate_preload=validate,
         )
 
     def poll(self):
@@ -175,11 +225,15 @@ class ArmOwner:
     def command(self, raw, speed):
         self.port.set_targets(raw, speed)
 
+    def finish_trajectory(self):
+        self.port.finish_trajectory()
+
     def pause(self):
         self.port.pause_trajectory()
 
     def disable(self):
         self.port.path_active = False
+        self.port.endpoint_hold = False
         self.port.stop()
 
     def close(self):
@@ -189,6 +243,8 @@ class ArmOwner:
 class SimulatedArm:
     """Rate-limited fake shafts for UI/state-machine tests, never a dynamics claim."""
 
+    offline = True
+
     def __init__(self, raw, *, clock=time.monotonic):
         self.clock = clock
         self.q = finite_vector(raw, "simulated initial").copy()
@@ -197,6 +253,7 @@ class SimulatedArm:
         self.velocity = np.zeros(6)
         self.last = clock()
         self.enabled = False
+        self.endpoint_hold = False
         self.closed = False
         self.commands = []
 
@@ -224,6 +281,7 @@ class SimulatedArm:
         self.poll()
         check_hold_start(self.q, expected, pose_check)
         self.enabled = True
+        self.endpoint_hold = False
         self.target = self.q.copy()
         self.speed = np.zeros(6)
 
@@ -232,18 +290,26 @@ class SimulatedArm:
             raise RuntimeError("Simulated arm disabled")
         self.target = finite_vector(raw, "target").copy()
         self.speed = finite_vector(speed, "speed").copy()
+        self.endpoint_hold = False
         self.commands.append(self.target.tolist())
         if len(self.commands) > 1000:
             del self.commands[:500]
 
+    def finish_trajectory(self):
+        if not self.enabled:
+            raise RuntimeError("Simulated arm disabled")
+        self.endpoint_hold = True
+
     def pause(self):
         self.poll()
-        self.target = self.q.copy()
+        if not self.endpoint_hold:
+            self.target = self.q.copy()
         self.velocity[:] = 0
 
     def disable(self):
         self.pause()
         self.enabled = False
+        self.endpoint_hold = False
 
     def close(self):
         self.disable()
@@ -255,13 +321,16 @@ class ChassisOwner:
         from motors import MotorBus, MotorConfig
         from motor_control.differential import DifferentialDrive
 
+        self.offline = bool(simulate)
         p = config["motor_driver"]["ros__parameters"]
         if p.get("bench_omit_motor_id", 0):
             raise ValueError(
                 "Weld feed requires the complete four-wheel profile; omitted motor 4 is not accepted"
             )
         if not simulate and not mapping_confirmed:
-            raise ValueError("Hardware chassis requires explicit wheel mapping confirmation")
+            raise ValueError(
+                "Hardware chassis requires explicit wheel mapping confirmation"
+            )
         keys = (
             "motor_ids",
             "wheel_motor_ids",
@@ -285,7 +354,9 @@ class ChassisOwner:
         required = max(
             nominal * abs(d) * r * s
             for d, r, s in zip(
-                self.drive.wheel_directions, self.drive.external_ratios, self.drive.wheel_rpm_scales
+                self.drive.wheel_directions,
+                self.drive.external_ratios,
+                self.drive.wheel_rpm_scales,
             )
         )
         if required > self.drive.max_velocity_rpm + 1e-9:

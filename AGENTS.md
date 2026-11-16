@@ -55,41 +55,33 @@ trips remain 1.5 rad/s. Current protection, loaded holding and physical stopping
 remain unqualified. Do not increase reactive trips or claim jitter resolved.
 The operator confirmed the earlier A1 undervoltage issue was fixed.
 
-## Current welding implementation (2026-11-15)
+## Current welding implementation (2026-11-16)
 
-`src/controls/controls/hardware/` and `simulation/` are siblings;
-`controller/` owns shared calibration, physical envelopes, closed-chain IK,
-retiming and CMA-ES. See `docs/WELD_MOTION.md`. The real path uses existing
-Damiao mode-2 and ENCOS owners; the animation is kinematic playback and the
-execution report uses fake motors, not a physical welding acceptance run.
-The target remains 2 Hz / 12 mm/s. The checked optimized candidate reaches
-1.815288 Hz under provisional CAD acceleration bounds; all six weld command
-caps are 68.7549 deg/s, with no temporary A1 cap. Initial/approach default to
-5 deg/s in both CLI profiles; the automatic 10 deg/s increase was withdrawn
-after the reported recovery failure. The operator's requested total preparation
-goal is now 5 seconds, including hold, standby and approach. Report feasibility
-separately from physical tracking; never shorten playback and call it qualified
-motor performance. Preparation uses the checked
-stage speed allowance and an acceleration-bounded path clock that slows for
-lagging joints. This is not torque/backlash compensation; A1 recovery jitter
-remains physically unresolved. Do not raise trips or widen arrival/tracking
-tolerances to hide it.
-The 19:37 Nov 16 report confirms premature arrival timeout during paced recovery;
-only 54.7% of home path time had elapsed. The timeout accounting is corrected
-offline, with separate stalled-axis and endpoint-settling deadlines. A5's reported
-physical drop is unresolved; no fault/disable was recorded during that recovery.
-Do not suggest another complete hardware recovery as proof of these software fixes.
-The panel writes cached evidence to a live JSONL journal without another owner.
-Independent switches only gate outputs; assume the other subsystem follows its
-nominal motion. Do not add arm compensation for a disabled chassis switch.
+Shared planning is in `src/controls/controls/controller/`; `hardware/` and
+`simulation/` are siblings. See `docs/WELD_MOTION.md` and the current handoff.
+The operator plans hardware testing on November 17. Prioritize HOLD-01: most/all
+joints reportedly reach the prep target, then sag before welding. The host now
+latches the settled endpoint and unchanged speed allowance. Idle/pause at an
+already settled endpoint preserve that fixed target; interrupted travel still
+captures a measured hold. Fault/disable/close semantics and all trips remain.
+No drive gains or current settings were changed. Physical stiffness and the sag
+cause remain unqualified; record readbacks and bounded per-axis tuning in HOLD-01.
 
-The candidate sign/offset map uses unit gain; output-shaft feedback is already
-geared. The controller's derived A3 standby is raw 149.39 deg, 2 deg inside the
-corrected CCW endpoint, not the conflicting original CAD initial pose or a
-newly measured six-axis home. Production confirmation remains false.
-Prioritize WEAVE-01 physical acceptance; LOAD-01 compensation and FEEDBACK-01
-sensor/ESO work follow the first arm welding run. No active ESO, Cartesian
-position correction or load/gravity feedforward is installed in the hardware path.
+Preparation defaults to 5 deg/s, <=30 deg/s² and feedback-paced timing. Do not
+widen 0.25-degree arrival or 3-degree tracking tolerances to hide lag. The
+five-second staging search is explicitly offline-only: the recorded Nov 16 case
+reaches ready in 4.62 s with ideal fake shafts, not loaded physical motors.
+Weld target remains 2 Hz / 12 mm/s, with all six command caps 68.7549 deg/s.
+Historical CMA-ES reached 1.815288 Hz under provisional CAD acceleration; stale
+mapping/model/constraint fingerprints require regeneration.
+
+Use the independent A5 candidate with its matching standby; production flags
+remain false. Candidate gain magnitude is one because feedback is already geared.
+A3 standby is raw 149.39 deg, two degrees inside the corrected CCW endpoint.
+Output switches gate commands independently without counterpart compensation.
+LOAD-01 and FEEDBACK-01 follow the first qualified arm welding run; no gravity
+feedforward, Cartesian correction or ESO is active. JSONL evidence uses cached
+owner data without another motor owner or enabled-state register polling.
 
 ## Source and verification
 

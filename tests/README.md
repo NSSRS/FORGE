@@ -335,71 +335,39 @@ PYTHONPATH=tests .venv/bin/python -m unittest test_arm_endpoint test_arm_cable_l
 
 ## Supported weld-motion controller
 
-`test_weld_preview.py` checks saved-start validation/hardware rejection, path
-playback endpoints, cache-only display, explicit disabled refresh versus retained
-hold, and actual MuJoCo rendering of the blocked measured pose and compact target.
-It reproduces the platform/upper-arm convex false positive, verifies the full
-mesh gap and retained 2 mm blocking threshold, and checks camera projection and
-contact rings drawn above opaque geometry. Passed gap annotations are absent from
-normal views and retained in explicit contact views. Other blocked pairs remain blocked.
-Qt panel tests verify preview playback never commands motors, invalidated plans
-stop playback, renderer failure leaves control responsive, and Space still pauses
-when a preview selector has focus. Switching windows preserves pending calculation
-and preview, but pauses active arm/chassis motion without automatic resume and
-cancels queued starts or an enable in progress, even across a brief focus loss.
-The heartbeat watchdog still cancels planning and pauses motion.
-Preview evidence remains kinematic/offline.
-
-The path tests also verify exact interior spline extrema, immutable input
-snapshots and defensive peak-cache results. No hardware is opened. They include native C fake Damiao motors,
-an ENCOS Python simulator and the Qt panel/control thread:
-
-`test_weld_recovery.py` checks obstacle-dependent recovery ordering, blocked starts,
-exhausted searches, disabled planning, fresh preload gating, hold settling and
-cancellation, measured waypoint arrival and live pose rejection. Native-arm tests
-verify a rejected preload never sends group enable. Model tests retain the rejected
-Nov 16 pose and replay the checked full sequence through fake shafts, including
-a nonzero baseline-to-compact standby recovery with A2/A3 unchanged, followed by
-arm-only approach and one explicitly started weld cycle. These checks do not
-qualify torque pickup, cables or physical recovery/stopping margins.
-
-`test_weld_preparation.py` exercises speed-limited/stalled fake shafts, retained
-stage speed allowances, acceleration-bounded feedback pacing, unchanged checked
-path geometry and waypoint order, hard tracking trips, bounded arrival timeout,
-pause/hold and unchanged welding timing. A first-order lag plant covers a paced
-recovery that must continue beyond its old nominal deadline; separate cases cover
-a stalled axis, encoder noise and final settling. Both CLI profiles default to
-5 deg/s, and the five-second goal cannot override speed/acceleration limits.
-`test_weld_recording.py` verifies live flush, immutable snapshots, bounded queue
-overflow, disk failure reporting and cached-only telemetry. Native fake-wire tests
-cover mid-dispatch intent loss retaining an existing hold while activation
-cancellation and real feedback faults still disable. These artificial plants do
-not identify physical friction, backlash, servo oscillation or torque capability.
+Run all weld tests without hardware:
 
 ```bash
-QT_QPA_PLATFORM=offscreen .venv/bin/python -m unittest discover -s tests -p 'test_weld_*.py' -v
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 QT_QPA_PLATFORM=offscreen MUJOCO_GL=egl \
+  .venv/bin/python -m unittest discover -s tests -p 'test_weld_*.py' -v
 .venv/bin/python scripts/control_weld.py --audit
 ```
 
-The default audit uses the measured-bound standby and automatically retimes the
-checked solution. `--plan-only --cycles 1` also validates the full approach.
-To inspect the preserved original A3 conflict, explicitly pass the old mapping
-and MuJoCo initial pose. `--strict-timing` rejects infeasible timing.
-The full-model case takes roughly a minute; it includes actual MuJoCo closure,
-triangle clearance, reduced-inertia calculations and fake-shaft replay.
-See [weld-motion flow, limits and model validation](../docs/WELD_MOTION.md).
+| Suite | Contract |
+| --- | --- |
+| `test_weld_constraints.py` | Calibration identifiability, output-shaft units, physical/host limits and exact retiming |
+| `test_weld_hardware.py` | Shared state machine, native C fake-CAN arm, ENCOS simulator, fixed endpoint hold, pause/fault handling and no gain writes |
+| `test_weld_preparation.py` | Bounded pacing, lag/stall/timeout behavior, speed allowances and unchanged motion guards |
+| `test_weld_preparation_search.py` | Recorded Nov 16 model case, full endpoint, <=5 s ideal replay, acceleration reserve and physical-owner rejection |
+| `test_weld_recovery.py` | Bounded route search, start/preload validation, waypoint arrival and cancelled activation |
+| `test_weld_model.py` | Actual D3/triangle-clearance/inertia checks and complete-route fake-shaft replay |
+| `test_weld_panel.py` | Worker ownership, focus/heartbeat cancellation, goal/error display and preview isolation |
+| `test_weld_preview.py` | Saved-start validation, nominal settling intervals, actual MuJoCo rendering and contact diagnostics |
+| `test_weld_recording.py` | Bounded asynchronous JSONL, cached snapshots, overflow and disk errors |
+| `test_weld_search.py` | CMA-ES mobility semantics, objective constraints and stale-identity rejection |
 
-`test_weld_search.py` covers mobility-versus-penalty semantics, lower-speed
-rewards at a fixed clock, explicitly supplied A1 timing caps, extra reversals and rejection of stale
-model/mapping/limit fingerprints. Install `src/controls/search-requirements.txt`
-to run actual CMA-ES searches. Search-generated plans still require full-model
-route validation and a fake-shaft replay; optimizer scores alone are not control
-authorization or measured performance.
+The default audit uses the measured-bound standby. `--plan-only --cycles 1`
+also checks the full approach. Native/model tests require the existing compiler
+and optional simulation dependencies; the full suite may take several minutes.
+Search dependencies are in `src/controls/search-requirements.txt`.
 
-The optional `scripts/render_weld.py` replays a saved checked plan with MuJoCo;
-see the [animation workflow](../docs/WELD_MOTION.md#render-the-actual-optimized-plan).
-Use `--preview-only` to inspect standby, approach, weld and hold frames before
-encoding. Model/mapping/constraint identity, stage continuity and exact spline
-speed/acceleration bounds are checked before rendering; weld playback is 1x.
-Image/video outputs remain generated artifacts and do not establish loaded
-dynamics or hardware tracking performance.
+Post-arrival tests impose six-axis disturbances, verify that target/allowance
+remain fixed, check cached drift/recovery events, and reject welding start when
+the arm leaves its arrival tolerance. Endpoint pause preserves the settled target;
+interrupted travel still captures a measured hold. These fake plants do not
+identify physical stiffness, friction, backlash or load capacity.
+
+The [exported animation](../docs/WELD_MOTION.md#render-the-actual-optimized-plan)
+checks model/mapping/constraint identity, continuity and derivative limits before
+rendering. Preview and fake-shaft replay do not establish physical tracking,
+loaded holding, stopping or five-second hardware preparation.

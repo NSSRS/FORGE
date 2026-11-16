@@ -3,15 +3,17 @@
 The canonical acceptance criteria are in [ARM_LAYER_TODOS.md](../../docs/ARM_LAYER_TODOS.md).
 Current implementation and reproduction: [WELD_MOTION.md](../../docs/WELD_MOTION.md).
 
-- **WEAVE-01:** qualify actual initial -> approach -> weld -> hold execution,
-  both independent output switches, tracking and timing on the supported arm.
-  Target 2 Hz remains configured; the checked provisional-model CMA-ES plan
-  reaches 1.815288 Hz. Animation/fake motors do not complete physical acceptance.
-  Resolve the Nov 16 A5 physical drop/alignment report and qualify actual tracking
-  before another complete recovery trial. The nominal-timeout defect is fixed
-  offline; this does not establish successful hardware recovery.
-  Meet the requested five-second total preparation goal through a checked route
-  and measured position-loop response, without widening tracking/arrival trips.
+- **HOLD-01 (November 17):** qualify post-prep joint stiffness with the installed
+  supported load. Verify fixed targets/enable/allowances, record six-axis drift
+  for >=10 s, and tune native drive loops from measured readbacks if needed.
+  Fixed endpoint hold and cached error monitoring are implemented; physical
+  stiffness and the reported sag cause remain unqualified. Follow the canonical
+  HOLD-01 acceptance criteria; no guessed gains or weaker trips.
+- **WEAVE-01:** after stable holding, qualify recovery -> approach -> weld -> hold,
+  both output switches and physical tracking/timing. Target remains 2 Hz;
+  historical provisional-model CMA-ES reached 1.815288 Hz. The explicit offline
+  staging comparison reaches ready in 4.62 s with ideal fake shafts; qualify the
+  five-second preparation goal with actual position-loop response before promotion.
 - **CAL-01 / PLAN-01:** independently qualify the candidate sign/offset mapping,
   derived standby and complete path against the assembly and stopping margins.
   Qualify supported startup, current-position hold pickup and recovery waypoints;

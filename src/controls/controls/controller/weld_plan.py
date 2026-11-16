@@ -56,9 +56,17 @@ class Settings:
     limit_profile: str = "debug"
     search_solution: dict | None = None
     preparation_target_s: float = 5.0
+    optimize_preparation: bool = False
 
     def __post_init__(self):
-        for name in ("hz", "time_scale", "max_speed_deg_s", "max_accel_deg_s2", "control_period_s", "preparation_target_s"):
+        for name in (
+            "hz",
+            "time_scale",
+            "max_speed_deg_s",
+            "max_accel_deg_s2",
+            "control_period_s",
+            "preparation_target_s",
+        ):
             positive(getattr(self, name), name)
         if not 0 < self.hz <= 3 or not 1 <= self.time_scale <= 1000:
             raise ValueError("Require 0 < frequency <=3 Hz and 1 <= time scale <=1000")
@@ -76,6 +84,8 @@ class Settings:
             raise ValueError("Control period must be 10–20 ms")
         if type(self.auto_retime) is not bool or type(self.lock_base_yaw) is not bool:
             raise ValueError("Solver switches must be booleans")
+        if type(self.optimize_preparation) is not bool:
+            raise ValueError("Preparation optimization switch must be boolean")
         if self.limit_profile not in ("debug", "weld"):
             raise ValueError("Unknown constraint profile")
         if self.search_solution is not None and (
@@ -105,10 +115,16 @@ class JointPath:
         self.interpolation = interpolation
         if interpolation == "periodic_cubic":
             self.curve = CubicSpline(
-                self.times, self.positions, bc_type="periodic", axis=0, extrapolate=False
+                self.times,
+                self.positions,
+                bc_type="periodic",
+                axis=0,
+                extrapolate=False,
             )
         elif interpolation == "pchip":
-            self.curve = PchipInterpolator(self.times, self.positions, axis=0, extrapolate=False)
+            self.curve = PchipInterpolator(
+                self.times, self.positions, axis=0, extrapolate=False
+            )
         else:
             raise ValueError("Unknown trajectory interpolant")
         self.times.setflags(write=False)
@@ -132,10 +148,15 @@ class JointPath:
         for axis in range(6):
             curve = (
                 CubicSpline(
-                    self.times, self.positions[:, axis], bc_type="periodic", extrapolate=False
+                    self.times,
+                    self.positions[:, axis],
+                    bc_type="periodic",
+                    extrapolate=False,
                 )
                 if self.interpolation == "periodic_cubic"
-                else PchipInterpolator(self.times, self.positions[:, axis], extrapolate=False)
+                else PchipInterpolator(
+                    self.times, self.positions[:, axis], extrapolate=False
+                )
             )
             roots = curve.derivative(2).roots(extrapolate=False)
             roots = roots[np.isfinite(roots)]
@@ -166,14 +187,18 @@ class JointPath:
     def check_raw_bounds(self, bounds):
         low, high = self.position_bounds()
         if not np.isfinite([low, high]).all():
-            raise ValueError('Nonfinite trajectory position envelope')
+            raise ValueError("Nonfinite trajectory position envelope")
         for axis, (lo, hi) in enumerate(bounds):
             if low[axis] < lo or high[axis] > hi:
-                raise ValueError(f'A{axis+1}: trajectory exceeds fixed travel envelope; turn back without wrapping')
+                raise ValueError(
+                    f"A{axis+1}: trajectory exceeds fixed travel envelope; turn back without wrapping"
+                )
 
     @classmethod
     def from_document(cls, value):
-        return cls(value["times_s"], value["raw_deg"], value.get("interpolation", "pchip"))
+        return cls(
+            value["times_s"], value["raw_deg"], value.get("interpolation", "pchip")
+        )
 
 
 def move_path(start, goal, settings):
@@ -201,7 +226,9 @@ class WeldGeometry:
 
         self.mj, self.mapping = mj, mapping
         self.model, self.data = floor_scene()
-        self.origin = np.array([*SEAM_XY, self.data.geom("preview_floor").xpos[2] + WIRE_GAP])
+        self.origin = np.array(
+            [*SEAM_XY, self.data.geom("preview_floor").xpos[2] + WIRE_GAP]
+        )
         self.addresses = [int(self.model.joint(n).qposadr[0]) for n in DRIVES]
         self.seed = self.data.qpos.copy()
         self.closure = ArmClosure(self.model, self.data)
@@ -231,28 +258,43 @@ class WeldGeometry:
             ):
                 continue
             names = tuple(self.model.geom(g).name for g in ids)
-            row = dict(geom_names=list(names), distance_mm=float(contact.dist)*1000,
-                       convex_distance_mm=float(contact.dist)*1000,
-                       point=np.asarray(contact.pos).tolist(), basis="convex hull")
+            row = dict(
+                geom_names=list(names),
+                distance_mm=float(contact.dist) * 1000,
+                convex_distance_mm=float(contact.dist) * 1000,
+                point=np.asarray(contact.pos).tolist(),
+                basis="convex hull",
+            )
             key = tuple(sorted(names))
-            if key not in candidates or row['distance_mm'] < candidates[key]['distance_mm']:
+            if (
+                key not in candidates
+                or row["distance_mm"] < candidates[key]["distance_mm"]
+            ):
                 candidates[key] = row
         key = tuple(sorted(self.concave_pair))
         if key in candidates:
             measured = next(self.concave.measure(nearest_points=True))
             candidates[key].update(measured, basis="triangle mesh")
             if "nearest_points" in measured:
-                candidates[key]['point'] = np.mean(measured['nearest_points'], axis=0).tolist()
+                candidates[key]["point"] = np.mean(
+                    measured["nearest_points"], axis=0
+                ).tolist()
         for row in candidates.values():
-            row['blocked'] = row['distance_mm'] < clearance_mm
+            row["blocked"] = row["distance_mm"] < clearance_mm
         return list(candidates.values())
 
     def check(self, raw, *, clearance_mm=None):
         self.contact_report = []
-        clearance = self.clearance if clearance_mm is None else positive(clearance_mm, "clearance") / 1000
+        clearance = (
+            self.clearance
+            if clearance_mm is None
+            else positive(clearance_mm, "clearance") / 1000
+        )
         # The live guard uses the same contact envelope as offline recovery.
         if clearance * 2 > float(np.min(self.model.geom_margin)):
-            raise ValueError("Requested clearance exceeds the configured contact envelope")
+            raise ValueError(
+                "Requested clearance exceeds the configured contact envelope"
+            )
         raw = finite_vector(raw, "raw pose")
         angles = self.mapping.pose({str(i): float(q) for i, q in enumerate(raw, 1)})
         for i, name in enumerate(DRIVES):
@@ -260,7 +302,9 @@ class WeldGeometry:
             q = math.radians(angles[str(i + 1)])
             if (
                 self.model.jnt_limited[jid]
-                and not self.model.jnt_range[jid, 0] <= q <= self.model.jnt_range[jid, 1]
+                and not self.model.jnt_range[jid, 0]
+                <= q
+                <= self.model.jnt_range[jid, 1]
             ):
                 raise ValueError(f"A{i+1}: authored model joint limit")
             self.data.qpos[self.addresses[i]] = q
@@ -269,16 +313,23 @@ class WeldGeometry:
         self.mj.mj_forward(self.model, self.data)
         self.contact_report = self.inspect_contacts(clearance * 1000)
         for contact in self.contact_report:
-            if contact['blocked']:
-                detail = ("triangle mesh intersection" if contact['basis'] == "triangle mesh"
-                          and contact['distance_mm'] < 0 else
-                          f"{contact['distance_mm']:.3f} mm ({contact['basis']})")
-                raise ValueError(f"Arm/environment clearance: {contact['geom_names']}, {detail}")
+            if contact["blocked"]:
+                detail = (
+                    "triangle mesh intersection"
+                    if contact["basis"] == "triangle mesh"
+                    and contact["distance_mm"] < 0
+                    else f"{contact['distance_mm']:.3f} mm ({contact['basis']})"
+                )
+                raise ValueError(
+                    f"Arm/environment clearance: {contact['geom_names']}, {detail}"
+                )
         stop = self.stops.check(0.1)
         if stop:
             raise ValueError(f"Adjacent mechanical stop: {stop}")
 
-    def solve(self, target, *, free_yaw=False, preference=None, weights=None, fixed_yaw=0.0):
+    def solve(
+        self, target, *, free_yaw=False, preference=None, weights=None, fixed_yaw=0.0
+    ):
         from scipy.optimize import least_squares
         from controls.simulation.weave_xy_z import TARGET_WIRE
         from simulation.arm_closure import ArmClosure
@@ -287,11 +338,17 @@ class WeldGeometry:
         self.mj.mj_copyData(fitted, self.model, self.data)
         closure = ArmClosure(self.model, fitted)
         first = 0 if free_yaw else 1
-        coords = np.r_[self.addresses[first:], int(self.model.joint("b4_2_arm_d3").qposadr[0])]
+        coords = np.r_[
+            self.addresses[first:], int(self.model.joint("b4_2_arm_d3").qposadr[0])
+        ]
         joints = [self.model.joint(n).id for n in DRIVES[first:]] + [closure.bearing]
         bounds = np.array(
             [
-                self.model.jnt_range[j] if self.model.jnt_limited[j] else [-np.pi, np.pi]
+                (
+                    self.model.jnt_range[j]
+                    if self.model.jnt_limited[j]
+                    else [-np.pi, np.pi]
+                )
                 for j in joints
             ]
         ).T
@@ -299,19 +356,25 @@ class WeldGeometry:
             row = self.mapping.joints[str(i + 1)]
             measured = np.sort(
                 np.radians(
-                    np.asarray(self.mapping.raw_limits(i+1)) * row["model_per_raw"]
+                    np.asarray(self.mapping.raw_limits(i + 1)) * row["model_per_raw"]
                     + row["model_intercept_deg"]
                 )
             )
-            if i == 3 and not self.model.jnt_limited[joints[i-first]]:
+            if i == 3 and not self.model.jnt_limited[joints[i - first]]:
                 # A4 has a cable envelope, not a periodic +/-pi IK coordinate.
-                bounds[:, i-first] = measured
-            bounds[0, i - first] = max(bounds[0, i - first], measured[0] + math.radians(0.1))
-            bounds[1, i - first] = min(bounds[1, i - first], measured[1] - math.radians(0.1))
+                bounds[:, i - first] = measured
+            bounds[0, i - first] = max(
+                bounds[0, i - first], measured[0] + math.radians(0.1)
+            )
+            bounds[1, i - first] = min(
+                bounds[1, i - first], measured[1] - math.radians(0.1)
+            )
         if not free_yaw:
             fitted.qpos[self.addresses[0]] = fixed_yaw
         anchor = (
-            fitted.qpos[self.addresses].copy() if preference is None else np.asarray(preference)
+            fitted.qpos[self.addresses].copy()
+            if preference is None
+            else np.asarray(preference)
         )
         weights = np.ones(6) if weights is None else np.asarray(weights)
         rod_length = np.linalg.norm(
@@ -361,7 +424,7 @@ class WeldGeometry:
         return raw
 
     def validate_path(self, path, *, clearance_mm=None):
-        path.check_raw_bounds([self.mapping.raw_limits(i) for i in range(1,7)])
+        path.check_raw_bounds([self.mapping.raw_limits(i) for i in range(1, 7)])
         # Bound each interval by its exact cubic speed maximum, not endpoint distance.
         peak = max(path.peaks()[0])
         dt = min(0.02, 0.20 / max(peak, 1e-9))
@@ -395,7 +458,13 @@ def candidate_weights(candidate):
 
 
 def weave_path(
-    geometry, settings, *, free_yaw=False, weights=None, candidate=None, spatial_steps=20
+    geometry,
+    settings,
+    *,
+    free_yaw=False,
+    weights=None,
+    candidate=None,
+    spatial_steps=20,
 ):
     """MuJoCo closed-chain IK, spatial continuation, then smooth timing.
 
@@ -422,7 +491,9 @@ def weave_path(
         for direction in (-1, 1):
             geometry.data.qpos[:] = qcenter
             positions = [center]
-            for y in np.linspace(0, direction * settings.amplitude_m, spatial_steps + 1)[1:]:
+            for y in np.linspace(
+                0, direction * settings.amplitude_m, spatial_steps + 1
+            )[1:]:
                 positions.append(
                     geometry.solve(
                         geometry.origin + [0, y, 0],
@@ -434,7 +505,9 @@ def weave_path(
             arms.append(positions)
         positions = np.vstack([arms[0][::-1], arms[1][1:]])
         spatial = CubicSpline(
-            np.linspace(-settings.amplitude_m, settings.amplitude_m, 2 * spatial_steps + 1),
+            np.linspace(
+                -settings.amplitude_m, settings.amplitude_m, 2 * spatial_steps + 1
+            ),
             positions,
             axis=0,
         )
@@ -455,7 +528,9 @@ def weave_path(
 def retime(path, speed_limits, accel_limits, *, automatic=True):
     speed, accel = path.peaks()
     ratio = max(
-        1.0, float(np.max(speed / speed_limits)), math.sqrt(float(np.max(accel / accel_limits)))
+        1.0,
+        float(np.max(speed / speed_limits)),
+        math.sqrt(float(np.max(accel / accel_limits))),
     )
     if not automatic and ratio > 1.0 + 1e-6:
         raise ValueError(f"Requested timing is infeasible; required scale {ratio:.6f}")
@@ -474,7 +549,8 @@ def validate_weave(geometry, path, settings, *, samples=401):
         geometry.check(path.sample(float(t))[0])
         target = geometry.origin + [
             0,
-            settings.amplitude_m * float(smooth_level(t / settings.time_scale * settings.hz)),
+            settings.amplitude_m
+            * float(smooth_level(t / settings.time_scale * settings.hz)),
             0,
         ]
         position = float(np.linalg.norm(geometry.data.site("wire_tip").xpos - target))
@@ -487,7 +563,9 @@ def validate_weave(geometry, path, settings, *, samples=401):
         max_position = max(max_position, position)
         max_angle = max(max_angle, angle)
     return dict(
-        max_tip_error_mm=max_position * 1000, max_wire_angle_error_deg=max_angle, samples=samples
+        max_tip_error_mm=max_position * 1000,
+        max_wire_angle_error_deg=max_angle,
+        samples=samples,
     )
 
 
@@ -495,7 +573,10 @@ def validate_search_solution(document, geometry, settings, constraints):
     from simulation.arm_calibration import scene_fingerprint
     from simulation.paths import MODEL_DIR
 
-    if document.get("schema") != "forge.weld_search_solution" or document.get("version") != 1:
+    if (
+        document.get("schema") != "forge.weld_search_solution"
+        or document.get("version") != 1
+    ):
         raise ValueError("Unsupported search solution")
     expected = dict(
         mapping_fingerprint=geometry.mapping.fingerprint,
@@ -511,7 +592,9 @@ def validate_search_solution(document, geometry, settings, constraints):
 
 
 def solve_weave(geometry, settings, root):
-    constraints = motor_constraints(root, settings.max_speed_deg_s, profile=settings.limit_profile)
+    constraints = motor_constraints(
+        root, settings.max_speed_deg_s, profile=settings.limit_profile
+    )
     deployment = np.array([r["deployment_deg_s"] for r in constraints["joints"]])
     physical = np.array([r["physical_design_deg_s"] for r in constraints["joints"]])
     candidates = []
@@ -543,11 +626,15 @@ def solve_weave(geometry, settings, root):
                 path.positions[np.linspace(0, 200, 9, dtype=int)],
                 constraints,
                 acceleration_policy_deg_s2=(
-                    None if settings.limit_profile == "weld" else settings.max_accel_deg_s2
+                    None
+                    if settings.limit_profile == "weld"
+                    else settings.max_accel_deg_s2
                 ),
             )
             acceleration = np.asarray(dynamics["raw_acceleration_deg_s2"])
-            final, factor = retime(path, deployment, acceleration, automatic=settings.auto_retime)
+            final, factor = retime(
+                path, deployment, acceleration, automatic=settings.auto_retime
+            )
             _, physical_factor = retime(
                 path, physical, np.asarray(dynamics["raw_model_acceleration_deg_s2"])
             )
@@ -596,10 +683,16 @@ def solve_weave(geometry, settings, root):
 
 def speed_report(path, settings, speed_limits=None, accel_limits=None):
     speed, accel = path.peaks()
-    speeds = settings.max_speed_deg_s if speed_limits is None else np.asarray(speed_limits)
-    accelerations = settings.max_accel_deg_s2 if accel_limits is None else np.asarray(accel_limits)
+    speeds = (
+        settings.max_speed_deg_s if speed_limits is None else np.asarray(speed_limits)
+    )
+    accelerations = (
+        settings.max_accel_deg_s2 if accel_limits is None else np.asarray(accel_limits)
+    )
     required = max(
-        1.0, float(np.max(speed / speeds)), math.sqrt(float(np.max(accel / accelerations)))
+        1.0,
+        float(np.max(speed / speeds)),
+        math.sqrt(float(np.max(accel / accelerations))),
     )
     return dict(
         peak_raw_speed_deg_s=speed.tolist(),
@@ -628,18 +721,30 @@ def approach_path(geometry, initial, weld_start, settings):
             times = np.linspace(0, 2.0, 81)
             u = times / times[-1]
             s = 10 * u**3 - 15 * u**4 + 6 * u**5
-            lower = [geometry.solve(geometry.origin + [0, 0, height * (1 - float(v))]) for v in s]
+            lower = [
+                geometry.solve(geometry.origin + [0, 0, height * (1 - float(v))])
+                for v in s
+            ]
             lower[0] = raised
             if max(abs(np.asarray(lower[-1]) - weld_start)) > 0.05:
-                raise ValueError("Approach reached a different inverse-kinematics branch")
+                raise ValueError(
+                    "Approach reached a different inverse-kinematics branch"
+                )
             lower[-1] = list(weld_start)
-            t = np.r_[first.times, first.duration + 0.2, first.duration + 0.2 + times[1:]]
-            q = np.vstack([first.positions, np.asarray(raised)[None, :], np.asarray(lower[1:])])
+            t = np.r_[
+                first.times, first.duration + 0.2, first.duration + 0.2 + times[1:]
+            ]
+            q = np.vstack(
+                [first.positions, np.asarray(raised)[None, :], np.asarray(lower[1:])]
+            )
             path = JointPath(t, q)
             factor = speed_report(path, settings)["additional_time_scale"] * 1.02
             path = JointPath(path.times * factor, path.positions)
             geometry.validate_path(path)
-            return path, f"checked raised-tool approach, {height*1000:g} mm above weld tip"
+            return (
+                path,
+                f"checked raised-tool approach, {height*1000:g} mm above weld tip",
+            )
         except ValueError as exc:
             failures.append(f"{height*1000:g} mm: {exc}")
     # A searched center pose can occupy another redundant branch. Lift from
@@ -667,9 +772,15 @@ def approach_path(geometry, initial, weld_start, settings):
                 raised = lift[-1]
                 first = move_path(initial, raised, settings)
                 geometry.validate_path(first)
-                t = np.r_[first.times, first.duration + 0.2, first.duration + 0.2 + times[1:]]
+                t = np.r_[
+                    first.times, first.duration + 0.2, first.duration + 0.2 + times[1:]
+                ]
                 q = np.vstack(
-                    [first.positions, np.asarray(raised)[None, :], np.asarray(lift[-2::-1])]
+                    [
+                        first.positions,
+                        np.asarray(raised)[None, :],
+                        np.asarray(lift[-2::-1]),
+                    ]
                 )
                 path = JointPath(t, q)
                 factor = speed_report(path, settings)["additional_time_scale"] * 1.02
@@ -693,7 +804,9 @@ def build_plan(request):
 
     fingerprint = scene_fingerprint(MODEL_DIR / "robot.xml")
     if request.get("scene_fingerprint", fingerprint) != fingerprint:
-        raise ValueError("Model changed since application startup; reopen with the reviewed model")
+        raise ValueError(
+            "Model changed since application startup; reopen with the reviewed model"
+        )
     mapping = CalibrationMap(request["mapping"])
     current = finite_vector(request["current_raw_deg"], "current")
     initial = finite_vector(request["initial_raw_deg"], "initial")
@@ -717,7 +830,9 @@ def build_plan(request):
         np.vstack(
             [
                 home.positions[np.linspace(0, len(home.positions) - 1, 5, dtype=int)],
-                approach.positions[np.linspace(0, len(approach.positions) - 1, 5, dtype=int)],
+                approach.positions[
+                    np.linspace(0, len(approach.positions) - 1, 5, dtype=int)
+                ],
             ]
         ),
         optimization["constraints"],
@@ -736,9 +851,7 @@ def build_plan(request):
     for name, path in (("initial", home), ("approach", approach)):
         if not speed_report(path, settings)["within_limits"]:
             raise ValueError(f"{name} transition exceeds the speed/acceleration policy")
-    if scene_fingerprint(MODEL_DIR / "robot.xml") != fingerprint:
-        raise ValueError("Model changed while planning; no path authorized")
-    return dict(
+    plan = dict(
         schema="forge.weld_motion_plan",
         version=1,
         request_fingerprint=digest(request),
@@ -759,12 +872,15 @@ def build_plan(request):
         limit_profile=settings.limit_profile,
         raw_speed_limits_deg_s=weld_limits.tolist(),
         stage_limits={
-            "home": dict(speed_deg_s=limits.tolist(), acceleration_deg_s2=acceleration.tolist()),
+            "home": dict(
+                speed_deg_s=limits.tolist(), acceleration_deg_s2=acceleration.tolist()
+            ),
             "approach": dict(
                 speed_deg_s=limits.tolist(), acceleration_deg_s2=acceleration.tolist()
             ),
             "weld": dict(
-                speed_deg_s=weld_limits.tolist(), acceleration_deg_s2=weld_acceleration.tolist()
+                speed_deg_s=weld_limits.tolist(),
+                acceleration_deg_s2=weld_acceleration.tolist(),
             ),
         },
         optimization=optimization,
@@ -772,11 +888,35 @@ def build_plan(request):
         arm_enabled=bool(request["arm_enabled"]),
         chassis_enabled=bool(request["chassis_enabled"]),
         approach_route=route,
-        preparation_timing=preparation_timing(home, approach, recovery["waypoint_times_s"],
-                                             limits, acceleration, settings.preparation_target_s),
+        preparation_timing=preparation_timing(
+            home,
+            approach,
+            recovery["waypoint_times_s"],
+            limits,
+            acceleration,
+            settings.preparation_target_s,
+        ),
         hardware_qualified=False,
         world_tracking="nominal counterpart assumed even when its output is OFF; no switch compensation",
     )
+
+    if settings.optimize_preparation:
+        from .preparation_search import optimize_preparation
+
+        plan = optimize_preparation(plan, geometry, settings)
+    if scene_fingerprint(MODEL_DIR / "robot.xml") != fingerprint:
+        raise ValueError("Model changed while planning; no path authorized")
+    geometry.check(plan["approach"]["raw_deg"][-1])
+    tip = geometry.data.site("wire_tip").xpos.copy()
+    plan["weld_start_check"] = dict(
+        target_m=geometry.origin.tolist(),
+        tip_m=tip.tolist(),
+        error_mm=float(np.linalg.norm(tip - geometry.origin) * 1000),
+        floor_gap_mm=float(
+            (tip[2] - geometry.data.geom("preview_floor").xpos[2]) * 1000
+        ),
+    )
+    return plan
 
 
 def audit(request):
@@ -796,7 +936,9 @@ def audit(request):
         if str(exc) not in result["initial_issues"]:
             result["initial_issues"].append(str(exc))
     try:
-        path, optimization = solve_weave(geometry, settings, Path(__file__).resolve().parents[4])
+        path, optimization = solve_weave(
+            geometry, settings, Path(__file__).resolve().parents[4]
+        )
         result["weld_start_raw_deg"] = path.positions[0].tolist()
         result["speed_report"] = speed_report(
             path,
@@ -806,7 +948,9 @@ def audit(request):
         )
         result["optimization"] = optimization
         result["effective_hz"] = settings.hz / optimization["total_time_scale"]
-        result["effective_feed_mm_s"] = settings.feed_m_s * 1000 / optimization["total_time_scale"]
+        result["effective_feed_mm_s"] = (
+            settings.feed_m_s * 1000 / optimization["total_time_scale"]
+        )
     except ValueError as exc:
         result["weld_issue"] = str(exc)
     result["hardware_qualified"] = False

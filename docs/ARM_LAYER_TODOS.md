@@ -1,6 +1,6 @@
 # Arm cross-layer TODO registry
 
-Updated 2026-11-15, based on branch `nathan`. This registry contains **open work only**.
+Updated 2026-11-16, based on branch `nathan`. This registry contains **open work only**.
 Read [current status](ARM_SESSION_HANDOFF.md) and [the base contract](ARM_BASE_LAYER.md)
 first. Stable IDs link package responsibilities; update the owning entry when
 work changes, and retire completed tasks instead of appending session history.
@@ -14,13 +14,11 @@ in the guides; full hardware qualification below remains separate.
 
 ## Immediate priorities
 
-Current development order (operator request, 2026-11-15): finish and run through
-the arm welding sequence in **WEAVE-01**, then implement weight compensation in
-**LOAD-01**. LOAD-01 is deferred work, not a prerequisite for the present offline
-trajectory/animation milestone. Physical acceptance below remains separate.
-Sensor feedback and bounded weld-tip correction, including an optional ESO
-evaluation, are recorded in **FEEDBACK-01** for after the first welding run;
-they do not change the current controller or independent-switch behavior.
+Next operator hardware session: **2026-11-17**. Prioritize **HOLD-01** to
+qualify joint stiffness after preparation, alongside CAL-01/SUPPORT-01. Then
+complete **WEAVE-01**. LOAD-01 compensation and FEEDBACK-01 sensor/ESO work remain
+deferred until the first qualified arm welding run. The offline staging search
+and ideal fake-shaft timing do not establish loaded holding or five-second motion.
 
 1. Validate the recorded raw references (**CAL-01**): power-cycle repeatability,
    remaining travel bounds and independent validation of the candidate initial
@@ -104,7 +102,7 @@ Owner: `src/motors/arm_position.py`, `src/teleop/`, firmware/profile commissioni
   software fixes and fake plants do not qualify physical recovery.
   Meet the requested five-second preparation goal by reducing unnecessary travel
   and qualifying tracking, not by widening trips or speeding up the renderer.
-  See [current evidence](ARM_SESSION_HANDOFF.md#calibration-and-recorded-evidence).
+  See [current evidence](ARM_SESSION_HANDOFF.md#calibration-and-evidence).
 - [ ] **Broader manual-jog investigation deferred:** investigate moving-only A1/A4/A5/A6 jitter; A2/A3 are smooth
   and stationary holding is steady by operator report. The 5 deg/s MCU smoothing
   trial did not fix it. Its saved report verifies the build and clean exit, but
@@ -118,7 +116,7 @@ Owner: `src/motors/arm_position.py`, `src/teleop/`, firmware/profile commissioni
   six, and MIT gain advice does not directly apply to the current mode-2 loop.
   Separately correlate A4's reported 2.4542 rad/s hold sample with encoder
   displacement before calling it physical overspeed or a reading error.
-  Preserve trips and leases. See the [retained findings](ARM_SESSION_HANDOFF.md#remaining-work-and-findings).
+  Preserve trips and leases. See the [retained findings](ARM_SESSION_HANDOFF.md#next-hardware-session-november-17).
 - [ ] Test the 5 deg/s baseline and opt-in 7.5/10 deg/s trials on the supported
   fixture. Compare A6 tracking, host sample timing and release travel with A4/A5.
   Record the accepted speed for each joint and direction.
@@ -179,6 +177,37 @@ A2–A6 disabled control-register readback is complete; still verify model/versi
 support, units/scaling, application limits, persistence and fault behavior.
 Compare feedback with independent load/phase-current evidence. Reactive torque
 trips and PSU DC current are not motor current clamps or measured shaft torque.
+
+### HOLD-01 — post-preparation joint stiffness and fixed-pose acceptance
+
+Owner: `src/controls/controls/hardware/`, `src/motors/`, operator.
+Requested 2026-11-16; operator testing planned for 2026-11-17. Most/all joints
+reportedly reach the prep target, then sag before welding. The host now latches
+that settled target and allowance, preserves it through idle/pause, and records
+cached post-arrival errors. Physical stiffness is still unqualified.
+
+- [ ] With the installed load supported, verify that target, mode, enable state
+  and speed allowance remain unchanged across prep completion. Record six-axis
+  error, velocity, reported torque, feedback age and pause/fault events.
+- [ ] Verify at least 10 seconds of stationary endpoint holding within the
+  existing 0.25-degree arrival tolerance, without visible drop, oscillation,
+  unexpected disable or a target reset to a sagged measurement. Record peak and
+  settled error for every axis; repeat across representative supported poses.
+- [ ] If fixed-target sag persists, stiffen the native mode-2 position/velocity
+  loops through measured per-axis tuning. First read and retain the existing
+  supported KP_APR/KI_APR/KP_ASR/KI_ASR and relevant limits while disabled. Record
+  hardware revision, original/new values, units, restoration and thermal/current
+  response. Do not guess a shared gain multiplier or weaken reactive trips.
+  The current host/firmware gain registers are read-only; any tuning interface
+  needs explicit validation and a rollback path before use.
+- [ ] Qualify fixed-endpoint pause/focus behavior, moving-trajectory pause,
+  explicit disable and faults under the supported load. Never treat active hold
+  as a mechanical brake. Keep SUPPORT-01 and shutdown failures open.
+- [ ] Only after stable holding, measure complete prep-to-ready time against
+  five seconds. The 4.62-second ideal replay uses an offline staging pose and
+  does not authorize it for hardware.
+
+Procedure: [post-preparation hold acceptance](ARM_RIG_TEST.md#post-preparation-hold-acceptance).
 
 ### ROS-02 — production lifecycle and coordinated holding
 

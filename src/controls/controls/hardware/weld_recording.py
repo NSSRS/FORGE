@@ -22,7 +22,9 @@ class SessionJournal:
         self.stopping = threading.Event()
         self.dropped = 0
         self.error = None
-        self.thread = threading.Thread(target=self._write, name="weld-evidence", daemon=True)
+        self.thread = threading.Thread(
+            target=self._write, name="weld-evidence", daemon=True
+        )
         self.thread.start()
 
     def record(self, value):
@@ -63,10 +65,13 @@ def cached_arm_evidence(arm):
     return dict(
         holding=port.holding,
         path_active=port.path_active,
+        endpoint_hold=getattr(port, "endpoint_hold", False),
         target_raw_rad=dict(port.hold_targets),
         speed_allowance_rad_s=port.path_speeds.tolist(),
-        last_samples={key: dict(value["last_sample"])
-                      for key, value in report.get("motion_summary", {}).items()},
+        last_samples={
+            key: dict(value["last_sample"])
+            for key, value in report.get("motion_summary", {}).items()
+        },
         error=report.get("error"),
         fault_snapshot=report.get("fault_snapshot"),
         failure_states=report.get("failure_states"),

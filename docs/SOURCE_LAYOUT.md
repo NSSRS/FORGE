@@ -35,6 +35,10 @@ Sibling `hardware/` owns
 `weld_ports.py`, `weld_control.py` and `weld_app.py`; sibling `simulation/` keeps
 the original dynamic weave controller. The hardware `weld_plan.py` is a small
 compatibility export; all planner implementation lives in `controller/`.
+`controller/preparation_search.py` compares bounded offline staging candidates;
+it preserves the full weld endpoint and cannot authorize physical execution.
+`hardware/weld_ports.py` explicitly latches settled endpoint holds without
+changing position, mode or speed allowance. Drive-gain tuning remains HOLD-01.
 `hardware/weld_recording.py` persists cached evidence on a bounded writer thread;
 it does not own a transport or renew motor leases.
 

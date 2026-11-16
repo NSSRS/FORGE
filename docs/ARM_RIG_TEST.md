@@ -122,44 +122,30 @@ explicitly labeled offline. Code and interface text remain English.
 
 ## Weld panel with embedded model preview
 
-The current complete hardware recovery trial is paused pending the reported A5
-physical motion and position-loop response review. Use the offline panel for
-path review; these software fixes do not qualify hanging-load pickup:
+Use the matching reviewed mapping and standby files. From the repository root:
 
 ```bash
-cd /home/forge2/forge2_ws
-.venv/bin/python scripts/control_weld.py --simulate --arm \
-  --profile weld --cycles 1 --prep-seconds 5 \
-  --mapping build/arm_tests/a5-recovery-20261116/mapping.json \
-  --initial-pose build/arm_tests/a5-recovery-20261116/standby.json
+.venv/bin/python scripts/control_weld.py --simulate --arm --profile weld \
+  --cycles 1 --prep-seconds 5 \
+  --mapping PATH_TO_REVIEWED_MAPPING --initial-pose PATH_TO_MATCHING_STANDBY
 ```
 
-These explicit local files use the complete Nov 16 A5 capture and matching
-standby. Do not substitute the old default raw A5 target. The captured cable
-endpoints lie outside the two-degree inward command bounds; move A5 inward
-while disabled before planning. Reopening this panel does not require another
-capture. Compare **Current pose** with the physical wrist away from its straight
-reference before starting powered recovery; calibration qualification is open.
+The complete Nov 16 A5 capture is a separate candidate; do not substitute the old
+default A5 target. Confirm alignment away from the straight reference and ensure
+fresh raw positions are inside its two-degree cable backoff before physical
+planning. Reopening the panel does not require repeating that capture.
 
-Both profiles now default to a 5 deg/s preparation allowance. The automatic
-10 deg/s increase is withdrawn; this is not a claim that 5 deg/s is qualified.
-Calculate a fresh path after reopening; saved plans retain their original limits.
-During recovery the panel shows path-rate percentage, worst joint error and A1
-error/speed allowance. A lower percentage means progress is being slowed for
-measured tracking, not that the next waypoint has been skipped. Actual arrival
-and the existing 3 deg tracking / 0.25 deg arrival thresholds still apply.
-The timing goal is five seconds for the whole preparation. The panel reports
-nominal time and explicitly marks a missed target; it does not speed up preview
-to claim a faster motor response. `Remaining to standby` compares feedback with
-the final standby, separately from intermediate-reference tracking error.
-The latest saved run stopped before standby because the old arrival timer ignored
-feedback pacing. This defect is fixed offline; physical A5 behavior and A1 jitter
-remain unresolved. The earlier shutdown fault is distinct from the later report,
-whose disable acknowledgement and mode restoration passed.
-The terminal and panel show a live `.jsonl` evidence path; it can be read without
-closing the window, disabling torque or acquiring another motor owner. Its
-bounded writer reports dropped records or disk errors. The final JSON still
-records cleanup, and neither file implies physical qualification.
+Both profiles default to 5 deg/s preparation. The panel names the active waypoint
+or weld-start/end goal, reports reference tracking separately, and continues
+reporting fixed-target hold error after arrival. The 3 deg tracking trip and
+0.25 deg stationary arrival threshold remain. Five seconds is a total preparation
+goal, not a timeout or playback speed. The offline staging option is described in
+[WELD_MOTION.md](WELD_MOTION.md#offline-preparation-route-comparison) and is rejected
+for hardware.
+
+The terminal/panel show a live `.jsonl` journal path. It can be read while the
+owner remains active and records cached data only. A bounded writer reports
+lost records or disk errors. The final JSON also records shutdown results.
 
 Select **Select arm**, then **Calculate and check path**. The embedded
 **Current pose** view displays cached encoder feedback in the model, with sample
@@ -198,6 +184,39 @@ For offline reproduction, use `--simulate`. Add `--start-report PATH` to initial
 saved six-axis disabled diagnostic; hardware rejects this option. Without it,
 offline simulation starts at the configured mapping's simulation pose.
 `--no-preview` disables rendering if the graphics backend is unavailable.
+
+## Post-preparation hold acceptance
+
+Planned operator session: **2026-11-17**. The reported symptom is that most/all
+joints track to the prep goal, then drop slightly before welding starts.
+**HOLD-01** in [the registry](ARM_LAYER_TODOS.md#hold-01--post-preparation-joint-stiffness-and-fixed-pose-acceptance)
+owns stiffness tuning and acceptance. Software tests do not establish the cause.
+
+1. Use the installed supported fixture, matching reviewed mapping/standby and a
+   single motor owner. Retain the original gain/limit readbacks while disabled;
+   the [readback procedure](#disabled-currentloop-parameter-inspection-2026-11-10)
+   does not change drive settings. Keep the journal path for this exact run.
+2. Review the fresh pose and calculated route before explicitly starting prep.
+   At `ready`, leave welding stopped and observe at least 10 s. Compare physical
+   motion with each joint's displayed goal/error and the recorded target,
+   allowance, enabled/status/torque, velocity and feedback age.
+3. Confirm that `weld_endpoint_hold` retains the final target and allowance.
+   `HOLD DRIFT` / `hold_deviation` mark error above 0.25 deg. Record each axis's
+   peak/settled error, physical drop and oscillation. A changing hold target,
+   disable or fault is a different failure from sag with an unchanged enabled
+   target. Preserve the evidence before recovery or parameter changes.
+4. At a settled endpoint, pause/focus loss now keep the fixed endpoint command.
+   During unfinished travel, pause still captures current measured positions.
+   Explicit disable, close and faults remove torque. Qualify these behaviors with
+   support carrying any loss of torque; hold is not a mechanical lock.
+5. If drive-loop tuning is required, follow HOLD-01's per-axis readback, bounded
+   adjustment, restoration and thermal/current acceptance. Host speed allowance
+   is not a stiffness gain. No gain preset or gain-write interface is installed
+   by this patch. Stop and diagnose unexpected drop/oscillation before a weld.
+
+After stable holding, separately measure total prep timing. The default hardware
+standby is unchanged and may exceed five seconds; the faster staging candidate
+remains offline-only pending route and loaded-response qualification.
 
 ## Optional A2-A6 keyboard workflow, A1 disconnected
 

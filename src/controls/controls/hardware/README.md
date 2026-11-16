@@ -1,85 +1,60 @@
-# Physical motor welding control
+# Weld execution layer
 
-This directory is the `controls` package's hardware execution layer, alongside
-`../simulation/`. The shared `../controller/` layer provides calibration,
-speed/acceleration constraints, trajectory solving and CMA-ES search.
-Hardware execution is implemented; loaded welding motion is not physically qualified.
+This layer owns real-motor execution and its fake-motor test mode. Offline
+planning is in sibling `../controller/`; the original dynamic simulation is in
+`../simulation/`. It is usable through the CLI and the ROS 2 `control_weld` entry
+point; production lifecycle/atomic group execution remain separate acceptance work.
 
-| File | Responsibility |
+| Module | Responsibility |
 | --- | --- |
-| `weld_ports.py` | `ArmOwner` / `TrajectoryArmPort` connect the six Damiao axes; `ChassisOwner` connects the ENCOS chassis; `SimulatedArm` supports offline tests |
-| `weld_control.py` | Shared execution state machine: measured pose → hold verification → standby → weld start → explicit start → welding motion → hold; feedback, arrival, pause and fault handling |
-| `weld_app.py` | Control panel and single execution thread; hardware or simulated adapters with independent arm/chassis output switches |
-| `simulation.weld_preview` | Embedded current/target poses and accepted-path playback; renderer process without a motor owner |
-| `weld_plan.py` | Compatibility exports; the solver lives in `../controller/weld_plan.py` so there is one planning implementation |
+| `weld_control.py` | State machine, feedback pacing, arrival, fixed endpoint hold, drift observation, pause/fault handling |
+| `weld_ports.py` | Damiao `ArmOwner` / `TrajectoryArmPort`, ENCOS `ChassisOwner`, and `SimulatedArm` |
+| `weld_app.py` | Qt panel, planning process and sole execution/transport thread |
+| `weld_recording.py` | Bounded asynchronous JSONL writer; copies owner-maintained cached evidence |
+| `weld_plan.py` | Compatibility exports from `controller/weld_plan.py` |
+| `simulation.weld_preview` | Separate renderer process; receives poses, never transport handles |
 
-## Physical motor command path
+## Adapter contract
 
-Arm commands pass through `WeldController` → `ArmOwner.command()` →
-`TrajectoryArmPort.set_targets()` → the existing `ArmGroupHoldPort` / Damiao bus
-→ DM-MC02 → CAN motors. Commands specify raw output-shaft positions and speeds
-for all six axes using native position-velocity mode 2 / USB type 4. They do not
-add the manual jogger's type-25 smoothing. Axis messages are sent sequentially;
-dispatch is not atomic across all six axes in firmware.
+The execution thread owns `poll`, feedback reads, activation, `command`,
+`finish_trajectory`, pause, disable and close. Planner/GUI work cannot acquire
+another owner. `Feedback` uses ordered physical slots A1-A6, raw shaft degrees,
+deg/s and age in ms; adapters convert to radians/rad/s at the motor API boundary.
 
-Chassis commands pass through `WeldController` → `ChassisOwner.velocity()` →
-`DifferentialDrive` four-wheel allocation → `MotorBus.velocity()` → the existing
-ENCOS driver. Output switches gate commands; disabling chassis output does not
-add arm compensation.
+Arm commands follow `WeldController -> ArmOwner -> TrajectoryArmPort ->
+ArmGroupHoldPort -> ArmBus -> DM-MC02 -> CAN`. Native mode 2 / USB type 4 carries
+position and speed allowance; no torque/feedforward, gain writes or type-25 jog
+smoothing are added. Complete targets are validated before sequential dispatch;
+this is not firmware-atomic multi-axis application.
 
-Hardware adapters are selected only with `scripts/control_weld.py --execute`,
-explicit `--arm` / `--chassis` selection, and the existing fixture/wheel-mapping
-confirmation arguments. Opening the hardware panel does not start welding:
-select participation, calculate a path from fresh feedback, start recovery to
-verify hold and reach standby/weld start, then explicitly start welding motion.
-The application does not energize the welder. The operator performs hardware
-work; see the [weld procedure](../../../../docs/WELD_MOTION.md).
+Chassis commands use the existing `DifferentialDrive -> MotorBus` owner with a
+complete four-wheel mapping. Participation switches gate outputs only, without
+compensation for an inactive counterpart.
 
-## Animation, offline execution and hardware modes
+## Execution and hold semantics
 
-- `--plan-only`: uses the hardware path's solver to generate and check a complete
-  trajectory without creating motor owners.
-- `--simulate`: runs the same `WeldController` with simulated motors to check
-  sequencing, commands, feedback and stopping logic.
-  `--start-report PATH` optionally seeds fake shafts from a saved disabled
-  six-axis diagnostic; hardware rejects this historical-pose option.
-- The embedded **Play preview** button animates a checked route without starting
-  execution. Current/standby views remain available for blocked plans. Rendering
-  consumes cached poses in a separate process; `--no-preview` disables it.
-- `scripts/render_weld.py`: replays a saved trajectory and renders the MuJoCo
-  model without motor owners. It is kinematic playback, not recorded physical
-  motion or loaded dynamics simulation.
-- `--execute`: selects the existing hardware adapters. The earlier animation and
-  fake-motor tests did not execute this mode.
+Measured pose -> verify current-position hold -> checked recovery waypoints ->
+approach -> ready -> explicit weld -> complete. `finish_trajectory()` is called
+only after the controller's measured arrival/settling check. It latches the
+already-dispatched endpoint and speed allowance, clears trajectory intent, and
+continues native command refresh and protection. A pause at that settled endpoint
+preserves the fixed target; an interrupted move captures measured hold targets.
+Disable/fault/close remove torque and do not auto-reset or re-enable.
 
-The saved animation uses `build/weld/cmaes-animation-plan.json`; its complete
-12-cycle sequence has also passed a separate simulated-motor state-machine
-replay. The project target remains 2 Hz; the checked plan reaches about 1.8153 Hz
-under current model constraints. Both profiles default to 5°/s for
-standby/approach; all six welding speed
-caps are 68.7549°/s.
+This fixed-reference hold is not a stiffness-gain setting. Physical sag and drive
+stiffness are tracked under HOLD-01. Ready/complete observations use cached feedback
+and record per-axis error; they issue no extra commands or register reads.
 
-Preparation retains a steady checked speed allowance for the motor's position
-loop, and `controller/preparation.py` slows the common path clock for lagging axes.
-The clock slew uses remaining acceleration headroom; targets stay on the original
-path. Arrival, collision, speed/torque trips and explicit restart contracts remain
-in force. A1 recovery jitter is still physically unresolved; this is not measured
-backlash compensation or torque feedforward.
-The preparation budget is now 5 seconds (`--prep-seconds`); it is a target,
-not a deadline that can falsely complete or truncate a lagging move. Planning
-reports nominal time and an optimistic limits-only lower bound. Paced motion
-uses a per-axis 10-second progress watchdog and a separate 10-second final
-settling timeout. The Nov 16 A5 physical-motion report remains unresolved.
-`weld_recording.py` writes bounded cached evidence to JSONL from another thread,
-without transport requests. Shutdown cannot replace the primary fault reason.
+## Running and verification
 
-Weight compensation follows the first arm welding run under LOAD-01. Sensor
-position feedback and ESO evaluation are tracked under FEEDBACK-01. Motor-side
-position control and host tracking checks exist; external torch-position
-correction, load feedforward and ESO are not installed.
+Use `scripts/control_weld.py --plan-only` for offline planning, `--simulate` for
+fake motors, and explicit `--execute` for reviewed hardware sessions. Selection
+and planning do not enable motors. Preview playback is separate from execution.
+`--optimize-preparation` compares staging poses offline and is rejected by physical
+owners. Generated plans/logs are not distributed through Git.
 
-Adapter verification is in `tests/test_weld_hardware.py`: native C firmware with
-fake CAN motors checks Damiao group commands, pause/hold and feedback loss;
-the ENCOS Python simulator checks chassis feed. These tests do not qualify
-physical loads, bus timing or trajectory tracking. Simulated shafts have no
-gravity/load model, so hanging-start load pickup remains unqualified.
+See [WELD_MOTION.md](../../../../docs/WELD_MOTION.md) for limits/search/timing,
+[ARM_RIG_TEST.md](../../../../docs/ARM_RIG_TEST.md) for operator procedures,
+[the handoff](../../../../docs/ARM_SESSION_HANDOFF.md) for current evidence, and
+[tests/README.md](../../../../tests/README.md) for native fake-CAN, model and Qt
+verification. Loaded holding, shutdown and five-second prep require physical evidence.

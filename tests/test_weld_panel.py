@@ -62,9 +62,11 @@ class WeldPanelTests(unittest.TestCase):
 
     def setUp(self):
         self.evidence = tempfile.TemporaryDirectory()
-        self.journal_path = Path(self.evidence.name)/'session.jsonl'
+        self.journal_path = Path(self.evidence.name) / "session.jsonl"
         self.executor = Executor()
-        self.patch = patch.object(weld_app, "ProcessPoolExecutor", return_value=self.executor)
+        self.patch = patch.object(
+            weld_app, "ProcessPoolExecutor", return_value=self.executor
+        )
         self.patch.start()
         self.geometry_patch = patch.object(weld_app, "WeldGeometry")
         self.geometry_patch.start()
@@ -82,11 +84,15 @@ class WeldPanelTests(unittest.TestCase):
         )
         self.mapping = CalibrationMap(
             json.loads(
-                (ROOT / "src/robot_description/config/arm_calibration_measured.json").read_text()
+                (
+                    ROOT / "src/robot_description/config/arm_calibration_measured.json"
+                ).read_text()
             )
         )
         initial = list(self.mapping.simulation_pose().values())
-        self.window = weld_app.make_window(args, self.mapping, initial, Settings(cycles=1), ROOT)
+        self.window = weld_app.make_window(
+            args, self.mapping, initial, Settings(cycles=1), ROOT
+        )
         self.window.show()
         self.wait(lambda: self.window.worker.controller is not None)
 
@@ -105,17 +111,44 @@ class WeldPanelTests(unittest.TestCase):
             QtTest.QTest.qWait(10)
         self.assertTrue(predicate(), self.window.state_label.text())
 
+    def test_ready_display_uses_weld_goal_and_reports_hold_drift(self):
+        value = dict(
+            state="ready",
+            message="Weld start reached",
+            pending=False,
+            arm_on=True,
+            chassis_on=False,
+            raw_deg=[0.2] * 6,
+            joint_goal=dict(label="Weld start", raw_deg=[0.6] * 6),
+            hold_observation=dict(
+                tracking_error_deg=[0.4] * 6, arrival_tolerance_deg=0.25
+            ),
+        )
+        self.window.show_status(value)
+        self.assertIn("Weld start", self.window.table.horizontalHeaderItem(2).text())
+        for axis in range(6):
+            self.assertEqual(self.window.table.item(axis, 2).text(), "+0.6000")
+            self.assertEqual(self.window.table.item(axis, 3).text(), "+0.4000")
+        self.assertIn("HOLD DRIFT", self.window.tracking_label.text())
+        value.update(state="paused", joint_goal=None, hold_observation=None)
+        self.window.show_status(value)
+        self.assertEqual(self.window.table.item(0, 3).text(), "—")
+
     def set_foreground(self, active):
         with patch.object(self.window, "isActiveWindow", return_value=active):
-            self.app.sendEvent(self.window, QtCore.QEvent(QtCore.QEvent.ActivationChange))
+            self.app.sendEvent(
+                self.window, QtCore.QEvent(QtCore.QEvent.ActivationChange)
+            )
 
     def finish_arm_plan(self):
         c = self.window.worker.controller
         plan = simple_plan(chassis=c.chassis_on)
         offset = c.arm.q.tolist()
         for key in ("home", "approach", "weld"):
-            plan[key]["raw_deg"] = [[q + offset[i] for i, q in enumerate(row)]
-                                    for row in plan[key]["raw_deg"]]
+            plan[key]["raw_deg"] = [
+                [q + offset[i] for i, q in enumerate(row)]
+                for row in plan[key]["raw_deg"]
+            ]
         plan["current_raw_deg"] = plan["home"]["raw_deg"][0]
         plan["initial_raw_deg"] = plan["home"]["raw_deg"][-1]
         plan["request_fingerprint"] = digest(self.executor.request)
@@ -350,8 +383,10 @@ class WeldPanelTests(unittest.TestCase):
         plan = simple_plan(chassis=False)
         offset = c.arm.q.tolist()
         for key in ("home", "approach", "weld"):
-            plan[key]["raw_deg"] = [[q + offset[i] for i, q in enumerate(row)]
-                                    for row in plan[key]["raw_deg"]]
+            plan[key]["raw_deg"] = [
+                [q + offset[i] for i, q in enumerate(row)]
+                for row in plan[key]["raw_deg"]
+            ]
         plan["current_raw_deg"] = plan["home"]["raw_deg"][0]
         plan["initial_raw_deg"] = plan["home"]["raw_deg"][-1]
         plan["request_fingerprint"] = digest(self.executor.request)
@@ -373,8 +408,14 @@ class WeldPanelTests(unittest.TestCase):
         self.assertIsNone(c.plan)
 
     def test_preview_failure_does_not_block_pause_or_heartbeat(self):
-        with patch.object(self.window.preview.backend, "poll", side_effect=RuntimeError("Renderer lost")):
-            self.wait(lambda: "Renderer lost" in self.window.preview.geometry_status.text())
+        with patch.object(
+            self.window.preview.backend,
+            "poll",
+            side_effect=RuntimeError("Renderer lost"),
+        ):
+            self.wait(
+                lambda: "Renderer lost" in self.window.preview.geometry_status.text()
+            )
         self.window.chassis.click()
         self.wait(lambda: self.window.worker.controller.chassis_on)
         self.window.buttons["pause"].click()
@@ -392,25 +433,37 @@ class WeldPanelTests(unittest.TestCase):
         c = self.window.worker.controller
         self.window.arm.click()
         self.wait(lambda: c.arm_on)
-        self.window.buttons['calculate'].click()
+        self.window.buttons["calculate"].click()
         self.wait(lambda: self.executor.future is not None)
         self.finish_arm_plan()
-        self.window.worker.send('initial')
-        self.wait(lambda: 'A1 error:' in self.window.tracking_label.text())
-        self.assertIn('Path rate:', self.window.tracking_label.text())
-        self.assertIn('speed allowance: 5.00°/s', self.window.tracking_label.text())
+        self.window.worker.send("initial")
+        self.wait(lambda: "A1 error:" in self.window.tracking_label.text())
+        self.assertIn("Path rate:", self.window.tracking_label.text())
+        self.assertIn("speed allowance: 5.00°/s", self.window.tracking_label.text())
         self.assertEqual(self.window.table.columnCount(), 4)
         measured = float(self.window.table.item(0, 1).text())
         target = float(self.window.table.item(0, 2).text())
         remaining = float(self.window.table.item(0, 3).text())
-        self.assertAlmostEqual(remaining, target-measured, delta=.0002)
-        self.window.buttons['pause'].click()
+        self.assertAlmostEqual(remaining, target - measured, delta=0.0002)
+        self.window.buttons["pause"].click()
         self.wait(lambda: not self.window.tracking_label.text())
+
         def records():
-            return [json.loads(line) for line in self.journal_path.read_text().split('\n')[:-1]]
-        self.wait(lambda: any(row.get('state') == 'paused' and row.get('last_command') for row in records()))
-        self.assertTrue(any(row.get('kind') == 'accepted_plan' for row in records()))
-        self.assertTrue(self.window.worker.isRunning())  # Evidence exists before shutdown.
+            return [
+                json.loads(line)
+                for line in self.journal_path.read_text().split("\n")[:-1]
+            ]
+
+        self.wait(
+            lambda: any(
+                row.get("state") == "paused" and row.get("last_command")
+                for row in records()
+            )
+        )
+        self.assertTrue(any(row.get("kind") == "accepted_plan" for row in records()))
+        self.assertTrue(
+            self.window.worker.isRunning()
+        )  # Evidence exists before shutdown.
 
 
 if __name__ == "__main__":
