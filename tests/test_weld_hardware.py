@@ -3,6 +3,7 @@
 import source_paths
 import json
 import math
+import tempfile
 from pathlib import Path
 import unittest
 from unittest.mock import patch
@@ -17,6 +18,7 @@ from controls.hardware.weld_plan import (
 )
 from controls.hardware.weld_control import WeldController, chassis_only_plan
 from controls.hardware.weld_ports import SimulatedArm, ChassisOwner
+from controls.controller.tracking import TrackingSettings
 from motors.arm_calibration import CalibrationMap
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -59,7 +61,9 @@ class FakeChassis:
 def simple_plan(arm=True, chassis=True):
     home = move_path(np.zeros(6), np.full(6, 0.3), Settings())
     approach = move_path(np.full(6, 0.3), np.full(6, 0.6), Settings())
-    weld = JointPath([0.0, 0.5, 1.0], [[0.6] * 6, [0.9] * 6, [0.6] * 6])
+    weld = JointPath(
+        [0.0, 0.5, 1.0], [[0.6] * 6, [0.9] * 6, [0.6] * 6], "periodic_cubic"
+    )
     return dict(
         schema="forge.weld_motion_plan",
         version=1,
@@ -116,6 +120,114 @@ class WeldControlTests(unittest.TestCase):
         self.assertEqual(self.chassis.last_feed, 0)
         self.assertTrue(self.arm.enabled)
 
+    def test_continuous_weld_repeats_without_dwell_until_pause_then_holds(self):
+        self.control.continuous_weld = True
+        plan = simple_plan()
+        # Nonzero velocity at the block boundary exposes a stop/restart or
+        # endpoint clamp that a zero-velocity boundary could conceal.
+        weld = JointPath(
+            [0, .25, .5, .75, 1],
+            [[q] * 6 for q in (.6, .9, .6, .3, .6)], "periodic_cubic",
+        )
+        plan["weld"] = weld.document()
+        self.control.select(True, True)
+        self.control.load_plan(plan)
+        self.control.go_initial()
+        for _ in range(500):
+            self.tick()
+            if self.control.state == "ready":
+                break
+        self.assertEqual(self.control.state, "ready")
+        self.chassis.feeds.clear()
+        with patch.object(self.arm, "finish_trajectory", wraps=self.arm.finish_trajectory) as finish:
+            self.control.start_weld()
+            self.tick(1203)  # 24 seconds: past both the pass and old arrival timeout.
+            finish.assert_not_called()
+        self.assertEqual(self.control.state, "welding", self.control.message)
+        self.assertTrue(self.arm.enabled and self.arm.path_active)
+        self.assertTrue(all(v == plan["feed_m_s"] for v in self.chassis.feeds))
+        rows = [r for r in self.control.trace if r["stage"] == "welding"]
+        self.assertEqual(len(rows), 1203)
+        self.assertGreaterEqual(rows[-1]["weld_repeat_index"], 24)
+        phases = np.array([r["path_elapsed_s"] for r in rows])
+        self.assertGreaterEqual(np.count_nonzero(np.diff(phases) < 0), 24)
+        targets = np.array([r["requested_raw_deg"] for r in rows])
+        rates = np.array([r["requested_rate_deg_s"] for r in rows])
+        speed, acceleration = weld.peaks()
+        self.assertTrue(np.all(abs(np.diff(targets, axis=0)) <= speed * .02 + 1e-8))
+        self.assertTrue(np.all(abs(np.diff(rates, axis=0)) <= acceleration * .02 + 1e-8))
+        self.control.pause()
+        target, allowance = self.arm.target.copy(), self.arm.speed.copy()
+        self.assertEqual(self.control.state, "paused")
+        self.assertEqual(self.chassis.last_feed, 0)
+        self.tick(500)
+        self.assertTrue(self.arm.enabled)
+        np.testing.assert_array_equal(self.arm.target, target)
+        np.testing.assert_array_equal(self.arm.speed, allowance)
+        self.assertFalse(any(e["event"] == "completed" for e in self.control.events))
+
+    def test_continuous_output_switches_and_existing_stops(self):
+        self.control.continuous_weld = True
+        self.ready(chassis=False)
+        self.control.start_weld()
+        self.tick(650)
+        self.assertEqual(self.control.state, "welding")
+        self.assertTrue(all(v == 0 for v in self.chassis.feeds))
+        self.clock.advance(.11)
+        self.control.tick()
+        self.assertEqual(self.control.state, "paused")
+        self.assertTrue(self.arm.enabled)
+        self.control.disable_arm()
+        self.control.select(False, True)
+        self.control.load_plan(chassis_only_plan(Settings(cycles=1)))
+        self.control.go_initial()
+        self.control.start_weld()
+        sent = len(self.arm.commands)
+        self.tick(650)
+        self.assertEqual(self.control.state, "welding")
+        self.assertGreater(self.chassis.last_feed, 0)
+        self.assertEqual(len(self.arm.commands), sent)
+        self.assertFalse(self.arm.enabled)
+        self.chassis.error = True
+        self.tick()
+        self.assertEqual(self.control.state, "fault")
+        self.assertEqual(self.chassis.last_feed, 0)
+
+    def test_continuous_weld_rejects_nonperiodic_path_before_enable(self):
+        self.control.continuous_weld = True
+        self.control.select(True, False)
+        plan = simple_plan(chassis=False)
+        plan["weld"]["interpolation"] = "pchip"
+        with self.assertRaisesRegex(ValueError, "periodic weld path"):
+            self.control.load_plan(plan)
+        self.assertFalse(self.arm.enabled)
+        self.assertEqual(self.arm.commands, [])
+
+    def test_hundred_degree_preparation_request_uses_checked_motor_allowance(self):
+        plan = simple_plan(chassis=False)
+        plan["max_speed_deg_s"] = 100.0
+        ceiling = math.degrees(1.2)
+        plan["stage_limits"] = {
+            name: dict(speed_deg_s=[ceiling] * 6, acceleration_deg_s2=[30.0] * 6)
+            for name in ("home", "approach", "weld")
+        }
+        self.control.select(True, False)
+        plan["stage_limits"]["home"]["speed_deg_s"] = [100.0] * 6
+        with self.assertRaisesRegex(ValueError, "Invalid per-axis speed limits"):
+            self.control.load_plan(plan)
+        self.assertFalse(self.arm.enabled)
+        plan["stage_limits"]["home"]["speed_deg_s"] = [ceiling] * 6
+        self.control.load_plan(plan)
+        self.control.go_initial()
+        for _ in range(500):
+            self.tick()
+            if self.control.state == "ready":
+                break
+        self.assertEqual(self.control.state, "ready", self.control.message)
+        for row in self.control.trace:
+            np.testing.assert_allclose(row["speed_limit_deg_s"], [ceiling] * 6)
+        self.assertTrue(self.arm.enabled)
+
     def test_prep_arrival_retains_exact_target_and_allowance_during_hold(self):
         self.ready(chassis=False)
         goal = self.arm.target.copy()
@@ -164,7 +276,10 @@ class WeldControlTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "left the weld start"):
             self.control.start_weld()
         self.control.pause()
-        self.assertIsNone(self.control.joint_goal())
+        self.assertEqual(self.control.joint_goal()["label"], "Weld start")
+        self.assertEqual(self.control.state, "ready")
+        with self.assertRaisesRegex(ValueError, "left the weld start"):
+            self.control.start_weld()
 
     def test_settled_endpoint_is_not_recaptured_on_pause(self):
         self.ready(chassis=False)
@@ -178,7 +293,64 @@ class WeldControlTests(unittest.TestCase):
         self.assertTrue(self.arm.enabled)
         self.tick(10)
         np.testing.assert_allclose(self.arm.q, target, atol=1e-10)
-        self.assertEqual(self.control.state, "paused")
+        self.assertEqual(self.control.state, "ready")
+        self.control.start_weld()
+        self.assertEqual(self.control.state, "welding")
+
+    def test_ready_pause_keeps_plan_until_explicit_start_or_disable(self):
+        self.ready(chassis=False)
+        plan = self.control.plan
+        target = self.arm.target.copy()
+        sent = len(self.arm.commands)
+        for _ in range(3):
+            self.control.pause()
+            self.tick(200)
+        self.assertIs(self.control.plan, plan)
+        self.assertEqual(self.control.state, "ready")
+        self.assertEqual(len(self.arm.commands), sent)
+        np.testing.assert_array_equal(self.arm.target, target)
+        self.assertTrue(self.arm.enabled)
+        self.control.disable_arm()
+        self.assertIsNone(self.control.plan)
+        self.assertFalse(self.arm.enabled)
+        with self.assertRaises(ValueError):
+            self.control.start_weld()
+
+    def test_reset_stays_disabled_discards_plan_and_requires_fresh_selection(self):
+        self.ready(chassis=False)
+        self.control.fail(RuntimeError("Latched motor fault"))
+        sent = len(self.arm.commands)
+        with patch.object(self.arm, "recover", wraps=self.arm.recover) as recover:
+            self.control.reset_motor_fault(Path("unused-fake-report.json"))
+            recover.assert_called_once()
+        self.assertIsNone(self.control.fault)
+        self.assertEqual(self.control.state, "idle")
+        self.assertFalse(self.arm.enabled or self.control.arm_on or self.control.arm_holding)
+        self.assertIsNone(self.control.plan)
+        self.assertEqual(self.control.paths, {})
+        self.assertEqual(len(self.arm.commands), sent)
+        with self.assertRaises(ValueError):
+            self.control.start_weld()
+
+    def test_reset_does_not_interrupt_healthy_hold_or_clear_failed_recovery(self):
+        self.ready(chassis=False)
+        with patch.object(self.arm, "recover") as recover:
+            with self.assertRaisesRegex(ValueError, "No connected arm fault"):
+                self.control.reset_motor_fault(Path("unused.json"))
+            recover.assert_not_called()
+        self.assertTrue(self.arm.enabled)
+        self.control.fail(RuntimeError("Original motor fault"))
+        with patch.object(self.arm, "recover", side_effect=RuntimeError("Still moving")):
+            with self.assertRaisesRegex(RuntimeError, "Still moving"):
+                self.control.reset_motor_fault(Path("unused.json"))
+        self.assertEqual(self.control.fault, "Original motor fault")
+        self.assertEqual(self.control.state, "fault")
+        self.assertFalse(self.arm.enabled)
+        self.chassis.error = True
+        with patch.object(self.arm, "recover") as recover:
+            with self.assertRaisesRegex(RuntimeError, "link fault"):
+                self.control.reset_motor_fault(Path("unused.json"))
+            recover.assert_not_called()
 
     def test_cannot_skip_initial_or_approach(self):
         self.control.select(True, True)
@@ -450,7 +622,7 @@ class WeldPlanTests(unittest.TestCase):
     def test_invalid_requests(self):
         for args in (
             {"hz": 0},
-            {"max_speed_deg_s": 11},
+            {"max_speed_deg_s": 100.01},
             {"cycles": 1.5},
             {"feed_m_s": float("nan")},
             {"time_scale": 0.5},
@@ -513,7 +685,7 @@ class WeldNativeArmTests(unittest.TestCase):
 
         native.RoutedRoundTrip.tearDown(self)
 
-    def port(self, max_speed_deg_s=5.0):
+    def port(self, max_speed_deg_s=5.0, a1_encoder_turns=0, allow_faulted_start=False):
         from controls.hardware.weld_ports import TrajectoryArmPort
         from motors.arm_calibration import DRIVES
 
@@ -534,9 +706,89 @@ class WeldNativeArmTests(unittest.TestCase):
                 for i, n in enumerate(DRIVES, 1)
             },
         )
+        if a1_encoder_turns:
+            from controls.controller.calibration import select_a1_encoder_branch
+
+            saved = json.loads((ROOT / "src/robot_description/config/arm_calibration_measured.json").read_text())
+            mapping["joints"]["1"] = saved["joints"]["1"]
+            mapping = select_a1_encoder_branch(CalibrationMap(mapping), a1_encoder_turns).document
         return TrajectoryArmPort(
-            profile, bus=self.bus, mapping=mapping, max_speed_deg_s=max_speed_deg_s
+            profile, bus=self.bus, mapping=mapping, max_speed_deg_s=max_speed_deg_s,
+            allow_faulted_start=allow_faulted_start,
         )
+
+    def test_native_reset_saves_fault_and_reuses_owner_without_enabling(self):
+        from motors import arm_position as position, arm_bench as bench
+        from controls.hardware.weld_ports import ArmOwner
+
+        with patch.object(position, "time", bench.time), self.port() as port:
+            owner = ArmOwner.__new__(ArmOwner)
+            owner.port = port
+            control = WeldController(owner, clock=bench.time.monotonic,
+                                     pose_check=lambda *a, **k: None)
+            port.hold_all()
+            self.lib.fake_torque(1, 12.1)
+            self.lib.fake_advance(2)
+            with self.assertRaises(RuntimeError):
+                port.poll()
+            self.lib.fake_torque(1, 0)
+            control.fail(RuntimeError(owner.fault))
+            with tempfile.TemporaryDirectory() as directory, \
+                 patch.object(self.bus, "enable_bench_group") as enable, \
+                 patch.object(self.bus, "command") as command, \
+                 patch.object(position, "ArmBus", side_effect=AssertionError("Second owner")):
+                control.reset_motor_fault(Path(directory) / "weld.json")
+                evidence = list(Path(directory).glob("weld.fault-*.json"))
+                self.assertEqual(len(evidence), 1)
+                self.assertTrue(json.loads(evidence[0].read_text())["recovery"]["fault_before"]["fault"])
+                enable.assert_not_called()
+                command.assert_not_called()
+            self.assertEqual(control.state, "idle")
+            self.assertIsNone(control.fault)
+            self.assertFalse(port.holding or port.path_active or port.endpoint_hold or port.recovery_required)
+            self.assertEqual([self.lib.fake_status(i) for i in range(6)], [0] * 6)
+            self.assertTrue(port.report["recoveries"][-1]["success"])
+
+    def test_native_startup_latch_remains_available_for_explicit_reset(self):
+        from motors import arm_position as position, arm_bench as bench
+        from controls.hardware.weld_ports import ArmOwner
+        from test_damiao_bench import RoutedRoundTrip
+
+        RoutedRoundTrip.latch_recovery_fault(self, full=True)
+        with patch.object(position, "time", bench.time), self.port(allow_faulted_start=True) as port:
+            owner = ArmOwner.__new__(ArmOwner)
+            owner.port = port
+            self.assertTrue(owner.fault)
+            self.assertFalse(port.closed)
+            with tempfile.TemporaryDirectory() as directory:
+                owner.recover(Path(directory) / "startup.json")
+            self.assertIsNone(owner.fault)
+            self.assertFalse(port.holding or port.recovery_required)
+            self.assertEqual([self.lib.fake_status(i) for i in range(6)], [0] * 6)
+
+    def test_explicit_a1_branch_sends_positive_raw_target_without_full_turn(self):
+        from motors import arm_position as position, arm_bench as bench
+
+        self.lib.fake_position(0, math.radians(163.1074))
+        with patch.object(position, "time", bench.time), self.port(a1_encoder_turns=1) as port:
+            port.hold_all(math.radians(5))
+            raw = np.degrees([port.hold_targets[i] for i in range(6)])
+            self.assertAlmostEqual(raw[0], 163.1074, delta=.03)
+            raw[0] += .2
+            writes = self.lib.fake_parameter_writes()
+            with patch.object(self.bus, "command", wraps=self.bus.command) as command:
+                port.set_targets(raw, [5.0] * 6)
+                port.finish_trajectory()
+                port.pause_trajectory()
+                a1_targets = [call.args[1] for call in command.call_args_list if call.args[0] == 0]
+                self.assertTrue(a1_targets)
+                np.testing.assert_allclose(np.degrees(a1_targets), raw[0], atol=.001)
+            self.assertEqual(self.lib.fake_parameter_writes(), writes)
+            np.testing.assert_allclose(np.degrees(port.hold_targets[0]), raw[0])
+            # An in-session branch jump remains invalid, rather than silently wrapped.
+            raw[0] -= 360
+            with self.assertRaisesRegex(ValueError, "A1.*encoder branch"):
+                port.set_targets(raw, [5.0] * 6)
 
     def test_native_stream_complete_group_and_pause(self):
         from motors import arm_position as position, arm_bench as bench
@@ -581,6 +833,125 @@ class WeldNativeArmTests(unittest.TestCase):
             self.assertEqual(port.hold_targets, targets)
             np.testing.assert_array_equal(port.path_speeds, speeds)
             self.assertEqual(self.lib.fake_parameter_writes(), writes)
+            self.assertEqual([self.lib.fake_disables(i) for i in range(6)], disables)
+            self.assertEqual([self.lib.fake_status(i) for i in range(6)], [1] * 6)
+
+    def test_moving_cycle_reads_and_dispatches_each_axis_once(self):
+        from motors import arm_position as position, arm_bench as bench
+        from controls.hardware.weld_ports import ArmOwner
+
+        with patch.object(position, "time", bench.time), self.port() as port:
+            port.hold_all()
+            owner = ArmOwner.__new__(ArmOwner)
+            owner.port = port
+            control = WeldController(owner, clock=bench.time.monotonic,
+                                     pose_check=lambda *a, **k: None,
+                                     tracking_settings=TrackingSettings())
+            control.select(True, False)
+            control.load_plan(simple_plan(chassis=False))
+            control.go_initial()
+            for _ in range(20):
+                self.lib.fake_advance(20)
+                control.tick()
+                if control.state == "initial":
+                    break
+            self.assertEqual(control.state, "initial", control.message)
+            with patch.object(port.session, "sample", wraps=port.session.sample) as read, \
+                 patch.object(self.bus, "command", wraps=self.bus.command) as command:
+                self.lib.fake_advance(20)
+                control.tick()
+                self.assertEqual(control.state, "initial", control.message)
+                self.assertEqual(read.call_count, 6)
+                self.assertEqual(command.call_count, 6)
+                # Consumed samples cannot authorize a second command batch.
+                port.set_targets([0.1] * 6, [5] * 6)
+                self.assertEqual(read.call_count, 12)
+                self.assertEqual(command.call_count, 12)
+
+    def test_native_continuous_weld_keeps_enabled_across_wraps_and_pause(self):
+        from motors import arm_position as position, arm_bench as bench
+        from controls.hardware.weld_ports import ArmOwner
+
+        with patch.object(position, "time", bench.time), self.port() as port:
+            owner = ArmOwner.__new__(ArmOwner)
+            owner.port = port
+            control = WeldController(
+                owner, clock=bench.time.monotonic, continuous_weld=True,
+                pose_check=lambda *a, **k: None,
+                tracking_settings=TrackingSettings(),
+            )
+            control.select(True, False)
+            control.load_plan(simple_plan(chassis=False))
+            control.go_initial()
+            for _ in range(500):
+                self.lib.fake_advance(20)
+                control.tick()
+                if control.state == "ready":
+                    break
+            self.assertEqual(control.state, "ready", control.message)
+            writes = self.lib.fake_parameter_writes()
+            disables = [self.lib.fake_disables(i) for i in range(6)]
+            with patch.object(self.bus, "enable_bench_group") as enable, \
+                 patch.object(port, "finish_trajectory", wraps=port.finish_trajectory) as finish:
+                control.start_weld()
+                for _ in range(800):
+                    self.lib.fake_advance(20)
+                    control.tick()
+                self.assertEqual(control.state, "welding", control.message)
+                self.assertGreaterEqual(control.trace[-1]["weld_repeat_index"], 15)
+                self.assertTrue(port.path_active)
+                self.assertEqual([self.lib.fake_status(i) for i in range(6)], [1] * 6)
+                finish.assert_not_called()
+                enable.assert_not_called()
+            control.pause()
+            targets = dict(port.hold_targets)
+            allowance = port.path_speeds.copy()
+            for _ in range(500):
+                self.lib.fake_advance(20)
+                control.tick()
+            self.assertEqual(control.state, "paused")
+            self.assertEqual(port.hold_targets, targets)
+            np.testing.assert_array_equal(port.path_speeds, allowance)
+            self.assertTrue(port.holding)
+            self.assertFalse(port.path_active)
+            self.assertEqual(self.lib.fake_parameter_writes(), writes)
+            self.assertEqual([self.lib.fake_disables(i) for i in range(6)], disables)
+            self.assertEqual([self.lib.fake_status(i) for i in range(6)], [1] * 6)
+
+    def test_slow_calculation_cannot_dispatch_from_expired_feedback(self):
+        from motors import arm_position as position, arm_bench as bench
+
+        with patch.object(position, "time", bench.time), self.port() as port:
+            port.hold_all()
+            port.begin_cycle()
+            self.lib.fake_advance(81)
+            with patch.object(self.bus, "command", wraps=self.bus.command) as command:
+                with self.assertRaisesRegex(RuntimeError, "stale before trajectory dispatch"):
+                    port.set_targets([0.2] * 6, [5] * 6)
+                command.assert_not_called()
+            self.assertTrue(port.recovery_required)
+            self.assertEqual([self.lib.fake_status(i) for i in range(6)], [0] * 6)
+
+    def test_repeated_pause_keeps_first_hold_target_and_speed(self):
+        from motors import arm_position as position, arm_bench as bench
+
+        with patch.object(position, "time", bench.time), self.port(math.degrees(1.2)) as port:
+            port.hold_all()
+            port.set_targets([0.2] * 6, [65] * 6)
+            port.pause_trajectory()
+            targets, speeds = dict(port.hold_targets), port.path_speeds.copy()
+            disables = [self.lib.fake_disables(i) for i in range(6)]
+            # Disturb A5 between repeated Space/focus-loss/recalculate actions.
+            self.lib.fake_position(4, targets[4] - math.radians(0.2))
+            port.pause_trajectory()
+            self.assertEqual(port.hold_targets, targets)
+            np.testing.assert_array_equal(port.path_speeds, speeds)
+            for _ in range(500):
+                self.lib.fake_advance(20)
+                port.poll()
+            self.assertEqual(port.hold_targets, targets)
+            np.testing.assert_allclose([row.position_rad for row in port.cached_positions()],
+                                       list(targets.values()), atol=math.radians(0.04))
             self.assertEqual([self.lib.fake_disables(i) for i in range(6)], disables)
             self.assertEqual([self.lib.fake_status(i) for i in range(6)], [1] * 6)
 
@@ -709,7 +1080,7 @@ class WeldNativeArmTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 port.set_targets([0.2] * 6, [80] * 6)
             port.pause_trajectory()
-            self.assertTrue(np.all(port.path_speeds <= math.radians(5)))
+            np.testing.assert_allclose(port.path_speeds, math.radians(65))
 
     def test_native_feedback_loss_stops_all_joints(self):
         from motors import arm_position as position, arm_bench as bench

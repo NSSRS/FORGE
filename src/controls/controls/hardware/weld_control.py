@@ -20,6 +20,8 @@ from controls.controller.limits import motor_constraints
 from motors.arm_travel import a4_cable_bounds, check_a4
 from controls.controller.recovery import RECOVERY_CLEARANCE_MM, START_TOLERANCE_DEG
 from controls.controller.preparation import PreparationClock
+from controls.controller.tracking import PositionTracker
+from controls.controller.motion_feedback import MotionFrequency
 
 
 class TrajectoryPaused(RuntimeError):
@@ -57,10 +59,19 @@ class WeldController:
     ACTIVE = ("verifying_hold", "initial", "approach", "welding")
 
     def __init__(
-        self, arm=None, chassis=None, *, clock=time.monotonic, pose_check=None
+        self, arm=None, chassis=None, *, clock=time.monotonic, pose_check=None,
+        allow_optimized_preparation=False, continuous_weld=False,
+        tracking_settings=None,
     ):
         self.arm, self.chassis, self.clock = arm, chassis, clock
         self.pose_check = pose_check
+        self.allow_optimized_preparation = allow_optimized_preparation
+        self.continuous_weld = continuous_weld
+        self.tracker = PositionTracker(tracking_settings) if tracking_settings is not None else None
+        self.tracking_projection_scale = 1.0
+        self.motion_frequency = MotionFrequency()
+        self.weld_travel_deg = None
+        self.weld_correction_mask = None
         self.a4_bounds = a4_cable_bounds()
         self.arm_on = False
         self.chassis_on = False
@@ -113,6 +124,29 @@ class WeldController:
             return None
         return dict(label=label, raw_deg=raw.tolist())
 
+    def project_tracking_target(self, reference, target, *, recovery, dt):
+        """Limit virtual position lead to model-valid targets before shaping."""
+        clearance = RECOVERY_CLEARANCE_MM if recovery else 1.8
+        def check(raw):
+            check_a4(float(raw[3]), self.a4_bounds)
+            self.pose_check(raw, clearance_mm=clearance)
+        # Retain the constrained gain and recover it slowly. Searching again
+        # from full gain every tick both chatters at the boundary and consumes
+        # the motor owner's feedback-age budget with redundant model checks.
+        scale = min(1.0, self.tracking_projection_scale + 0.1 * dt)
+        for _ in range(2):
+            candidate = reference + scale * (target - reference)
+            try:
+                check(candidate)
+                self.tracking_projection_scale = scale
+                return candidate
+            except ValueError:
+                scale *= 0.5
+        # Extra correction headroom is not a stricter nominal path requirement.
+        self.check_pose(reference, recovery=recovery)
+        self.tracking_projection_scale = 0.0
+        return reference.copy()
+
     def observe_endpoint_hold(self, now):
         """Record fresh cached feedback against the fixed goal after arrival.
 
@@ -160,12 +194,12 @@ class WeldController:
 
     def select(self, arm, chassis):
         if self.fault:
-            raise RuntimeError("Fault is latched; resolve it and explicitly reconnect")
+            raise RuntimeError("Fault is latched; use Reset motor fault before selecting outputs")
         if type(arm) is not bool or type(chassis) is not bool:
             raise ValueError("Participation switches must be booleans")
         if arm and self.arm is None or chassis and self.chassis is None:
             raise ValueError("Connect the selected hardware owner first")
-        self.pause()
+        self.pause(preserve_ready=False)
         if self.fault:
             raise RuntimeError("Stop failed; no component may be enabled")
         if arm and not self.arm_holding:
@@ -181,14 +215,21 @@ class WeldController:
             raise ValueError("Pause before accepting a plan")
         if plan.get("schema") != "forge.weld_motion_plan" or plan.get("version") != 1:
             raise ValueError("Unsupported weld plan")
-        if plan.get("offline_only") and any(
+        physical_output = any(
             enabled and not getattr(port, "offline", False)
             for enabled, port in (
                 (self.arm_on, self.arm),
                 (self.chassis_on, self.chassis),
             )
-        ):
+        )
+        if plan.get("offline_only") and physical_output:
             raise ValueError("Experimental preparation plan is offline-only")
+        if (
+            "preparation_search" in plan
+            and physical_output
+            and not self.allow_optimized_preparation
+        ):
+            raise ValueError("Optimized staging requires --optimize-preparation for hardware")
         plan = deepcopy(plan)
         if (plan["arm_enabled"], plan["chassis_enabled"]) != (
             self.arm_on,
@@ -218,6 +259,8 @@ class WeldController:
                 n: JointPath.from_document(plan[n])
                 for n in ("home", "approach", "weld")
             }
+            if self.continuous_weld and paths["weld"].interpolation != "periodic_cubic":
+                raise ValueError("Continuous welding requires a checked periodic weld path")
             for name, path in paths.items():
                 cable_bounds = [(-math.inf, math.inf)] * 6
                 cable_bounds[3] = self.a4_bounds
@@ -332,6 +375,15 @@ class WeldController:
         self.plan = plan
         self.paths = paths
         self.preparation = preparation
+        self.weld_travel_deg = None
+        self.weld_correction_mask = None
+        if self.arm_on:
+            low, high = paths["weld"].position_bounds()
+            self.weld_travel_deg = (high - low).tolist()
+            if self.tracker is not None:
+                self.weld_correction_mask = (
+                    high - low >= self.tracker.settings.minimum_weld_travel_deg
+                )
         self.state = "planned"
         self.last_accepted_plan = plan
         self.hold_deviated = False
@@ -371,6 +423,9 @@ class WeldController:
                     self.fail(exc)
                     return
             self.recovery_index = 0
+            if self.tracker is not None:
+                self.tracker.reset(self.paths["home"].positions[0], reset_model=True)
+                self.tracking_projection_scale = 1.0
             for clock in self.preparation.values():
                 clock.reset()
             self.state = "verifying_hold"
@@ -390,27 +445,45 @@ class WeldController:
         if self.fault or self.state != "ready":
             raise ValueError("Reach the weld start before starting welding motion")
         if self.arm_on:
+            if not self.arm_holding:
+                raise ValueError("Arm hold is not active; calculate a new approach")
+            actual = self.feedback(stationary=True).raw_deg
             if (
                 max(
                     abs(
-                        self.feedback(stationary=True).raw_deg
+                        actual
                         - self.paths["weld"].positions[0]
                     )
                 )
                 > self.arrival_deg
             ):
-                raise ValueError("Arm left the weld start; calculate a new approach")
+                raise ValueError("Arm left the weld start; wait for the hold to settle or calculate a new approach")
+            self.check_pose(actual)
+            if self.tracker is not None:
+                self.tracker.reset(self.paths["weld"].positions[0])
+                self.tracking_projection_scale = 1.0
         self.state = "welding"
+        self.motion_frequency.reset()
         self.started = self.clock()
         self.last_tick = self.started
         self.settled = None
-        self.event("weld_started")
+        self.event(
+            "weld_started", continuous=self.continuous_weld,
+            repeat_duration_s=(
+                self.paths["weld"].duration if self.arm_on else self.plan["duration_s"]
+            ),
+        )
         self.message = (
-            "Welding motion active. This application does not energize a welder."
+            "Welding motion repeats until Pause / Hold."
+            if self.continuous_weld else "Welding motion active; one planned pass."
         )
 
-    def pause(self, reason=None):
+    def pause(self, reason=None, *, preserve_ready=True):
         # Attempt both actions even when one transport fails.
+        keep_ready = bool(
+            preserve_ready and self.state == "ready" and self.plan is not None
+            and not self.fault and (not self.arm_on or self.arm_holding)
+        )
         errors = []
         if self.chassis is not None:
             try:
@@ -422,25 +495,28 @@ class WeldController:
                 self.arm.pause()
             except Exception as exc:
                 errors.append(str(exc))
-        self.plan = None
-        self.paths = {}
+        if not keep_ready:
+            self.plan = None
+            self.paths = {}
         self.started = None
         self.settled = None
-        if self.state != "fault":
+        if self.state != "fault" and not keep_ready:
             self.state = "paused"
         self.message = (
+            "Ready: preparation retained; holding at the weld start. Press Start welding motion when ready."
+            if keep_ready else
             "Paused: chassis zero, "
             + ("arm holding. " if self.arm_holding else "arm not enabled. ")
             + "Recalculate before restarting."
         )
         if reason:
             self.message = reason
-        self.event("pause", reason=reason)
+        self.event("pause", reason=reason, ready_preserved=keep_ready)
         if errors:
             self.fail(RuntimeError("; ".join(errors)))
 
     def disable_arm(self):
-        self.pause()
+        self.pause(preserve_ready=False)
         try:
             if self.arm is not None:
                 self.arm.disable()
@@ -448,6 +524,38 @@ class WeldController:
             self.arm_on = False
             self.arm_holding = False
         self.event("arm_disabled")
+
+    def reset_motor_fault(self, report_path):
+        """Explicit recovery through the connected owner; never resume a plan."""
+        if not self.fault or self.arm is None:
+            raise ValueError("No connected arm fault to reset")
+        if self.arm_holding or self.state in self.ACTIVE:
+            raise ValueError("Disable motion before resetting a motor fault")
+        previous = self.fault
+        self.event("motor_reset_requested", fault=previous, report_path=str(report_path))
+        self.state = "resetting"
+        try:
+            if self.chassis is not None:
+                self.chassis.stop()
+                self.chassis.check()
+            self.arm.recover(report_path)
+            self.feedback(stationary=True)
+        except Exception as exc:
+            self.state = "fault"
+            self.message = f"FAULT: {previous}; motor reset failed: {exc}"
+            self.event("motor_reset_failed", error=str(exc), original_fault=previous)
+            raise
+        self.fault = None
+        self.arm_on = self.chassis_on = self.arm_holding = False
+        self.plan, self.paths, self.preparation = None, {}, {}
+        self.started = self.settled = self.last_tick = None
+        self.last_observation = None
+        self.recovery_stops = []
+        self.recovery_index = 0
+        self.hold_deviated = False
+        self.state = "idle"
+        self.message = "Motor fault reset verified. Motors remain disabled; select outputs and calculate a fresh path."
+        self.event("motor_reset_completed", original_fault=previous, motors_enabled=False)
 
     def fail(self, error):
         primary = self.fault is None
@@ -481,15 +589,19 @@ class WeldController:
         try:
             dt = 0.0 if self.last_tick is None else now - self.last_tick
             if self.state in self.ACTIVE and self.last_tick is not None:
-                if not 0 <= dt <= self.max_gap_s:
+                if not 0 <= dt <= self.max_gap_s + 1e-9:
                     self.pause(
                         "Control timing gap: paused without catching up missed motion."
                     )
                     self.last_tick = now
                     return
+                dt = min(dt, self.max_gap_s)  # Ignore floating-point boundary noise.
             self.last_tick = now
             if self.arm_holding:
-                self.arm.poll()
+                if self.state in ("initial", "approach", "welding"):
+                    getattr(self.arm, "begin_cycle", self.arm.poll)()
+                else:
+                    self.arm.poll()
             if self.chassis is not None:
                 self.chassis.check()
                 # Once commanded, the native ENCOS owner also leases zero targets.
@@ -506,7 +618,9 @@ class WeldController:
                 return
             elapsed = now - self.started
             if not self.arm_on:
-                if self.state == "welding" and elapsed < self.plan["duration_s"]:
+                if self.state == "welding" and (
+                    self.continuous_weld or elapsed < self.plan["duration_s"]
+                ):
                     if self.chassis_on:
                         self.chassis.velocity(self.plan["feed_m_s"])
                 else:
@@ -557,7 +671,10 @@ class WeldController:
                 else path.duration
             )
             duration = end - offset
+            looping = key == "weld" and self.continuous_weld
             actual = self.feedback()
+            if key == "weld":
+                self.motion_frequency.update(self.clock(), actual.raw_deg, actual.age_ms)
             self.last_observation = dict(
                 time_s=now,
                 stage=self.state,
@@ -568,10 +685,16 @@ class WeldController:
             self.check_pose(actual.raw_deg, recovery=key == "home")
             preparation = self.preparation.get(key)
             if preparation is not None:
-                desired, rate = preparation.advance(dt, actual.raw_deg, offset, end)
+                desired, rate = (
+                    preparation.advance_nominal(dt, offset, end)
+                    if self.tracker is not None else
+                    preparation.advance(dt, actual.raw_deg, offset, end)
+                )
                 path_elapsed = preparation.elapsed
             else:
-                path_elapsed = min(elapsed, duration)
+                # The checked periodic cubic closes position, velocity and
+                # acceleration. Repeat its phase without a dwell or new enable.
+                path_elapsed = elapsed % duration if looping else min(elapsed, duration)
                 desired, rate = path.sample(path_elapsed)
             error = desired - actual.raw_deg
             if max(abs(error)) > self.tracking_deg:
@@ -593,13 +716,12 @@ class WeldController:
                 ),
                 (6,),
             )
-            # Native mode 2 owns position feedback. Keep a steady preparation
-            # speed allowance instead of collapsing it near every tiny target.
-            # The checked, feedback-paced position path still defines the move.
+            # Mode 2 velocity is a ceiling, not velocity feedforward. Keep the
+            # checked allowance through motion and endpoint holding; shrinking
+            # it with reference velocity/error throttles the drive near arrival.
             speed = (
                 np.minimum(ceiling, self.plan["max_speed_deg_s"])
-                if preparation is not None
-                else np.minimum(ceiling, np.maximum(0.1, abs(rate) + 2 * abs(error)))
+                if preparation is not None else ceiling.copy()
             )
             timeout = (
                 preparation.timeout_reason(
@@ -608,7 +730,7 @@ class WeldController:
                 if preparation is not None
                 else (
                     "Arrival timeout; no next stage started."
-                    if elapsed > duration + 10
+                    if not looping and elapsed > duration + 10
                     else None
                 )
             )
@@ -627,6 +749,36 @@ class WeldController:
                 )
                 self.pause(timeout)
                 return
+            command = desired
+            tracker_data = None
+            if self.tracker is not None:
+                acceleration = np.broadcast_to(np.asarray(envelope.get(
+                    "acceleration_deg_s2", self.plan["max_accel_deg_s2"]
+                ), dtype=float), (6,))
+                command = self.tracker.step(
+                    desired, rate, actual.raw_deg, actual.velocity_deg_s,
+                    dt, speed, acceleration,
+                    endpoint=not looping and path_elapsed >= duration,
+                    remaining_s=None if looping else max(0, duration - path_elapsed),
+                    adapt=preparation is not None,
+                    position_bounds=None if preparation is None else preparation.position_bounds,
+                    correction_mask=self.weld_correction_mask if key == "weld" else None,
+                    project=lambda reference, target: self.project_tracking_target(
+                        reference, target, recovery=key == "home", dt=dt),
+                )
+                if max(abs(command - desired)) > self.tracker.settings.max_correction_deg + 1e-9:
+                    self.pause("Tracking correction bound reached; hold retained; recalculate.")
+                    return
+                # A virtual position lead is not the measured physical path.
+                # Check both the actual shaft pose (above) and the final shaped
+                # target, including raw/cable bounds, before each dispatch.
+                try:
+                    self.check_pose(command, recovery=key == "home")
+                except ValueError as exc:
+                    self.pause(f"Tracking correction blocked: {exc}; hold retained; recalculate.")
+                    return
+                tracker_data = self.tracker.last
+                tracker_data["clearance_correction_scale"] = self.tracking_projection_scale
             if len(self.trace) == self.trace.maxlen:
                 self.trace_dropped += 1
             self.trace.append(
@@ -635,9 +787,12 @@ class WeldController:
                     stage=self.state,
                     elapsed_s=elapsed,
                     path_elapsed_s=path_elapsed,
+                    weld_repeat_index=int(elapsed // duration) if looping else 0,
                     path_clock_scale=1.0 if preparation is None else preparation.scale,
                     tracking_error_deg=error.tolist(),
                     requested_raw_deg=desired.tolist(),
+                    command_raw_deg=command.tolist(),
+                    tracker=tracker_data,
                     measured_raw_deg=actual.raw_deg.tolist(),
                     requested_rate_deg_s=rate.tolist(),
                     measured_velocity_deg_s=actual.velocity_deg_s.tolist(),
@@ -647,18 +802,22 @@ class WeldController:
                 )
             )
             try:
-                self.arm.command(desired, speed)
+                self.arm.command(command, speed)
                 self.trace[-1]["dispatch_state"] = "sent"
             except Exception:
                 self.trace[-1]["dispatch_state"] = "incomplete"
                 raise
-            if self.state == "welding" and elapsed < path.duration and self.chassis_on:
+            if self.state == "welding" and self.chassis_on and (
+                looping or elapsed < path.duration
+            ):
                 self.chassis.velocity(self.plan["feed_m_s"])
             elif self.chassis is not None:
                 self.chassis.stop()
-            if path_elapsed >= duration:
+            if not looping and path_elapsed >= duration:
                 stationary = max(abs(actual.velocity_deg_s)) < math.degrees(0.03)
                 arrived = max(abs(error)) <= self.arrival_deg and stationary
+                if self.tracker is not None:
+                    arrived = arrived and self.tracker.at_endpoint(desired)
                 self.settled = (
                     (now if self.settled is None else self.settled) if arrived else None
                 )
@@ -672,6 +831,8 @@ class WeldController:
                         self.started = now
                         self.settled = None
                         preparation.reset()
+                        if self.tracker is not None:
+                            self.tracker.reset(desired)
                         if self.recovery_index == len(self.recovery_stops):
                             self.state = "approach"
                             self.message = "Standby reached; moving to weld start."
@@ -680,7 +841,7 @@ class WeldController:
                     elif self.state == "approach":
                         self.arm.finish_trajectory()
                         self.state = "ready"
-                        self.message = "Weld start reached. Press Start welding motion."
+                        self.message = "Weld start reached; all six motors holding. Press Start welding motion."
                     else:
                         self.arm.finish_trajectory()
                         self.state = "complete"
@@ -701,7 +862,7 @@ class WeldController:
 
     def close(self):
         errors = []
-        self.pause()
+        self.pause(preserve_ready=False)
         for port in (self.chassis, self.arm):
             if port is not None:
                 try:

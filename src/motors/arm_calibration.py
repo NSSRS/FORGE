@@ -65,7 +65,10 @@ class CalibrationMap:
         raw = number(raw, 'raw angle')
         lo, hi = self.raw_limits(joint)
         if not lo <= raw <= hi:
-            raise ValueError(f'A{joint}: raw angle outside configured encoder branch/cable envelope; do not wrap it automatically')
+            raise ValueError(
+                f'A{joint}: raw angle {raw:+.4f} deg outside configured encoder branch/cable envelope '
+                f'[{lo:+.4f}, {hi:+.4f}] deg; do not wrap it automatically'
+            )
         return row['model_per_raw'] * raw + row['model_intercept_deg']
 
     def raw(self, joint, model):

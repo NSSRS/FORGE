@@ -7,7 +7,7 @@ not a second ROS command path.
 
 | Directory | Ownership |
 | --- | --- |
-| `controls/controller/` | Calibration, constraints, D3-closed IK, retiming, preparation/staging search and CMA-ES |
+| `controls/controller/` | Calibration, constraints, D3-closed IK, retiming, staging search, bounded PID tracking, cached frequency estimation and CMA-ES |
 | `controls/hardware/` | Shared state machine, native/fake adapters, fixed endpoint hold, Qt panel and cached evidence |
 | `controls/simulation/` | Original MuJoCo dynamic weave controller |
 | `config/` | Experiment, motion-policy and pinned motor-physics inputs |
@@ -22,9 +22,14 @@ named explicitly; the motor API boundary uses raw output-shaft radians/rad/s.
 ```
 
 The current flow is measured pose -> checked recovery -> weld start -> explicit
-weld -> fixed endpoint hold. Preparation defaults to 5 deg/s; the five-second
-staging comparison is offline-only. HOLD-01 owns physical stiffness and post-prep
-sag acceptance. Native mode-2 drive gain writes, gravity feedforward, Cartesian
+continuous weld -> Pause / Hold. The checked `--cycles` block repeats; add
+`--single-pass` for bounded completion and endpoint hold. Preparation defaults to 5 deg/s; the five-second
+staging comparison requires explicit `--optimize-preparation` on hardware.
+The default host PID tracker uses nominal preparation time, bounded velocity lead
+and acceleration-bounded braking inside each finite leg. Welding keeps the tiny
+nominal axis motions while omitting host correction below 0.3 deg peak-to-peak.
+Frequency and measured/planned travel use cached feedback. Five-second physical
+timing remains unqualified. HOLD-01 owns stiffness and post-prep sag acceptance. Native mode-2 drive gain writes, gravity feedforward, Cartesian
 outer correction and ESO are not installed.
 
 Start with [WELD_MOTION.md](../../docs/WELD_MOTION.md),

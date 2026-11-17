@@ -10,6 +10,37 @@ from motors.arm_calibration import CalibrationMap, DRIVES, digest
 from motors.arm_travel import a4_cable_bounds
 
 
+def select_a1_encoder_branch(mapping, turns=0):
+    """Translate a verified A1 restart branch, keeping raw bus coordinates.
+
+    The operator selects whole turns relative to the saved mapping after checking
+    the physical pose. This is fixed for the session, never inferred from motion
+    or applied modulo 360 to feedback. A4's winding envelope is not translated.
+    """
+    if type(turns) is not int or turns not in (-1, 0, 1):
+        raise ValueError("A1 encoder branch must be -1, 0 or +1 whole turns")
+    if not turns:
+        return mapping
+    if mapping.document.get("encoder_branch_selection"):
+        raise ValueError("Select the A1 branch from the original saved mapping, not an already translated session")
+    document = deepcopy(mapping.document)
+    row = document["joints"]["1"]
+    if abs(row["model_per_raw"]) != 1.0:
+        raise ValueError("A1 encoder branch selection requires unit output-shaft gain")
+    shift = 360.0 * turns
+    row["model_intercept_deg"] -= row["model_per_raw"] * shift
+    row["raw_branch_deg"] = [q + shift for q in row["raw_branch_deg"]]
+    document["encoder_branch_selection"] = dict(
+        joint=1,
+        turns=turns,
+        raw_shift_deg=shift,
+        source_mapping_fingerprint=mapping.fingerprint,
+        basis="Explicit operator selection of A1 encoder restart branch; physical pose must be verified",
+    )
+    document["production_qualified"] = False
+    return CalibrationMap(document)
+
+
 def fit_alignment(raw_deg, model_deg, *, direction=-1.0, known_ratio=1.0, allow_scale=False):
     """Offset is identifiable from one anchor; scale requires independent evidence.
 

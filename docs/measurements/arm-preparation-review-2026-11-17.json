@@ -1,0 +1,590 @@
+{
+  "schema": "forge.arm_preparation_review",
+  "version": 1,
+  "date": "2026-11-17",
+  "basis": "Operator hardware report reviewed offline; agent did not access motors.",
+  "source_report": "build/weld/weld-1794900349236851910.json",
+  "source_sha256": "e20f3ab42c21b679f69c457c439d56185b288e741ef69014247ef9a53e79afc7",
+  "settings": {
+    "hz": 2.0,
+    "amplitude_m": 0.01,
+    "feed_m_s": 0.012,
+    "cycles": 1,
+    "time_scale": 1.0,
+    "max_speed_deg_s": 100.0,
+    "max_accel_deg_s2": 30.0,
+    "control_period_s": 0.02,
+    "auto_retime": true,
+    "lock_base_yaw": false,
+    "limit_profile": "weld",
+    "search_solution": null,
+    "preparation_target_s": 5.0,
+    "optimize_preparation": true
+  },
+  "attempts": [
+    {
+      "nominal_preparation_s": 5.1199141457322686,
+      "current_raw_deg": [
+        185.46706600555297,
+        -111.87472834038701,
+        128.573448030801,
+        176.54940710064423,
+        -23.222971027123513,
+        63.96433908657589
+      ],
+      "pause": {
+        "event": "pause",
+        "time_s": 4575.235795174,
+        "state": "paused",
+        "reason": "Tracking error A5: +3.110 deg; paused both components; inspect and replan."
+      },
+      "last_sent_command_before_pause": {
+        "time_s": 4575.164459574,
+        "stage": "initial",
+        "path_elapsed_s": 0.9233103315830142,
+        "path_clock_scale": 0.8927210673974183,
+        "requested_raw_deg": [
+          185.44352104768643,
+          -110.03266159576523,
+          128.42899352590217,
+          176.10290176175656,
+          -16.54496190374398,
+          63.92498527186667
+        ],
+        "measured_raw_deg": [
+          185.4452094002089,
+          -111.5468792602264,
+          128.573448030801,
+          176.5275504953002,
+          -19.529150082467257,
+          63.96433908657589
+        ],
+        "tracking_error_deg": [
+          -0.0016883525224784535,
+          1.514217664461171,
+          -0.1444545048988175,
+          -0.4246487335436484,
+          2.984188178723276,
+          -0.039353814709222945
+        ],
+        "requested_rate_deg_s": [
+          -0.05402452490689483,
+          4.226670580201924,
+          -0.33145465972725385,
+          -1.0245182403340458,
+          15.322867522860282,
+          -0.09029836260599419
+        ],
+        "measured_velocity_deg_s": [
+          -0.6296887999618155,
+          0.9793944854664683,
+          -0.41975610563230364,
+          -1.2592683168969108,
+          11.333196286018758,
+          -0.41975610563230364
+        ]
+      }
+    },
+    {
+      "nominal_preparation_s": 4.906719243516958,
+      "current_raw_deg": [
+        185.46706600555297,
+        -111.4375962335062,
+        128.5297348201129,
+        176.39641086323596,
+        -18.873451922146035,
+        63.96433908657589
+      ],
+      "pause": {
+        "event": "pause",
+        "time_s": 4656.286635096,
+        "state": "paused",
+        "reason": "Tracking error A5: +3.022 deg; paused both components; inspect and replan."
+      },
+      "last_sent_command_before_pause": {
+        "time_s": 4656.202356085,
+        "stage": "approach",
+        "path_elapsed_s": 0.8532583299565716,
+        "path_clock_scale": 0.901727858555299,
+        "requested_raw_deg": [
+          185.405474212459,
+          -106.78858462497864,
+          128.16882226763497,
+          175.28777985096477,
+          -3.0927605362017436,
+          63.86139254376337
+        ],
+        "measured_raw_deg": [
+          185.4452094002089,
+          -108.13719418504267,
+          128.28931216132847,
+          175.47843343878623,
+          -5.999747449965921,
+          63.89876927054377
+        ],
+        "tracking_error_deg": [
+          -0.039735187749897705,
+          1.348609560064034,
+          -0.12048989369350238,
+          -0.19065358782145836,
+          2.906986913764177,
+          -0.037376726780394165
+        ],
+        "requested_rate_deg_s": [
+          -0.05553710452951743,
+          4.19199751609301,
+          -0.3254335869453965,
+          -0.9996487083794039,
+          14.229394258935367,
+          -0.0928265377889354
+        ],
+        "measured_velocity_deg_s": [
+          -0.6296887999618155,
+          1.2592683168969108,
+          -0.41975610563230364,
+          -0.41975610563230364,
+          9.654281146516263,
+          -0.41975610563230364
+        ]
+      }
+    }
+  ],
+  "shutdown": {
+    "fault": "Mode restoration failed; power-cycle before reuse: A1: fresh stationary disable acknowledgement failed; A5: speed -0.0952 rad/s; waiting for stationary shaft",
+    "initial_disable_acknowledged": true,
+    "mode_restoration_verified": false,
+    "last_disable_timeout_states": [
+      {
+        "joint": 1,
+        "enabled": 0,
+        "status": 0,
+        "velocity_rad_s": -0.010990142822265625,
+        "age_ms": 10
+      },
+      {
+        "joint": 2,
+        "enabled": 0,
+        "status": 0,
+        "velocity_rad_s": -0.0073261260986328125,
+        "age_ms": 11
+      },
+      {
+        "joint": 3,
+        "enabled": 0,
+        "status": 0,
+        "velocity_rad_s": -0.0024423599243164062,
+        "age_ms": 11
+      },
+      {
+        "joint": 4,
+        "enabled": 0,
+        "status": 0,
+        "velocity_rad_s": -0.021978378295898438,
+        "age_ms": 12
+      },
+      {
+        "joint": 5,
+        "enabled": 0,
+        "status": 0,
+        "velocity_rad_s": -0.09523773193359375,
+        "age_ms": 12
+      },
+      {
+        "joint": 6,
+        "enabled": 0,
+        "status": 0,
+        "velocity_rad_s": -0.0073261260986328125,
+        "age_ms": 13
+      }
+    ],
+    "motion_samples_dropped": 9000
+  },
+  "conclusions": {
+    "reference_pacing": "Global absolute derivative bounds limited braking; signed local interval bounds reproduce/fix the tracking pause offline without wider limits.",
+    "physical_tracking_qualified": false,
+    "shutdown_qualified": false,
+    "clearance_issue": "Direct joint blending reaches the floor guard with unequal synthetic lag. The explicit 30 mm raised approach passes the recorded-start lag regressions, with physical tracking/clearance/timing still unqualified.",
+    "shutdown_followup": "Subsequent six-axis stationary disabled check and control readbacks passed; the earlier moving-after-disable result is retained as historical evidence.",
+    "gain_change_basis": "A5 readbacks match Nov 10 and manual operation is reported normal; no evidence here justifies changing drive gains."
+  },
+  "disabled_followup": {
+    "source_report": "build/arm_tests/a5-check-20261117-155015.json",
+    "source_sha256": "7189e85f399a7c512e696badce2ea32cd06d09fef1587fe0e26565a49b371bed",
+    "passed": true,
+    "disable_acknowledged": true,
+    "mode_restoration_verified": true,
+    "raw_deg": [
+      185.46706600555297,
+      -112.04958118313934,
+      128.24559895064039,
+      176.35269765254787,
+      -22.807695525586738,
+      63.94248248123185
+    ],
+    "a5_registers": {
+      "KP_APR": 54.0,
+      "KP_ASR": 0.003719999920576811,
+      "KI_ASR": 0.0020000000949949026,
+      "ACC": 2.0,
+      "DEC": -2.0,
+      "MAX_SPD": 600.0,
+      "OC_Value": 0.800000011920929,
+      "Imax": 20.522388458251953,
+      "V_BW": 40.0
+    },
+    "a5_matches_nov10": true,
+    "operator_observation": "A5 is fine with H, 5, E in the manual controller; operator reports quick manual motion.",
+    "observation_limits": "Qualitative operator report; no timed manual movement/hold trace supplied. It does not establish coordinated path tracking or five-second preparation."
+  },
+  "raised_approach_review": {
+    "basis": "Offline model/fake-shaft checks; no motor owner opened by the agent.",
+    "option": "--approach-lift-mm 30",
+    "plan_path": "build/arm_tests/prep-pacing-20261117/raised-latest.json",
+    "plan_sha256": "84b519b343b0ad58c5c315c8c14d1cb5e3bd96e192aea3380c126f3688aa6fb7",
+    "nominal_preparation_s": 7.547193707010996,
+    "nominal_meets_five_seconds": false,
+    "final_wire_tip_gap_mm": 1.999999999966806,
+    "regression_starts": "Both recorded failed starts and the subsequent six-axis disabled readback pose.",
+    "synthetic_plants": [
+      "WristLagArm",
+      "PositionLoopArm"
+    ],
+    "result": "All six full-geometry preparation replays reached ready; runtime clearance and tracking checks remained active.",
+    "software_tests_passed": 94,
+    "hardware_qualified": false
+  },
+  "successful_raised_preparation": {
+    "source_report": "build/weld/weld-1794902782753730656.json",
+    "source_sha256": "fc172b5be7adb83b46c2c7c6c1dea2fc565640f2fc13179ba98905316444c545",
+    "nominal_preparation_s": 7.80047420347884,
+    "actual_request_to_ready_s": 18.91625864300022,
+    "ready_to_close_s": 1.4884467720003158,
+    "weld_started": false,
+    "fault": null,
+    "disable_acknowledged": true,
+    "mode_restoration_verified": true,
+    "hold_samples": [
+      {
+        "joint": 1,
+        "samples": 74,
+        "all_enabled": true,
+        "target_span_rad": 0.0,
+        "peak_error_deg": 0.016191190798601183
+      },
+      {
+        "joint": 2,
+        "samples": 74,
+        "all_enabled": true,
+        "target_span_rad": 0.0,
+        "peak_error_deg": 0.17649254764687197
+      },
+      {
+        "joint": 3,
+        "samples": 74,
+        "all_enabled": true,
+        "target_span_rad": 0.0,
+        "peak_error_deg": 0.05545351177412943
+      },
+      {
+        "joint": 4,
+        "samples": 74,
+        "all_enabled": true,
+        "target_span_rad": 0.0,
+        "peak_error_deg": 0.05112819208507511
+      },
+      {
+        "joint": 5,
+        "samples": 74,
+        "all_enabled": true,
+        "target_span_rad": 0.0,
+        "peak_error_deg": 0.024376942607679582
+      },
+      {
+        "joint": 6,
+        "samples": 74,
+        "all_enabled": true,
+        "target_span_rad": 0.0,
+        "peak_error_deg": 0.024769629425716755
+      }
+    ],
+    "qualification": "Operator report predates the controller sweep. Brief prep endpoint hold only; full weld and 10-second loaded holding remain unqualified."
+  },
+  "controller_sweep": {
+    "basis": "Offline controller changes and fake-shaft/model checks; no agent hardware access.",
+    "corrections": [
+      "One feedback batch and one target dispatch per moving tick; no duplicate old-target dispatch.",
+      "Steady checked mode-2 velocity allowance during weld and endpoint hold.",
+      "Interrupted pause captures measured hold once; repeated pause retains target and allowance.",
+      "Preparation soft pacing begins at 1 deg and requests a stopped clock at 2 deg; separate 3 deg trip and 0.25 deg arrival unchanged."
+    ],
+    "pacing_comparison": [
+      {
+        "thresholds": [
+          0.5,
+          1.5
+        ],
+        "plant": "WristLagArm",
+        "time_s": 22.76,
+        "state": "ready",
+        "message": "Weld start reached; all six motors holding. Press Start welding motion.",
+        "peak_error": 1.5099890970916583
+      },
+      {
+        "thresholds": [
+          0.5,
+          1.5
+        ],
+        "plant": "PositionLoopArm",
+        "time_s": 17.04,
+        "state": "ready",
+        "message": "Weld start reached; all six motors holding. Press Start welding motion.",
+        "peak_error": 1.3430582662439434
+      },
+      {
+        "thresholds": [
+          1.0,
+          2.0
+        ],
+        "plant": "WristLagArm",
+        "time_s": 18.12,
+        "state": "ready",
+        "message": "Weld start reached; all six motors holding. Press Start welding motion.",
+        "peak_error": 2.2070095903583553
+      },
+      {
+        "thresholds": [
+          1.0,
+          2.0
+        ],
+        "plant": "PositionLoopArm",
+        "time_s": 14.12,
+        "state": "ready",
+        "message": "Weld start reached; all six motors holding. Press Start welding motion.",
+        "peak_error": 1.7906970114933216
+      }
+    ],
+    "physical_result_after_changes": {
+      "source_journal": "build/weld/weld-1794904230021563422.jsonl",
+      "source_prefix_bytes": 28311173,
+      "source_prefix_sha256": "34ca86a7d2d3edd5c8e0a7dcd78ca947ac5490e4974296386d0ee3fba8c8a0f9",
+      "reviewed_through_monotonic_s": 8584.984168849,
+      "recovery_to_ready_s": 16.136492476000058,
+      "nominal_preparation_s": 7.6036394202987445,
+      "effective_hz": 1.7306081783328109,
+      "ready_observation_s": 12.75907659999939,
+      "ready_hold": {
+        "A1": {
+          "unique_samples": 635,
+          "peak_abs_error_deg": 0.016191190798601183,
+          "last_error_deg": 0.016191190798601183,
+          "all_enabled_confirmed": true
+        },
+        "A2": {
+          "unique_samples": 635,
+          "peak_abs_error_deg": 0.17649254764707553,
+          "last_error_deg": -0.0016397048947491136,
+          "all_enabled_confirmed": true
+        },
+        "A3": {
+          "unique_samples": 635,
+          "peak_abs_error_deg": 0.055453511774689206,
+          "last_error_deg": 0.010116304257433203,
+          "all_enabled_confirmed": true
+        },
+        "A4": {
+          "unique_samples": 635,
+          "peak_abs_error_deg": 0.007414981397120722,
+          "last_error_deg": 0.007414981397120722,
+          "all_enabled_confirmed": true
+        },
+        "A5": {
+          "unique_samples": 635,
+          "peak_abs_error_deg": 0.02437694260749829,
+          "last_error_deg": -0.02437694260749829,
+          "all_enabled_confirmed": true
+        },
+        "A6": {
+          "unique_samples": 635,
+          "peak_abs_error_deg": 0.024769629425831257,
+          "last_error_deg": -0.024769629425831257,
+          "all_enabled_confirmed": true
+        }
+      },
+      "fixed_target_raw_deg": [
+        185.30840435359923,
+        -99.46165228532651,
+        127.60001709457659,
+        173.54055590305038,
+        21.777914737153363,
+        63.69914679836561
+      ],
+      "fixed_targets_through_review": true,
+      "active_tick_median_ms": 20.098420499380154,
+      "post_focus_pause_hold": {
+        "A1": {
+          "unique_samples": 3102,
+          "peak_abs_error_deg": 0.5302239428024189,
+          "last_error_deg": 0.016191190798601183,
+          "all_enabled_confirmed": true
+        },
+        "A2": {
+          "unique_samples": 3102,
+          "peak_abs_error_deg": 0.042073505793332494,
+          "last_error_deg": 0.042073505793332494,
+          "all_enabled_confirmed": true
+        },
+        "A3": {
+          "unique_samples": 3102,
+          "peak_abs_error_deg": 0.11939933097763722,
+          "last_error_deg": -0.0117403010866076,
+          "all_enabled_confirmed": true
+        },
+        "A4": {
+          "unique_samples": 3102,
+          "peak_abs_error_deg": 0.9106170845659531,
+          "last_error_deg": -0.014441623946920081,
+          "all_enabled_confirmed": true
+        },
+        "A5": {
+          "unique_samples": 3102,
+          "peak_abs_error_deg": 1.16092042049762,
+          "last_error_deg": -0.0025203372634574864,
+          "all_enabled_confirmed": true
+        },
+        "A6": {
+          "unique_samples": 3102,
+          "peak_abs_error_deg": 0.9864602645636266,
+          "last_error_deg": -0.002913024081790452,
+          "all_enabled_confirmed": true
+        }
+      },
+      "operator_confirmation": "Operator confirmed deliberately pushing the arm during the later observed deviations; these are disturbance observations, not evidence of spontaneous sag.",
+      "weld_started_in_reviewed_interval": false,
+      "faults_in_reviewed_interval": [],
+      "physical_five_second_timing_qualified": false,
+      "loaded_hold_qualified": false,
+      "basis": "Read-only review of operator-generated cached telemetry; no agent motor access. Different starting pose from the earlier run, so timing is not a controlled before/after comparison."
+    },
+    "validation": {
+      "main_suite": {
+        "passed": 109,
+        "log": "build/controller_sweep/20261117/checks.log"
+      },
+      "final_controller_suite": {
+        "passed": 51,
+        "log": "build/controller_sweep/20261117/final_controller.log",
+        "basis": "Includes the new weld/preparation independent-ceiling test and 20-100 ms timing cases."
+      },
+      "model_preview_recording_search_and_manual_integration": {
+        "existing_tests_passed": 44,
+        "log": "build/controller_sweep/20261117/integration.log",
+        "runner_error": "Command also named nonexistent test_arm_position; its loader error is not a motor-test failure. The correct manual/keyboard suites were then run separately."
+      },
+      "manual_suite": {
+        "passed": 37,
+        "log": "build/controller_sweep/20261117/manual.log"
+      },
+      "unique_existing_tests_passed": 168,
+      "regression_baseline": {
+        "tests": 3,
+        "expected_failures": 3,
+        "errors": 0,
+        "log": "build/controller_sweep/20261117/baseline_regressions.log"
+      },
+      "git_diff_check": "passed",
+      "hardware_access": false
+    },
+    "source_sha256": {
+      "src/controls/controls/controller/preparation.py": "ab45a86962b5553de3b3ef1793b690b115ce6d62ce1900ea7c85239b603d5f0b",
+      "src/controls/controls/hardware/weld_control.py": "c48c8bee0bdceb6e72c1b7b8f648d67488db5984d350ee59b12298459c905c31",
+      "src/controls/controls/hardware/weld_ports.py": "798eff5b646a9a123ae27126c4c1455e971c656781226b3fb7257b782ed879a3"
+    }
+  },
+  "ready_and_fault_reset_update": {
+    "behavior": [
+      "Ready retains the accepted plan and fixed hold across pause, focus loss and UI heartbeat loss; only a fresh explicit start begins welding.",
+      "Interrupted travel, selection changes, recalculation, disable, close and faults invalidate the plan.",
+      "Reset motor fault button and R use the existing owner and disabled/stationary recovery; the original fault is saved before reset.",
+      "Startup latches remain recoverable in the panel. Success stays disabled with no selections or plan; actions queued during reset are discarded."
+    ],
+    "validation": {
+      "broad_regression_suite": {
+        "passed": 236,
+        "elapsed_s": 265.2,
+        "log": "build/controller_sweep/20261117/ready-reset/regressions.log",
+        "modules": [
+          "test_weld_hardware",
+          "test_weld_panel",
+          "test_weld_preparation",
+          "test_weld_recovery",
+          "test_damiao_bench",
+          "test_weld_recording",
+          "test_weld_encoder_branch",
+          "test_arm_group_hold",
+          "test_damiao_keyboard",
+          "test_weld_model"
+        ]
+      },
+      "final_panel_suite": {
+        "passed": 22,
+        "elapsed_s": 10.991,
+        "log": "build/controller_sweep/20261117/ready-reset/panel-final.log",
+        "basis": "Rerun after adding startup-latch UI coverage, child-widget R shortcut and reset ValueError display."
+      },
+      "unique_tests_passed": 237,
+      "panel_render": "build/weld/panel.png; six toolbar buttons visible, including Reset motor fault (R)",
+      "git_diff_check": "passed",
+      "hardware_access": false,
+      "physical_validation_of_this_update": false
+    },
+    "source_sha256": {
+      "src/controls/controls/hardware/weld_control.py": "b8062996ac350803280bdd810b4df36f5fca7e879627199b0f6b8a0affd550b3",
+      "src/controls/controls/hardware/weld_app.py": "8871c1f22608355bcdbd5f19f3b6532e7b66ed398ae388bbb6c58017c9ce1d60",
+      "src/controls/controls/hardware/weld_ports.py": "12182f18006d58435d1d7976e04f65b02dad66c2a32ea3baa8154437974679db",
+      "tests/test_weld_hardware.py": "df5a889b0ac7f2958831075039b53475ff790ab587d477a0286c570ef35a389d",
+      "tests/test_weld_panel.py": "90ca0dc67af9b5e7fe8a7826d909cde1f10747f66a35272e273aaa99c0e55b34"
+    }
+  },
+  "continuous_welding_update": {
+    "behavior": "Panel repeats the checked periodic cubic weld until Pause / Hold. --cycles sets the plan/preview block; --single-pass retains bounded completion. Existing focus, heartbeat and fault stops remain.",
+    "operator_plan_boundary": {
+      "source_journal": "build/weld/weld-1794904230021563422.jsonl",
+      "interpolation": "periodic_cubic",
+      "block_duration_s": 0.5778315464586297,
+      "maximum_boundary_difference": {
+        "position_deg": 2.842170943040401e-14,
+        "velocity_deg_s": 1.734723475976807e-18,
+        "acceleration_deg_s2": 2.6645352591003757e-14
+      }
+    },
+    "validation": {
+      "controller_panel_preparation_recovery_recording_passed": 107,
+      "full_model_passed": 3,
+      "unique_tests_passed": 110,
+      "logs": [
+        "build/controller_sweep/20261117/continuous/controller-panel.log",
+        "build/controller_sweep/20261117/continuous/model.log"
+      ],
+      "coverage": [
+        "Nonzero-velocity loop boundary without position/rate discontinuity or dwell",
+        "24-second repeated motion beyond the former finite-pass timeout",
+        "Native C fake-motor repeated motion without re-enable, disable or parameter writes",
+        "Pause stops feed and preserves ten-second fixed arm hold",
+        "Independent output switches and existing control-gap/fault stops",
+        "Default panel repeats --cycles 1; Space works from a child widget",
+        "Single-pass policy and complete-route full-model replay"
+      ],
+      "panel_render": "build/weld/panel.png; continuous run label visible",
+      "git_diff_check": "passed",
+      "hardware_access": false,
+      "physical_continuous_weld_qualified": false
+    },
+    "source_sha256": {
+      "src/controls/controls/hardware/weld_control.py": "9b879d1a8d954d2d5d92f1d459efb35a133ef6a9e8a342c1f5e4c5946c9b7547",
+      "src/controls/controls/hardware/weld_app.py": "a6d379acd2d6e18c275b8545f9eedb4f994d8fbb201f76d1a37fadb674209a20",
+      "tests/test_weld_hardware.py": "bb729b19c154e04f76c95943772879db22a955aac13330c7d93c3f0f75772875",
+      "tests/test_weld_panel.py": "15f249d348eb2189ec16ab831b4b9e7ba3599767577e06f705f4b9008243da88",
+      "tests/test_weld_model.py": "918d7d29537fd8107544aa1badf995b1907ab8e18a216dade2404bc141889871"
+    }
+  }
+}

@@ -91,7 +91,7 @@ class WeldPanelTests(unittest.TestCase):
         )
         initial = list(self.mapping.simulation_pose().values())
         self.window = weld_app.make_window(
-            args, self.mapping, initial, Settings(cycles=1), ROOT
+            args, self.mapping, initial, Settings(cycles=1, optimize_preparation=True), ROOT
         )
         self.window.show()
         self.wait(lambda: self.window.worker.controller is not None)
@@ -134,6 +134,40 @@ class WeldPanelTests(unittest.TestCase):
         self.window.show_status(value)
         self.assertEqual(self.window.table.item(0, 3).text(), "—")
 
+    def test_pid_and_measured_motor_frequency_display(self):
+        self.assertIsNotNone(self.window.worker.controller.tracker)
+        self.assertIn("PID", self.window.controller_label.text())
+        value = dict(state="welding", message="Continuous", pending=False,
+                     arm_on=True, chassis_on=False, raw_deg=[0.2]*6,
+                     timing=dict(effective_hz=1.73, feed_m_s=0.01),
+                     planned_travel_deg=[2.26, 0.063, 0.132, 0.098, 0.072, 0.427],
+                     measured_motion=[dict(hz=1.73, peak_to_peak_deg=1.6, status="measured")]
+                     + [dict(hz=None, peak_to_peak_deg=0.02, status="insufficient motion")]*4
+                     + [dict(hz=0.865, peak_to_peak_deg=0.45, status="measured")])
+        self.window.show_status(value)
+        self.assertEqual(self.window.table.item(0, 4).text(), "1.730")
+        self.assertEqual(self.window.table.item(0, 5).text(), "1.600")
+        self.assertEqual(self.window.table.item(1, 4).text(), "insufficient motion")
+        self.assertEqual(self.window.frequency_values[0].text(), "1.730 Hz")
+        self.assertEqual(self.window.frequency_values[5].text(), "0.865 Hz")
+        self.assertIn("Two-cycle response", self.window.frequency_details[5].text())
+        self.assertIn("Travel: 0.450° / 0.427° planned", self.window.frequency_details[5].text())
+        self.assertIn("Too little motion", self.window.frequency_details[1].text())
+        self.assertIn("Planned weave: 1.730 Hz", self.window.frequency_group.title())
+        # A paused readout must not show old numeric measurements as live.
+        value.update(state="paused")
+        self.window.show_status(value)
+        self.assertEqual(self.window.frequency_values[0].text(), "—")
+        self.assertIn("Paused", self.window.frequency_status.text())
+        value.update(measured_motion=None)
+        self.window.show_status(value)
+        self.assertEqual(self.window.table.item(0, 4).text(), "—")
+        # A known planned rate must never fill a missing encoder measurement.
+        value.update(state="welding")
+        self.window.show_status(value)
+        self.assertEqual(self.window.frequency_values[0].text(), "—")
+        self.assertEqual(self.window.frequency_details[0].text(), "Collecting cycles…")
+
     def set_foreground(self, active):
         with patch.object(self.window, "isActiveWindow", return_value=active):
             self.app.sendEvent(
@@ -155,8 +189,210 @@ class WeldPanelTests(unittest.TestCase):
         self.executor.future.set_result(plan)
         self.wait(lambda: self.window.preview.play.isEnabled())
 
+    def ready_arm(self):
+        c = self.window.worker.controller
+        self.set_foreground(True)
+        self.window.arm.click()
+        self.wait(lambda: c.arm_on)
+        self.window.buttons["calculate"].click()
+        self.wait(lambda: self.executor.future is not None)
+        self.finish_arm_plan()
+        self.window.worker.send("initial")
+        self.wait(lambda: c.state == "ready")
+        return c
+
+    def test_ready_survives_focus_pause_and_heartbeat_until_fresh_weld_click(self):
+        c = self.ready_arm()
+        plan, target = c.plan, c.arm.target.copy()
+        future = self.executor.future
+        sent = len(c.arm.commands)
+        self.set_foreground(False)
+        self.wait(lambda: "Window focus lost" in c.message)
+        QtTest.QTest.qWait(250)
+        self.assertEqual(c.state, "ready")
+        self.assertIs(c.plan, plan)
+        self.assertTrue(c.arm.enabled)
+        self.assertTrue(self.window.buttons["weld"].isEnabled())
+        self.assertEqual(c.arm.target.tolist(), target.tolist())
+        self.assertEqual(len(c.arm.commands), sent)
+        self.window.timer.stop()
+        self.wait(lambda: "UI heartbeat lost" in c.message)
+        QtTest.QTest.qWait(200)
+        self.assertEqual(c.state, "ready")
+        self.assertIs(c.plan, plan)
+        self.window.timer.start(30)
+        self.set_foreground(True)
+        QtTest.QTest.qWait(100)
+        QtTest.QTest.keyClick(self.window, QtCore.Qt.Key_Space)
+        QtTest.QTest.qWait(100)
+        self.assertEqual(c.state, "ready")
+        self.assertIs(self.executor.future, future)
+        self.window.buttons["weld"].click()
+        self.wait(lambda: any(e["event"] == "weld_started" for e in c.events))
+        self.assertEqual(c.state, "welding")
+
+    def test_default_weld_keeps_running_until_space_then_holds(self):
+        c = self.ready_arm()
+        self.assertTrue(c.continuous_weld)
+        self.assertIn("continuous until Pause", self.window.weld_run_label.text())
+        self.wait(lambda: self.window.buttons["weld"].isEnabled())
+        self.window.buttons["weld"].click()
+        self.wait(lambda: c.state == "welding")
+        self.wait(
+            lambda: any(r.get("weld_repeat_index", 0) >= 2 for r in c.trace),
+            seconds=4,
+        )
+        self.assertEqual(c.state, "welding", c.message)
+        self.assertTrue(c.arm.enabled)
+        self.window.table.setFocus()
+        QtTest.QTest.keyClick(self.window.table, QtCore.Qt.Key_Space)
+        self.wait(lambda: c.state == "paused")
+        target = c.arm.target.copy()
+        QtTest.QTest.qWait(150)
+        self.assertTrue(c.arm.enabled)
+        self.assertEqual(c.arm.target.tolist(), target.tolist())
+        self.assertEqual(c.chassis.last_feed, 0)
+
+    def test_ready_does_not_execute_a_start_queued_before_focus_changed(self):
+        c = self.ready_arm()
+        worker = self.window.worker
+        entered, release = threading.Event(), threading.Event()
+        tick = c.tick
+
+        def blocked_tick():
+            entered.set()
+            release.wait(1)
+            tick()
+
+        with patch.object(c, "tick", side_effect=blocked_tick):
+            try:
+                self.wait(entered.is_set)
+                worker.send("weld")
+                self.set_foreground(False)
+                self.set_foreground(True)
+            finally:
+                release.set()
+            self.wait(lambda: "Window focus changed" in c.message)
+        self.assertEqual(c.state, "ready")
+        self.assertFalse(any(e["event"] == "weld_started" for e in c.events))
+        self.assertTrue(c.arm.enabled)
+
+    def test_reset_button_and_r_use_owner_and_drop_queued_motion(self):
+        c = self.ready_arm()
+        worker = self.window.worker
+        with patch.object(c.arm, "recover", wraps=c.arm.recover) as recover:
+            QtTest.QTest.keyClick(self.window, QtCore.Qt.Key_R)
+            QtTest.QTest.qWait(50)
+            recover.assert_not_called()
+        c.fail(RuntimeError("A5 latched fault"))
+        self.wait(lambda: self.window.buttons["reset"].isEnabled())
+        entered, release = threading.Event(), threading.Event()
+        original = c.arm.recover
+        owner_thread = []
+
+        def slow_reset(path):
+            owner_thread.append(QtCore.QThread.currentThread())
+            entered.set()
+            release.wait(2)
+            original(path)
+
+        with patch.object(c.arm, "recover", side_effect=slow_reset) as recover:
+            try:
+                self.window.table.setFocus()
+                QtTest.QTest.keyClick(self.window.table, QtCore.Qt.Key_R)
+                self.wait(entered.is_set)
+                self.wait(lambda: self.window.last_state == "resetting")
+                self.assertFalse(self.window.buttons["reset"].isEnabled())
+                with patch.object(c.arm, "poll", wraps=c.arm.poll) as poll:
+                    worker.send("select", True, False)
+                    worker.send("initial")
+                    worker.send("weld")
+                    worker.send("reset")
+                    QtTest.QTest.qWait(100)
+                    poll.assert_not_called()
+                self.assertFalse(c.arm.enabled)
+            finally:
+                release.set()
+            self.wait(lambda: c.state == "idle" and not worker.resetting.is_set())
+            recover.assert_called_once()
+        self.assertIs(owner_thread[0], worker)
+        self.assertFalse(c.arm.enabled or c.arm_on or c.arm_holding)
+        self.assertIsNone(c.plan)
+        self.assertFalse(self.window.buttons["weld"].isEnabled())
+        self.wait(lambda: not self.window.buttons["reset"].isEnabled())
+
+    def test_reset_failure_remains_visible_and_can_be_retried(self):
+        c = self.window.worker.controller
+        c.fail(RuntimeError("Original A5 fault"))
+        self.wait(lambda: self.window.buttons["reset"].isEnabled())
+        with patch.object(c.arm, "recover", side_effect=ValueError("motor still moving")):
+            self.window.buttons["reset"].click()
+            self.wait(lambda: "motor reset failed" in self.window.state_label.text())
+        self.assertEqual(c.fault, "Original A5 fault")
+        self.assertTrue(self.window.buttons["reset"].isEnabled())
+        self.window.buttons["reset"].click()
+        self.wait(lambda: c.state == "idle")
+        self.assertFalse(c.arm.enabled)
+
+    def test_startup_fault_opens_reset_control_without_enabling(self):
+        from controls.hardware import weld_ports
+
+        self.window.close()
+        self.wait(lambda: not self.window.worker.isRunning())
+        self.window.close()
+        initial = list(self.mapping.simulation_pose().values())
+        arm = weld_ports.SimulatedArm(initial)
+        arm.fault = "Retained controller fault"
+        args = SimpleNamespace(
+            arm=True, chassis=False, execute=False, mapping_confirmed=False,
+            single_pass=True,
+            journal_path=Path(self.evidence.name) / "startup.jsonl",
+        )
+        with patch.object(weld_ports, "SimulatedArm", return_value=arm):
+            self.window = weld_app.make_window(
+                args, self.mapping, initial, Settings(cycles=1), ROOT
+            )
+            self.window.show()
+            self.wait(lambda: self.window.buttons["reset"].isEnabled())
+        self.assertTrue(self.window.worker.isRunning())
+        self.assertEqual(self.window.worker.controller.fault, arm.fault)
+        self.assertFalse(self.window.worker.controller.continuous_weld)
+        self.assertIn("one planned pass", self.window.weld_run_label.text())
+        self.assertFalse(self.window.buttons["calculate"].isEnabled())
+        self.assertFalse(arm.enabled or arm.commands)
+        self.window.buttons["reset"].click()
+        self.wait(lambda: self.window.last_state == "idle")
+        self.assertFalse(arm.enabled or arm.commands)
+        self.assertTrue(self.window.arm.isEnabled())
+
+    def test_close_during_reset_waits_for_same_owner(self):
+        c = self.window.worker.controller
+        c.fail(RuntimeError("Fault before reset"))
+        self.wait(lambda: self.window.buttons["reset"].isEnabled())
+        entered, release = threading.Event(), threading.Event()
+        original = c.arm.recover
+
+        def slow_reset(path):
+            entered.set()
+            release.wait(2)
+            original(path)
+
+        with patch.object(c.arm, "recover", side_effect=slow_reset):
+            try:
+                self.window.buttons["reset"].click()
+                self.wait(entered.is_set)
+                self.window.close()
+                self.assertTrue(self.window.worker.isRunning())
+                self.assertFalse(c.arm.closed)
+            finally:
+                release.set()
+            self.wait(lambda: not self.window.worker.isRunning())
+        self.assertTrue(c.arm.closed)
+
     def test_switches_are_independent_and_start_off(self):
         c = self.window.worker.controller
+        self.assertTrue(c.allow_optimized_preparation)
+        self.assertIn("optimized staging enabled", self.window.preparation_route_label.text())
         self.assertFalse(c.arm_on or c.chassis_on)
         self.window.arm.click()
         self.wait(lambda: c.arm_on)
@@ -440,7 +676,7 @@ class WeldPanelTests(unittest.TestCase):
         self.wait(lambda: "A1 error:" in self.window.tracking_label.text())
         self.assertIn("Path rate:", self.window.tracking_label.text())
         self.assertIn("speed allowance: 5.00°/s", self.window.tracking_label.text())
-        self.assertEqual(self.window.table.columnCount(), 4)
+        self.assertEqual(self.window.table.columnCount(), 6)
         measured = float(self.window.table.item(0, 1).text())
         target = float(self.window.table.item(0, 2).text())
         remaining = float(self.window.table.item(0, 3).text())

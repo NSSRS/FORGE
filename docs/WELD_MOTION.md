@@ -40,10 +40,17 @@ heartbeat cancel planning/motion. Returning never resumes motion automatically.
 `--start-report PATH` seeds fake shafts from saved six-axis data and is rejected
 in hardware mode; `--no-preview` disables rendering.
 
+`--a1-encoder-turns {-1,0,1}` explicitly selects a verified A1 encoder restart
+branch relative to the saved mapping. It translates the session's A1 intercept,
+raw bounds and inverse-mapped targets together, preserving model poses and raw
+bus feedback. It never wraps samples automatically or rebases A4's cable limits.
+See the [branch selection procedure](ARM_RIG_TEST.md#weld-panel-with-embedded-model-preview).
+
 ### Supported startup and recovery
 
 Flow: fresh measured pose -> current-position hold verification -> checked
-standby waypoints -> approach -> ready -> explicitly started weld -> endpoint hold.
+standby waypoints -> approach -> ready -> explicitly started continuous weld ->
+Pause / Hold. Single-pass mode completes at a fixed endpoint hold.
 Recovery tries a coordinated direct path, then a bounded joint-order graph
 (maximum 64 poses / 192 directed edges). Every edge and the joined interpolant
 are checked; there is no automatic escape from an already colliding start.
@@ -55,7 +62,7 @@ pose as hardware home. See [operator procedure](ARM_RIG_TEST.md#weld-panel-with-
 
 | Preparation policy | Value / behavior |
 | --- | --- |
-| Speed | 5 deg/s default in both profiles; explicit ceiling <=10 deg/s |
+| Speed | 5 deg/s default; explicit request <=100 deg/s, bounded by the existing motor guards (currently 68.7549 deg/s) |
 | Acceleration | <=30 deg/s² and the sampled model envelope |
 | Tracking | Pause above 3 deg reference error |
 | Arrival | <=0.25 deg and speed <0.03 rad/s for 0.2 s |
@@ -65,15 +72,101 @@ pose as hardware home. See [operator procedure](ARM_RIG_TEST.md#weld-panel-with-
 | Endpoint settling | Separate 10 s timer after reference reaches the endpoint |
 | Total time target | `--prep-seconds 5`; includes initial hold and waypoint/approach settling |
 
-Preparation streams a constant checked speed allowance and an acceleration-bounded
+The panel now defaults to `--tracker pid`. Preparation runs the planned clock at
+100%; a host position tracker corrects unequal shaft lag instead of routinely
+slowing every joint. Native mode 2 still takes a position and positive speed
+ceiling. The host command is the reference plus velocity lead and PID correction:
+`q_target = q_ref + tau * v_ref + Kp * error + I + Kd * (v_ref - filtered_v)`.
+This is position pre-emphasis, not a signed velocity/torque feedforward input to
+the drive. There are no drive gain, mode, current or firmware changes.
+
+The initial per-axis lag estimates come from the Nov 17 recorded approaches;
+they are provisional. During preparation, sufficient same-direction movement
+updates a bounded local lag estimate using the previous dispatched target and
+cached feedback. Welding freezes that estimate across reversals. PID includes
+filtered velocity feedback, conditional integration with a 0.5-degree integral
+bound, a 12-degree virtual position-correction bound, and command speed and
+acceleration shaping within the existing stage limits. Measured error is still
+checked against the **unmodified reference**, with the same 3-degree trip.
+
+During welding, host PID/velocity lead is applied only to joints whose planned
+peak-to-peak travel is at least 0.3 deg. Smaller axes retain their nominal path
+targets and have no host integral offset. This matches the provisional lag
+model's identification floor (position error above 0.15 deg); it does not change
+the path, drive gains or arrival/tracking tolerances. In the Nov 17 weld, lead
+on the tiny A2–A5 moves unnecessarily reduced the shared clearance correction
+factor for A1/A6. Recorded-feedback replay with the small-axis correction masked
+retains full A1/A6 correction through the existing clearance checks. The later
+tracker-v3 physical report also admits full correction in all 739 weld samples
+and measures A1/A6 at approximately 1.731 Hz. Measured travel still exceeds the
+plan, so amplitude and phase acceptance remain open. The admitted clearance
+correction factor and corrected axes are recorded in each trajectory sample.
+See the [archived physical reports](measurements/weld/2026-11-17/README.md).
+
+Correction fades before finite endpoints. During preparation, both virtual
+targets and shaped commands stay inside the exact position extrema of the current
+finite leg. Mandatory recovery stops get separate bounds, so lead cannot enter
+the next leg early. Command braking reserves this tick's travel plus `v²/(2a)`
+stopping distance before an extremum; it does not wait for the reference clock
+to finish. This fixes the recorded Nov 17 A6 command crossing below its approach
+endpoint while decelerating. Speed/acceleration limits and arrival/tracking
+tolerances are unchanged. These command bounds do not prove physical stopping.
+Geometry limits virtual targets before
+shaping; constrained correction gain returns gradually, rather than repeatedly
+jumping to full gain. Approach/weld correction requests prefer 1.8 mm clearance
+to leave shaping headroom; this does not change the nominal/measured 0.5 mm check.
+Recovery retains 2 mm. Shaped dispatched targets are independently checked,
+alongside measured poses and native raw/cable bounds; these sampled checks do
+not certify the continuous physical swept volume between feedback samples. A
+correction that cannot satisfy those checks pauses; it never bypasses clearance.
+Arrival also waits for the tracker command to settle at the exact unshifted
+endpoint before latching the native fixed hold. No integrator continues moving
+the target while ready, complete or paused.
+
+Online geometry checks use kinematics and collision detection without a redundant
+dynamics solve. Nearby D3 closure updates use the analytic site Jacobian, retaining
+the bounded least-squares fallback and existing assembly-branch continuation.
+Full-forward contact equivalence and closure checks cover this optimization.
+The [offline PID comparison](measurements/arm-pid-tracking-review-2026-11-17.json)
+records the synthetic response, exact source fingerprints and remaining physical
+qualification limits.
+
+The table's **Measured Hz** is encoder-derived repeating-pattern frequency per
+axis, separate from planned weave Hz and host command-update rate. It uses only
+cached feedback, at most eight seconds of samples, and requires sufficient
+motion and at least three repeatable periods. Alternating cycles may report a
+two-cycle period. Low motion, insufficient evidence and stale data produce no
+Hz value. Measured peak-to-peak travel is shown beside Hz because matching
+frequency alone does not establish amplitude or phase tracking.
+The live cards label a half-weave-frequency pattern as **Two-cycle response**,
+and show measured travel alongside planned travel. A two-cycle pattern is not
+50% travel or a 50% speed setting; the estimator is not forced to the planned Hz.
+
+`--tracker paced` retains the previous controller for explicit comparison.
+It streams a constant checked speed allowance and an acceleration-bounded
 common path clock. For `q(s(t))`, acceleration is `q'' * s_dot² + q' * s_ddot`;
-10% path-acceleration reserve supports clock slew. Pacing changes time, not path
+10% path-acceleration reserve supports clock slew. Each step uses signed cubic
+velocity/acceleration bounds over the traversed interval, including internal
+extrema and knot boundaries. This allows braking to cancel path acceleration;
+the former global absolute bound could slow the clock too weakly and let A5
+exceed the 3-degree tracking trip on fast preparation. The clock remains monotone,
+with scale in [0, 1], bounded acceleration and unchanged tracking/arrival limits.
+Soft slowing starts at 1 degree of lag and requests zero clock speed at 2 degrees;
+acceleration-limited braking can temporarily exceed that soft threshold. The
+separate 3-degree tracking trip remains. Progress detection still starts at
+0.5 degree, independently of the pacing thresholds.
+Pacing changes time, not path
 geometry, motor gains, or target offsets. The nominal-timeout defect recorded in
 [the recovery review](measurements/arm-recovery-review-2026-11-16.json) is fixed.
+The [Nov 17 review](measurements/arm-preparation-review-2026-11-17.json) records
+the two A5 tracking pauses and separate failed shutdown. Lagging fake shafts
+reproduce the pacing defect; the correction does not establish physical timing,
+clearance under tracking error, or loaded shutdown.
 
-## Offline preparation route comparison
+## Checked preparation route comparison
 
-Add `--optimize-preparation` to `--simulate` or `--plan-only`. It compares the
+Add `--optimize-preparation` to `--simulate`, `--plan-only`, or explicit hardware
+`--execute --arm --supported`. It compares the
 requested standby with three raw-joint interpolated staging poses toward the
 same full weld start. Each candidate checks recovery at 2 mm, approach at the
 normal clearance, fixed travel bounds and sampled reduced-inertia acceleration.
@@ -95,19 +188,49 @@ OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 QT_QPA_PLATFORM=offscreen \
 ```
 
 That case improves from 20.9272 s nominal to 4.5526 s; ideal fake-shaft arrival is
-4.62 s including stationary checks. It changes the intermediate pose. The CLI
-and controller reject experimental plans for physical owners. A synthetic lag
+4.62 s including stationary checks. It changes the intermediate pose. Hardware
+requires explicit `--optimize-preparation`; the controller otherwise rejects
+staging-search plans. Historical plans marked `offline_only` remain rejected
+even with the option. The panel identifies optimized staging and reports the
+actual nominal time against the goal; enabling it does not guarantee five seconds
+from another start or at the default 5 deg/s. A synthetic lag
 plant takes 14.44 s; ideal replay does not qualify five-second physical execution.
 `preparation_search` retains the original standby, candidate failures and timing.
 The preview displays the selected staging pose and minimum stationary intervals.
+
+### Raised approach for unequal joint response
+
+`--approach-lift-mm 30` requires a checked waypoint 30 mm above the weld tip target
+and a lowering path to the unchanged weld-start pose. Zero retains automatic
+route selection; explicit heights are bounded to 150 mm. The staging search uses
+the same requirement for every candidate and cannot fall back to a direct blend.
+The full path is still checked and retimed against existing limits. This is a
+route alternative, not a change to the 0.5 mm approach clearance or 2 mm final
+wire-tip gap, and not a proof for every possible tracking error.
+
+The Nov 17 direct route reaches the modeled floor guard with unequal synthetic
+joint lag. The raised route is exercised against those starts with the same
+lagging fake shafts and unchanged runtime guards. Manual jogging differs from
+this coordinated path: at 10 deg/s it permits up to 10 degrees of forward target
+lead; legacy paced preparation slows at 1 degree error, while both trackers
+retain the 3-degree tracking trip.
+Normal manual operation therefore does not establish coordinated path timing.
+The earlier disabled-start raised plan was 7.55 s nominal; preparation timing
+depends on the starting pose and route.
 
 ### Post-preparation holding evidence
 
 The reported symptom is that most/all joints reach the prep target and then sag
 before welding begins. The normal completion path explicitly latches the final
 mode-2 target and existing speed allowance. Native refresh and protection remain
-active. Pause/focus loss at an already settled endpoint preserve that fixed hold;
-pause during unfinished travel captures fresh measured positions. Disable, fault
+active. At `ready`, pause/focus loss and a lost UI heartbeat preserve the fixed
+hold, checked plan and explicit Start welding motion action. A fresh start
+rechecks stationary feedback, the unchanged arrival tolerance and approach
+clearance. No recalculation is required just for switching windows. At a settled
+endpoint, pause preserves that fixed hold;
+pause during unfinished travel captures fresh measured positions once. Repeated
+pause/focus/recalculate actions preserve that first hold target and the last
+checked speed allowance. Disable, fault
 and close still remove torque. No gain, current or torque-feedforward writes exist.
 
 The panel names the current stage goal and reports post-arrival `HOLD DRIFT` above
@@ -117,8 +240,34 @@ includes target, allowance, endpoint-hold state, cached enabled/status/torque an
 feedback age. Observation does not poll registers or renew a motion lease.
 
 This implements a fixed-reference hold, not a measured increase in motor stiffness.
-**HOLD-01** owns per-axis drive-loop tuning and loaded acceptance on November 17;
+**HOLD-01** owns loaded acceptance and evidence-based drive tuning if needed;
 see [the acceptance procedure](ARM_RIG_TEST.md#post-preparation-hold-acceptance).
+
+### Execution timing and speed allowance
+
+A moving tick reads and validates all six shafts once, computes the checked next
+target, then sends one six-axis command batch. It no longer refreshes the previous
+target and repeats all feedback reads before sending the new target. Samples are
+consumed by one dispatch and aged again before sending; idle holding still polls
+and refreshes every joint. USB dispatch is sequential, not firmware-atomic.
+
+Mode-2 velocity is a limit. Both preparation and welding retain the checked stage
+allowance instead of reducing it to reference speed plus position error. The old
+welding expression could shrink to 0.1 deg/s at completion and carry that cap into
+holding. Preparation respects the explicit preparation request; welding uses its
+own checked stage limits. Positions still follow the checked path.
+
+An earlier pre-sweep operator run reached ready in 18.92 s against a 7.80 s
+nominal plan. All six endpoint targets remained fixed/enabled for the following
+1.49 s until close; no weld was started. Two synthetic lag replays of that same
+raised path improve from 22.76/17.04 s to 18.12/14.12 s with the new pacing.
+These are separate hardware and model observations, not a five-second result.
+The subsequent operator journal records 16.14 s to ready against 7.60 s nominal,
+then 12.76 s holding all six fixed targets within 0.177 deg. Later disturbances
+recovered to those same targets; the operator confirmed pushing the arm. This
+different starting pose does not provide a controlled speed comparison, and
+post-weld/loaded holding acceptance remains open.
+Evidence is in [the Nov 17 review](measurements/arm-preparation-review-2026-11-17.json).
 
 ### Offline CMA-ES weight and branch search
 
@@ -210,7 +359,9 @@ readbacks and their limits are described in [DAMIAO_TORQUE_LIMITS.md](DAMIAO_TOR
 - Weld command ceiling: minimum of physical design speed, explicit axis policy
   and 80% of the 1.5 rad/s measured-speed trip; currently 68.7549 deg/s on A1-A6.
   Null policy entries mean no additional cap. These are host guards, not drive gains.
-- Preparation/debug additionally use the selected <=10 deg/s commissioning ceiling.
+- Preparation/debug additionally use the selected <=100 deg/s request ceiling.
+  The operator raised this request range on Nov 17; it does not raise the
+  68.7549 deg/s motor command guard or 1.5 rad/s measured-speed trip.
 - Acceleration: D3-reduced inertia and gravity/bias use a derated torque reserve;
   preparation is also capped at 30 deg/s². The model box is provisional.
 
@@ -225,6 +376,22 @@ Arm/chassis switches only gate output. Planning assumes nominal counterpart moti
 even when that output is OFF; no arm compensation is added for a disabled chassis.
 Changing selection invalidates the plan. An existing powered hold is retained;
 **Disable arm torque** is separate. Faults latch and never auto-reset/re-enable.
+**Reset motor fault (R)** performs explicit recovery through the connected arm
+owner. It verifies disabled/stationary feedback and saves the original fault
+before clearing the latch. Retained startup faults keep the panel open for this
+action. Failed recovery stays faulted; success leaves all motors disabled and
+requires fresh selection, planning and recovery. Queued actions during reset are
+discarded, and close waits for that same owner to finish recovery and cleanup.
+
+The panel defaults to continuous welding. `--cycles` sets the finite checked
+plan/preview block, which repeats until Pause / Hold; `--single-pass` restores
+bounded execution of that block. Continuous execution accepts only the checked
+periodic cubic weld path, whose position, velocity and acceleration close at the
+boundary. Sampling wraps the path phase without a dwell, settling check or new
+enable between blocks. Selected chassis feed remains continuous. Absolute elapsed
+time and the repeat index remain in the bounded trace and live journal. Pause
+captures a fixed measured arm hold and stops feed; fault, focus, heartbeat,
+freshness, clearance, tracking and control-gap behavior remains unchanged.
 
 ## Operator hardware entry points
 
@@ -232,7 +399,10 @@ Follow [ARM_RIG_TEST.md](ARM_RIG_TEST.md#weld-panel-with-embedded-model-preview)
 with the matching reviewed mapping/standby and supported fixture. Explicit
 `--execute --arm --supported` selects the real arm; chassis also requires explicit
 `--chassis --mapping-confirmed` and a complete four-wheel profile. Close competing
-owners before starting a session. Never use `--optimize-preparation` for hardware.
+owners before starting a session. Add `--optimize-preparation` to select checked
+staging on hardware; `--max-speed-deg-s 10` explicitly selects the speed used by
+the recorded five-second comparison. Fresh feedback determines the route, and
+the operator reviews the checked path before starting recovery.
 
 ## Verification
 

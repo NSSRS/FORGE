@@ -7,6 +7,7 @@ from contextlib import contextmanager
 import numpy as np
 
 from motors.arm_group_hold import ArmGroupHoldPort
+from motors import arm_position as position
 from motors.arm_position import MotionCancelled
 from motors.arm_calibration import CalibrationMap
 from .weld_control import Feedback, TrajectoryPaused
@@ -56,6 +57,7 @@ class TrajectoryArmPort(ArmGroupHoldPort):
         self.path_speeds = np.radians(np.minimum(self.axis_ceilings, 5.0))
         self.path_active = False
         self.endpoint_hold = False
+        self._cycle = None
         self.path_ceiling = max_speed_deg_s
         super().__init__(*args, window_degrees=None, smooth_jog=False, **kwargs)
         self.report.update(
@@ -114,14 +116,51 @@ class TrajectoryArmPort(ArmGroupHoldPort):
                 raise ValueError(f"A{i+1}: target exceeds configured protocol bounds")
         # Commit only after validating every axis. Physical dispatch is sequential.
         with self._guard_motion():
+            if self._cycle is None:
+                self.begin_cycle()
+            states, started, feedback_done = self._cycle
+            self._cycle = None  # A feedback batch may authorize only one dispatch.
+            if any(row.age_ms >= 80 for row in self.cached_positions()):
+                raise RuntimeError("Arm feedback became stale before trajectory dispatch")
             self._check_intent()
             self.hold_targets = dict(enumerate(targets))
             self.path_speeds = np.radians(speed)
             self.path_active = True
             self.endpoint_hold = False
-            self.poll()
+            commands_started = position.time.monotonic()
+            self._refresh_targets()
+            done = position.time.monotonic()
+            self._control_timing = dict(
+                owner_poll_ms=(done - started) * 1000,
+                feedback_batch_ms=(feedback_done - started) * 1000,
+                calculation_ms=(commands_started - feedback_done) * 1000,
+                command_batch_ms=(done - commands_started) * 1000,
+            )
+            for i, sample in states.items():
+                self._record_motion_sample(i, sample, hold_target=self.hold_targets[i])
+
+    def begin_cycle(self):
+        """Read once before planning this tick; dispatch follows in set_targets.
+
+        Idle holding still uses poll(), which reads and refreshes fixed targets.
+        Splitting a moving cycle avoids sending the previous target and then
+        reading every joint again before dispatching the new target.
+        """
+        self._cycle = None
+        self._check()
+        if not self.holding or not self.hold_targets:
+            raise ValueError("Explicit group hold is required")
+        with self._guard_motion():
+            started = position.time.monotonic()
+            states = {i: self._enabled_sample(i) for i in self.slots}
+            self._cycle = states, started, position.time.monotonic()
+
+    def poll(self):
+        self._cycle = None
+        return super().poll()
 
     def stop(self):
+        self._cycle = None
         self.endpoint_hold = False
         self.path_active = False
         super().stop()
@@ -140,7 +179,6 @@ class TrajectoryArmPort(ArmGroupHoldPort):
             self.path_active = False
             self.moving = False
             self.armed = False
-            self._refresh_targets()
             self._event(
                 "weld_endpoint_hold",
                 targets_rad=dict(self.hold_targets),
@@ -148,13 +186,13 @@ class TrajectoryArmPort(ArmGroupHoldPort):
             )
 
     def pause_trajectory(self):
+        self._cycle = None
         if not self.hold_targets:
             return
         with self._guard_motion():
-            if not self.endpoint_hold:
+            if self.path_active:
                 samples = {i: self._enabled_sample(i) for i in self.slots}
                 self.hold_targets = {i: s.position for i, s in samples.items()}
-                self.path_speeds = np.minimum(self.path_speeds, math.radians(5.0))
             self.path_active = False
             self.moving = False
             self.holding = True
@@ -163,6 +201,7 @@ class TrajectoryArmPort(ArmGroupHoldPort):
             self._event(
                 "weld_pause_hold",
                 targets_rad=dict(self.hold_targets),
+                speed_allowance_rad_s=self.path_speeds.tolist(),
                 endpoint_preserved=self.endpoint_hold,
             )
 
@@ -175,8 +214,16 @@ class ArmOwner:
             mapping=mapping,
             max_speed_deg_s=max_speed_deg_s,
             motion_allowed=motion_allowed,
+            allow_faulted_start=True,
         )
         self.ceiling = max_speed_deg_s
+
+    @property
+    def fault(self):
+        return self.port.report.get("error") if self.port.recovery_required else None
+
+    def recover(self, report_path):
+        self.port.recover(report_path)
 
     def read(self):
         rows = (
@@ -222,6 +269,9 @@ class ArmOwner:
     def poll(self):
         self.port.poll()
 
+    def begin_cycle(self):
+        self.port.begin_cycle()
+
     def command(self, raw, speed):
         self.port.set_targets(raw, speed)
 
@@ -254,6 +304,7 @@ class SimulatedArm:
         self.last = clock()
         self.enabled = False
         self.endpoint_hold = False
+        self.path_active = False
         self.closed = False
         self.commands = []
 
@@ -282,6 +333,7 @@ class SimulatedArm:
         check_hold_start(self.q, expected, pose_check)
         self.enabled = True
         self.endpoint_hold = False
+        self.path_active = False
         self.target = self.q.copy()
         self.speed = np.zeros(6)
 
@@ -291,6 +343,7 @@ class SimulatedArm:
         self.target = finite_vector(raw, "target").copy()
         self.speed = finite_vector(speed, "speed").copy()
         self.endpoint_hold = False
+        self.path_active = True
         self.commands.append(self.target.tolist())
         if len(self.commands) > 1000:
             del self.commands[:500]
@@ -299,17 +352,27 @@ class SimulatedArm:
         if not self.enabled:
             raise RuntimeError("Simulated arm disabled")
         self.endpoint_hold = True
+        self.path_active = False
 
     def pause(self):
         self.poll()
-        if not self.endpoint_hold:
+        if self.path_active:
             self.target = self.q.copy()
+        self.path_active = False
         self.velocity[:] = 0
 
     def disable(self):
         self.pause()
         self.enabled = False
         self.endpoint_hold = False
+
+    def recover(self, report_path):
+        if self.enabled:
+            raise RuntimeError("Disable before recovery")
+        self.path_active = self.endpoint_hold = False
+        self.target = self.q.copy()
+        self.speed[:] = 0
+        self.velocity[:] = 0
 
     def close(self):
         self.disable()

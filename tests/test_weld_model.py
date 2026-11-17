@@ -18,6 +18,23 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class FullModelWeldTests(unittest.TestCase):
+    def test_kinematic_clearance_matches_full_forward_contacts(self):
+        from controls.controller.weld_plan import JointPath
+        fixture = json.loads((ROOT / "tests/fixtures/weld_tracking_20261117.json").read_text())
+        geometry = WeldGeometry(CalibrationMap(fixture["mapping"]))
+        for stage in ("home", "approach", "weld"):
+            path = JointPath.from_document(fixture["plan"][stage])
+            for t in np.linspace(0, path.duration, 25):
+                geometry.check(path.sample(t)[0])
+                positions = geometry.data.site_xpos.copy()
+                contacts = [(tuple(c.geom), c.dist) for c in geometry.data.contact]
+                geometry.mj.mj_forward(geometry.model, geometry.data)
+                np.testing.assert_allclose(geometry.data.site_xpos, positions, atol=1e-12)
+                self.assertEqual(len(contacts), geometry.data.ncon)
+                for (geoms, distance), contact in zip(contacts, geometry.data.contact):
+                    self.assertEqual(geoms, tuple(contact.geom))
+                    self.assertAlmostEqual(distance, contact.dist, places=12)
+
     def test_nonzero_recovery_to_compact_standby_then_weld(self):
         mapping = CalibrationMap(json.loads(
             (ROOT / "src/robot_description/config/arm_calibration_measured.json").read_text()
@@ -96,7 +113,7 @@ class FullModelWeldTests(unittest.TestCase):
                                 arm_enabled=True, chassis_enabled=False))
             solve.assert_not_called()
 
-    def test_checked_approach_weave_and_replay(self):
+    def test_checked_approach_continuous_weave_and_replay(self):
         mapping = CalibrationMap(
             json.loads(
                 (ROOT / "src/robot_description/config/arm_calibration_measured.json").read_text()
@@ -135,7 +152,9 @@ class FullModelWeldTests(unittest.TestCase):
         arm = SimulatedArm(raw, clock=clock)
         chassis = FakeChassis()
         geometry = WeldGeometry(mapping)
-        control = WeldController(arm, chassis, clock=clock, pose_check=geometry.check)
+        control = WeldController(
+            arm, chassis, clock=clock, pose_check=geometry.check, continuous_weld=True
+        )
         try:
             control.select(True, True)
             control.load_plan(plan)
@@ -146,11 +165,19 @@ class FullModelWeldTests(unittest.TestCase):
                 if control.state == "ready":
                     control.start_weld()
                 self.assertNotIn(control.state, ("fault", "paused"), control.message)
-                if control.state == "complete":
+                if control.state == "welding" and clock() - control.started > 3.1 * control.paths["weld"].duration:
                     break
-            self.assertEqual(control.state, "complete")
+            self.assertEqual(control.state, "welding", control.message)
+            self.assertGreaterEqual(control.trace[-1]["weld_repeat_index"], 3)
+            self.assertEqual(chassis.last_feed, plan["feed_m_s"])
+            control.pause()
             self.assertEqual(chassis.last_feed, 0)
             self.assertTrue(arm.enabled)
+            target = arm.target.copy()
+            for _ in range(50):
+                clock.advance()
+                control.tick()
+            np.testing.assert_array_equal(arm.target, target)
             self.assertEqual(control.trace_dropped, 0)
         finally:
             control.close()

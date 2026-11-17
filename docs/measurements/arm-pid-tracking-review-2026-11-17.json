@@ -1,0 +1,262 @@
+{
+  "description": "Offline first-order shafts with full model clearance; no hardware accessed.",
+  "hardware_qualified": false,
+  "source_journal": "weld-1794907065402842317.jsonl",
+  "nominal_preparation_s": 7.8831719455784,
+  "cases": [
+    {
+      "tracker": "paced",
+      "dt_s": 0.04,
+      "recovery_to_ready_s": 15.31999999999985,
+      "preparation_state": "ready",
+      "preparation_message": "Weld start reached; all six motors holding. Press Start welding motion.",
+      "weld_state": "welding",
+      "weld_message": "Welding motion repeats until Pause / Hold.",
+      "weld_samples": 500,
+      "measured_motion": [
+        {
+          "hz": 1.7314153331681197,
+          "peak_to_peak_deg": 1.3975602405685947,
+          "status": "measured",
+          "correlation": 0.9977690621350037
+        },
+        {
+          "hz": null,
+          "peak_to_peak_deg": 0.006271088992974683,
+          "status": "insufficient motion"
+        },
+        {
+          "hz": null,
+          "peak_to_peak_deg": 0.03722634154429727,
+          "status": "insufficient motion"
+        },
+        {
+          "hz": null,
+          "peak_to_peak_deg": 0.06768353980260144,
+          "status": "insufficient motion"
+        },
+        {
+          "hz": null,
+          "peak_to_peak_deg": 0.02503814266031057,
+          "status": "insufficient motion"
+        },
+        {
+          "hz": 1.7313902436202593,
+          "peak_to_peak_deg": 0.17316318273613973,
+          "status": "measured",
+          "correlation": 0.9978714094753188
+        }
+      ],
+      "weld_rms_error_deg": [
+        0.8188061917182057,
+        0.0405036344818021,
+        0.0638251409020006,
+        0.034673666601550655,
+        0.03484595858293323,
+        0.16199015152001403
+      ],
+      "paused_hold_enabled": true,
+      "pause_target_unchanged": true,
+      "host_tick_ms_p50_p95_max": [
+        4.61969199932355,
+        6.105177900280977,
+        8.990802001790144
+      ]
+    },
+    {
+      "tracker": "pid",
+      "dt_s": 0.04,
+      "recovery_to_ready_s": 10.079999999999961,
+      "preparation_state": "ready",
+      "preparation_message": "Weld start reached; all six motors holding. Press Start welding motion.",
+      "weld_state": "welding",
+      "weld_message": "Welding motion repeats until Pause / Hold.",
+      "weld_samples": 500,
+      "measured_motion": [
+        {
+          "hz": 1.7301090340170826,
+          "peak_to_peak_deg": 1.8694145769673298,
+          "status": "measured",
+          "correlation": 0.9342968827119281
+        },
+        {
+          "hz": null,
+          "peak_to_peak_deg": 0.014234163329334137,
+          "status": "insufficient motion"
+        },
+        {
+          "hz": null,
+          "peak_to_peak_deg": 0.07621467581890329,
+          "status": "insufficient motion"
+        },
+        {
+          "hz": null,
+          "peak_to_peak_deg": 0.08909733904147288,
+          "status": "insufficient motion"
+        },
+        {
+          "hz": null,
+          "peak_to_peak_deg": 0.049995090044184565,
+          "status": "insufficient motion"
+        },
+        {
+          "hz": 1.7300763539848125,
+          "peak_to_peak_deg": 0.24212388051397227,
+          "status": "measured",
+          "correlation": 0.9258303025490989
+        }
+      ],
+      "weld_rms_error_deg": [
+        0.66586360103538,
+        0.04039799820007006,
+        0.06006804465670453,
+        0.027458925819357338,
+        0.03243967959274615,
+        0.14116967516167003
+      ],
+      "paused_hold_enabled": true,
+      "pause_target_unchanged": true,
+      "host_tick_ms_p50_p95_max": [
+        13.910430000578344,
+        16.91836014952059,
+        25.529022999762674
+      ]
+    },
+    {
+      "tracker": "pid",
+      "dt_s": 0.02,
+      "recovery_to_ready_s": 10.139999999999873,
+      "preparation_state": "ready",
+      "preparation_message": "Weld start reached; all six motors holding. Press Start welding motion.",
+      "weld_state": "welding",
+      "weld_message": "Welding motion repeats until Pause / Hold.",
+      "weld_samples": 1000,
+      "measured_motion": [
+        {
+          "hz": 1.7305682950704522,
+          "peak_to_peak_deg": 1.41936679787986,
+          "status": "measured",
+          "correlation": 0.9996586889935655
+        },
+        {
+          "hz": null,
+          "peak_to_peak_deg": 0.007052380946944936,
+          "status": "insufficient motion"
+        },
+        {
+          "hz": null,
+          "peak_to_peak_deg": 0.038940816490139696,
+          "status": "insufficient motion"
+        },
+        {
+          "hz": null,
+          "peak_to_peak_deg": 0.06823775372780005,
+          "status": "insufficient motion"
+        },
+        {
+          "hz": null,
+          "peak_to_peak_deg": 0.02595307908139688,
+          "status": "insufficient motion"
+        },
+        {
+          "hz": 1.730571085512529,
+          "peak_to_peak_deg": 0.1809493680035601,
+          "status": "measured",
+          "correlation": 0.9996180473309717
+        }
+      ],
+      "weld_rms_error_deg": [
+        0.6983749120338395,
+        0.04090403758821472,
+        0.05874429879166049,
+        0.02903476405846022,
+        0.031454232333675274,
+        0.14532888980739292
+      ],
+      "paused_hold_enabled": true,
+      "pause_target_unchanged": true,
+      "host_tick_ms_p50_p95_max": [
+        13.654424001288135,
+        15.980947199932416,
+        19.856217000778997
+      ]
+    }
+  ],
+  "source_sha256": {
+    "src/controls/controls/controller/tracking.py": "7cbfd5ffcb2946cf65107272c4da549acc66274c1fc7d727008c170b3178f825",
+    "src/controls/controls/controller/motion_feedback.py": "a171f3882529b3c41df14373846aa885ef005dfa8e391ae35ada61fa2a02b8fc",
+    "src/controls/controls/hardware/weld_control.py": "6bbd230832c4cf3a9ec01b9dbae014d278d5f126885553ae619239cf3c15f310",
+    "src/controls/controls/hardware/weld_app.py": "3d53baa34fce21ac200c3d7a80cfbf70c27733d60c64e727a0c52547e709f849",
+    "src/controls/controls/controller/weld_plan.py": "301cf783cfbd2d0a74f9f2703411632eb1322c998a8079613ed96a80d9a4f857",
+    "src/simulation/simulation/arm_closure.py": "9021d5deccdab0b6ebad9face275a4035ce06b34b92a0d572bfe21cebbc7331e",
+    "src/controls/controls/controller/preparation.py": "56bd09f4f5b3478f5f5e2f3f72400a251804fd5c67dcd52c28692dd46782cc9d",
+    "src/controls/controls/hardware/weld_ports.py": "12182f18006d58435d1d7976e04f65b02dad66c2a32ea3baa8154437974679db",
+    "tests/test_weld_tracking.py": "fae378541a42a771ad35939a41f5a592d2c62fb9bab58308f12824b4d1759159"
+  },
+  "schema": "forge.arm_pid_tracking_review",
+  "version": 1,
+  "date": "2026-11-17",
+  "physical_jitter_resolved": null,
+  "physical_preparation_s": null,
+  "physical_hold_qualified": false,
+  "fixture": "tests/fixtures/weld_tracking_20261117.json",
+  "fixture_sha256": "a9d06c2f400e958a9b63e466d5b9dda361ae8cde17350a20835d68acdf32f483",
+  "physical_work_performed": false,
+  "interpretation": [
+    "Recovery uses nominal reference time with bounded host PID position pre-emphasis; finite arrival still waits for the exact original endpoint and stationary measured feedback.",
+    "Identical recorded-route synthetic response at 40 ms improved from 15.32 s to 10.08 s; the 20 ms PID case reached ready in 10.14 s. Neither result meets five seconds.",
+    "All cases ran 20 s of continuous welding and then 10 s of paused fixed-target holding. No physical motor, gravity, backlash, torque saturation or USB timing was simulated.",
+    "Mechanical Hz is estimated from synthetic encoder feedback, not copied from requested or planned frequency. Per-axis travel is included because frequency alone does not establish tracking.",
+    "The response time constants are provisional estimates from the earlier operator journal. Separate mismatched-response tests cover 0.5x and 1.2x recovery/welding and preserve the 3-degree pause at 1.5x.",
+    "Wall-clock compute measurements include concurrent offline tests and exclude physical serial/CAN timing; they are not real-time or hardware qualification."
+  ],
+  "verification": {
+    "software_model_tests_passed": 188,
+    "batches": [
+      {
+        "tests": 150,
+        "passed": true,
+        "log": "build/controller_sweep/20261117/pid/controller-model-tests.log",
+        "modules": [
+          "test_weld_tracking",
+          "test_weld_hardware",
+          "test_weld_preparation",
+          "test_weld_recovery",
+          "test_weld_panel",
+          "test_weld_recording",
+          "test_arm_geometry",
+          "test_modeling_layout",
+          "test_motor_overview_models",
+          "test_terrain",
+          "test_magnetic",
+          "test_model_compatibility",
+          "test_body_colors",
+          "test_weld_model"
+        ]
+      },
+      {
+        "tests": 37,
+        "passed": true,
+        "log": "build/controller_sweep/20261117/pid/planning-preview-tests.log",
+        "modules": [
+          "test_weld_constraints",
+          "test_weld_encoder_branch",
+          "test_weld_preparation_search",
+          "test_weld_preview",
+          "test_weld_search"
+        ]
+      },
+      {
+        "tests": 1,
+        "passed": true,
+        "test": "test_weld_tracking.TrackingTests.test_mismatched_response_adapts_or_retains_tracking_stop",
+        "note": "Added and run separately after the first batch had loaded the preceding nine-test tracking module."
+      }
+    ],
+    "offline_audit": {
+      "passed": true,
+      "command": ".venv/bin/python scripts/control_weld.py --audit"
+    },
+    "hardware_accessed": false
+  }
+}

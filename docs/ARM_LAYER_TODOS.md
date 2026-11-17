@@ -17,7 +17,7 @@ in the guides; full hardware qualification below remains separate.
 Next operator hardware session: **2026-11-17**. Prioritize **HOLD-01** to
 qualify joint stiffness after preparation, alongside CAL-01/SUPPORT-01. Then
 complete **WEAVE-01**. LOAD-01 compensation and FEEDBACK-01 sensor/ESO work remain
-deferred until the first qualified arm welding run. The offline staging search
+deferred until the first qualified arm welding run. The checked staging search
 and ideal fake-shaft timing do not establish loaded holding or five-second motion.
 
 1. Validate the recorded raw references (**CAL-01**): power-cycle repeatability,
@@ -27,8 +27,8 @@ and ideal fake-shaft timing do not establish loaded holding or five-second motio
    The eight requested readings are saved in [the handoff](ARM_SESSION_HANDOFF.md).
 2. Establish resting support for torque loss and finish loaded stopping/holding
    qualification (**SUPPORT-01**, **DEPLOY-01**).
-3. Resume jitter investigation and qualify commanded speeds later (**SPEED-01**),
-   explicitly deferred by the operator on 2026-11-12.
+3. Qualify the host PID tracker and coordinated speeds (**SPEED-01**), resumed
+   by the operator on 2026-11-17; broader manual-jog investigation remains deferred.
 
 ### SUPPORT-01 — base, gravity support and physical stopping
 
@@ -46,6 +46,10 @@ Owner: operator/mechanical integration, `src/bringup/`.
   failure: A2 still reported -0.168498 rad/s after disabling. Preserve the saved
   [shutdown evidence](measurements/arm-reference-2026-11-12.session-summary.json)
   and verify shutdown on a supported fixture before treating cleanup as qualified.
+  Qualify supported shutdown after powered recovery, including the A5 movement
+  retained in the [Nov 17 evidence](measurements/arm-preparation-review-2026-11-17.json).
+  The subsequent stationary disabled/readback check passed; that startup check
+  does not qualify shutdown from loaded motion.
 
 ### CAL-01 — motor-position initialization and physical calibration
 
@@ -94,12 +98,23 @@ See the [capture procedure](ARM_POSE_TEST.md#current-procedure-initial-positions
 
 ### SPEED-01 — faster commanded movement
 
-Owner: `src/motors/arm_position.py`, `src/teleop/`, firmware/profile commissioning.
+Owner: `src/controls/`, `src/motors/arm_position.py`, `src/teleop/`, firmware/profile commissioning.
 
-- [ ] Resolve the reported A5 physical drop and establish actual position-loop
-  response before another full recovery trial. The latest saved recovery stopped
-  on a nominal-timeout defect while only 54.7% through its paced home path;
-  software fixes and fake plants do not qualify physical recovery.
+- [ ] Qualify the Nov 17 bounded host PID/velocity-lead tracker in
+  `src/controls/controls/controller/tracking.py`. Compare actual recovery time,
+  error, measured Hz/travel and physical smoothness against `--tracker paced`.
+  Include unequal load, reversal, saturation, model-limited correction and final
+  fixed holding. Synthetic first-order response and model clearance checks do not
+  identify the loaded plant or establish physical jitter improvement. The latest
+  archived tracker-v3 run matches A1/A6 weave frequency but exceeds planned travel
+  (3.694/2.260 deg and 0.634/0.427 deg respectively). Qualify amplitude and phase
+  without changing the operator-accepted tiny A2–A5 nominal motions; see the
+  [saved reports](measurements/weld/2026-11-17/README.md).
+- [ ] Qualify coordinated preparation after the timeout/reference-braking fixes
+  and the explicit raised-approach option. A5 manual operation is reported normal;
+  resolve unequal-axis tracking and gun/floor clearance under load without
+  inferring a gain defect from the failed nominal path. Software replay does not
+  qualify physical recovery.
   Meet the requested five-second preparation goal by reducing unnecessary travel
   and qualifying tracking, not by widening trips or speeding up the renderer.
   See [current evidence](ARM_SESSION_HANDOFF.md#calibration-and-evidence).
@@ -181,10 +196,15 @@ trips and PSU DC current are not motor current clamps or measured shaft torque.
 ### HOLD-01 — post-preparation joint stiffness and fixed-pose acceptance
 
 Owner: `src/controls/controls/hardware/`, `src/motors/`, operator.
-Requested 2026-11-16; operator testing planned for 2026-11-17. Most/all joints
+Requested 2026-11-16; operator testing began 2026-11-17. Most/all joints
 reportedly reach the prep target, then sag before welding. The host now latches
 that settled target and allowance, preserves it through idle/pause, and records
-cached post-arrival errors. Physical stiffness is still unqualified.
+cached post-arrival errors. Welding uses a steady allowance, and repeated
+interrupted pauses preserve the first hold. An earlier operator journal held all
+six fixed targets within 0.177 deg for 12.76 s at ready. The operator confirmed
+pushing during later deviations, which recovered to the same targets. Loaded
+stiffness across representative poses and the post-weld transition remain
+unqualified; the exact journal interval is in the Nov 17 review JSON.
 
 - [ ] With the installed load supported, verify that target, mode, enable state
   and speed allowance remain unchanged across prep completion. Record six-axis
@@ -204,8 +224,9 @@ cached post-arrival errors. Physical stiffness is still unqualified.
   explicit disable and faults under the supported load. Never treat active hold
   as a mechanical brake. Keep SUPPORT-01 and shutdown failures open.
 - [ ] Only after stable holding, measure complete prep-to-ready time against
-  five seconds. The 4.62-second ideal replay uses an offline staging pose and
-  does not authorize it for hardware.
+  five seconds. Explicit `--optimize-preparation` now permits checked staging
+  on hardware. The 4.62-second ideal replay at 10 deg/s does not establish loaded
+  timing; qualify the actual start, selected route and measured response.
 
 Procedure: [post-preparation hold acceptance](ARM_RIG_TEST.md#post-preparation-hold-acceptance).
 
@@ -239,6 +260,13 @@ CAL-01, ROS-02 and BASE-06. The existing D3-closed single-joint clearance study
 is documented in [ARM_COLLISION_STUDY.md](ARM_COLLISION_STUDY.md); its sampled
 intervals are not independently combinable hardware limits.
 
+- [ ] Add a visible encoder-drift check between **Calculate and check path**
+  and **Start recovery**. Compare fresh feedback from all six joints with the
+  encoder pose used to calculate the accepted path, while waiting and again
+  immediately before starting recovery. If any joint exceeds the threshold,
+  show the joint and angle change, invalidate the plan and require recalculation.
+  Threshold to decide: **2 degrees**, with **5 degrees** as an alternative.
+  Integrate with existing start-pose validation; do not silently loosen its guards.
 - [ ] Qualify recovery from supported rest poses with the installed gun, cables
   and chassis. The bounded direct/joint-order recovery, pre-enable geometry gate,
   hold verification and waypoint settling are implemented; audit remaining

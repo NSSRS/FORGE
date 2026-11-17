@@ -343,15 +343,33 @@ OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 QT_QPA_PLATFORM=offscreen MUJOCO_GL=egl
 .venv/bin/python scripts/control_weld.py --audit
 ```
 
+The November 17 publication check passed 166 weld tests and the offline audit,
+plus six `test_arm_geometry` tests and 43 model/calibration tests (no skips).
+For the additional shared-model coverage, run:
+
+```bash
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 QT_QPA_PLATFORM=offscreen MUJOCO_GL=egl \
+  PYTHONPATH=tests .venv/bin/python -m unittest test_arm_geometry \
+  test_model_compatibility test_motor_overview_models test_body_colors \
+  test_magnetic test_terrain test_velocity_control test_motor_mirror \
+  test_arm_calibration -v
+```
+
+Terrain tests regenerate scene XML; review or discard generated scene-only changes
+separately from controller source. Physical session evidence is indexed in the
+[November 17 report archive](../docs/measurements/weld/2026-11-17/README.md).
+
 | Suite | Contract |
 | --- | --- |
 | `test_weld_constraints.py` | Calibration identifiability, output-shaft units, physical/host limits and exact retiming |
-| `test_weld_hardware.py` | Shared state machine, native C fake-CAN arm, ENCOS simulator, fixed endpoint hold, pause/fault handling and no gain writes |
-| `test_weld_preparation.py` | Bounded pacing, lag/stall/timeout behavior, speed allowances and unchanged motion guards |
-| `test_weld_preparation_search.py` | Recorded Nov 16 model case, full endpoint, <=5 s ideal replay, acceleration reserve and physical-owner rejection |
+| `test_weld_encoder_branch.py` | Explicit A1 restart-branch selection, unchanged physical interval/A4 winding limits, source fingerprints and raw target continuity |
+| `test_weld_hardware.py` | Shared state machine, native C fake-CAN arm, ENCOS simulator, continuous periodic execution/pause, fixed hold, retained ready plan and same-owner fault reset without automatic enable |
+| `test_weld_preparation.py` | Signed interval acceleration bounds, fast-route A5 lag regression, pacing/stall/timeouts, speed allowances and unchanged motion guards |
+| `test_weld_tracking.py` | Nominal-clock PID with unequal/delayed response, recorded A6 overshoot/two-cycle regressions, tiny-axis correction isolation under full clearance checks, finite-leg braking at variable tick intervals, ordered recovery stops, command derivative limits, anti-windup, fixed endpoint and pause holding, failure guards, full recorded-route geometry, repeated welding, measured Hz and insufficient-motion rejection |
+| `test_weld_preparation_search.py` | Nov 16 <=5 s ideal replay; Nov 17 raised approach with unequal lag and full geometry; required lift cannot fall back to direct; acceleration reserve, hardware opt-in and legacy offline-plan rejection |
 | `test_weld_recovery.py` | Bounded route search, start/preload validation, waypoint arrival and cancelled activation |
-| `test_weld_model.py` | Actual D3/triangle-clearance/inertia checks and complete-route fake-shaft replay |
-| `test_weld_panel.py` | Worker ownership, focus/heartbeat cancellation, goal/error display and preview isolation |
+| `test_weld_model.py` | Actual D3/triangle-clearance/inertia checks, complete-route fake-shaft replay and repeated weld boundaries |
+| `test_weld_panel.py` | Worker ownership, ready hold across focus/heartbeat loss, active-motion cancellation, startup fault reset/R, queued-action rejection, reset failure/close and preview isolation |
 | `test_weld_preview.py` | Saved-start validation, nominal settling intervals, actual MuJoCo rendering and contact diagnostics |
 | `test_weld_recording.py` | Bounded asynchronous JSONL, cached snapshots, overflow and disk errors |
 | `test_weld_search.py` | CMA-ES mobility semantics, objective constraints and stale-identity rejection |
@@ -366,6 +384,11 @@ remain fixed, check cached drift/recovery events, and reject welding start when
 the arm leaves its arrival tolerance. Endpoint pause preserves the settled target;
 interrupted travel still captures a measured hold. These fake plants do not
 identify physical stiffness, friction, backlash or load capacity.
+Native regression also counts one read/command per axis per moving tick, rejects
+samples expired during calculation, and verifies ten seconds of fixed holding
+after repeated pauses and an injected displacement. A minimum-allowance plant
+checks that welding does not throttle itself near arrival or latch a collapsed
+speed limit into the final hold. Fast preparation tests cover 20–100 ms ticks.
 
 The [exported animation](../docs/WELD_MOTION.md#render-the-actual-optimized-plan)
 checks model/mapping/constraint identity, continuity and derivative limits before

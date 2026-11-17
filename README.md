@@ -2,13 +2,21 @@
 
 Motor control, IMU acquisition, teleoperation, and visualization for the magnetic wall-climbing welding robot.
 
-**Software status (2026-11-16):** cached telemetry, candidate calibration,
+**Software status (2026-11-17):** cached telemetry, candidate calibration,
 closed-chain planning and the real-motor welding controller are implemented.
 The flow is measured pose -> checked recovery -> weld start -> explicit weld ->
-fixed endpoint hold. Preparation defaults to 5 deg/s. An explicit offline staging
-comparison reaches ready in 4.62 s with ideal fake shafts; physical five-second
+continuous welding until Pause / Hold. `--single-pass` runs the planned cycles
+once and holds the endpoint. Preparation defaults to 5 deg/s. The default
+host PID tracker follows nominal preparation time with bounded velocity
+lead, braking within finite path extrema and fixed endpoint holding. Tiny weld
+moves keep nominal targets without unobservable host lead corrections. The panel
+displays measured per-axis Hz and measured/planned travel. The latest archived
+run matches A1/A6 frequency, but amplitude, loaded holding and five-second timing
+remain open; see the [current handoff and saved reports](docs/ARM_SESSION_HANDOFF.md).
+Explicit `--optimize-preparation` enables checked staging comparison on hardware. The
+recorded Nov 16 case at 10 deg/s reaches ready in 4.62 s with ideal fake shafts; physical five-second
 execution remains unqualified. HOLD-01 prioritizes post-prep sag and joint-stiffness
-acceptance for the operator's November 17 session. No drive gains were changed.
+acceptance for the next supported operator session. No drive gains were changed.
 The welding target remains **2 Hz / 12 mm/s**; historical provisional-model
 CMA-ES reached 1.815288 Hz. See [weld planning and execution](docs/WELD_MOTION.md).
 

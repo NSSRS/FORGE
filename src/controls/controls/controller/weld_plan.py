@@ -13,7 +13,12 @@ import numpy as np
 from scipy.interpolate import PchipInterpolator, CubicSpline
 
 from motors.arm_calibration import CalibrationMap, DRIVES, digest
-from .limits import motor_constraints, dynamics_constraints, trajectory_feasibility
+from .limits import (
+    MAX_PREPARATION_SPEED_DEG_S,
+    motor_constraints,
+    dynamics_constraints,
+    trajectory_feasibility,
+)
 from .recovery import recovery_path
 
 
@@ -57,6 +62,7 @@ class Settings:
     search_solution: dict | None = None
     preparation_target_s: float = 5.0
     optimize_preparation: bool = False
+    approach_lift_m: float = 0.0
 
     def __post_init__(self):
         for name in (
@@ -70,9 +76,10 @@ class Settings:
             positive(getattr(self, name), name)
         if not 0 < self.hz <= 3 or not 1 <= self.time_scale <= 1000:
             raise ValueError("Require 0 < frequency <=3 Hz and 1 <= time scale <=1000")
-        if not 0 < self.max_speed_deg_s <= 10 or self.max_accel_deg_s2 > 30:
+        if self.max_speed_deg_s > MAX_PREPARATION_SPEED_DEG_S or self.max_accel_deg_s2 > 30:
             raise ValueError(
-                "Supported commissioning requires speed <=10 deg/s and acceleration <=30 deg/s²"
+                f"Preparation request requires speed <={MAX_PREPARATION_SPEED_DEG_S:g} deg/s "
+                "and acceleration <=30 deg/s²; motor guards also apply"
             )
         if not 0 <= self.amplitude_m <= 0.01 or not 0 <= self.feed_m_s <= 0.012:
             raise ValueError(
@@ -86,6 +93,12 @@ class Settings:
             raise ValueError("Solver switches must be booleans")
         if type(self.optimize_preparation) is not bool:
             raise ValueError("Preparation optimization switch must be boolean")
+        if (
+            isinstance(self.approach_lift_m, bool)
+            or not math.isfinite(self.approach_lift_m)
+            or not 0 <= self.approach_lift_m <= 0.15
+        ):
+            raise ValueError("Approach lift must be between 0 and 150 mm")
         if self.limit_profile not in ("debug", "weld"):
             raise ValueError("Unknown constraint profile")
         if self.search_solution is not None and (
@@ -173,13 +186,19 @@ class JointPath:
             interpolation=self.interpolation,
         )
 
-    def position_bounds(self):
-        """Exact cubic position extrema; knots alone miss periodic overshoot."""
+    def position_bounds(self, start=0.0, end=None):
+        """Exact cubic extrema within an optional finite path interval."""
+        end = self.duration if end is None else end
+        if not (math.isfinite(start) and math.isfinite(end)
+                and 0 <= start <= end <= self.duration):
+            raise ValueError("Invalid trajectory position interval")
         low, high = np.empty(6), np.empty(6)
         all_roots = self._velocity.roots(extrapolate=False)
         for axis in range(6):
             roots = all_roots[axis]
-            times = np.r_[self.times, roots[np.isfinite(roots)]]
+            roots = roots[np.isfinite(roots) & (roots >= start) & (roots <= end)]
+            knots = self.times[(self.times >= start) & (self.times <= end)]
+            times = np.r_[start, end, knots, roots]
             values = self.curve(times)[:, axis]
             low[axis], high[axis] = np.min(values), np.max(values)
         return low, high
@@ -231,7 +250,7 @@ class WeldGeometry:
         )
         self.addresses = [int(self.model.joint(n).qposadr[0]) for n in DRIVES]
         self.seed = self.data.qpos.copy()
-        self.closure = ArmClosure(self.model, self.data)
+        self.closure = ArmClosure(self.model, self.data, forward=False)
         self.arm_bodies = descendant_bodies(self.model, self.model.body(DRIVES[0]).id)
         self.clearance = clearance_mm / 1000
         self.model.geom_margin[:] = np.maximum(
@@ -310,7 +329,9 @@ class WeldGeometry:
             self.data.qpos[self.addresses[i]] = q
         if not self.closure.apply(self.data):
             raise ValueError("D3 linkage cannot close at the planned pose")
-        self.mj.mj_forward(self.model, self.data)
+        # Clearance needs transforms and contacts, not the dynamics/constraint
+        # solve. Inertia/bias evaluation explicitly calls mj_forward itself.
+        self.mj.mj_collision(self.model, self.data)
         self.contact_report = self.inspect_contacts(clearance * 1000)
         for contact in self.contact_report:
             if contact["blocked"]:
@@ -703,15 +724,21 @@ def speed_report(path, settings, speed_limits=None, accel_limits=None):
 
 
 def approach_path(geometry, initial, weld_start, settings):
-    direct = move_path(initial, weld_start, settings)
-    try:
-        geometry.validate_path(direct)
-        return direct, "direct checked joint transition"
-    except ValueError as exc:
-        failures = [str(exc)]
+    failures = []
+    if not settings.approach_lift_m:
+        direct = move_path(initial, weld_start, settings)
+        try:
+            geometry.validate_path(direct)
+            return direct, "direct checked joint transition"
+        except ValueError as exc:
+            failures.append(str(exc))
+    # An explicit lift must survive staging optimization and must never silently
+    # fall back to the direct joint blend. It changes the route, not the weld pose.
+    heights = ((settings.approach_lift_m,) if settings.approach_lift_m
+               else (0.03, 0.06, 0.10, 0.15))
     # Deterministic clearance waypoints, not an unbounded search or an ignored
     # collision. Each candidate includes the entire initial-to-raised route.
-    for height in (0.03, 0.06, 0.10, 0.15):
+    for height in heights:
         try:
             geometry.data.qpos[:] = geometry.seed
             geometry.closure.apply(geometry.data)
@@ -752,7 +779,7 @@ def approach_path(geometry, initial, weld_start, settings):
     # old D1=0 branch at the stage boundary.
     if settings.search_solution is not None:
         weights = candidate_weights(settings.search_solution["candidate"])
-        for height in (0.03, 0.06, 0.10, 0.15):
+        for height in heights:
             try:
                 geometry.check(weld_start)
                 anchor = geometry.data.qpos[geometry.addresses].copy()

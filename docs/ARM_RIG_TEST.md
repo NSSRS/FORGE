@@ -122,6 +122,23 @@ explicitly labeled offline. Code and interface text remain English.
 
 ## Weld panel with embedded model preview
 
+The panel defaults to `--tracker pid` for bounded host PID position tracking and
+velocity lead. Use the same reviewed mapping, standby and launch speed arguments;
+an already running panel does not reload changed code. The header should say
+**Tracking: PID + velocity feedforward**. The large **Measured motor frequency**
+readout shows A1–A6 actual Hz and measured/planned peak-to-peak travel.
+It labels a half-weave-frequency pattern as **Two-cycle response**; other rates
+are shown relative to the weave. Individual joints may have harmonics of that
+weave, so this ratio alone is not a tracking-error score. It updates every 0.5 s
+after at least three repeatable cycles; unavailable or paused measurements show
+a dash. Requested and planned weave Hz are labeled separately.
+Measured motor Hz and peak-to-peak travel appear after several welding cycles;
+“insufficient motion” is expected when an
+axis moves by only a few encoder counts. Frequency alone does not prove the full
+commanded travel. `--tracker paced` explicitly selects the previous controller
+for comparison. Record the journal and physical response; PID software tests do
+not qualify stiffness, smoothness or five-second recovery.
+
 Use the matching reviewed mapping and standby files. From the repository root:
 
 ```bash
@@ -135,13 +152,59 @@ default A5 target. Confirm alignment away from the straight reference and ensure
 fresh raw positions are inside its two-degree cable backoff before physical
 planning. Reopening the panel does not require repeating that capture.
 
+If A1 reports the same independently verified physical orientation on a different
+encoder turn after restart, select that branch explicitly with
+`--a1-encoder-turns 1` (raw readings +360 degrees relative to the saved mapping)
+or `--a1-encoder-turns -1` (raw readings -360 degrees). For example, raw +163.1074
+corresponds to the old -196.8926 branch; selecting +1 also moves the saved A1
+standby from -174.6916 to +185.3084 raw degrees. Check the physical pose and cable
+state before selecting a branch; the software cannot infer turn history from a
+single reading. A full physical revolution is not an encoder restart correction.
+
+The branch is fixed for that session and shown in the panel/journal/report.
+Feedback stays in the motor's actual raw coordinates; calibration intercept,
+raw bounds, standby and planned targets translate together. The saved calibration
+and standby files are unchanged, their original fingerprints must match, and
+old search solutions need regeneration for the selected session mapping. A4's
+fixed cable reference and every other joint remain unchanged. An unexpected
+branch change during operation is still rejected; this option does not clear
+faults, change motor zero or qualify encoder retention across power cycles.
+
 Both profiles default to 5 deg/s preparation. The panel names the active waypoint
 or weld-start/end goal, reports reference tracking separately, and continues
 reporting fixed-target hold error after arrival. The 3 deg tracking trip and
 0.25 deg stationary arrival threshold remain. Five seconds is a total preparation
-goal, not a timeout or playback speed. The offline staging option is described in
-[WELD_MOTION.md](WELD_MOTION.md#offline-preparation-route-comparison) and is rejected
-for hardware.
+goal, not a timeout or playback speed. Add `--optimize-preparation` to explicitly
+enable checked staging on hardware. It can replace the saved standby with a
+shorter intermediate pose, while retaining the full weld target and all path/
+motion checks. The panel shows **Preparation route: optimized staging enabled**.
+Use `--max-speed-deg-s 10 --prep-seconds 5` for the speed and goal of the recorded
+five-second comparison; other starts and physical tracking may take longer.
+See [route comparison](WELD_MOTION.md#checked-preparation-route-comparison).
+The preparation request now accepts up to `--max-speed-deg-s 100`; the existing
+motor guard still limits actual commands to 68.7549 deg/s. This changes the
+requested speed allowance, not acceleration, tracking, clearance or overspeed
+protections. A reported clearance fault needs pose/path diagnosis independently
+of the requested speed.
+
+For the Nov 17 direct-approach floor fault, add `--approach-lift-mm 30`. This
+requires a waypoint with the tool 30 mm above the weld point, followed by a
+checked lowering route to the original weld start. It does not increase the
+final wire gap, change mapping, or remove the gun/floor check. Optimization must
+preserve the requested lift; if it cannot find that route, planning fails rather
+than silently choosing the direct joint blend. The panel identifies the lift.
+Preparation time depends on the starting pose and checked route; it can exceed
+the five-second goal, and measured settling can extend it further. This is an alternative for supported operator testing,
+not physical qualification or a guarantee for arbitrary joint lag.
+
+The subsequent Nov 17 disabled/readback check passed and the operator reports
+normal manual A5 operation. Do not repeat that check solely because of the older
+shutdown report. With the fixture carrying torque loss, close the manual owner
+before launching the weld panel with the matching candidate mapping/standby,
+`--optimize-preparation --max-speed-deg-s 100 --approach-lift-mm 30` and the verified
+A1 encoder branch. Calculate from fresh feedback, review the raised route, then
+explicitly start recovery. Leave welding stopped at ready for the hold acceptance
+below. A fresh tracking or clearance failure needs its new report, not weaker trips.
 
 The terminal/panel show a live `.jsonl` journal path. It can be read while the
 owner remains active and records cached data only. A bounded writer reports
@@ -164,10 +227,32 @@ plan stays available. If **Play preview** is disabled, wait for calculation to
 finish or resolve the displayed blocking/cancellation reason and calculate again.
 **Start recovery** is the separate physical action; it checks the fresh start,
 verifies hold, then moves to standby and the weld start. **Start welding motion**
-is a further explicit action. Space/Escape pause motion, including when a preview
-control has focus. Focus loss during physical operation pauses motion and requires
-a fresh calculation and explicit restart. Queued starts and an enable in progress
-are cancelled even if focus immediately returns. Closing/disable/fault removes arm torque.
+is a further explicit action. At `ready`, Space/Escape, switching windows and a
+lost UI heartbeat preserve the fixed hold and checked plan. **Start welding motion**
+stays available; return to the panel and click it when ready. A fresh start still
+requires stationary feedback within 0.25 deg of the weld start and valid clearance.
+During travel, Space/Escape, focus loss or a lost heartbeat pause motion and
+require a fresh calculation and explicit restart. These keys also work when a
+preview control has focus. Queued starts and an enable in progress are cancelled
+even if focus immediately returns. Closing/disable/fault removes arm torque.
+
+Welding now repeats continuously until **Pause / Hold (Space)**, including when
+the launch command contains `--cycles 1`. The cycle count describes the checked
+plan and preview block; the panel repeats its closed path without a dwell or
+motor disable between blocks. Selected chassis feed continues across the boundary.
+Pause stops feed and captures a fixed arm hold. Existing focus, heartbeat and
+fault stops remain active. For an explicitly bounded run, add `--single-pass` to
+execute the planned cycle count once and then hold.
+
+After addressing a fault, use **Reset motor fault (R)** in this same panel. It is
+available only for a connected, faulted arm, including a retained startup latch.
+The existing owner verifies disabled/stationary feedback and saves the original
+fault in a unique `.fault-*.json` alongside the session report before resetting.
+No second owner is opened. A failed reset leaves the fault visible for diagnosis
+and retry. Success leaves all motors disabled, clears output selections and
+discards the old plan; select outputs, calculate and explicitly start recovery
+again. Commands entered during reset are discarded. This button never resumes
+welding or energizes motors automatically.
 
 A blocked plan remains blocked: inspect the current/target views and numbered
 screen-space contact rings, which remain visible through occluding surfaces.
@@ -205,8 +290,11 @@ owns stiffness tuning and acceptance. Software tests do not establish the cause.
    peak/settled error, physical drop and oscillation. A changing hold target,
    disable or fault is a different failure from sag with an unchanged enabled
    target. Preserve the evidence before recovery or parameter changes.
-4. At a settled endpoint, pause/focus loss now keep the fixed endpoint command.
-   During unfinished travel, pause still captures current measured positions.
+4. At `ready`, pause/focus loss keep the fixed endpoint command, checked plan and
+   **Start welding motion** action available.
+   During unfinished travel, pause captures current measured positions once and
+   retains its speed allowance. Repeated pause/focus loss must not reset the hold
+   target to a drifted measurement. After the weld, verify the same fixed hold.
    Explicit disable, close and faults remove torque. Qualify these behaviors with
    support carrying any loss of torque; hold is not a mechanical lock.
 5. If drive-loop tuning is required, follow HOLD-01's per-axis readback, bounded
@@ -215,8 +303,10 @@ owns stiffness tuning and acceptance. Software tests do not establish the cause.
    by this patch. Stop and diagnose unexpected drop/oscillation before a weld.
 
 After stable holding, separately measure total prep timing. The default hardware
-standby is unchanged and may exceed five seconds; the faster staging candidate
-remains offline-only pending route and loaded-response qualification.
+standby is unchanged and may exceed five seconds. Explicit `--optimize-preparation`
+allows the checked shorter staging route on hardware; review its preview and
+reported duration before recovery. Loaded response and actual timing remain
+physical acceptance work.
 
 ## Optional A2-A6 keyboard workflow, A1 disconnected
 

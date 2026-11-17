@@ -6,6 +6,9 @@ from pathlib import Path
 import numpy as np
 
 
+MAX_PREPARATION_SPEED_DEG_S = 100.0
+
+
 def joint_speed_policy(root=None):
     root = Path(root) if root is not None else Path(__file__).resolve().parents[4]
     policy = json.loads((root / "src/controls/config/arm_motion_policy.json").read_text())
@@ -31,7 +34,7 @@ def motor_constraints(
     if profile not in ("debug", "weld"):
         raise ValueError("Unknown constraint profile")
     if (
-        not 0 < command_ceiling_deg_s <= 10
+        not 0 < command_ceiling_deg_s <= MAX_PREPARATION_SPEED_DEG_S
         or not 0 < speed_fraction <= 1
         or not 0 < torque_fraction <= 1
     ):
@@ -61,7 +64,7 @@ def motor_constraints(
         native = min(0.8 * math.degrees(motor["speed_trip_rad_s"]), physical)
         if joint_cap is not None:
             native = min(native, joint_cap)
-        deployment = min(command_ceiling_deg_s, 10.0, native) if profile == "debug" else native
+        deployment = min(command_ceiling_deg_s, native) if profile == "debug" else native
         torque = min(
             spec["rated_output_torque_nm"] * torque_fraction, motor["torque_trip_nm"] * 0.8
         )

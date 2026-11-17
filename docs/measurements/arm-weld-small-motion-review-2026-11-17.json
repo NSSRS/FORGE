@@ -1,0 +1,176 @@
+{
+  "source_journal": "weld-1794912939805911647.jsonl",
+  "source_snapshot_sha256": "8b62d4bbb15cf019081f434ffc058a00231a29b360b2b98e4bc32a1cce521fc0",
+  "description": "Offline replay of recorded feedback through old/all-axis and updated/masked host correction. This verifies command clearance, not counterfactual physical motion.",
+  "comparison": {
+    "all_axis_correction": {
+      "samples": 1019,
+      "clearance_scale_min_median_max": [
+        0.0,
+        0.058595604000038284,
+        1.0
+      ],
+      "full_correction_fraction": 0.0009813542688910696,
+      "shaped_command_clearance_failures": [],
+      "command_travel_deg": [
+        3.008296055672986,
+        0.1307557402605113,
+        0.25199910147692606,
+        0.13060150572800922,
+        0.12196880427233836,
+        0.5788132441996581
+      ]
+    },
+    "small_motion_filtered": {
+      "samples": 1019,
+      "clearance_scale_min_median_max": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "full_correction_fraction": 1.0,
+      "shaped_command_clearance_failures": [],
+      "command_travel_deg": [
+        7.351664430018786,
+        0.09954962119287813,
+        0.20952424989849305,
+        0.11841190304008364,
+        0.11255021384450004,
+        1.559426482360152
+      ]
+    }
+  },
+  "hardware_commanded": false,
+  "hardware_qualified": false,
+  "schema": "forge.weld_small_motion_review",
+  "version": 1,
+  "created_utc": "2026-11-17T11:11:02.821773+00:00",
+  "source_prefix_bytes": 12867212,
+  "source_records": 1703,
+  "planned_weave_hz": 1.7306084227007668,
+  "steady_span_s": 16.20570042399777,
+  "observed_joint_motion": [
+    {
+      "joint": 1,
+      "planned_travel_deg": 2.260499468092746,
+      "measured_travel_deg": 1.7922962797247237,
+      "command_travel_deg": 3.008296055672986,
+      "measured": {
+        "hz": 1.730546869319376,
+        "peak_to_peak_deg": 1.7922962797247237,
+        "status": "measured",
+        "correlation": 0.9958950954686835
+      },
+      "command": {
+        "hz": 1.7300637441474338,
+        "peak_to_peak_deg": 3.008296055672986,
+        "status": "measured",
+        "correlation": 0.9970222708761746
+      }
+    },
+    {
+      "joint": 2,
+      "planned_travel_deg": 0.06267671189202417,
+      "measured_travel_deg": 0.0,
+      "command_travel_deg": 0.12849907245426095,
+      "measured": {
+        "hz": null,
+        "peak_to_peak_deg": 0.0,
+        "status": "insufficient motion"
+      },
+      "command": {
+        "hz": 3.464850373792406,
+        "peak_to_peak_deg": 0.12849907245426095,
+        "status": "measured",
+        "correlation": 0.9513418061929824
+      }
+    },
+    {
+      "joint": 3,
+      "planned_travel_deg": 0.13167035709777508,
+      "measured_travel_deg": 0.021856605344041213,
+      "command_travel_deg": 0.2480219160502486,
+      "measured": {
+        "hz": null,
+        "peak_to_peak_deg": 0.021856605344041213,
+        "status": "insufficient motion"
+      },
+      "command": {
+        "hz": 3.4649357241299876,
+        "peak_to_peak_deg": 0.2480219160502486,
+        "status": "measured",
+        "correlation": 0.9531224995359119
+      }
+    },
+    {
+      "joint": 4,
+      "planned_travel_deg": 0.09828141071179175,
+      "measured_travel_deg": 0.021856605344027003,
+      "command_travel_deg": 0.13060150572800922,
+      "measured": {
+        "hz": null,
+        "peak_to_peak_deg": 0.021856605344027003,
+        "status": "insufficient motion"
+      },
+      "command": {
+        "hz": 1.7300547684745335,
+        "peak_to_peak_deg": 0.13060150572800922,
+        "status": "measured",
+        "correlation": 0.9969751067194077
+      }
+    },
+    {
+      "joint": 5,
+      "planned_travel_deg": 0.07185588611044125,
+      "measured_travel_deg": 0.0,
+      "command_travel_deg": 0.12074864815019026,
+      "measured": {
+        "hz": null,
+        "peak_to_peak_deg": 0.0,
+        "status": "insufficient motion"
+      },
+      "command": {
+        "hz": 3.4651646677836325,
+        "peak_to_peak_deg": 0.12074864815019026,
+        "status": "measured",
+        "correlation": 0.95281701093221
+      }
+    },
+    {
+      "joint": 6,
+      "planned_travel_deg": 0.42731358083463533,
+      "measured_travel_deg": 0.4589887122248584,
+      "command_travel_deg": 0.5788132441996581,
+      "measured": {
+        "hz": 0.8651535762947312,
+        "peak_to_peak_deg": 0.4589887122248584,
+        "status": "measured",
+        "correlation": 0.9913663362531228
+      },
+      "command": {
+        "hz": 1.7300190522597243,
+        "peak_to_peak_deg": 0.5788132441996581,
+        "status": "measured",
+        "correlation": 0.9966451474103908
+      }
+    }
+  ],
+  "fix": "Preserve all nominal targets; omit host PID/lead on weld axes with planned travel below 0.3 deg peak-to-peak. Retain A1/A6 correction and existing guards. Label two-cycle frequency response separately from travel.",
+  "physical_response_after_fix": null,
+  "tests": {
+    "unique_tests_passed": 133,
+    "tracking_existing": 14,
+    "tracking_new": 3,
+    "controller_panel_and_guards": 116
+  },
+  "limitations": [
+    "Recorded feedback is held fixed during command replay; this is not a prediction of the changed physical response.",
+    "Small-axis motion was accepted by the operator; no drive settings or protection thresholds were changed."
+  ],
+  "source_sha256": {
+    "src/controls/controls/controller/tracking.py": "530b9174e002a08875c92416b86185d4f4d66c96310bf7947536fa56d9abf262",
+    "src/controls/controls/hardware/weld_control.py": "1189fea100d637677dc4a030801c2ddf5dc5a27d4863ba7cef754c172de1ef85",
+    "src/controls/controls/hardware/weld_app.py": "a99285f2019309b1f22651f68717173c2dabd797c0cedb6845b8523a9be2d621",
+    "tests/fixtures/weld_small_motion_20261117.json": "8b8a94665e64ce252295d3d84970342b19bcf09a24d0e5aef336d9a32fe330e1"
+  }
+}

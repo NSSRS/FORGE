@@ -5,8 +5,9 @@ import numpy as np
 from scipy.optimize import least_squares
 
 class ArmClosure:
-    def __init__(self,model,data):
+    def __init__(self,model,data,*,forward=True):
         self.model=model
+        self.forward=forward
         self.rod=model.joint('b4_1_arm_rod_d3').id
         self.bearing=model.joint('b4_2_arm_d3').id
         self.sites=[model.site('closing_b4_2_arm_rod_d3_'+str(i)).id for i in (1,2)]
@@ -15,6 +16,11 @@ class ArmClosure:
         self.drive_adr=int(model.joint('b4_arm_d3').qposadr[0])
         self.work=mujoco.MjData(model)
         self.last=data.qpos.copy()
+    def _refresh(self,data):
+        # Geometry-only callers run collision separately. Dynamics/viewer
+        # callers retain the original full-forward update by default.
+        if self.forward:mujoco.mj_forward(self.model,data)
+        else:mujoco.mj_kinematics(self.model,data)
     def apply(self,data):
         # A large direct edit can converge to the other four-bar assembly.
         # Continue the driven crank from the last closed pose in small increments;
@@ -24,7 +30,7 @@ class ArmClosure:
         delta=target[self.drive_adr]-previous[self.drive_adr]
         if not np.isfinite(target).all():
             data.qpos[:]=previous
-            mujoco.mj_forward(self.model,data)
+            self._refresh(data)
             return False
         steps=max(1,math.ceil(abs(delta)/math.radians(5)))
         for step in range(1,steps+1):
@@ -35,7 +41,7 @@ class ArmClosure:
                 # Do not expose a partly applied edit if an intermediate pose fails.
                 self.last=previous
                 data.qpos[:]=previous
-                mujoco.mj_forward(self.model,data)
+                self._refresh(data)
                 return False
         return True
 
@@ -50,6 +56,36 @@ class ArmClosure:
         # Rod and bearing are dependent coordinates, never independent commands.
         candidate[self.qadr:self.qadr+4]=self.last[self.qadr:self.qadr+4]
         candidate[self.badr]=self.last[self.badr]
+        # Nearby trajectory samples need only a small local correction. Solve
+        # the same site-gap constraint with MuJoCo's analytic Jacobian before
+        # falling back to the general bounded least-squares solve. Never accept
+        # an approximate closure or advance to another assembly branch.
+        self.work.qpos[:]=candidate
+        jac_a=np.zeros((3,m.nv));jac_b=np.zeros((3,m.nv))
+        previous_gap=math.inf
+        for _ in range(6):
+            mujoco.mj_kinematics(m,self.work)
+            gap=self.work.site_xpos[self.sites[0]]-self.work.site_xpos[self.sites[1]]
+            norm=float(np.linalg.norm(gap))
+            if norm<1e-10:
+                data.qpos[:]=self.work.qpos
+                self.last=data.qpos.copy()
+                self._refresh(data)
+                return True
+            if not math.isfinite(norm) or norm>=previous_gap:
+                break
+            previous_gap=norm
+            mujoco.mj_comPos(m,self.work)
+            mujoco.mj_jacSite(m,self.work,jac_a,None,self.sites[0])
+            mujoco.mj_jacSite(m,self.work,jac_b,None,self.sites[1])
+            delta=np.linalg.lstsq((jac_a-jac_b)[:,self.dofs],-gap,rcond=1e-10)[0]
+            if not np.isfinite(delta).all() or max(abs(delta))>0.1:
+                break
+            velocity=np.zeros(m.nv);velocity[self.dofs]=delta
+            mujoco.mj_integratePos(m,self.work.qpos,velocity,1)
+            if m.jnt_limited[self.bearing] and not (
+                    m.jnt_range[self.bearing,0]<=self.work.qpos[self.badr]<=m.jnt_range[self.bearing,1]):
+                break
         velocity=np.zeros(m.nv)
         def evaluate(x):
             self.work.qpos[:]=candidate
@@ -68,5 +104,5 @@ class ArmClosure:
         ok=np.linalg.norm(residual[:3])<1e-6
         data.qpos[:]=self.work.qpos if ok else self.last
         self.last=data.qpos.copy()
-        mujoco.mj_forward(m,data)
+        self._refresh(data)
         return ok

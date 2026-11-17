@@ -1,4 +1,4 @@
-"""Bounded offline staging search; preserves the complete checked weld target."""
+"""Bounded staging search; preserves the complete checked weld target."""
 
 from copy import deepcopy
 
@@ -104,12 +104,11 @@ def optimize_preparation(plan, geometry, settings):
         except ValueError as exc:
             row.update(checked=False, reason=str(exc))
         candidates.append(row)
-    best["offline_only"] = True
     best["preparation_search"] = dict(
         requested_standby_raw_deg=plan["initial_raw_deg"],
         original_nominal_total_s=plan["preparation_timing"]["nominal_total_s"],
         candidates=candidates,
         changed_standby=best["initial_raw_deg"] != plan["initial_raw_deg"],
-        guarantee="Best of three checked staging candidates and requested standby; offline only.",
+        guarantee="Best of three checked staging candidates and requested standby; physical time unverified.",
     )
     return best

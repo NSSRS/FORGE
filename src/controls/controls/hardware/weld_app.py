@@ -13,6 +13,9 @@ import threading
 import time
 
 from motors.arm_calibration import CalibrationMap, digest
+from controls.controller.calibration import select_a1_encoder_branch
+from controls.controller.limits import MAX_PREPARATION_SPEED_DEG_S
+from controls.controller.tracking import TrackingSettings
 from controls.controller.weld_plan import (
     Settings,
     WeldGeometry,
@@ -48,6 +51,9 @@ def make_window(args, mapping, initial, settings, root):
     from PyQt5 import QtCore, QtGui, QtWidgets
     from .weld_ports import ArmOwner, SimulatedArm, ChassisOwner
 
+    tracker_settings = TrackingSettings() if getattr(args, "tracker", "pid") == "pid" else None
+    tracker_document = None if tracker_settings is None else tracker_settings.document()
+
     class OwnerThread(QtCore.QThread):
         status = QtCore.pyqtSignal(object)
         preview_plan = QtCore.pyqtSignal(object)
@@ -61,6 +67,8 @@ def make_window(args, mapping, initial, settings, root):
             self.focus_stop = threading.Event()
             self.focus_generation = 0
             self.heartbeat = time.monotonic()
+            self.heartbeat_expired = False
+            self.resetting = threading.Event()
             self.controller = None
             self.pending = None
             self.planning_started = None
@@ -76,7 +84,9 @@ def make_window(args, mapping, initial, settings, root):
             )
 
         def send(self, action, *values):
-            if action in ("pause", "disable", "select"):
+            if self.resetting.is_set():
+                return  # Recovery owns the transport; require fresh input afterward.
+            if action in ("pause", "disable", "select", "reset"):
                 self.cancel.set()
                 while True:
                     try:
@@ -110,11 +120,40 @@ def make_window(args, mapping, initial, settings, root):
         def pause_for_focus_loss(self):
             if self.foreground.is_set() and not self.focus_stop.is_set():
                 return
+            newly_lost = self.focus_stop.is_set()
             self.focus_stop.clear()
             c = self.controller
-            if c.state in c.ACTIVE or c.state == "ready":
+            if c.state in c.ACTIVE or (c.state == "ready" and newly_lost):
                 c.pause()
-                c.message = "Window focus lost; motion paused. " + c.message
+                c.message = "Window focus lost. " + c.message
+
+        def reset_motor_fault(self):
+            c = self.controller
+            if not c.fault or c.arm is None:
+                raise ValueError("No connected arm fault to reset")
+            self.clear_planning()
+            self.resetting.set()
+            try:
+                self.record_evidence("before_motor_reset")
+                self.status.emit(dict(
+                    state="resetting", message="Saving fault evidence and verifying disabled, stationary motors…",
+                    pending=False, arm_on=False, chassis_on=False, raw_deg=None,
+                ))
+                journal = getattr(args, "journal_path", None)
+                evidence = (
+                    Path(journal).with_suffix(".json") if journal else
+                    root / "build" / "weld" / f"reset-{time.time_ns()}.json"
+                )
+                c.reset_motor_fault(evidence)
+            finally:
+                while True:
+                    try:
+                        self.commands.get_nowait()
+                    except queue.Empty:
+                        break
+                self.cancel.clear()
+                self.resetting.clear()
+                self.record_evidence("after_motor_reset")
 
         def clear_planning(self):
             if self.pending is not None:
@@ -148,6 +187,7 @@ def make_window(args, mapping, initial, settings, root):
                     events=events,
                     fault=c.fault,
                     observation=c.last_observation,
+                    measured_motion=c.motion_frequency.result if c.state == "welding" else None,
                     last_command=None if not c.trace else c.trace[-1],
                     arm=cached_arm_evidence(c.arm),
                     dropped_records=self.journal.dropped,
@@ -166,7 +206,9 @@ def make_window(args, mapping, initial, settings, root):
                             schema="forge.weld_motion_journal",
                             version=1,
                             simulated=not args.execute,
+                            continuous_weld=not getattr(args, "single_pass", False),
                             settings=asdict(settings),
+                            tracker=tracker_document,
                             mapping=mapping.document,
                             initial_raw_deg=list(initial),
                             created_utc=datetime.now(timezone.utc).isoformat(),
@@ -223,12 +265,22 @@ def make_window(args, mapping, initial, settings, root):
                     arm,
                     chassis,
                     pose_check=None if geometry is None else geometry.check,
+                    allow_optimized_preparation=settings.optimize_preparation,
+                    continuous_weld=not getattr(args, "single_pass", False),
+                    tracking_settings=tracker_settings,
                 )
+                if getattr(arm, "fault", None):
+                    c.fail(RuntimeError(arm.fault))
                 last_display = 0.0
                 displayed_plan = None
                 while not self.finish.is_set():
                     tick_start = time.monotonic()
-                    if self.cancel.is_set() or tick_start - self.heartbeat > 0.15:
+                    expired = tick_start - self.heartbeat > 0.15
+                    newly_expired = expired and not self.heartbeat_expired
+                    self.heartbeat_expired = expired
+                    if newly_expired:
+                        self.focus_generation += 1
+                    if self.cancel.is_set() or newly_expired:
                         interrupted_planning = self.pending is not None
                         self.clear_planning()
                         if (
@@ -265,9 +317,11 @@ def make_window(args, mapping, initial, settings, root):
                         elif action == "disable":
                             self.clear_planning()
                             c.disable_arm()
+                        elif action == "reset":
+                            self.reset_motor_fault()
                         elif action == "calculate":
                             self.clear_planning()
-                            c.pause()
+                            c.pause(preserve_ready=False)
                             if c.arm_on or c.chassis_on:
                                 raw = (
                                     c.feedback(stationary=True).raw_deg.tolist()
@@ -305,9 +359,14 @@ def make_window(args, mapping, initial, settings, root):
                                 raise ValueError("Stale planning result")
                             c.load_plan(result)
                     except ValueError as exc:
-                        c.message = "Blocked: " + str(exc)
+                        c.message = (
+                            f"FAULT: {c.fault}; motor reset failed: {exc}"
+                            if action == "reset" and c.fault else "Blocked: " + str(exc)
+                        )
                     except Exception as exc:
                         c.fail(exc)
+                        if action == "reset":
+                            c.message += f"; motor reset failed: {exc}"
                     if self.cancel.is_set():
                         self.clear_planning()
                         c.pause()
@@ -338,6 +397,9 @@ def make_window(args, mapping, initial, settings, root):
                                 arm_on=c.arm_on,
                                 chassis_on=c.chassis_on,
                                 holding=c.arm_holding,
+                                measured_motion=c.motion_frequency.result if c.state == "welding" else None,
+                                planned_travel_deg=c.weld_travel_deg if c.plan is not None else None,
+                                reset_available=c.fault is not None and arm is not None,
                                 journal_error=(
                                     None if self.journal is None else self.journal.error
                                 ),
@@ -420,9 +482,12 @@ def make_window(args, mapping, initial, settings, root):
                     version=1,
                     created_utc=datetime.now(timezone.utc).isoformat(),
                     simulated=not args.execute,
+                    continuous_weld=not getattr(args, "single_pass", False),
                     start_report=str(getattr(args, "start_report", None) or "") or None,
                     settings=asdict(settings),
+                    tracker=tracker_document,
                     mapping_fingerprint=mapping.fingerprint,
+                    encoder_branch_selection=mapping.document.get("encoder_branch_selection"),
                     initial_raw_deg=list(initial),
                     events=[] if c is None else c.events,
                     accepted_plan=None if c is None else c.last_accepted_plan,
@@ -469,16 +534,51 @@ def make_window(args, mapping, initial, settings, root):
                 )
             )
             layout = QtWidgets.QVBoxLayout(self)
+            layout.setContentsMargins(6, 6, 6, 6)
+            layout.setSpacing(2)
+            staging_label = "optimized staging" if settings.optimize_preparation else "standby"
             info = QtWidgets.QLabel(
-                "Sequence: check measured pose → verify hold → standby → weld start → wait → weld motion\n"
+                f"Sequence: check measured pose → verify hold → {staging_label} → weld start → wait → weld motion\n"
                 f"Requested: {settings.hz/settings.time_scale:.4f} Hz, "
                 f"±{settings.amplitude_m*1000:g} mm, feed {settings.feed_m_s/settings.time_scale*1000:.3f} mm/s\n"
-                f"Profile: {settings.limit_profile}; standby/approach speed limit: {settings.max_speed_deg_s:g}°/s. "
+                f"Profile: {settings.limit_profile}; preparation speed request: {settings.max_speed_deg_s:g}°/s, bounded by motor guards. "
                 "Weld speed is calculated from the selected constraints.\n"
                 "Output switches do not add motion compensation. The calculated frequency is shown after planning."
             )
             info.setWordWrap(True)
             layout.addWidget(info)
+            self.controller_label = QtWidgets.QLabel(
+                "Tracking: PID + velocity feedforward; planned preparation timing; fixed endpoint hold."
+                if tracker_settings is not None else
+                "Tracking: legacy feedback-paced preparation."
+            )
+            self.controller_label.setWordWrap(True)
+            layout.addWidget(self.controller_label)
+            self.weld_run_label = QtWidgets.QLabel(
+                f"Welding: one planned pass ({settings.cycles} cycles), then hold."
+                if getattr(args, "single_pass", False) else
+                "Welding: continuous until Pause / Hold; each checked block repeats without stopping."
+            )
+            self.weld_run_label.setWordWrap(True)
+            layout.addWidget(self.weld_run_label)
+            self.preparation_route_label = QtWidgets.QLabel(
+                "Preparation route: optimized staging enabled; the checked plan may replace the saved standby."
+                if settings.optimize_preparation else "Preparation route: saved standby."
+            )
+            self.preparation_route_label.setWordWrap(True)
+            layout.addWidget(self.preparation_route_label)
+            if settings.approach_lift_m:
+                lift_label = QtWidgets.QLabel(
+                    f"Approach: via a point {settings.approach_lift_m*1000:g} mm above the weld point, then lower to the unchanged target."
+                )
+                lift_label.setWordWrap(True)
+                layout.addWidget(lift_label)
+            branch = mapping.document.get("encoder_branch_selection")
+            if branch:
+                layout.addWidget(QtWidgets.QLabel(
+                    f"A1 encoder branch: {branch['turns']:+d} turn "
+                    f"({branch['raw_shift_deg']:+g}° raw). Verify the physical pose before recovery."
+                ))
             if getattr(args, "start_report", None):
                 source = QtWidgets.QLabel(
                     f"Offline start: saved feedback from {args.start_report.name}. This is not live hardware."
@@ -504,6 +604,7 @@ def make_window(args, mapping, initial, settings, root):
                 ("Start welding motion", "weld"),
                 ("Pause / Hold (Space)", "pause"),
                 ("Disable arm torque", "disable"),
+                ("Reset motor fault (R)", "reset"),
             ):
                 button = QtWidgets.QPushButton(label)
                 button.setFocusPolicy(QtCore.Qt.NoFocus)
@@ -514,6 +615,11 @@ def make_window(args, mapping, initial, settings, root):
                 self.buttons[action] = button
             self.buttons["initial"].setToolTip(
                 "Verify current-position hold, recover to standby, then move to the weld start."
+            )
+            self.buttons["reset"].setEnabled(False)
+            self.buttons["reset"].setToolTip(
+                "Save fault evidence and reset through the connected arm owner. "
+                "Requires disabled, stationary motors; success leaves motors disabled."
             )
             self.state_label = QtWidgets.QLabel("Initializing the control thread…")
             self.state_label.setWordWrap(True)
@@ -539,19 +645,63 @@ def make_window(args, mapping, initial, settings, root):
             self.journal_label = QtWidgets.QLabel()
             self.journal_label.setWordWrap(True)
             layout.addWidget(self.journal_label)
-            self.table = QtWidgets.QTableWidget(6, 4)
+            self.frequency_group = QtWidgets.QGroupBox(
+                "Measured motor frequency — live encoder feedback"
+                if args.execute else "Simulated motor frequency — simulated shaft feedback"
+            )
+            frequency_layout = QtWidgets.QVBoxLayout(self.frequency_group)
+            frequency_layout.setContentsMargins(6, 6, 6, 6)
+            frequency_layout.setSpacing(3)
+            frequency_row = QtWidgets.QHBoxLayout()
+            self.frequency_values = []
+            self.frequency_details = []
+            for i in range(6):
+                card = QtWidgets.QFrame()
+                card.setFrameShape(QtWidgets.QFrame.StyledPanel)
+                card_layout = QtWidgets.QVBoxLayout(card)
+                card_layout.setContentsMargins(4, 4, 4, 4)
+                card_layout.setSpacing(1)
+                axis = QtWidgets.QLabel(f"A{i+1}")
+                axis.setAlignment(QtCore.Qt.AlignCenter)
+                card_layout.addWidget(axis)
+                reading = QtWidgets.QLabel("—")
+                reading.setAlignment(QtCore.Qt.AlignCenter)
+                reading_font = reading.font()
+                reading_font.setPointSize(20)
+                reading_font.setBold(True)
+                reading.setFont(reading_font)
+                card_layout.addWidget(reading)
+                detail = QtWidgets.QLabel("Waiting for welding")
+                detail.setAlignment(QtCore.Qt.AlignCenter)
+                detail.setWordWrap(True)
+                card_layout.addWidget(detail)
+                frequency_row.addWidget(card, 1)
+                self.frequency_values.append(reading)
+                self.frequency_details.append(detail)
+            frequency_layout.addLayout(frequency_row)
+            self.frequency_status = QtWidgets.QLabel()
+            self.frequency_status.setWordWrap(True)
+            frequency_layout.addWidget(self.frequency_status)
+            layout.addWidget(self.frequency_group)
+            self.show_motor_frequency(dict(state="idle", arm_on=False))
+            self.table = QtWidgets.QTableWidget(6, 6)
             self.table.setHorizontalHeaderLabels(
                 [
                     "Motor",
-                    "Measured raw angle (°)",
-                    "Stage goal raw angle (°)",
-                    "Remaining to stage goal (°)",
+                    "Measured raw\nangle (°)",
+                    "Stage goal raw\nangle (°)",
+                    "Remaining to\nstage goal (°)",
+                    "Measured Hz",
+                    "Measured travel\n(° peak-to-peak)",
                 ]
             )
             self.table.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
             self.table.horizontalHeader().setSectionResizeMode(
                 QtWidgets.QHeaderView.Stretch
             )
+            self.table.verticalHeader().hide()
+            self.table.horizontalHeader().setSectionResizeMode(0, QtWidgets.QHeaderView.Fixed)
+            self.table.setColumnWidth(0, 48)
             for i in range(6):
                 self.table.setItem(i, 0, QtWidgets.QTableWidgetItem(f"A{i+1}"))
                 self.table.setItem(i, 1, QtWidgets.QTableWidgetItem("—"))
@@ -559,8 +709,10 @@ def make_window(args, mapping, initial, settings, root):
                     i, 2, QtWidgets.QTableWidgetItem(f"{initial[i]:+.4f}")
                 )
                 self.table.setItem(i, 3, QtWidgets.QTableWidgetItem("—"))
+                for column in (4, 5):
+                    self.table.setItem(i, column, QtWidgets.QTableWidgetItem("—"))
             content = QtWidgets.QHBoxLayout()
-            content.addWidget(self.table, 2)
+            content.addWidget(self.table, 3)
             self.preview = None
             if not getattr(args, "no_preview", False):
                 from simulation.weld_preview import make_preview
@@ -586,10 +738,14 @@ def make_window(args, mapping, initial, settings, root):
                 shortcut.setAutoRepeat(False)
                 shortcut.activated.connect(lambda: self.worker.send("pause"))
                 self.pause_shortcuts.append(shortcut)
+            self.reset_shortcut = QtWidgets.QShortcut(QtGui.QKeySequence("R"), self)
+            self.reset_shortcut.setContext(QtCore.Qt.WidgetWithChildrenShortcut)
+            self.reset_shortcut.setAutoRepeat(False)
+            self.reset_shortcut.activated.connect(self.buttons["reset"].click)
             self.timer = QtCore.QTimer(self)
             self.timer.timeout.connect(self.heartbeat)
             self.timer.start(30)
-            self.resize(1240, 780 if self.preview is not None else 560)
+            self.resize(1400, 940 if self.preview is not None else 720)
             self.worker.start()
 
         def selection(self):
@@ -610,7 +766,7 @@ def make_window(args, mapping, initial, settings, root):
                     + (
                         "Nominal target met; physical time unverified."
                         if preparation["nominal_meets_target"]
-                        else "Target NOT met; feedback pacing can take longer."
+                        else "Target NOT met; measured settling can take longer."
                     )
                 )
             if value.get("journal_error") or value.get("journal_dropped"):
@@ -637,7 +793,8 @@ def make_window(args, mapping, initial, settings, root):
                 )
             elif timing and timing.get("effective_hz") is not None:
                 self.timing_label.setText(
-                    f"Calculated: {timing['effective_hz']:.5f} Hz; nominal feed {timing['feed_m_s']*1000:.4f} mm/s"
+                    f"Calculated: {timing['effective_hz']:.5f} Hz (planned); nominal feed {timing['feed_m_s']*1000:.4f} mm/s. "
+                    "Actual motor frequencies are shown in the live readout below."
                 )
             else:
                 self.timing_label.setText(
@@ -647,10 +804,21 @@ def make_window(args, mapping, initial, settings, root):
             if tracking:
                 errors = tracking["tracking_error_deg"]
                 largest = max(range(6), key=lambda i: abs(errors[i]))
+                tracker = tracking.get("tracker") or {}
+                correction_scale = tracker.get("clearance_correction_scale")
+                clearance_note = ""
+                if tracker.get("projected"):
+                    if correction_scale is None:
+                        clearance_note = " | PID correction constrained by clearance"
+                    elif correction_scale < 1 - 1e-6:
+                        clearance_note = (
+                            f" | Clearance admits {100 * correction_scale:.0f}% of PID correction"
+                        )
                 self.tracking_label.setText(
                     f"Path rate: {tracking['path_clock_scale']*100:.0f}% | "
                     f"Intermediate reference error: A{largest+1} {errors[largest]:+.3f}° | "
                     f"A1 error: {errors[0]:+.3f}°; speed allowance: {tracking['speed_limit_deg_s'][0]:.2f}°/s"
+                    + clearance_note
                 )
             elif (
                 value.get("hold_observation")
@@ -676,16 +844,29 @@ def make_window(args, mapping, initial, settings, root):
                 widget.blockSignals(False)
             self.buttons["initial"].setEnabled(value["state"] == "planned")
             self.buttons["weld"].setEnabled(value["state"] == "ready")
+            self.buttons["reset"].setEnabled(bool(value.get("reset_available")))
             self.buttons["calculate"].setEnabled(
                 not value["pending"]
                 and value["state"] not in WeldController.ACTIVE
-                and value["state"] != "fault"
+                and value["state"] not in ("fault", "resetting")
             )
+            self.arm.setEnabled(args.arm and value["state"] not in ("fault", "resetting"))
+            self.chassis.setEnabled(args.chassis and value["state"] not in ("fault", "resetting"))
             goal = value.get("joint_goal")
+            motion = value.get("measured_motion")
+            self.show_motor_frequency(value)
             self.table.horizontalHeaderItem(2).setText(
-                f"{goal['label']} raw angle (°)" if goal else "Stage goal raw angle (°)"
+                f"{goal['label']}\nraw angle (°)" if goal else "Stage goal raw\nangle (°)"
             )
             for i in range(6):
+                measured = motion[i] if motion else {}
+                hz = measured.get("hz")
+                travel = measured.get("peak_to_peak_deg")
+                self.table.item(i, 4).setText(
+                    f"{hz:.3f}" if hz is not None else measured.get("status", "—")
+                )
+                self.table.item(i, 4).setToolTip(measured.get("status", ""))
+                self.table.item(i, 5).setText(f"{travel:.3f}" if travel is not None else "—")
                 self.table.item(i, 2).setText(
                     f"{goal['raw_deg'][i]:+.4f}" if goal else "—"
                 )
@@ -702,9 +883,59 @@ def make_window(args, mapping, initial, settings, root):
             if self.preview is not None:
                 self.preview.set_pose(value["raw_deg"], value.get("feedback_age_ms"))
 
+        def show_motor_frequency(self, value):
+            """Render cached measurements only; never infer actual Hz from the plan."""
+            planned = (value.get("timing") or {}).get("effective_hz")
+            planned_text = f"{planned:.3f} Hz" if planned is not None else "—"
+            self.frequency_group.setTitle(
+                ("Measured motor frequency" if args.execute else "Simulated motor frequency")
+                + f" — Requested weave: {settings.hz/settings.time_scale:.3f} Hz  |  Planned weave: {planned_text}"
+            )
+            live = value["state"] == "welding" and value.get("arm_on", False)
+            motion = value.get("measured_motion") if live else None
+            if live:
+                status = "Encoder pattern frequency; travel is shown separately. A two-cycle response repeats every other weave cycle. Updates every 0.5 s."
+            elif value["state"] == "paused":
+                status = "Paused — live frequency measurement stopped."
+            else:
+                status = "Frequency is measured while the arm performs welding motion."
+            self.frequency_status.setText(status)
+            for i, (reading, detail) in enumerate(zip(self.frequency_values, self.frequency_details)):
+                measured = motion[i] if motion else {}
+                hz = measured.get("hz")
+                reading.setText(f"{hz:.3f} Hz" if hz is not None else "—")
+                if hz is not None:
+                    if planned and 0.45 <= hz / planned <= 0.55:
+                        text = "Two-cycle response"
+                    else:
+                        text = f"Pattern rate: {100*hz/planned:.0f}% of weave" if planned else "Measured from feedback"
+                elif not live:
+                    text = "Paused" if value["state"] == "paused" else "Waiting for welding"
+                else:
+                    text = {
+                        "insufficient motion": "Too little motion",
+                        "stale": "Stale feedback",
+                        "irregular / collecting": "Collecting / irregular",
+                    }.get(measured.get("status"), "Collecting cycles…")
+                travel = measured.get("peak_to_peak_deg")
+                planned_travel = value.get("planned_travel_deg")
+                if travel is not None:
+                    text += f"\nTravel: {travel:.3f}°"
+                    if planned_travel is not None:
+                        text += f" / {planned_travel[i]:.3f}° planned"
+                detail.setText(text)
+                reading.setToolTip(
+                    "Measured repeating-pattern frequency from shaft feedback. "
+                    "An alternating response can repeat over two planned cycles."
+                )
+
         def keyPressEvent(self, event):
             if event.key() in (QtCore.Qt.Key_Space, QtCore.Qt.Key_Escape):
                 self.worker.send("pause")
+                event.accept()
+            elif event.key() == QtCore.Qt.Key_R:
+                if not event.isAutoRepeat() and self.buttons["reset"].isEnabled():
+                    self.worker.send("reset")
                 event.accept()
             else:
                 super().keyPressEvent(event)
@@ -773,6 +1004,13 @@ def main(argv=None):
         type=Path,
         default=root / "src/robot_description/config/arm_initial_measured.json",
     )
+    parser.add_argument(
+        "--a1-encoder-turns",
+        type=int,
+        choices=(-1, 0, 1),
+        default=0,
+        help="explicit A1 restart branch relative to the saved mapping; +1 shifts raw bounds/targets by +360 deg, after physical pose verification",
+    )
     start_mode = parser.add_mutually_exclusive_group()
     start_mode.add_argument(
         "--demo-initial",
@@ -804,11 +1042,28 @@ def main(argv=None):
     parser.add_argument("--hz", type=float)
     parser.add_argument("--amplitude-mm", type=float, default=10.0)
     parser.add_argument("--feed-mm-s", type=float)
-    parser.add_argument("--cycles", type=int, default=6)
+    parser.add_argument(
+        "--cycles", type=int, default=6,
+        help="cycles in the checked plan/preview block; the panel repeats it until Pause unless --single-pass is set",
+    )
+    parser.add_argument(
+        "--tracker", choices=("pid", "paced"), default="pid",
+        help="PID position tracking with bounded velocity feedforward (default), or legacy feedback-paced preparation",
+    )
+    parser.add_argument(
+        "--single-pass", action="store_true",
+        help="stop and hold after the planned --cycles; by default welding repeats until Pause / Hold",
+    )
     parser.add_argument(
         "--optimize-preparation",
         action="store_true",
-        help="offline only: compare shorter checked staging poses within selected limits",
+        help="compare shorter checked staging poses within selected limits; explicitly permits them on hardware",
+    )
+    parser.add_argument(
+        "--approach-lift-mm",
+        type=float,
+        default=0.0,
+        help="require a checked raised-tool approach at this height above the weld point (0–150 mm); 0 retains automatic route selection",
     )
     parser.add_argument(
         "--prep-seconds",
@@ -835,7 +1090,7 @@ def main(argv=None):
     parser.add_argument(
         "--max-speed-deg-s",
         type=float,
-        help="preparation speed limit: default 5 deg/s; faster trials remain unqualified (maximum 10)",
+        help=f"preparation speed request: default 5 deg/s, maximum {MAX_PREPARATION_SPEED_DEG_S:g}; actual commands remain bounded by motor guards",
     )
     parser.add_argument(
         "--solution",
@@ -857,8 +1112,8 @@ def main(argv=None):
             if args.profile == "weld"
             else 12.0
         )
-    if args.optimize_preparation and (args.execute or args.audit):
-        parser.error("--optimize-preparation requires simulation or --plan-only")
+    if args.optimize_preparation and args.audit:
+        parser.error("--optimize-preparation requires planning; it is unavailable with --audit")
     if args.execute:
         if not (args.arm or args.chassis):
             parser.error("Select --arm and/or --chassis explicitly for hardware")
@@ -882,14 +1137,17 @@ def main(argv=None):
         if output.exists():
             raise ValueError("Output already exists; choose a new report path")
         mapping = CalibrationMap(json.loads(args.mapping.read_text()))
-        args.start_raw_deg = (
-            read_start_report(args.start_report, mapping) if args.start_report else None
-        )
         pose = json.loads(args.initial_pose.read_text())
         if pose.get("mapping_fingerprint", mapping.fingerprint) != mapping.fingerprint:
             raise ValueError(
                 "Initial pose was derived for a different mapping; regenerate or use a reviewed matching file"
             )
+        # Validate the source pair before translating either coordinate system.
+        # Targets, planning, preview and hardware all receive the same session map.
+        mapping = select_a1_encoder_branch(mapping, args.a1_encoder_turns)
+        args.start_raw_deg = (
+            read_start_report(args.start_report, mapping) if args.start_report else None
+        )
         initial = initial_from_model(pose, mapping)
         if args.demo_initial:
             initial = list(mapping.simulation_pose().values())
@@ -908,6 +1166,7 @@ def main(argv=None):
             ),
             preparation_target_s=args.prep_seconds,
             optimize_preparation=args.optimize_preparation,
+            approach_lift_m=args.approach_lift_mm / 1000,
         )
         if args.audit:
             result = audit(
@@ -971,6 +1230,7 @@ def main(argv=None):
             window.worker.wait()
             result = window.worker.report
             exit_code = 2 if window.worker.failed else 0
+        result["encoder_branch_selection"] = mapping.document.get("encoder_branch_selection")
         output.parent.mkdir(parents=True, exist_ok=True)
         with output.open("x") as stream:
             json.dump(result, stream, indent=2, allow_nan=False, ensure_ascii=False)

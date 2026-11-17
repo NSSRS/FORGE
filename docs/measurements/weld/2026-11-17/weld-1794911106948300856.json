@@ -1,0 +1,290 @@
+{
+  "schema": "forge.weld_motion_session",
+  "version": 1,
+  "created_utc": "2026-11-17T10:25:11.983209+00:00",
+  "simulated": false,
+  "continuous_weld": true,
+  "start_report": null,
+  "settings": {
+    "hz": 2.0,
+    "amplitude_m": 0.01,
+    "feed_m_s": 0.012,
+    "cycles": 1,
+    "time_scale": 1.0,
+    "max_speed_deg_s": 100.0,
+    "max_accel_deg_s2": 30.0,
+    "control_period_s": 0.02,
+    "auto_retime": true,
+    "lock_base_yaw": false,
+    "limit_profile": "weld",
+    "search_solution": null,
+    "preparation_target_s": 5.0,
+    "optimize_preparation": true,
+    "approach_lift_m": 0.03
+  },
+  "tracker": {
+    "version": 1,
+    "lead_time_s": [
+      0.16,
+      0.76,
+      0.27,
+      0.14,
+      0.22,
+      0.25
+    ],
+    "kp": 0.3,
+    "ki_per_s": 0.3,
+    "kd_s": 0.01,
+    "velocity_filter_s": 0.08,
+    "max_correction_deg": 12.0,
+    "max_integral_deg": 0.5,
+    "hardware_qualified": false,
+    "initial_estimate_source": "weld-1794907065402842317.jsonl",
+    "adaptive_lead": "bounded 0–1 s during preparation; frozen during welding"
+  },
+  "mapping_fingerprint": "8d7c205afb5b17288dd7d65e80e8ab0b9126f61bf58d635f72aa0b0b0795af20",
+  "encoder_branch_selection": {
+    "joint": 1,
+    "turns": 1,
+    "raw_shift_deg": 360.0,
+    "source_mapping_fingerprint": "e19226781bf4e1519414315cc4c3ead50e294eea48134199d96eb95aafab398f",
+    "basis": "Explicit operator selection of A1 encoder restart branch; physical pose must be verified"
+  },
+  "initial_raw_deg": [
+    185.30840435359923,
+    -61.357358006883345,
+    149.39,
+    173.1834352361486,
+    41.51405787753105,
+    64.16104853467226
+  ],
+  "events": [
+    {
+      "event": "pause",
+      "time_s": 15289.463248863,
+      "state": "paused",
+      "reason": null,
+      "ready_preserved": false
+    }
+  ],
+  "accepted_plan": null,
+  "trajectory_trace": [],
+  "trace_dropped": 0,
+  "arm_session": {
+    "events": [],
+    "disable_acknowledged": true,
+    "mode_restoration_verified": true,
+    "active_joints": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ],
+    "fixture_mode": "supported",
+    "travel_policy": "manual",
+    "window_degrees": null,
+    "control_mode": "position_velocity",
+    "commanded_torque_nm": null,
+    "speed_trial": false,
+    "position_hold": true,
+    "group_hold": true,
+    "smooth_jog": false,
+    "target_policy": "controller_trajectory_native_mode2",
+    "motion_trace_interval_s": 0.0,
+    "motion_trace_max_samples": 18000,
+    "hold_jog_max_lead_rad": 0.08726646259971647,
+    "jog_speed_ceiling_deg_s": 10,
+    "motion_samples": [],
+    "motion_samples_dropped": 0,
+    "motion_summary": {},
+    "base_info": {
+      "api_version": 1,
+      "capabilities": 1048463,
+      "control_period_ms": 2,
+      "command_lease_ms": 150,
+      "feedback_timeout_ms": 100,
+      "enable_timeout_ms": 250,
+      "can_bitrate": 1000000,
+      "configured_mask": 63,
+      "id_session_locked": 0,
+      "build_id": 3592383766
+    },
+    "session_joints": [
+      {
+        "joint": 1,
+        "origin_rad": 3.2480735778808594,
+        "command_lower_rad": -12.5,
+        "command_upper_rad": 12.5,
+        "firmware_lower_rad": -12.5,
+        "firmware_upper_rad": 12.5,
+        "torque_trip_nm": 20,
+        "speed_trip_rad_s": 1.5,
+        "startup_registers": {
+          "7": 17,
+          "8": 1,
+          "9": 2000,
+          "10": 2,
+          "21": 12.5,
+          "22": 45.0,
+          "23": 54.0,
+          "31": 4.0
+        },
+        "verified_motion_mode": 2
+      },
+      {
+        "joint": 2,
+        "origin_rad": -1.7835893630981445,
+        "command_lower_rad": -12.5,
+        "command_upper_rad": 12.5,
+        "firmware_lower_rad": -12.5,
+        "firmware_upper_rad": 12.5,
+        "torque_trip_nm": 12,
+        "speed_trip_rad_s": 1.5,
+        "startup_registers": {
+          "7": 18,
+          "8": 2,
+          "9": 2000,
+          "10": 2,
+          "21": 12.5,
+          "22": 10.0,
+          "23": 28.0,
+          "31": 4.0
+        },
+        "verified_motion_mode": 2
+      },
+      {
+        "joint": 3,
+        "origin_rad": 2.2467002868652344,
+        "command_lower_rad": -12.5,
+        "command_upper_rad": 12.5,
+        "firmware_lower_rad": -12.5,
+        "firmware_upper_rad": 12.5,
+        "torque_trip_nm": 12,
+        "speed_trip_rad_s": 1.5,
+        "startup_registers": {
+          "7": 19,
+          "8": 3,
+          "9": 2000,
+          "10": 2,
+          "21": 12.5,
+          "22": 10.0,
+          "23": 28.0,
+          "31": 4.0
+        },
+        "verified_motion_mode": 2
+      },
+      {
+        "joint": 4,
+        "origin_rad": 3.0683984756469727,
+        "command_lower_rad": -1.6897678255995334,
+        "command_upper_rad": 7.735010135169847,
+        "firmware_lower_rad": -1.6897678255995334,
+        "firmware_upper_rad": 7.735010135169847,
+        "torque_trip_nm": 3.5,
+        "speed_trip_rad_s": 1.5,
+        "startup_registers": {
+          "7": 20,
+          "8": 4,
+          "9": 2000,
+          "10": 2,
+          "21": 12.5,
+          "22": 30.0,
+          "23": 10.0,
+          "31": 4.0
+        },
+        "verified_motion_mode": 2
+      },
+      {
+        "joint": 5,
+        "origin_rad": 0.4331655502319336,
+        "command_lower_rad": -12.5,
+        "command_upper_rad": 12.5,
+        "firmware_lower_rad": -12.5,
+        "firmware_upper_rad": 12.5,
+        "torque_trip_nm": 3.5,
+        "speed_trip_rad_s": 1.5,
+        "startup_registers": {
+          "7": 21,
+          "8": 5,
+          "9": 2000,
+          "10": 2,
+          "21": 12.5,
+          "22": 30.0,
+          "23": 10.0,
+          "31": 4.0
+        },
+        "verified_motion_mode": 2
+      },
+      {
+        "joint": 6,
+        "origin_rad": 1.113718032836914,
+        "command_lower_rad": -12.5,
+        "command_upper_rad": 12.5,
+        "firmware_lower_rad": -12.5,
+        "firmware_upper_rad": 12.5,
+        "torque_trip_nm": 3.5,
+        "speed_trip_rad_s": 1.5,
+        "startup_registers": {
+          "7": 22,
+          "8": 6,
+          "9": 2000,
+          "10": 2,
+          "21": 12.5,
+          "22": 30.0,
+          "23": 10.0,
+          "31": 4.0
+        },
+        "verified_motion_mode": 2
+      }
+    ],
+    "usb_command_type": 4,
+    "secondary_jog_smoothing": false,
+    "trajectory_speed_ceilings_deg_s": [
+      68.7549354156988,
+      68.7549354156988,
+      68.7549354156988,
+      68.7549354156988,
+      68.7549354156988,
+      68.7549354156988
+    ],
+    "bus_health_after_close": {
+      "1": {
+        "at_ms": 15306418,
+        "tx_frames": 1490740,
+        "tx_failed": 1,
+        "rx_frames": 1490740,
+        "feedback_frames": 1490411,
+        "max_feedback_gap_ms": 26,
+        "max_tick_gap_ms": 4,
+        "late_ticks": 6,
+        "bus_off_events": 0,
+        "status_flags": 1792,
+        "tx_error_count": 0,
+        "rx_error_count": 0
+      },
+      "2": {
+        "at_ms": 15306419,
+        "tx_frames": 7453640,
+        "tx_failed": 0,
+        "rx_frames": 7453640,
+        "feedback_frames": 7452055,
+        "max_feedback_gap_ms": 26,
+        "max_tick_gap_ms": 4,
+        "late_ticks": 6,
+        "bus_off_events": 0,
+        "status_flags": 1792,
+        "tx_error_count": 0,
+        "rx_error_count": 0
+      }
+    }
+  },
+  "fault": null,
+  "hardware_qualified": false,
+  "journal": {
+    "path": "/home/forge2/forge2_ws/build/weld/weld-1794911106948300856.jsonl",
+    "dropped_records": 0,
+    "error": null
+  }
+}

@@ -30,13 +30,18 @@ robot_description contains the shared MJCF model, motor inventories and Xacro ma
 `src/controls/controls/controller/` owns measured sign/offset alignment, Damiao
 constraints, MuJoCo D3-closed IK, retiming and CMA-ES. `controller/preparation.py`
 owns the acceleration-bounded path clock, progress watchdog and preparation-time
-budget report used during recovery/approach.
+budget report used during recovery/approach. `controller/tracking.py` owns bounded
+PID/velocity lead, finite-leg braking and command derivative shaping;
+`controller/motion_feedback.py` estimates mechanical Hz/travel from cached samples.
+Neither module owns transport or writes drive parameters.
 Sibling `hardware/` owns
 `weld_ports.py`, `weld_control.py` and `weld_app.py`; sibling `simulation/` keeps
 the original dynamic weave controller. The hardware `weld_plan.py` is a small
 compatibility export; all planner implementation lives in `controller/`.
-`controller/preparation_search.py` compares bounded offline staging candidates;
-it preserves the full weld endpoint and cannot authorize physical execution.
+`controller/preparation_search.py` compares bounded staging candidates and
+preserves the full weld endpoint and requested raised approach. Hardware use
+requires explicit `--optimize-preparation` and Start recovery in the panel;
+searching or loading a plan cannot enable motors.
 `hardware/weld_ports.py` explicitly latches settled endpoint holds without
 changing position, mode or speed allowance. Drive-gain tuning remains HOLD-01.
 `hardware/weld_recording.py` persists cached evidence on a bounded writer thread;

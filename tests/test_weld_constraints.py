@@ -73,8 +73,19 @@ class MotorConstraintTests(unittest.TestCase):
 
     def test_no_rated_speed_can_raise_host_debug_ceiling(self):
         with self.assertRaises(ValueError):
-            motor_constraints(ROOT, 11)
+            motor_constraints(ROOT, 100.01)
         self.assertEqual(motor_constraints(ROOT, 2)["joints"][0]["deployment_deg_s"], 2)
+
+    def test_hundred_degree_request_removes_ten_degree_cap_but_preserves_motor_guards(self):
+        for profile in ("debug", "weld"):
+            with self.subTest(profile=profile):
+                limits = motor_constraints(ROOT, 100, profile=profile)
+                self.assertEqual(limits["host_commissioning_ceiling_deg_s"], 100)
+                np.testing.assert_allclose(
+                    [r["deployment_deg_s"] for r in limits["joints"]],
+                    [math.degrees(1.2)] * 6,
+                )
+                self.assertEqual([r["reactive_trip_rad_s"] for r in limits["joints"]], [1.5] * 6)
 
     def test_accepted_weld_profile_uses_native_guards_and_preserves_trips(self):
         limits = motor_constraints(ROOT, 5, profile="weld")
