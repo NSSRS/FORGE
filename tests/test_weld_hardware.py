@@ -787,8 +787,41 @@ class WeldNativeArmTests(unittest.TestCase):
             np.testing.assert_allclose(np.degrees(port.hold_targets[0]), raw[0])
             # An in-session branch jump remains invalid, rather than silently wrapped.
             raw[0] -= 360
-            with self.assertRaisesRegex(ValueError, "A1.*encoder branch"):
+            with self.assertRaisesRegex(ValueError, "A1.*below the saved lower limit"):
                 port.set_targets(raw, [5.0] * 6)
+
+    def test_native_a3_allowance_is_scoped_to_monotone_slow_retreat(self):
+        from motors import arm_position as position, arm_bench as bench
+        from controls.controller.endpoint_recovery import A3Retreat
+        from test_weld_endpoint_recovery import candidate_mapping, START
+
+        for i, q in enumerate(START):
+            self.lib.fake_position(i, math.radians(q))
+        with patch.object(position, "time", bench.time), self.port() as port:
+            port.mapping = candidate_mapping()
+            port.stationary_position()
+            raw = np.degrees([r.position_rad for r in sorted(port.cached_positions(), key=lambda r:r.joint)])
+            policy = A3Retreat(tuple(raw), port.mapping.fingerprint)
+            port.configure_endpoint(policy.document())
+            port.hold_all(math.radians(1))
+            writes = self.lib.fake_parameter_writes()
+            inward = raw.copy();inward[2] -= .1
+            port.set_targets(inward, [1.0]*6)
+            self.assertGreater(inward[2],151.39)
+            outward=inward.copy();outward[2]+=.01
+            other=inward.copy();other[5]+=.01
+            with patch.object(self.bus,'command',wraps=self.bus.command) as command:
+                for q,speed in ((outward,[1]*6),(other,[1]*6),(inward,[1.001]*6)):
+                    with self.assertRaises(ValueError):port.set_targets(q,speed)
+                with self.assertRaises(ValueError):port.configure_endpoint(None)
+                command.assert_not_called()
+            port.pause_trajectory()
+            target=port.hold_targets.copy()
+            self.lib.fake_advance(20);port.poll()
+            self.assertEqual(port.hold_targets,target)
+            self.assertEqual(self.lib.fake_parameter_writes(),writes)
+            port.stop()
+            self.assertIsNone(port.endpoint_policy)
 
     def test_native_stream_complete_group_and_pause(self):
         from motors import arm_position as position, arm_bench as bench

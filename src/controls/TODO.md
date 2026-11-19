@@ -3,32 +3,32 @@
 The canonical acceptance criteria are in [ARM_LAYER_TODOS.md](../../docs/ARM_LAYER_TODOS.md).
 Current implementation and reproduction: [WELD_MOTION.md](../../docs/WELD_MOTION.md).
 
-- **HOLD-01 (November 17):** qualify post-prep joint stiffness with the installed
-  supported load and after welding; tune native drive loops from measured
-  readbacks only if needed. The Nov 17 operator journal provides 12.76 s of
-  enabled fixed-target hold within 0.177 deg and recovery from operator pushes.
-  Fixed endpoint hold, steady stage allowances, one-capture pause and cached
-  error monitoring are implemented; physical
-  stiffness and the reported sag cause remain unqualified. Follow the canonical
-  HOLD-01 acceptance criteria; no guessed gains or weaker trips.
-- **WEAVE-01:** after stable holding, qualify recovery -> approach -> weld -> hold,
-  both output switches and physical tracking/timing. Target remains 2 Hz;
-  historical provisional-model CMA-ES reached 1.815288 Hz. Explicit hardware
-  staging is available; the Nov 16 comparison at 10 deg/s reaches ready in
-  4.62 s with ideal fake shafts. Qualify the
-  five-second preparation goal with actual position-loop response before promotion.
-  Corrected reference braking does not qualify the route with unequal-axis lag:
-  the direct-route full-model lag replay reaches the gun/floor guard. The explicit
-  raised approach preserves the target and existing guards; qualify its physical
-  tracking and clearance, then resolve five-second timing without weakening guards.
-- **SPEED-01:** qualify the Nov 17 host PID/velocity-lead tracker against the
-  previous paced controller using actual timing, per-axis error, measured Hz and
-  travel, command timing, temperature and physical jitter. The local lag estimate
-  and PID gains are provisional; check unequal load and reversal behavior before
-  treating synthetic response/geometry tests as motor qualification. The latest
-  tracker-v3 report matches A1/A6 frequency but overshoots planned travel; amplitude
-  and phase acceptance remain open. Retain the operator-accepted tiny A2–A5 paths.
-  See the [saved reports](../../docs/measurements/weld/2026-11-17/README.md).
+- **GUI-01 — next software task:** visualize per-axis Nm and motor/MOS temperature,
+  trends/peaks, feedback age and active trip; replace repeated prose with clear
+  stage/progress/hold/fault/next-action displays. Keep technical detail expandable
+  and log the actual pause cause. Use cached owner data and preserve all motion
+  semantics. Review the weld/arm windows at the NUC screen size; see the
+  [canonical acceptance checklist](../../docs/ARM_LAYER_TODOS.md#gui-01--motor-telemetry-and-clearer-control-windows).
+- **HOLD-01:** diagnose the Nov 19 untouched A5 fixed-hold speed fault; the
+  successful second attempt does not resolve it. Qualify 15-second Ready and
+  post-weld holds, stiffness and temperatures with the installed load. Complete
+  matched no-EE / approximately 1.96 kg EE trials with identical path/settings,
+  recording actual speed, time, torque, temperatures and fixed-target error.
+  Qualify the separate A3 endpoint retreat and keep its timing separate. Use
+  measured disabled readbacks before proposing drive tuning; no guessed gains.
+  The expanded trips remain trial settings under PROTECT-01, not continuous
+  torque ratings. See the [physical review](../../docs/measurements/arm-gun-load-review-2026-11-19.json)
+  and [matched-run procedure](../../docs/ARM_RIG_TEST.md#matched-runs-with-and-without-the-end-effector).
+- **WEAVE-01:** qualify repeatable recovery -> raised approach/lowering -> weld ->
+  hold with both output switches and physical clearance. The 2.3 s final-lowering
+  trial reached Ready, but latest total preparation is 12.53 s versus the 5–10 s
+  goal. Reduce unnecessary travel and qualify response without widening guards.
+  Diagnose remaining calculation latency separately from physical motion time.
+- **SPEED-01:** qualify PID/velocity lead under unequal load, reversals and
+  saturation using actual timing, error, phase, measured Hz/travel and thermal
+  evidence. Nov 19 A1/A6 frequency matches the ~1.73 Hz plan but travel exceeds
+  it (3.869/2.260 and 1.180/0.427 deg). Retain the accepted tiny A2-A5 nominal
+  paths; synthetic response and geometry tests do not establish physical tuning.
 - **CAL-01 / PLAN-01:** independently qualify the candidate sign/offset mapping,
   derived standby and complete path against the assembly and stopping margins.
   Qualify supported startup, current-position hold pickup and recovery waypoints;

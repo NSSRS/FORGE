@@ -2,33 +2,29 @@
 
 Motor control, IMU acquisition, teleoperation, and visualization for the magnetic wall-climbing welding robot.
 
-**Software status (2026-11-17):** cached telemetry, candidate calibration,
-closed-chain planning and the real-motor welding controller are implemented.
-The flow is measured pose -> checked recovery -> weld start -> explicit weld ->
-continuous welding until Pause / Hold. `--single-pass` runs the planned cycles
-once and holds the endpoint. Preparation defaults to 5 deg/s. The default
-host PID tracker follows nominal preparation time with bounded velocity
-lead, braking within finite path extrema and fixed endpoint holding. Tiny weld
-moves keep nominal targets without unobservable host lead corrections. The panel
-displays measured per-axis Hz and measured/planned travel. The latest archived
-run matches A1/A6 frequency, but amplitude, loaded holding and five-second timing
-remain open; see the [current handoff and saved reports](docs/ARM_SESSION_HANDOFF.md).
-Explicit `--optimize-preparation` enables checked staging comparison on hardware. The
-recorded Nov 16 case at 10 deg/s reaches ready in 4.62 s with ideal fake shafts; physical five-second
-execution remains unqualified. HOLD-01 prioritizes post-prep sag and joint-stiffness
-acceptance for the next supported operator session. No drive gains were changed.
-The welding target remains **2 Hz / 12 mm/s**; historical provisional-model
-CMA-ES reached 1.815288 Hz. See [weld planning and execution](docs/WELD_MOTION.md).
+**Current status (2026-11-19):** the operator-deployed gun-load profile uses
+A2/A3 30 Nm and A4-A6 10 Nm reactive torque trips, with matching persisted
+feedback ranges. Standard profiles and drive gains are unchanged. A3 has a
+bounded startup retreat; preparation has independent leg timing and an optional
+final-lowering minimum. Torque and both temperatures are recorded from cached
+feedback. See [current implementation and commands](docs/ARM_SESSION_HANDOFF.md).
 
-**Physical evidence:** all six motors are connected; the Nov 12 reference capture
-and Nov 13 return observations are saved. The original A3 endpoint labels were
-corrected on Nov 13. Candidate alignment and animated/fake-motor replay have not
-qualified physical welding, loaded tracking or shutdown. The Nov 12 final
-stationary-disable check failed on A2. Preserve the
-[original reference data](src/robot_description/config/arm_reference_positions_2026-11-12.json)
-and use the [pose procedure](docs/ARM_POSE_TEST.md) for further qualification.
-Start with the [current arm handoff](docs/ARM_SESSION_HANDOFF.md) and
-[keyboard rig instructions](docs/ARM_RIG_TEST.md); the keyboard needs no radio.
+The latest loaded session's second attempt reached Ready in **12.53 s**, held
+for **8.69 s**, welded for **45.71 s**, and verified final disable/mode restoration.
+Its first attempt had an **untouched A5 speed fault during fixed holding**, still
+unexplained. A1/A6 match the planned ~1.73 Hz but exceed planned travel. Loaded
+holding, a matched no-EE/1.96 kg EE comparison, thermal acceptance and the 5–10 s
+preparation goal remain open. Trial trips are not continuous-load ratings.
+
+**Next software task: GUI-01** — visualize Nm and motor/MOS temperature, clarify
+state/progress/faults and replace repeated prose with concise visual feedback.
+See [open work](docs/ARM_LAYER_TODOS.md). The requested welding target remains
+**2 Hz / 12 mm/s**; no mode energizes the welder.
+
+All six motors are connected. The dated reference/calibration evidence remains
+provisional; the latest verified close does not qualify every loaded stop or
+clear earlier failures. Start with the [arm handoff](docs/ARM_SESSION_HANDOFF.md)
+and [operator procedures](docs/ARM_RIG_TEST.md).
 
 Pocket combined controls use **left stick for chassis** and **right stick
 for the selected arm motor**: left/up=CW, right/down=CCW, with **SE held**.
@@ -75,7 +71,9 @@ Production ROS, calibrated joint limits and loaded-arm operation remain unvalida
 ## Manual arm joint control
 
 Use `bash scripts/control_arm.sh` for the supported six-axis manual panel,
-without position capture. `bash scripts/record_arm_positions.sh` opens the
+without position capture. On the currently commissioned rig, append
+`--plan src/robot_description/config/arm_rig_gun_a2_a6_load.json` to match the
+changed feedback ranges. `bash scripts/record_arm_positions.sh` opens the
 separate reference recorder. The reusable [model-guided calibration tool](docs/ARM_MODEL_CALIBRATION.md)
 calculates paths at measured poses and records constraints for changed gear.
 

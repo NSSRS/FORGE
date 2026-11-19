@@ -63,6 +63,7 @@ class Settings:
     preparation_target_s: float = 5.0
     optimize_preparation: bool = False
     approach_lift_m: float = 0.0
+    lowering_min_s: float = 0.0
 
     def __post_init__(self):
         for name in (
@@ -99,6 +100,11 @@ class Settings:
             or not 0 <= self.approach_lift_m <= 0.15
         ):
             raise ValueError("Approach lift must be between 0 and 150 mm")
+        if (isinstance(self.lowering_min_s, bool)
+                or not math.isfinite(self.lowering_min_s) or self.lowering_min_s < 0):
+            raise ValueError("Lowering duration must be finite and nonnegative")
+        if self.lowering_min_s and not self.approach_lift_m:
+            raise ValueError("Lowering duration requires an explicit approach lift")
         if self.limit_profile not in ("debug", "weld"):
             raise ValueError("Unknown constraint profile")
         if self.search_solution is not None and (
@@ -303,6 +309,28 @@ class WeldGeometry:
         return list(candidates.values())
 
     def check(self, raw, *, clearance_mm=None):
+        return self._check(raw, clearance_mm=clearance_mm)
+
+    def check_endpoint(self, raw, policy):
+        from .endpoint_recovery import A3Retreat, STOP_PAIR, MAX_OVERLAP_MM
+
+        policy = A3Retreat.from_document(policy)
+        policy.check_mapping(self.mapping)
+        q = policy.check_raw(raw)
+        self._check(q, clearance_mm=2.0, endpoint=policy)
+        distance = self.stops.signed_clearance(STOP_PAIR)
+        if distance < -MAX_OVERLAP_MM:
+            raise ValueError("A3 modeled overlap exceeds the reviewed shallow-contact envelope")
+        if distance < 0.1:
+            inward = q.copy(); inward[2] -= 0.01
+            self._check(inward, clearance_mm=2.0, endpoint=policy)
+            following = self.stops.signed_clearance(STOP_PAIR)
+            self._check(q, clearance_mm=2.0, endpoint=policy)
+            if following <= distance + 1e-8:
+                raise ValueError("A3 inward motion does not separate the modeled stop contact")
+        return distance
+
+    def _check(self, raw, *, clearance_mm=None, endpoint=None):
         self.contact_report = []
         clearance = (
             self.clearance
@@ -315,7 +343,15 @@ class WeldGeometry:
                 "Requested clearance exceeds the configured contact envelope"
             )
         raw = finite_vector(raw, "raw pose")
-        angles = self.mapping.pose({str(i): float(q) for i, q in enumerate(raw, 1)})
+        if endpoint is None:
+            angles = self.mapping.pose({str(i): float(q) for i, q in enumerate(raw, 1)})
+        else:
+            endpoint.check_raw(raw)
+            angles = {}
+            for i, q in enumerate(raw, 1):
+                row = self.mapping.joints[str(i)]
+                angles[str(i)] = (row['model_per_raw'] * q + row['model_intercept_deg']
+                                  if i == 3 else self.mapping.model(i, float(q)))
         for i, name in enumerate(DRIVES):
             jid = self.model.joint(name).id
             q = math.radians(angles[str(i + 1)])
@@ -344,9 +380,12 @@ class WeldGeometry:
                 raise ValueError(
                     f"Arm/environment clearance: {contact['geom_names']}, {detail}"
                 )
-        stop = self.stops.check(0.1)
-        if stop:
-            raise ValueError(f"Adjacent mechanical stop: {stop}")
+        from .endpoint_recovery import STOP_PAIR
+        for stop in self.stops.measure():
+            if endpoint is not None and tuple(stop['geom_names']) == STOP_PAIR:
+                continue
+            if stop['distance_mm'] < 0.1:
+                raise ValueError(f"Adjacent mechanical stop: {stop}")
 
     def solve(
         self, target, *, free_yaw=False, preference=None, weights=None, fixed_yaw=0.0
@@ -838,9 +877,11 @@ def build_plan(request):
     current = finite_vector(request["current_raw_deg"], "current")
     initial = finite_vector(request["initial_raw_deg"], "initial")
     geometry = WeldGeometry(mapping)
-    geometry.check(current)
+    from .endpoint_recovery import prepare_retreat, A3Retreat
+    endpoint = prepare_retreat(geometry, current, settings)
+    recovered = current if endpoint is None else A3Retreat.from_document(endpoint['policy']).goal
     geometry.check(initial)
-    home, recovery = recovery_path(geometry, current, initial, settings)
+    home, recovery = recovery_path(geometry, recovered, initial, settings)
     root = Path(__file__).resolve().parents[4]
     weld, optimization = solve_weave(geometry, settings, root)
     weld_limits = np.array(
@@ -884,7 +925,7 @@ def build_plan(request):
         request_fingerprint=digest(request),
         mapping_fingerprint=mapping.fingerprint,
         scene_fingerprint=fingerprint,
-        current_raw_deg=current.tolist(),
+        current_raw_deg=recovered.tolist(),
         initial_raw_deg=initial.tolist(),
         home=home.document(),
         recovery=recovery,
@@ -931,6 +972,25 @@ def build_plan(request):
         from .preparation_search import optimize_preparation
 
         plan = optimize_preparation(plan, geometry, settings)
+    if settings.lowering_min_s:
+        from .preparation_search import apply_lowering_minimum
+
+        plan = apply_lowering_minimum(plan, settings)
+    if endpoint is not None:
+        from .endpoint_recovery import retreat_path, add_retreat_timing
+        policy = A3Retreat.from_document(endpoint['policy'])
+        endpoint_path = JointPath.from_document(endpoint['path'])
+        endpoint['dynamics'] = dynamics_constraints(
+            geometry, endpoint_path.positions[np.linspace(0, len(endpoint_path.positions)-1, 5, dtype=int)],
+            optimization['constraints'], acceleration_policy_deg_s2=endpoint['acceleration_deg_s2'],
+            pose_check=lambda raw: geometry.check_endpoint(raw, endpoint['policy']))
+        endpoint['acceleration_deg_s2'] = min(endpoint['dynamics']['raw_acceleration_deg_s2'])
+        endpoint['speed_deg_s'] = min(endpoint['speed_deg_s'], min(limits))
+        endpoint['path'] = retreat_path(policy, speed=endpoint['speed_deg_s'],
+                                       acceleration=endpoint['acceleration_deg_s2']).document()
+        plan['endpoint_recovery'] = endpoint
+        plan['current_raw_deg'] = current.tolist()
+        add_retreat_timing(plan, endpoint)
     if scene_fingerprint(MODEL_DIR / "robot.xml") != fingerprint:
         raise ValueError("Model changed while planning; no path authorized")
     geometry.check(plan["approach"]["raw_deg"][-1])

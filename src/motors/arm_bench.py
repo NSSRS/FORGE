@@ -13,7 +13,8 @@ import sys
 import tempfile
 import time
 
-from .arm import (ArmBus, BENCH_MODEL_LIMITS, CAP_CONTROL_READBACK,
+from .arm import (ArmBus, BENCH_MODEL_LIMITS, CAP_CONTROL_READBACK, CAP_A2_RANGE_SETUP,
+                  routed_torque_ceiling, require_torque_capability,
                   CAP_MANUAL_TRAVEL, CAP_POSITION_HOLD, CAP_GROUP_HOLD, CONTROL_REGISTERS, DISCOVERY_REGISTERS, decode_register)
 from .arm_travel import a4_cable_bounds
 
@@ -49,7 +50,7 @@ def validate_plan(plan, *, execute=False, all_motors=False, group_first=False):
     if execute and plan.get('fixture_confirmed') is not True:
         raise ValueError('Confirm the secured fixture and measured limits in the plan')
     ids, feedback, units = set(), set(), set()
-    for m in motors:
+    for slot, m in enumerate(motors):
         if m.get('model') not in ('8009P', '4340P', '4310P'):
             raise ValueError('Use the exact P-series model from the FORGE inventory')
         bus, mid, rx = (m.get(k) for k in ('bus', 'can_id', 'feedback_id'))
@@ -71,7 +72,10 @@ def validate_plan(plan, *, execute=False, all_motors=False, group_first=False):
             raise ValueError('Invalid discovered protocol ranges')
         lo, hi, speed, trip, torque, degrees = (number(m.get(k), k) for k in
             ('lower_rad', 'upper_rad', 'speed_rad_s', 'speed_trip_rad_s', 'torque_trip_nm', 'delta_degrees'))
-        max_speed, max_torque = BENCH_MODEL_LIMITS[m['model']]
+        max_speed = BENCH_MODEL_LIMITS[m['model']][0]
+        max_torque = routed_torque_ceiling(slot, m)
+        if torque > BENCH_MODEL_LIMITS[m['model']][1] and torque >= t:
+            raise ValueError('Feedback TMAX must exceed the torque trip; verify the drive range first')
         if not (-min(p, 12.5) <= lo < hi <= min(p, 12.5) and .001 <= speed and
                 .03 <= trip <= min(max_speed, v) and speed <= trip and .01 <= torque <= min(max_torque, t) and
                 2 <= abs(degrees) <= 180):
@@ -147,6 +151,11 @@ def read_settings(bus, channel, mid, rx, stop=None):
 def preflight(bus, motors):
     if bus.capabilities & 399 != 399:
         raise RuntimeError('Rebuild/flash the routed arm-test firmware (capability 0x100 required)')
+    # Reject an unsupported loaded profile before route/mode/current operations.
+    for motor in motors:
+        require_torque_capability(motor, bus.capabilities)
+    if bus.capabilities & CAP_A2_RANGE_SETUP and bus.base_info().get('a2_range_setup_flags', 0) & 1:
+        raise RuntimeError('Torque range setup locks motion until a restart; power-cycle the motor supply and MC02, then check again')
     # A completed run leaves configured slots in MCU RAM. Refresh disabled
     # feedback before each read instead of resetting the controller or faults.
     states = {i: bus.state(i) for i in range(6)}
@@ -170,7 +179,8 @@ def preflight(bus, motors):
                                previous.stop if previous else None)
         for reg, key in ((21, 'pmax'), (22, 'vmax'), (23, 'tmax')):
             if not math.isclose(values[reg], m['ranges'][key], rel_tol=1e-5):
-                raise RuntimeError(f"{m['unit']}: {key} changed; repeat discovery")
+                raise RuntimeError(f"{m['unit']}: {key} changed; repeat discovery "
+                                   f"(drive reports {values[reg]:g}, profile expects {m['ranges'][key]:g})")
         if not math.isfinite(values[31]) or values[31] <= 0:
             raise RuntimeError(f"{m['unit']}: positive velocity-loop damping required")
         observed.append(values)

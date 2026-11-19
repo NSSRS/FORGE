@@ -192,6 +192,38 @@ ID 0, model ranges, group enable, wrong identity/mode, stalls, missing feedback,
 speed/torque/lease trips, restoration and immutable unconfirmed templates.
 See [the test guide](../docs/DAMIAO_MOTOR_TESTS.md) for physical commissioning.
 
+`test_arm_a2_range_setup.py` covers the disabled-only 28-to-40 TMAX transaction
+through real native C firmware and fake motors: original-setting evidence before
+write, unchanged current/gain settings, independent readback before save, missing
+ACK/no retry, stale/moving/subset rejection, persistence across a fake power
+cycle, restart-only motion lock, required CLI flags and report preservation.
+Changing live VBus readings remain recorded without blocking write/save checks;
+genuine gain changes still fail both before and after save.
+These checks do not constitute physical drive or flash-persistence acceptance.
+
+`test_arm_a2_load.py` checks the separate 30 Nm A2 load profile with real native
+firmware and fake motors: exact slot/bus/ID scoping, older-firmware rejection,
+unchanged default and older-profile limits, rejection of 28/30 Nm feedback ranges for
+a 30 Nm trip, correct decoding after matched TMAX=40 readback, 30 simulated
+seconds above rated torque without an
+added overload timer, positive/negative torque trips, both 80 C temperature
+trips and whole-group disable. `test_weld_hold_analysis.py` checks preserved
+profile evidence, readable temperature peaks/changes and missing readings.
+`test_arm_gun_load.py` extends these checks to A3=30 and A4-A6=10, including
+per-axis signed trips, 80 C stops, saturation rejection, capability gating and
+cached torque/temperature recording without a new overload timer.
+`test_arm_load_range_setup.py` covers all five range changes in one disabled
+session, skipping already-configured A2, fixed joint/value whitelists, sequencing,
+readback-before-save, no uncertain retries, complete configuration comparison,
+restart-only motion lock and persistence across a fake power cycle.
+These are software tests, not sustained-load or thermal qualification.
+
+```bash
+PYTHONPATH=src:tests QT_QPA_PLATFORM=offscreen .venv/bin/python -m unittest \
+  test_damiao_arm test_damiao_bench test_damiao_keyboard test_arm_group_hold \
+  test_arm_a2_load test_arm_a2_range_setup test_arm_gun_load test_arm_load_range_setup
+```
+
 ## Arm clearance study
 
 `test_arm_geometry.py` checks exact 150 mm D3 connection-center spacing across
@@ -280,7 +312,7 @@ motor hardware. Do not count skipped optional ROS/Qt cases as passed coverage.
 | --- | --- |
 | Routing / feedback | Physical A2–A6 slots with absent A1, another missing motor, retained A1 routes, disabled capture without enables or parameter writes |
 | Manual travel | Beyond former startup window, current-position preload, release/intent expiry, duration/protocol guards, old-firmware rejection |
-| Profile / limits | 4340P 12 Nm ceiling and legacy rejection; independent lower torque trips; all active joints accept the old speed-trip region and fault above 1.5 rad/s in both directions |
+| Profile / limits | Baseline 4340P 12 Nm ceiling, scoped load-profile extensions and legacy rejection; independent lower torque trips; all active joints accept the old speed-trip region and fault above 1.5 rad/s in both directions |
 | Recovery | Evidence saved before reset, retained disabled/stationary checks, range-cache repair, lost ACK, disk/readback/reset failures, no automatic enable; session bounds/original modes survive keyboard R |
 | Readback / diagnostics | Disabled-only model register whitelist, wrong identities, missing/nonfinite values, original fault, enabled sample/peak retention, Feedback Nm versus Trip Nm |
 | Keyboard / display | Selection, E/held arrows/release, conflicts, focus loss, UI stall, startup fault lockout, threaded recovery, fresh input after recovery, aging stale rows |
@@ -335,6 +367,14 @@ PYTHONPATH=tests .venv/bin/python -m unittest test_arm_endpoint test_arm_cable_l
 
 ## Supported weld-motion controller
 
+Nov 19 publication validation: **200 weld tests, 183 motor/commissioning tests,
+49 shared-model/calibration tests and three native CTests**, plus the offline
+weld audit and ARM firmware build `f78f6b0d`. Two initial weld model-fingerprint
+rejections coincided with terrain regeneration; restoring generated scenes and
+running those cases sequentially passed. The 64 endpoint/hardware tests were
+also rerun after the A3 startup helper cleanup. These are software/model results;
+physical acceptance remains in the [handoff](../docs/ARM_SESSION_HANDOFF.md).
+
 Run all weld tests without hardware:
 
 ```bash
@@ -343,9 +383,8 @@ OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 QT_QPA_PLATFORM=offscreen MUJOCO_GL=egl
 .venv/bin/python scripts/control_weld.py --audit
 ```
 
-The November 17 publication check passed 166 weld tests and the offline audit,
-plus six `test_arm_geometry` tests and 43 model/calibration tests (no skips).
-For the additional shared-model coverage, run:
+For additional shared-model coverage, run this **after** the weld suite; terrain
+tests rewrite model inputs and must not run concurrently with planning tests:
 
 ```bash
 OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 QT_QPA_PLATFORM=offscreen MUJOCO_GL=egl \
@@ -355,22 +394,25 @@ OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 QT_QPA_PLATFORM=offscreen MUJOCO_GL=egl
   test_arm_calibration -v
 ```
 
-Terrain tests regenerate scene XML; review or discard generated scene-only changes
-separately from controller source. Physical session evidence is indexed in the
-[November 17 report archive](../docs/measurements/weld/2026-11-17/README.md).
+Terrain tests regenerate scene XML; preserve any pre-existing edits, then review
+or restore only test-generated scene changes after the suite completes. Physical
+evidence is in the [Nov 19 review](../docs/measurements/arm-gun-load-review-2026-11-19.json)
+and [Nov 17 archive](../docs/measurements/weld/2026-11-17/README.md).
 
 | Suite | Contract |
 | --- | --- |
+| `test_weld_hold_analysis.py` | Offline HOLD-01 timing and torque/speed summaries; separate interrupted attempts, reject stale/faulted samples, deduplicate cached feedback, preserve gaps and shutdown uncertainty, and flag changed comparison paths/settings |
 | `test_weld_constraints.py` | Calibration identifiability, output-shaft units, physical/host limits and exact retiming |
 | `test_weld_encoder_branch.py` | Explicit A1 restart-branch selection, unchanged physical interval/A4 winding limits, source fingerprints and raw target continuity |
 | `test_weld_hardware.py` | Shared state machine, native C fake-CAN arm, ENCOS simulator, continuous periodic execution/pause, fixed hold, retained ready plan and same-owner fault reset without automatic enable |
 | `test_weld_preparation.py` | Signed interval acceleration bounds, fast-route A5 lag regression, pacing/stall/timeouts, speed allowances and unchanged motion guards |
 | `test_weld_tracking.py` | Nominal-clock PID with unequal/delayed response, recorded A6 overshoot/two-cycle regressions, tiny-axis correction isolation under full clearance checks, finite-leg braking at variable tick intervals, ordered recovery stops, command derivative limits, anti-windup, fixed endpoint and pause holding, failure guards, full recorded-route geometry, repeated welding, measured Hz and insufficient-motion rejection |
-| `test_weld_preparation_search.py` | Nov 16 <=5 s ideal replay; Nov 17 raised approach with unequal lag and full geometry; required lift cannot fall back to direct; acceleration reserve, hardware opt-in and legacy offline-plan rejection |
+| `test_weld_preparation_search.py` | Nov 16 <=5 s ideal replay; Nov 17 raised approach with unequal lag and full geometry; Nov 19 long-wrist start at explicit 30 deg/s under 10 s with ideal shafts; final lowering minimum preserves selected staging, earlier timings, geometric cubics and limits, including the recorded loaded start with synthetic lag; independent stopped-leg timing, required lift, acceleration reserve, hardware opt-in and legacy offline-plan rejection |
 | `test_weld_recovery.py` | Bounded route search, start/preload validation, waypoint arrival and cancelled activation |
+| `test_weld_endpoint_recovery.py` | Recorded A3 contact separation, 0.25 deg startup boundary, unchanged other limits, explicit inward-only activation, pause/replan, stale/outward rejection, strict handoff, preview and full optimized model replay; fake-CAN command guards are also in `test_weld_hardware.py` |
 | `test_weld_model.py` | Actual D3/triangle-clearance/inertia checks, complete-route fake-shaft replay and repeated weld boundaries |
 | `test_weld_panel.py` | Worker ownership, ready hold across focus/heartbeat loss, active-motion cancellation, startup fault reset/R, queued-action rejection, reset failure/close and preview isolation |
-| `test_weld_preview.py` | Saved-start validation, nominal settling intervals, actual MuJoCo rendering and contact diagnostics |
+| `test_weld_preview.py` | Saved-start validation, nominal settling intervals, actual MuJoCo rendering and contact diagnostics; out-of-range measured-pose display without clamping or weakening target/command limits; planner exception serialization |
 | `test_weld_recording.py` | Bounded asynchronous JSONL, cached snapshots, overflow and disk errors |
 | `test_weld_search.py` | CMA-ES mobility semantics, objective constraints and stale-identity rejection |
 

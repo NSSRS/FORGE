@@ -48,12 +48,27 @@ See the [branch selection procedure](ARM_RIG_TEST.md#weld-panel-with-embedded-mo
 
 ### Supported startup and recovery
 
-Flow: fresh measured pose -> current-position hold verification -> checked
-standby waypoints -> approach -> ready -> explicitly started continuous weld ->
-Pause / Hold. Single-pass mode completes at a fixed endpoint hold.
+Flow: fresh measured pose -> current-position hold verification -> optional
+A3 endpoint retreat -> checked standby waypoints -> approach -> ready -> explicit
+continuous weld -> Pause / Hold. Single-pass mode completes at a fixed endpoint hold.
 Recovery tries a coordinated direct path, then a bounded joint-order graph
 (maximum 64 poses / 192 directed edges). Every edge and the joined interpolant
-are checked; there is no automatic escape from an already colliding start.
+are checked. Other colliding starts remain blocked; the only endpoint exception
+is the reviewed A3 policy below.
+
+`controller/endpoint_recovery.py` allows A3 startup up to raw 151.64 deg
+(151.39 + 0.25 deg), then builds an inward-only path to 149.39 deg at <=1 deg/s
+and <=5 deg/s². The original stop meshes must show bounded shallow contact that
+separates along the retreat; all other pose/cable/clearance guards remain strict.
+Fresh feedback is rechecked before preload and after stationary hold verification;
+other axes retain their fixed pose. Normal preparation starts only after a
+stationary, in-range endpoint. Pause requires a fresh checked plan. Its time is
+reported separately from normal preparation. This is software/model evidence,
+not physical retreat qualification.
+
+Out-of-range measured poses remain visible with a warning for inspection. This
+display never wraps/clamps readings or authorizes motion; the planning status
+states whether a checked retreat or normal path is available.
 
 The operator's intended startup is pickup from a settled hanging arm on a secured
 base. Load pickup, passive drop/swing clearance and shutdown remain unqualified.
@@ -101,7 +116,10 @@ tracker-v3 physical report also admits full correction in all 739 weld samples
 and measures A1/A6 at approximately 1.731 Hz. Measured travel still exceeds the
 plan, so amplitude and phase acceptance remain open. The admitted clearance
 correction factor and corrected axes are recorded in each trajectory sample.
-See the [archived physical reports](measurements/weld/2026-11-17/README.md).
+The [Nov 19 loaded review](measurements/arm-gun-load-review-2026-11-19.json)
+also matches ~1.73 Hz but measures A1/A6 travel of 3.869/1.180 deg versus
+2.260/0.427 deg planned. Frequency agreement does not establish amplitude
+acceptance. Earlier sources are in the [Nov 17 archive](measurements/weld/2026-11-17/README.md).
 
 Correction fades before finite endpoints. During preparation, both virtual
 targets and shaped commands stay inside the exact position extrema of the current
@@ -208,6 +226,15 @@ The full path is still checked and retimed against existing limits. This is a
 route alternative, not a change to the 0.5 mm approach clearance or 2 mm final
 wire-tip gap, and not a proof for every possible tracking error.
 
+`--lowering-seconds 2.3` sets a minimum duration for the final lowering move;
+it requires an explicit `--approach-lift-mm`. It is applied after staging
+selection, so the selected standby, earlier movement timings and stationary
+dwell remain unchanged. Only the time after the last stopped boundary is
+stretched, preserving every geometric cubic and the final target. An already
+slower lowering move is retained. The plan records `lowering_timing` and updates
+its total preparation estimate; the 10-second goal does not override this
+minimum or measured settling. The default is zero (existing timing).
+
 The Nov 17 direct route reaches the modeled floor guard with unequal synthetic
 joint lag. The raised route is exercised against those starts with the same
 lagging fake shafts and unchanged runtime guards. Manual jogging differs from
@@ -236,7 +263,8 @@ and close still remove torque. No gain, current or torque-feedforward writes exi
 The panel names the current stage goal and reports post-arrival `HOLD DRIFT` above
 the unchanged arrival tolerance. Cached observations continue in ready/complete;
 arrival, drift and recovery events record six-axis errors. The live JSONL journal
-includes target, allowance, endpoint-hold state, cached enabled/status/torque and
+includes the selected arm profile, target, allowance, endpoint-hold state,
+cached motor/MOS temperature, enabled/status/torque and
 feedback age. Observation does not poll registers or renew a motion lease.
 
 This implements a fixed-reference hold, not a measured increase in motor stiffness.
@@ -392,6 +420,21 @@ enable between blocks. Selected chassis feed remains continuous. Absolute elapse
 time and the repeat index remain in the bounded trace and live journal. Pause
 captures a fixed measured arm hold and stops feed; fault, focus, heartbeat,
 freshness, clearance, tracking and control-gap behavior remains unchanged.
+
+## Torque profiles and offline observation
+
+The explicit gun-load profile selects A2/A3 30 Nm and A4-A6 10 Nm reactive
+trips with independently verified TMAX 40/12.5. A1 remains 20/54 Nm. Standard
+profiles, planning torque budgets and drive gains remain unchanged. Matching
+host/MC02 capabilities and disabled range readback are required; firmware setup
+is separate from normal panel launch. See [deployment and current status](ARM_RIG_TEST.md#expanded-gun-load-profile-a2a3-30-nm-a4-a6-10-nm).
+
+`hardware/hold_analysis.py` / `scripts/analyze_weld_hold.py` summarize the cached
+journal offline: separate preparation attempts/stages, time to Ready, endpoint
+retreat, speed, torque, motor/MOS temperature, fixed-target error and data gaps.
+An attempt reaching Ready does not mean its later hold/weld passed; inspect its
+segments and fault history. GUI-01 will visualize this telemetry and simplify
+the control windows; that presentation work is still queued.
 
 ## Operator hardware entry points
 

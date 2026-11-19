@@ -42,10 +42,17 @@ compatibility export; all planner implementation lives in `controller/`.
 preserves the full weld endpoint and requested raised approach. Hardware use
 requires explicit `--optimize-preparation` and Start recovery in the panel;
 searching or loading a plan cannot enable motors.
+`controller/endpoint_recovery.py` owns the reviewed A3 startup allowance and
+inward-only backoff. It is a separate preparation stage; normal mapping and
+travel limits remain strict. `simulation.arm_calibration.ExplicitStops` supplies
+triangle contact depth for the separating-contact check. The controller, native
+owner, preview and journal share the explicit retreat policy.
 `hardware/weld_ports.py` explicitly latches settled endpoint holds without
 changing position, mode or speed allowance. Drive-gain tuning remains HOLD-01.
 `hardware/weld_recording.py` persists cached evidence on a bounded writer thread;
-it does not own a transport or renew motor leases.
+it does not own a transport or renew motor leases. `hardware/hold_analysis.py`
+provides offline per-attempt/stage timing, torque, temperature and hold summaries;
+`scripts/analyze_weld_hold.py` is its thin launcher.
 
 `scripts/control_weld.py`, `fit_arm_model.py` and `optimize_weld.py` are thin
 entry points. `scripts/render_weld.py` delegates to
@@ -173,12 +180,15 @@ generated. Rebuild the affected ROS package after changing an installed asset.
 | Current status and next session | [docs/ARM_SESSION_HANDOFF.md](ARM_SESSION_HANDOFF.md) |
 | Operator procedure, expected behavior and run commands | [docs/ARM_RIG_TEST.md](ARM_RIG_TEST.md) |
 | Future calibration, holding and acceptance | [docs/ASSEMBLED_ARM_BRINGUP.md](ASSEMBLED_ARM_BRINGUP.md), [docs/ARM_LAYER_TODOS.md](ARM_LAYER_TODOS.md) |
+| Disabled A2 feedback-range setup | [scripts/setup_a2_torque_range.py](../scripts/setup_a2_torque_range.py) → [src/motors/arm_a2_range_setup.py](../src/motors/arm_a2_range_setup.py); explicit write/save, full-rig checks, evidence and MCU restart lock |
+| Disabled A2-A6 gun-load range setup | [scripts/setup_arm_load_ranges.py](../scripts/setup_arm_load_ranges.py) → [src/motors/arm_load_range_setup.py](../src/motors/arm_load_range_setup.py); fixed 40/12.5 Nm encoding, per-drive evidence/save, global motion lock |
 | Check entry point | [scripts/test_dm_arm.py](../scripts/test_dm_arm.py), a thin wrapper over [src/motors/arm_bench.py](../src/motors/arm_bench.py) |
 | Motor transport, disabled probing/explicit recovery, manual position lifecycle and fault capture | [src/motors/arm.py](../src/motors/arm.py), [arm_bench.py](../src/motors/arm_bench.py), [arm_position.py](../src/motors/arm_position.py) |
 | Explicit group holding and selection without torque disable | [src/motors/arm_group_hold.py](../src/motors/arm_group_hold.py), exercised by [tests/test_arm_group_hold.py](../tests/test_arm_group_hold.py) |
 | Guided raw bounds and initial-position capture from cached group feedback | [src/motors/arm_capture.py](../src/motors/arm_capture.py), `record_arm_positions.py --capture-file`, exercised by [tests/test_arm_capture.py](../tests/test_arm_capture.py) |
 | Portable eight-position recording launcher | [scripts/record_arm_positions.sh](../scripts/record_arm_positions.sh) |
 | Historical saved-report jitter analysis (no hardware access) | [src/motors/arm_jitter_report.py](../src/motors/arm_jitter_report.py), [scripts/analyze_arm_jitter.py](../scripts/analyze_arm_jitter.py) |
+| HOLD-01 payload comparison from cached journals (no hardware access) | [src/controls/controls/hardware/hold_analysis.py](../src/controls/controls/hardware/hold_analysis.py), [scripts/analyze_weld_hold.py](../scripts/analyze_weld_hold.py) |
 | Recorded raw references and original sample evidence | [2026-11-12 reference JSON](../src/robot_description/config/arm_reference_positions_2026-11-12.json), [capture evidence](measurements/arm-reference-2026-11-12.capture.json); observation only, not runtime limits |
 | Optional 2 ms jog target slew with immediate release/hold | [src/damiao_firmware/src/arm.c](../src/damiao_firmware/src/arm.c), [tests/damiao_smooth_jog_test.c](../tests/damiao_smooth_jog_test.c), [tests/test_arm_smooth_jog.py](../tests/test_arm_smooth_jog.py) |
 | A2–A6 selection, motor IDs/routes and fixture test envelope | [src/robot_description/config/arm_rig_a2_a6.json](../src/robot_description/config/arm_rig_a2_a6.json) |

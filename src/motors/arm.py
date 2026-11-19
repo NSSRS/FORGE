@@ -22,6 +22,11 @@ CAP_POSITION_HOLD = 1 << 16
 CAP_GROUP_HOLD = 1 << 17
 CAP_SMOOTH_JOG = 1 << 18
 CAP_SMOOTH_JOG_10 = 1 << 19
+CAP_A2_LOAD_13 = 1 << 20
+CAP_A2_LOAD_30 = 1 << 21
+CAP_A2_RANGE_SETUP = 1 << 22
+CAP_GUN_LOAD = 1 << 23
+CAP_LOAD_RANGE_SETUP = 1 << 24
 # P-series manual register maps. These are reads only; write whitelist stays
 # TIMEOUT/CTRL_MODE. Imax/VBus are documented for 4340P/4310P, not 8009P V1.1.
 CONTROL_REGISTERS = {
@@ -55,6 +60,32 @@ BENCH_MODEL_LIMITS = {
     '4340P': (1.5, 12.0),
     '4310P': (120 * 2 * math.pi / 60, 3.5),
 }
+
+def routed_torque_ceiling(slot, motor):
+    """Known rig commissioning allowances; manufacturer/default ratings stay unchanged."""
+    if (1 <= slot <= 5 and motor['model'] == ('4340P' if slot < 3 else '4310P')
+            and motor['bus'] == 2 and motor['can_id'] == slot + 1
+            and motor['feedback_id'] == slot + 17):
+        return 30.0 if slot < 3 else 10.0
+    return BENCH_MODEL_LIMITS[motor['model']][1]
+
+
+def require_torque_capability(motor, capabilities):
+    if ((motor['model'] == '4340P' and motor['can_id'] == 3 and motor['torque_trip_nm'] > 12)
+            or (motor['model'] == '4310P' and motor['torque_trip_nm'] > 3.5)):
+        if not capabilities & CAP_GUN_LOAD:
+            raise RuntimeError('A3-A6 gun-load trips require MC02 capability 0x800000; '
+                               'flash the expanded gun-load firmware first')
+        return
+    if (motor['model'] == '4340P' and motor['torque_trip_nm'] > 13
+            and not capabilities & CAP_A2_LOAD_30):
+        raise RuntimeError('A2 torque trips above 13 Nm require MC02 capability 0x200000; '
+                           'the earlier 13 Nm firmware cannot use the 30 Nm profile')
+    if (motor['model'] == '4340P' and motor['torque_trip_nm'] > 12
+            and not capabilities & CAP_A2_LOAD_13):
+        raise RuntimeError('A2 torque trips above 12 Nm require MC02 capability 0x100000; '
+                           'flash the A2 13 Nm commissioning firmware before using this profile')
+
 
 MAGIC = b'\xa5\x5a'
 FAULT_REASONS = {0: 'not recorded', 1: 'host command lease expired', 2: 'CAN feedback expired',
@@ -176,7 +207,14 @@ class ArmBus:
         p=self._request(24)
         keys=('api_version','capabilities','control_period_ms','command_lease_ms',
               'feedback_timeout_ms','enable_timeout_ms','can_bitrate','configured_mask','id_session_locked','build_id')
-        return dict(zip(keys,struct.unpack_from('<10I',p,1)))
+        info = dict(zip(keys,struct.unpack_from('<10I',p,1)))
+        if self.capabilities & CAP_A2_RANGE_SETUP:
+            info['a2_range_setup_flags'] = struct.unpack_from('<I', p, 41)[0]
+        if self.capabilities & CAP_LOAD_RANGE_SETUP:
+            # Legacy flags also lock older hosts out during A3-A6 setup.
+            info['range_setup_joint'] = struct.unpack_from('<I', p, 45)[0]
+            info.update(zip(('range_written_mask', 'range_save_attempted_mask', 'range_saved_mask'), p[49:52]))
+        return info
 
     def bus_health(self, bus):
         """Cumulative uint32 counters since MCU boot; reading never clears them."""
@@ -323,10 +361,14 @@ class ArmBus:
                 (model == 1) != (bus == 1) or mode not in (1, 2)):
             raise ValueError('Invalid routed bench identity/mode; 8009P alone belongs on CAN1')
         speed, torque = motor['speed_trip_rad_s'], motor['torque_trip_nm']
-        max_speed, max_torque = BENCH_MODEL_LIMITS[motor['model']]
+        max_speed = BENCH_MODEL_LIMITS[motor['model']][0]
+        max_torque = routed_torque_ceiling(slot, motor)
         if (not all(math.isfinite(v) for v in (lower, upper, speed, torque)) or
                 not -12.5 <= lower < upper <= 12.5 or not .03 <= speed <= max_speed or not .01 <= torque <= max_torque):
             raise ValueError('Invalid routed bench limits')
+        require_torque_capability(motor, self.capabilities)
+        if torque > BENCH_MODEL_LIMITS[motor['model']][1] and torque >= motor['ranges']['tmax']:
+            raise ValueError('Feedback TMAX must exceed the torque trip; verify the drive range first')
         if model == 2 and torque > 3.0 and not self.capabilities & CAP_RATED_4340_TORQUE:
             raise RuntimeError('MC02 firmware supports only the old 3 Nm 4340P ceiling; '
                                'a reviewed firmware update with capability 0x2000 is required '
@@ -380,6 +422,37 @@ class ArmBus:
             raise RuntimeError(f'CAN{bus} ID {can_id}: register {register} write was not acknowledged')
         if self.read_register(bus, can_id, register) != expected:
             raise RuntimeError(f'CAN{bus} ID {can_id}: register {register} readback mismatch')
+
+    def setup_a2_torque_range(self, *, save=False):
+        """Explicit disabled-only A2 TMAX=40 write/save; motion locks until MCU restart."""
+        return self._setup_torque_range(2, save=save)
+
+    def setup_load_torque_range(self, joint, *, save=False):
+        """Disabled-only fixed A3 TMAX=40 / A4-A6 TMAX=12.5 setup; never enables."""
+        if type(joint) is not int or joint not in (3, 4, 5, 6):
+            raise ValueError('Load range setup requires a physical joint number from 3 through 6')
+        return self._setup_torque_range(joint, save=save)
+
+    def _setup_torque_range(self, joint, *, save):
+        capability = CAP_A2_RANGE_SETUP if joint == 2 else CAP_LOAD_RANGE_SETUP
+        if not self.capabilities & capability:
+            raise RuntimeError(f'Flash A{joint} range-setup firmware (capability {capability:#x}) first')
+        expected = {i: (1 if i == 0 else 2, i+1, i+17) for i in range(6)}
+        if self.bench_routes != expected:
+            raise RuntimeError(f'A{joint} range setup requires the complete configured A1-A6 rig')
+        op = 1 if save else 0
+        self._request(27 if joint == 2 else 28, bytes([op] if joint == 2 else [joint, op]))
+        if save:
+            # Never retry an uncertain flash write. Give the motor its documented
+            # quiet interval even if acknowledgement is missing or malformed.
+            try:
+                reply = self._diagnostic_result(2, joint, 1)
+            finally:
+                time.sleep(.06)
+            if reply != (16 + joint, 0):
+                raise RuntimeError(f'A{joint} parameter save unconfirmed; power-cycle and read back before retrying')
+        else:
+            self._verify_write(2, joint, 23, (16 + joint, 0x42200000 if joint < 4 else 0x41480000))
 
     def configure(self, profile):
         """Load a measured hardware profile; deliberately rejects the shipped template."""

@@ -29,6 +29,27 @@ def digest(value):
     return hashlib.sha256(json.dumps(value, sort_keys=True, allow_nan=False).encode()).hexdigest()
 
 
+class RawAngleLimitError(ValueError):
+    """A measured raw angle cannot be used for motion with this saved mapping."""
+
+    def __init__(self, joint, raw, lower, upper):
+        self.joint, self.raw, self.lower, self.upper = joint, raw, lower, upper
+        below = raw < lower
+        difference = lower - raw if below else raw - upper
+        direction, side = ('below', 'lower') if below else ('above', 'upper')
+        limit = lower if below else upper
+        super().__init__(
+            f'A{joint}: raw angle {raw:+.4f} deg is {difference:.4f} deg {direction} '
+            f'the saved {side} limit {limit:+.4f} deg '
+            f'(range [{lower:+.4f}, {upper:+.4f}] deg). '
+            'Readings are not wrapped or clamped.'
+        )
+
+    def __reduce__(self):
+        # The planner returns exceptions through a ProcessPoolExecutor.
+        return type(self), (self.joint, self.raw, self.lower, self.upper)
+
+
 class CalibrationMap:
     def __init__(self, document):
         if document.get('a5_cw_alignment'):
@@ -65,10 +86,7 @@ class CalibrationMap:
         raw = number(raw, 'raw angle')
         lo, hi = self.raw_limits(joint)
         if not lo <= raw <= hi:
-            raise ValueError(
-                f'A{joint}: raw angle {raw:+.4f} deg outside configured encoder branch/cable envelope '
-                f'[{lo:+.4f}, {hi:+.4f}] deg; do not wrap it automatically'
-            )
+            raise RawAngleLimitError(joint, raw, lo, hi)
         return row['model_per_raw'] * raw + row['model_intercept_deg']
 
     def raw(self, joint, model):

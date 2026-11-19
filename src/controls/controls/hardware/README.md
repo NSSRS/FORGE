@@ -11,6 +11,7 @@ point; production lifecycle/atomic group execution remain separate acceptance wo
 | `weld_ports.py` | Damiao `ArmOwner` / `TrajectoryArmPort`, ENCOS `ChassisOwner`, and `SimulatedArm` |
 | `weld_app.py` | Qt panel, planning process and sole execution/transport thread |
 | `weld_recording.py` | Bounded asynchronous JSONL writer; copies owner-maintained cached evidence |
+| `hold_analysis.py` | Offline per-attempt/stage timing, speed, torque, temperatures, fixed-target error and evidence-quality summaries |
 | `weld_plan.py` | Compatibility exports from `controller/weld_plan.py` |
 | `simulation.weld_preview` | Separate renderer process; receives poses, never transport handles |
 
@@ -54,8 +55,11 @@ compensation for an inactive counterpart.
 
 ## Execution and hold semantics
 
-Measured pose -> verify current-position hold -> checked recovery waypoints ->
-approach -> ready -> explicit weld until pause (or complete in single-pass mode).
+Measured pose -> verify current-position hold -> optional checked A3 endpoint
+retreat -> recovery waypoints -> approach/lowering -> Ready -> explicit weld
+until pause (or complete in single-pass mode). The exceptional retreat has its
+own inward-only guard and strict return to normal limits; see the shared
+`controller/endpoint_recovery.py` policy.
 `finish_trajectory()` is called
 only after the controller's measured arrival/settling check. It latches the
 already-dispatched endpoint and speed allowance, clears trajectory intent, and
@@ -98,7 +102,8 @@ and planning do not enable motors. Preview playback is separate from execution.
 their use on hardware. `WeldController` requires `allow_optimized_preparation=True`
 to accept these plans with physical outputs; loading never enables motors.
 Historical plans marked `offline_only` remain rejected. Five seconds is a goal,
-not a deadline; the recorded comparison uses explicit 10 deg/s preparation.
+not a deadline. The current loaded trial explicitly uses 30 deg/s, a 10 s goal,
+a 30 mm raised approach and 2.3 s final-lowering minimum; defaults remain unchanged.
 Generated plans/logs stay ignored. Explicitly preserved session reports are
 indexed in [the evidence archive](../../../../docs/measurements/weld/2026-11-17/README.md).
 
@@ -106,4 +111,6 @@ See [WELD_MOTION.md](../../../../docs/WELD_MOTION.md) for limits/search/timing,
 [ARM_RIG_TEST.md](../../../../docs/ARM_RIG_TEST.md) for operator procedures,
 [the handoff](../../../../docs/ARM_SESSION_HANDOFF.md) for current evidence, and
 [tests/README.md](../../../../tests/README.md) for native fake-CAN, model and Qt
-verification. Loaded holding, shutdown and five-second prep require physical evidence.
+verification. The Nov 19 final close verified disable/mode restoration; general
+loaded holding/stopping qualification remains open. GUI-01 owns the queued
+Nm/temperature displays and clearer state/progress/fault presentation.

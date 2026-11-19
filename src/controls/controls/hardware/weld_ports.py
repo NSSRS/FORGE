@@ -14,6 +14,7 @@ from .weld_control import Feedback, TrajectoryPaused
 from controls.controller.weld_plan import finite_vector
 from controls.controller.limits import joint_speed_policy
 from controls.controller.recovery import START_TOLERANCE_DEG
+from controls.controller.endpoint_recovery import A3Retreat, ALLOWANCE_DEG, SPEED_DEG_S
 
 
 def check_hold_start(actual, expected, pose_check):
@@ -56,6 +57,9 @@ class TrajectoryArmPort(ArmGroupHoldPort):
                 self.axis_ceilings[i] = min(self.axis_ceilings[i], cap)
         self.path_speeds = np.radians(np.minimum(self.axis_ceilings, 5.0))
         self.path_active = False
+        self.endpoint_policy = None
+        self.endpoint_last = None
+        self.endpoint_minimum = None
         self.endpoint_hold = False
         self._cycle = None
         self.path_ceiling = max_speed_deg_s
@@ -71,6 +75,15 @@ class TrajectoryArmPort(ArmGroupHoldPort):
             raise ValueError("Welding motion requires all six arm joints")
 
     def _refresh_targets(self):
+        if self.endpoint_policy is not None:
+            raw = np.degrees([r.position_rad for r in sorted(self.cached_positions(), key=lambda r: r.joint)])
+            self.endpoint_policy.check_raw(raw)
+            for joint, q in enumerate(raw, 1):
+                if joint != 3:
+                    self.mapping.model(joint, float(q))
+            self.endpoint_minimum = min(self.endpoint_minimum, float(raw[2]))
+            if raw[2] > self.endpoint_minimum + ALLOWANCE_DEG:
+                raise ValueError("A3 moved outward during endpoint recovery/hold")
         for i, target in self.hold_targets.items():
             if self.path_active:
                 self._check_intent()
@@ -108,7 +121,15 @@ class TrajectoryArmPort(ArmGroupHoldPort):
             raise ValueError("Explicit group hold is required")
         if np.any(speed <= 0) or np.any(speed > self.axis_ceilings + 1e-9):
             raise ValueError("Trajectory speed exceeds supported limit")
-        self.mapping.pose({str(i): float(q) for i, q in enumerate(raw, 1)})
+        if self.endpoint_policy is None:
+            self.mapping.pose({str(i): float(q) for i, q in enumerate(raw, 1)})
+        else:
+            self.endpoint_policy.check_raw(raw, command=True)
+            if raw[2] > self.endpoint_last + 1e-9 or np.any(speed > SPEED_DEG_S + 1e-9):
+                raise ValueError("A3 recovery commands must remain inward and at most 1 deg/s")
+            for i, q in enumerate(raw, 1):
+                if i != 3:
+                    self.mapping.model(i, float(q))
         targets = np.radians(raw)
         for i, target in enumerate(targets):
             lo, hi = self._limits(i)
@@ -123,6 +144,8 @@ class TrajectoryArmPort(ArmGroupHoldPort):
             if any(row.age_ms >= 80 for row in self.cached_positions()):
                 raise RuntimeError("Arm feedback became stale before trajectory dispatch")
             self._check_intent()
+            if self.endpoint_policy is not None:
+                self.endpoint_last = float(raw[2])
             self.hold_targets = dict(enumerate(targets))
             self.path_speeds = np.radians(speed)
             self.path_active = True
@@ -164,6 +187,24 @@ class TrajectoryArmPort(ArmGroupHoldPort):
         self.endpoint_hold = False
         self.path_active = False
         super().stop()
+        self.endpoint_policy = None
+
+    def configure_endpoint(self, document):
+        if document is None:
+            if self.endpoint_policy is not None and self.hold_targets:
+                feedback = ArmOwner._feedback(self.cached_positions()).validate(stationary=True)
+                self.mapping.pose(dict(zip('123456', map(float, feedback.raw_deg))))
+                self.mapping.pose({str(i+1): math.degrees(q) for i, q in self.hold_targets.items()})
+            self.endpoint_policy = None
+            return
+        policy = A3Retreat.from_document(document)
+        policy.check_mapping(self.mapping)
+        minimum = (policy.start[2] if self.endpoint_policy is None
+                   else min(self.endpoint_minimum, policy.start[2]))
+        self.endpoint_policy = policy
+        self.endpoint_last = policy.start[2]
+        self.endpoint_minimum = minimum
+        self.path_speeds = np.radians(np.minimum(self.axis_ceilings, SPEED_DEG_S))
 
     def finish_trajectory(self):
         """Latch the already-dispatched endpoint after measured settling.
@@ -192,6 +233,8 @@ class TrajectoryArmPort(ArmGroupHoldPort):
         with self._guard_motion():
             if self.path_active:
                 samples = {i: self._enabled_sample(i) for i in self.slots}
+                if self.endpoint_policy is not None:
+                    self.endpoint_policy.check_raw(np.degrees([samples[i].position for i in range(6)]))
                 self.hold_targets = {i: s.position for i, s in samples.items()}
             self.path_active = False
             self.moving = False
@@ -260,11 +303,15 @@ class ArmOwner:
 
         self.port.path_active = False
         self.port.endpoint_hold = False
-        self.port.path_speeds = np.radians(np.minimum(self.port.axis_ceilings, 5.0))
+        cap = SPEED_DEG_S if self.port.endpoint_policy is not None else 5.0
+        self.port.path_speeds = np.radians(np.minimum(self.port.axis_ceilings, cap))
         self.port.hold_all(
-            math.radians(min(min(self.port.axis_ceilings), 5.0)),
+            math.radians(min(min(self.port.axis_ceilings), cap)),
             validate_preload=validate,
         )
+
+    def configure_endpoint(self, document):
+        self.port.configure_endpoint(document)
 
     def poll(self):
         self.port.poll()
@@ -307,6 +354,12 @@ class SimulatedArm:
         self.path_active = False
         self.closed = False
         self.commands = []
+        self.endpoint_policy = None
+        self.endpoint_last = None
+
+    def configure_endpoint(self, document):
+        self.endpoint_policy = None if document is None else A3Retreat.from_document(document)
+        self.endpoint_last = None if document is None else self.endpoint_policy.start[2]
 
     def poll(self):
         now = self.clock()
@@ -340,6 +393,11 @@ class SimulatedArm:
     def command(self, raw, speed):
         if not self.enabled:
             raise RuntimeError("Simulated arm disabled")
+        if self.endpoint_policy is not None:
+            self.endpoint_policy.check_raw(raw, command=True)
+            if raw[2] > self.endpoint_last + 1e-9 or np.max(speed) > SPEED_DEG_S + 1e-9:
+                raise ValueError("A3 recovery command must stay inward at <=1 deg/s")
+            self.endpoint_last = float(raw[2])
         self.target = finite_vector(raw, "target").copy()
         self.speed = finite_vector(speed, "speed").copy()
         self.endpoint_hold = False
@@ -365,6 +423,7 @@ class SimulatedArm:
         self.pause()
         self.enabled = False
         self.endpoint_hold = False
+        self.endpoint_policy = None
 
     def recover(self, report_path):
         if self.enabled:

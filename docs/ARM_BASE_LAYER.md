@@ -36,6 +36,42 @@ remain separate work; see [current status](ARM_SESSION_HANDOFF.md).
 
 ## CAN capacity and information policy
 
+Capability bit 21 (`0x200000`) permits the explicit A2 gun-load trip up to
+30 Nm at slot 1 / CAN2 / ID2 / feedback18 / 4340P. Bit 20 (`0x100000`) retains
+the earlier 13 Nm compatibility. Bit 23 (`0x800000`) adds **A3 up to 30 Nm**
+and **A4-A6 up to 10 Nm**, restricted to their known physical slots, CAN2,
+IDs 3-6 / feedback19-22 and matching 4340P/4310P models. Other routes retain
+rated configuration ceilings. Defaults and planning budgets stay unchanged.
+Host preflight rejects missing capabilities before motor operations. Host and
+MCU both reject extended trips at or above actual TMAX; the expanded profile
+requires A2/A3=40 and A4-A6=12.5. A2's TMAX=40 persistence was physically
+verified Nov 19; A3-A6 setup and subsequent fresh-MCU/readback verification
+are recorded in the [gun-load review](measurements/arm-gun-load-review-2026-11-19.json). No overload timer is added.
+Cached signed torque and both temperature channels use the existing owner.
+These are reactive trips, not commanded current or qualified continuous ratings.
+
+Capability bit 22 (`0x400000`) retains USB type 27 `[op]` for fixed A2 TMAX=40.
+Bit 24 (`0x1000000`) adds type 28 `[joint, op]`, where joint is strictly 3-6:
+A3 writes TMAX=40, A4-A6 write TMAX=12.5. Operation 0 writes the fixed register
+23 value, operation 1 saves once after independent readback. The complete known
+rig must have fresh stationary disabled feedback and verified ranges/modes.
+The setup uses rated-reference trips and accepts only the known original range
+(28 or 10). No arbitrary register/value/route is writable. All motion and
+route/mode changes lock until MCU restart; fault reset cannot clear the lock.
+Another joint can be configured only after the preceding save acknowledgement;
+each joint can be written/saved at most once per boot. An uncertain operation
+blocks progression without retries. The 50 ms save quiet interval remains.
+
+Base-info retains its original ten uint32 fields and legacy flags at payload
+byte 41: bit 0 globally locked, bit 1 latest target readback verified, bit 2
+latest save attempted. Older hosts therefore also see the lock during A3-A6
+setup. Under bit 24, payload byte 45 contains a uint32 physical joint number
+(0 if no setup), and bytes 49/50/51 contain written/save-attempted/save-acknowledged
+slot masks. All offsets include the leading status byte; packet size is unchanged.
+Complete capabilities are **0x1FFFF8F**. The operator must power-cycle motor
+power and MC02 and read back persistence before launch. See the
+[setup procedure](ARM_RIG_TEST.md#expanded-gun-load-profile-a2a3-30-nm-a4-a6-10-nm).
+
 Optional `--smooth-jog` requires capability bit 18 (`0x40000`) and USB type 25,
 using the same slot + five-float payload as type 4. Only confirmed enabled,
 manual mode-2 holding accepts it. Capability bit 19 (`0x80000`) extends its

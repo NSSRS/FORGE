@@ -229,6 +229,11 @@ def make_window(args, mapping, initial, settings, root):
                             fixture_mode="supported",
                             supported_confirmed=True,
                         )
+                        if self.journal is not None:
+                            self.journal.record(dict(
+                                kind="arm_configuration", profile=plan,
+                                profile_source=str(args.arm_profile),
+                            ))
                         from controls.controller.limits import motor_constraints
 
                         ceilings = motor_constraints(
@@ -265,6 +270,7 @@ def make_window(args, mapping, initial, settings, root):
                     arm,
                     chassis,
                     pose_check=None if geometry is None else geometry.check,
+                    endpoint_check=None if geometry is None else geometry.check_endpoint,
                     allow_optimized_preparation=settings.optimize_preparation,
                     continuous_weld=not getattr(args, "single_pass", False),
                     tracking_settings=tracker_settings,
@@ -362,6 +368,15 @@ def make_window(args, mapping, initial, settings, root):
                         c.message = (
                             f"FAULT: {c.fault}; motor reset failed: {exc}"
                             if action == "reset" and c.fault else "Blocked: " + str(exc)
+                        )
+                        c.event(
+                            "action_blocked",
+                            action=action or "planning_result",
+                            error=str(exc),
+                            planning_start_raw_deg=(
+                                None if self.request is None
+                                else self.request.get("current_raw_deg")
+                            ),
                         )
                     except Exception as exc:
                         c.fail(exc)
@@ -570,6 +585,8 @@ def make_window(args, mapping, initial, settings, root):
             if settings.approach_lift_m:
                 lift_label = QtWidgets.QLabel(
                     f"Approach: via a point {settings.approach_lift_m*1000:g} mm above the weld point, then lower to the unchanged target."
+                    + (f" Final lowering: at least {settings.lowering_min_s:g} s."
+                       if settings.lowering_min_s else "")
                 )
                 lift_label.setWordWrap(True)
                 layout.addWidget(lift_label)
@@ -784,7 +801,8 @@ def make_window(args, mapping, initial, settings, root):
                     f"Planning ({elapsed:.1f} s): " + value["message"]
                 )
             else:
-                self.state_label.setText(value["state"] + ": " + value["message"])
+                label = "A3 inward recovery" if value["state"] == "endpoint_recovery" else value["state"]
+                self.state_label.setText(label + ": " + value["message"])
             timing = value.get("timing")
             if planning:
                 self.timing_label.setText(
@@ -1066,6 +1084,12 @@ def main(argv=None):
         help="require a checked raised-tool approach at this height above the weld point (0–150 mm); 0 retains automatic route selection",
     )
     parser.add_argument(
+        "--lowering-seconds",
+        type=float,
+        default=0.0,
+        help="minimum duration of the final lowering move; requires --approach-lift-mm, leaves earlier moves unchanged (0 keeps existing timing)",
+    )
+    parser.add_argument(
         "--prep-seconds",
         type=float,
         default=5.0,
@@ -1167,6 +1191,7 @@ def main(argv=None):
             preparation_target_s=args.prep_seconds,
             optimize_preparation=args.optimize_preparation,
             approach_lift_m=args.approach_lift_mm / 1000,
+            lowering_min_s=args.lowering_seconds,
         )
         if args.audit:
             result = audit(

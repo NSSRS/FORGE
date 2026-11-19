@@ -51,6 +51,8 @@ static bool dispatch(arm_wire *w,uint32_t now,uint8_t *out) {
         } else if(type==17) ok=arm_routed_write(a,i,p[1],u32(p+2),now);
         else if(type==18) ok=arm_enable_group(a,p[0],now);
         else if(type==20) ok=arm_id_operation(a,p[0],u32(p+1),now);
+        else if(type==27) ok=arm_a2_range_setup(a,p[0],now);
+        else if(type==28) ok=arm_load_range_setup(a,p[0],p[1],now);
         else if(type==22 && p[0]<3) {
             /* Capturing/reading a snapshot generates no CAN traffic. */
             unsigned page=p[0];
@@ -89,8 +91,11 @@ static bool dispatch(arm_wire *w,uint32_t now,uint8_t *out) {
             for(unsigned k=0;k<ARM_COUNT;k++) if(a->joints[k].configured) configured |= 1u<<k;
             uint32_t values[]={ARM_BASE_API_VERSION,ARM_CAPABILITIES,ARM_CONTROL_PERIOD_MS,
                 ARM_LEASE_MS,ARM_FEEDBACK_MS,ARM_ENABLE_CONFIRM_MS,1000000u,configured,
-                a->id_commissioning?1u:0u,FORGE_BUILD_ID};
-            for(unsigned k=0;k<10;k++) put32(out+9+k*4,values[k]);
+                a->id_commissioning?1u:0u,FORGE_BUILD_ID,
+                (a->range_commissioning?1u:0u)|(a->range_verified?2u:0u)|(a->range_save_attempted?4u:0u),
+                a->range_commissioning?a->range_setup_slot+1u:0u};
+            for(unsigned k=0;k<12;k++) put32(out+9+k*4,values[k]);
+            out[57]=a->range_written_mask; out[58]=a->range_save_attempted_mask; out[59]=a->range_saved_mask;
             ok=true;
         }
         else if(type==21 && p[0]>=1 && p[0]<=3) {

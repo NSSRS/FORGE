@@ -3,11 +3,11 @@
 #include <math.h>
 #include <string.h>
 typedef struct {
-    unsigned bus,id,rx,mode,timeout,status,commands,mode_writes;
+    unsigned bus,id,rx,mode,timeout,status,commands,mode_writes,mos,rotor;
     unsigned coasting_replies, disables, saves, stored_id, stored_rx;
     uint32_t save_at; bool saving;
-    bool ignore_ids, drop_save;
-    float pmax,vmax,tmax,p,target,speed,v,torque,position_gain;
+    bool ignore_ids, drop_save, ignore_tmax, drop_tmax_ack;
+    float pmax,vmax,tmax,stored_tmax,p,target,speed,v,torque,position_gain;
     bool present, ignore_mode, stalled;
 } motor;
 static motor motors[6];
@@ -36,6 +36,10 @@ static bool tx(void *ctx,uint8_t bus,uint16_t id,const uint8_t *d,uint8_t n) {
                 else if(d[3]==8) { if(!m->ignore_ids) m->id=value; }
                 else if(d[3]==9) m->timeout=value;
                 else if(d[3]==10) { m->mode_writes++; if(!m->ignore_mode) m->mode=value; }
+                else if(d[3]==23) {
+                    if(!m->ignore_tmax) memcpy(&m->tmax,&value,4);
+                    if(m->drop_tmax_ack) continue;
+                }
                 else invalid++;
             } else if(d[2]==0x33) {
                 reg_reads[i][d[3]]++;
@@ -49,6 +53,7 @@ static bool tx(void *ctx,uint8_t bus,uint16_t id,const uint8_t *d,uint8_t n) {
             } else if(d[2]==0xaa && d[3]==1 && n==4) {
                 if(m->status!=0) { invalid++; continue; }
                 m->saves++; m->stored_id=m->id; m->stored_rx=m->rx;
+                m->stored_tmax=m->tmax;
                 m->saving=true; m->save_at=now;
                 if(!m->drop_save) arm_receive(&a,bus,m->rx,r,4,now);
                 continue;
@@ -67,7 +72,7 @@ static bool tx(void *ctx,uint8_t bus,uint16_t id,const uint8_t *d,uint8_t n) {
             } else invalid++;
             unsigned p=quant(m->p,m->pmax,16),v=quant(m->v,m->vmax,12),t=quant(m->torque,m->tmax,12);
             r[0]=m->id|(m->status<<4); r[1]=p>>8; r[2]=p; r[3]=v>>4;
-            r[4]=(v<<4)|(t>>8); r[5]=t; r[6]=25; r[7]=25;
+            r[4]=(v<<4)|(t>>8); r[5]=t; r[6]=m->mos; r[7]=m->rotor;
         } else continue;
         arm_receive(&a,bus,m->rx,r,8,now);
     }
@@ -82,6 +87,8 @@ void fake_init(void) {
         m->pmax=12.5f; m->vmax=i==0?45.f:i<3?10.f:30.f;
         m->tmax=i==0?54.f:i<3?28.f:10.f; m->mode=1; m->present=true;
         m->stored_id=m->id; m->stored_rx=m->rx;
+        m->stored_tmax=m->tmax;
+        m->mos=m->rotor=25;
     }
     arm_init(&a,tx,0); wire_init(&w,&a);
 }
@@ -120,6 +127,8 @@ void fake_missing(unsigned i) { motors[i].present=false; }
 void fake_stall(unsigned i) { motors[i].stalled=true; }
 void fake_ignore_mode(unsigned i) { motors[i].ignore_mode=true; }
 void fake_torque(unsigned i,float torque) { motors[i].torque=torque; }
+void fake_torque_range(unsigned i,float tmax) { motors[i].tmax=tmax; }
+void fake_temperature(unsigned i,unsigned mos,unsigned rotor) { motors[i].mos=mos; motors[i].rotor=rotor; }
 void fake_position(unsigned i,float position) { motors[i].p=position; }
 void fake_position_gain(unsigned i,float gain) { motors[i].position_gain=gain; }
 void fake_speed(unsigned i,float speed) { motors[i].stalled=true; motors[i].v=speed; }
@@ -134,9 +143,12 @@ unsigned fake_saves(unsigned i) { return motors[i].saves; }
 unsigned fake_timeout(unsigned i) { return motors[i].timeout; }
 void fake_ignore_ids(unsigned i) { motors[i].ignore_ids=true; }
 void fake_drop_save(unsigned i) { motors[i].drop_save=true; }
+void fake_ignore_tmax(unsigned i) { motors[i].ignore_tmax=true; }
+void fake_drop_tmax_ack(unsigned i) { motors[i].drop_tmax_ack=true; }
 void fake_power_cycle(void) {
     for(unsigned i=0;i<6;i++) {
         motors[i].id=motors[i].stored_id; motors[i].rx=motors[i].stored_rx;
+        motors[i].tmax=motors[i].stored_tmax;
         motors[i].status=0;
     }
     arm_init(&a,tx,0); wire_init(&w,&a);

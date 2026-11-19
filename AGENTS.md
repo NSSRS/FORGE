@@ -49,85 +49,80 @@ Capture UI results persist, with readiness reasons and explicit Next selection.
 
 Coordinated tracking/jitter work resumed under SPEED-01 by operator request on
 Nov 17; broader manual-jog investigation remains deferred. A2/A3 move smoothly by operator
-report; A1/A4/A5/A6 jitter during travel but hold steady. The 5 deg/s smoothing
+report; A1/A4/A5/A6 were reported to jitter during travel while manual holds stayed steady;
+the later untouched loaded A5 hold fault is separate and remains open. The 5 deg/s smoothing
 trial did not fix it. Holding-mode jogging now defaults to 10 deg/s by explicit
 operator request; non-holding/teaching remains 5 deg/s. All six measured-speed
 trips remain 1.5 rad/s. Current protection, loaded holding and physical stopping
 remain unqualified. Do not increase reactive trips or claim jitter resolved.
 The operator confirmed the earlier A1 undervoltage issue was fixed.
 
-## Current welding implementation (2026-11-17)
+## Current welding implementation (2026-11-19)
 
-Shared planning is in `src/controls/controls/controller/`; `hardware/` and
-`simulation/` are siblings. See `docs/WELD_MOTION.md` and the current handoff.
-Prioritize HOLD-01 for the reported post-preparation sag and loaded stiffness.
-The host now latches the settled endpoint and unchanged speed allowance. Idle/pause at an
-already settled endpoint preserve that fixed target; interrupted travel still
-captures a measured hold. Fault/disable/close semantics and all trips remain.
-At ready, pause/focus/heartbeat loss retain the checked plan and explicit Start
-welding motion action. Interrupted travel still requires replanning. Reset motor
-fault (R) uses the same owner, saves evidence and verifies disabled/stationary
-feedback; success leaves selections off, the plan invalid and motors disabled.
-The panel repeats welding until Pause / Hold by default, as requested Nov 17.
-`--cycles` sets the checked preview block; `--single-pass` opts into finite
-completion. Continuous execution requires the closed periodic cubic path and
-keeps existing focus/heartbeat/fault stops. Pause captures a fixed measured hold.
-The Nov 17 controller sweep removes duplicate active feedback/command batches,
-keeps the checked speed allowance through welding/holding, and makes repeated
-interrupted pauses preserve the first captured hold. Soft pacing now slows at
-1 degree and requests a stopped clock at 2 degrees; the 3-degree trip remains.
-No drive gains or current settings were changed. An earlier operator journal
-records 12.76 s at ready within 0.177 degree on all six fixed targets; the operator
-confirmed pushing during later recovered deviations. Loaded stiffness and
-post-weld holding remain unqualified under HOLD-01.
+Use `docs/ARM_SESSION_HANDOFF.md` for current evidence and `docs/WELD_MOTION.md`
+for architecture. Shared planning belongs in `src/controls/controls/controller/`;
+`hardware/` and `simulation/` are siblings. **GUI-01 is the next software TODO**:
+visualize torque and both temperatures, simplify verbose windows, and distinguish
+state/progress/fault/pause causes using cached telemetry. The redesign is not yet
+implemented. HOLD-01 remains the next hardware acceptance priority.
 
-The panel now defaults to bounded host PID tracking (`--tracker pid`): velocity
-lead, filtered derivative feedback, anti-windup, stage command derivative limits
-and checked corrections. Preparation uses nominal time; `--tracker paced` retains
-the former shared-clock policy. Finite endpoints shed correction and latch the
-original fixed hold. Preparation lead and shaped commands are bounded by the
-current leg's exact position extrema, with acceleration-bounded braking before
-those extrema; mandatory recovery stops have separate bounds. This fixes a
-recorded A6 command overshoot during approach, not the separate A1 oscillation
-observed with fixed paused targets. Loaded holding remains unqualified.
-Measured per-axis Hz/travel uses cached feedback only.
-Weld host PID/lead is omitted for axes below 0.3 deg planned peak-to-peak travel;
-their nominal targets remain unchanged. Tiny A2–A5 corrections were constraining
-A1/A6 through the shared clearance projection. The tracker-v3 physical report
-`weld-1794913974470083980.json` reaches ready in 10.54 s and records 15.58 s of
-welding. A1/A6 both measure about 1.731 Hz, with full correction admitted, but
-travel exceeds the plan (3.694/2.260 deg and 0.634/0.427 deg). The earlier A6
-two-cycle response is absent in that window; amplitude and loaded qualification
-remain open. The readout separates measured pattern rate from travel. The latest
-report ends with missing feedback during cleanup: disable acknowledgement and
-mode restoration are false. Do not infer verified shutdown from completed motion.
-Five original reports are indexed in `docs/measurements/weld/2026-11-17/README.md`.
-Preparation defaults to 5 deg/s and <=30 deg/s². Do not
-widen 0.25-degree arrival or 3-degree tracking tolerances to hide lag. The
-staging search is available for hardware with explicit `--optimize-preparation`,
-as requested by the operator on Nov 17. It preserves checked limits and full
-weld targets. The recorded Nov 16 case reaches ready in 4.62 s with ideal fake
-shafts; physical five-second timing remains unqualified. Default speed stays
-5 deg/s; the 10 deg/s comparison requires explicit `--max-speed-deg-s 10`.
-The operator requested a 100 deg/s preparation setting on Nov 17. The CLI/planner
-accept up to 100, still bounded by the existing 68.7549 deg/s motor command guards;
-the 1.5 rad/s measured-speed trips and <=30 deg/s² preparation acceleration remain.
-The Nov 17 15:50 six-axis disabled/control readback passed; A5 settings match Nov 10
-and manual holding/motion are reported normal. Do not assume drive tuning is needed.
-`--approach-lift-mm 30` requires a raised-tool route before lowering to the same
-weld target; it preserves clearance checks and can exceed five seconds. Physical
-coordinated tracking and timing still require testing; see the current handoff.
-Weld target remains 2 Hz / 12 mm/s, with all six command caps 68.7549 deg/s.
-Historical CMA-ES reached 1.815288 Hz under provisional CAD acceleration; stale
-mapping/model/constraint fingerprints require regeneration.
+The operator deployed MC02 `f78f6b0d`, capabilities `0x1FFFF8F`, and verified the
+explicit `arm_rig_gun_a2_a6_load.json` profile: A2/A3 trips 30 Nm with TMAX 40;
+A4-A6 trips 10 Nm with TMAX 12.5; A1 unchanged at 20/54 Nm. These are authorized
+trial settings with no added overload timer, not qualified continuous ratings.
+Standard profiles, drive gains and current settings remain unchanged. Both 80 C
+trips, all 1.5 rad/s speed trips, the 3-degree tracking guard, 0.25-degree arrival
+and freshness/lease/fault semantics remain. Do not raise other trips to hide lag.
+Range setup is complete; do not repeat setup/flash for normal runs. Manual
+`control_arm.sh` needs the same explicit `--plan` profile on this rig; baseline
+profiles retain original ranges and must fail mismatched readback.
+
+The Nov 19 review records two attempts: first, untouched A5 movement during a
+fixed Ready hold and a 1.51648 rad/s speed trip; second, Ready in 12.53 s,
+8.69 s fixed hold, 45.71 s welding and verified final disable/mode restoration.
+The first fault is unresolved. A1/A6 match ~1.73 Hz but exceed planned travel.
+Do not mark HOLD-01 passed or infer thermal/continuous-load qualification.
+The requested 15-second Ready comparison and 5–10 second physical preparation
+remain unfinished. The gun was attached during the earlier 12.0137 Nm A2 fault
+although its raw journal is under `no-ee/`; preserve the load-context correction.
+
+The default host PID tracker follows nominal preparation time with bounded lead,
+filtered derivative feedback, anti-windup and acceleration-bounded braking inside
+finite path extrema. `--tracker paced` retains the older common clock. Settled
+endpoints retain the original fixed target and checked speed allowance. A pause
+during travel captures measured hold once and requires replanning; repeated
+pauses do not recapture drift. Ready focus/heartbeat pauses retain the checked
+plan and explicit Start welding action. Fault/disable/close remove torque.
+Reset motor fault (R) saves evidence through the same owner and verifies disabled,
+stationary feedback; success stays disabled with selections off and plan invalid.
+
+Welding repeats until Pause / Hold by default; `--cycles` sets the checked preview
+block and `--single-pass` opts into finite completion. Preserve focus/heartbeat
+stops and periodic cubic checks. Moving ticks use one cached feedback batch and
+one target batch. Weld host lead/PID is omitted below 0.3 deg planned axis travel;
+nominal targets remain unchanged. Measured Hz/travel uses cached feedback.
+
+Preparation defaults to 5 deg/s and <=30 deg/s². The current explicit loaded
+trial uses 30 deg/s, a 10 s goal, `--optimize-preparation`, 30 mm approach lift
+and `--lowering-seconds 2.3`. Final-lowering stretching preserves earlier timing
+and path geometry. The CLI accepts explicit settings up to 100 deg/s, bounded by
+68.7549 deg/s motor command caps; measured-speed trips remain 1.5 rad/s. Planning
+latency (~40 s in the offline comparison) is distinct from physical motion time.
+A duration goal never overrides guards or truncates motion.
+
+A3 alone permits up to 0.25 deg startup excess above 151.39 deg, with a separate
+checked inward retreat to 149.39 deg at <=1 deg/s and <=5 deg/s². It requires
+shallow separating contact at the reviewed stop pair and strict normal handoff;
+other cable/branch/collision checks remain. Raw readings are never wrapped or
+clamped. Physical loaded retreat still needs qualification.
 
 Use the independent A5 candidate with its matching standby; production flags
 remain false. Candidate gain magnitude is one because feedback is already geared.
-A3 standby is raw 149.39 deg, two degrees inside the corrected CCW endpoint.
-Output switches gate commands independently without counterpart compensation.
-LOAD-01 and FEEDBACK-01 follow the first qualified arm welding run; no gravity
-feedforward, Cartesian correction or ESO is active. JSONL evidence uses cached
-owner data without another motor owner or enabled-state register polling.
+A3 standby is raw 149.39 deg. Output switches gate commands independently without
+counterpart compensation. Welding target remains 2 Hz / 12 mm/s. LOAD-01 and
+FEEDBACK-01 follow the first qualified run; no gravity feedforward, Cartesian
+correction or ESO is active. JSONL and the offline hold analyzer use cached owner
+data without another owner or enabled-state register polling.
 
 ## Source and verification
 

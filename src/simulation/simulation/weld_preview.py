@@ -136,9 +136,16 @@ class PlanPlayback:
             name: JointPath.from_document(plan[name])
             for name in ("home", "approach", "weld")
         }
+        self.endpoint = plan.get("endpoint_recovery")
         # Include the same minimum stationary checks as preparation_timing.
         # Feedback pacing can still make actual execution longer.
         self.segments = [("home", 0.2, 0.0, False)]
+        if self.endpoint is not None:
+            path = JointPath.from_document(self.endpoint['path'])
+            self.paths['endpoint_recovery'] = path
+            self.segments = [('endpoint_recovery', .2, 0.0, False),
+                             ('endpoint_recovery', path.duration, 0.0, True),
+                             ('endpoint_recovery', .2, path.duration, False)]
         previous = 0.0
         for end in plan["recovery"]["waypoint_times_s"]:
             self.segments.extend(
@@ -182,16 +189,61 @@ class PoseRenderer:
         self.option.sitegroup[:] = 0
         self.camera = mj.MjvCamera()
 
-    def frame(self, request):
+    def observed_pose(self, raw, clearance_mm):
+        """Render raw observations outside saved limits without authorizing a path.
+
+        This fallback belongs only to the renderer. Command conversion, geometry
+        guards and target/path previews retain the strict calibration checks.
+        """
+        import math
+        from motors.arm_calibration import DRIVES, RawAngleLimitError
+
         geometry, mj = self.geometry, self.mj
+        issues = []
+        for i, (name, angle) in enumerate(zip(DRIVES, raw), 1):
+            try:
+                model_deg = geometry.mapping.model(i, float(angle))
+            except RawAngleLimitError as exc:
+                issues.append(str(exc))
+                row = geometry.mapping.joints[str(i)]
+                model_deg = row['model_per_raw'] * angle + row['model_intercept_deg']
+            q = math.radians(model_deg)
+            joint = geometry.model.joint(name).id
+            if geometry.model.jnt_limited[joint] and not (
+                geometry.model.jnt_range[joint, 0] <= q <= geometry.model.jnt_range[joint, 1]
+            ):
+                issues.append(f'A{i}: outside authored model joint range.')
+            geometry.data.qpos[geometry.addresses[i - 1]] = q
+        if not geometry.closure.apply(geometry.data):
+            raise ValueError('D3 linkage cannot close at the measured pose; image withheld')
+        mj.mj_collision(geometry.model, geometry.data)
+        geometry.contact_report = geometry.inspect_contacts(clearance_mm)
+        if any(row['blocked'] for row in geometry.contact_report):
+            issues.append('Measured pose also fails the model clearance check.')
+        stop = geometry.stops.check(0.1)
+        if stop:
+            issues.append(f'Adjacent mechanical stop: {stop}')
+        return ('Measured pose shown for inspection only. ' + ' '.join(issues)
+                + ' See the planning status above for the path-check result.')
+
+    def frame(self, request):
+        from controls.controller.weld_plan import finite_vector
+        from motors.arm_calibration import RawAngleLimitError
+
+        geometry, mj = self.geometry, self.mj
+        raw = finite_vector(request['raw'], 'preview pose')
         geometry.data.qpos[:] = geometry.seed
-        # Validate the entire raw vector before changing any model coordinate.
-        geometry.mapping.pose(
-            {str(i): float(q) for i, q in enumerate(request["raw"], 1)}
-        )
         issue = None
         try:
-            geometry.check(request["raw"], clearance_mm=request["clearance_mm"])
+            if request.get('endpoint_policy') is not None:
+                geometry.check_endpoint(raw, request['endpoint_policy'])
+                issue = 'A3 inward recovery only: endpoint allowance active; normal motion remains inside saved limits.'
+            else:
+                geometry.check(raw, clearance_mm=request["clearance_mm"])
+        except RawAngleLimitError:
+            if request.get('measured_pose') is not True:
+                raise
+            issue = self.observed_pose(raw, request['clearance_mm'])
         except ValueError as exc:
             issue = str(exc)
             if not issue.startswith(
@@ -520,6 +572,7 @@ def make_preview(mapping, initial, *, simulated, parent=None, backend_factory=No
             now = time.monotonic()
             delta, self.last_tick = min(now - self.last_tick, 0.25), now
             mode = self.mode.currentText()
+            endpoint_policy = None
             if mode == "Current pose":
                 raw, clearance = self.raw, 0.5
                 source = "Simulated feedback" if simulated else "Last motor feedback"
@@ -559,8 +612,11 @@ def make_preview(mapping, initial, *, simulated, parent=None, backend_factory=No
                     if self.elapsed >= self.plan.duration:
                         self.pause_playback()
                 stage, raw = self.plan.sample(self.elapsed)
-                clearance = 2.0 if stage == "home" else 0.5
+                clearance = 2.0 if stage in ("home", "endpoint_recovery") else 0.5
+                if stage == 'endpoint_recovery':
+                    endpoint_policy = self.plan.endpoint['policy']
                 names = dict(
+                    endpoint_recovery="A3 inward backoff (≤1°/s)",
                     home="Recovery to standby",
                     approach="Approach weld start",
                     weld="Weld motion",
@@ -620,6 +676,8 @@ def make_preview(mapping, initial, *, simulated, parent=None, backend_factory=No
                         view=self.view.currentText(),
                         clearance_mm=clearance,
                         token=self.token,
+                        measured_pose=mode == 'Current pose',
+                        endpoint_policy=endpoint_policy,
                     )
                 ):
                     self.last_request = key

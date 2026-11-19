@@ -1,0 +1,157 @@
+{
+  "fixture_confirmed": false,
+  "sequence": "Explicit supported gun-load commissioning; calculate and start each weld recovery through the weld panel.",
+  "current_protection_verified": false,
+  "timing_note": "Supported jogging defaults to 5 deg/s. The keyboard --speed-trial option permits staged manual trials up to 10 deg/s. Hardware qualification pending.",
+  "limits_basis": "Protocol bounds for disabled probing. Manual session windows are not calibrated mechanical limits.",
+  "motors": [
+    {
+      "unit": "A1",
+      "model": "8009P",
+      "bus": 1,
+      "can_id": 1,
+      "feedback_id": 17,
+      "identity_confirmed": true,
+      "individual_test_passed": true,
+      "ranges": {
+        "pmax": 12.5,
+        "vmax": 45,
+        "tmax": 54
+      },
+      "lower_rad": -12.5,
+      "upper_rad": 12.5,
+      "speed_rad_s": 0.08726646259971647,
+      "speed_trip_rad_s": 1.5,
+      "torque_trip_nm": 20,
+      "delta_degrees": 2
+    },
+    {
+      "unit": "A2",
+      "model": "4340P",
+      "bus": 2,
+      "can_id": 2,
+      "feedback_id": 18,
+      "identity_confirmed": true,
+      "individual_test_passed": true,
+      "ranges": {
+        "pmax": 12.5,
+        "vmax": 10,
+        "tmax": 40
+      },
+      "lower_rad": -12.5,
+      "upper_rad": 12.5,
+      "speed_rad_s": 0.08726646259971647,
+      "speed_trip_rad_s": 1.5,
+      "torque_trip_nm": 30,
+      "delta_degrees": 2
+    },
+    {
+      "unit": "A3",
+      "model": "4340P",
+      "bus": 2,
+      "can_id": 3,
+      "feedback_id": 19,
+      "identity_confirmed": true,
+      "individual_test_passed": false,
+      "ranges": {
+        "pmax": 12.5,
+        "vmax": 10,
+        "tmax": 28
+      },
+      "lower_rad": -12.5,
+      "upper_rad": 12.5,
+      "speed_rad_s": 0.08726646259971647,
+      "speed_trip_rad_s": 1.5,
+      "torque_trip_nm": 12,
+      "delta_degrees": 2
+    },
+    {
+      "unit": "A4",
+      "model": "4310P",
+      "bus": 2,
+      "can_id": 4,
+      "feedback_id": 20,
+      "identity_confirmed": true,
+      "individual_test_passed": true,
+      "ranges": {
+        "pmax": 12.5,
+        "vmax": 30,
+        "tmax": 10
+      },
+      "lower_rad": -12.5,
+      "upper_rad": 12.5,
+      "speed_rad_s": 0.08726646259971647,
+      "speed_trip_rad_s": 1.5,
+      "torque_trip_nm": 3.5,
+      "delta_degrees": 2
+    },
+    {
+      "unit": "A5",
+      "model": "4310P",
+      "bus": 2,
+      "can_id": 5,
+      "feedback_id": 21,
+      "identity_confirmed": true,
+      "individual_test_passed": false,
+      "ranges": {
+        "pmax": 12.5,
+        "vmax": 30,
+        "tmax": 10
+      },
+      "lower_rad": -12.5,
+      "upper_rad": 12.5,
+      "speed_rad_s": 0.08726646259971647,
+      "speed_trip_rad_s": 1.5,
+      "torque_trip_nm": 3.5,
+      "delta_degrees": 2
+    },
+    {
+      "unit": "A6",
+      "model": "4310P",
+      "bus": 2,
+      "can_id": 6,
+      "feedback_id": 22,
+      "identity_confirmed": true,
+      "individual_test_passed": false,
+      "ranges": {
+        "pmax": 12.5,
+        "vmax": 30,
+        "tmax": 10
+      },
+      "lower_rad": -12.5,
+      "upper_rad": 12.5,
+      "speed_rad_s": 0.08726646259971647,
+      "speed_trip_rad_s": 1.5,
+      "torque_trip_nm": 3.5,
+      "delta_degrees": 2
+    }
+  ],
+  "4340p_guard_basis": "Operator-requested A2-only 30 Nm commissioning trip on CAN2/ID2/feedback18, requiring MC02 capability 0x200000 and matching drive TMAX=40 readback. A3 remains 12 Nm. This is a reactive absolute torque trip, not a drive current clamp or a qualified continuous torque rating.",
+  "test_scope": "Gun-attached torque and temperature recording. No overload-duration cutoff is added. Existing instantaneous torque, 80 degC temperature, speed, tracking, freshness and communication stops remain.",
+  "active_joints": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+  ],
+  "fixture_mode": "supported",
+  "supported_confirmed": false,
+  "speed_guard_basis": "A1-A6 measured-speed trips are 1.5 rad/s. A1 matches the existing A2-A6 setting at the operator's request. Supported jog commands remain 5 deg/s; trial command speeds are independent of these reactive guards.",
+  "load_context": {
+    "welding_gun_attached": true,
+    "end_effector_mass_kg_approximate": 1.96,
+    "mass_basis": "operator estimate",
+    "continuous_load_qualified": false
+  },
+  "torque_policy": {
+    "a2_rated_reference_nm": 12,
+    "a2_trip_nm": 30,
+    "overload_duration_cutoff_s": null,
+    "temperature_trip_c": 80,
+    "basis": "Operator-selected trip, 2.5 times the 12 Nm rated reference and below the 40 Nm peak specification. No manufacturer-approved continuous overload or peak duty cycle is established. The saved physical A2 TMAX is 28; this candidate requires a separately configured and verified drive TMAX of 40 before use.",
+    "a2_feedback_tmax_required_nm": 40,
+    "drive_range_change_verified": false
+  }
+}

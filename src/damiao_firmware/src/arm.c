@@ -90,8 +90,12 @@ bool arm_prepare_routed(arm_controller *a,unsigned i,const arm_config *c,uint8_t
     if(position_hold && (!manual_travel || mode!=2)) return false;
     if(group_hold && !position_hold) return false;
     const float max_speed=model==1?10.4719755f:model==3?12.5663706f:1.5f;
-    const float max_torque=model==1?20.0f:model==3?3.5f:12.0f;
-    if(i>=ARM_COUNT || a->id_commissioning || a->fault || busy(a) || a->diagnostic.state==1 ||
+    /* Operator-authorized gun-load trial, not a new continuous motor rating.
+       The explicit configured trip remains instantaneous; no overload timer. */
+    const bool load_trial=i>=1 && i<ARM_COUNT && model==(i<3?2:3) &&
+        c->bus==2 && c->id==i+1 && c->feedback_id==i+17;
+    const float max_torque=model==1?20.0f:model==3?(load_trial?10.0f:3.5f):(load_trial?30.0f:12.0f);
+    if(i>=ARM_COUNT || a->id_commissioning || a->range_commissioning || a->fault || busy(a) || a->diagnostic.state==1 ||
        (a->bench && !a->routed_bench) || model<1 || model>3 || (mode!=1 && mode!=2) ||
        (model==1 ? c->bus!=1 : c->bus==1) ||
        !bounded(c->lo,-12.5f,12.5f) || !bounded(c->hi,-12.5f,12.5f) ||
@@ -114,7 +118,7 @@ bool arm_prepare_routed(arm_controller *a,unsigned i,const arm_config *c,uint8_t
 }
 bool arm_routed_write(arm_controller *a,unsigned i,uint8_t reg,uint32_t value,uint32_t now) {
     /* Even after a fault, allow restoration only after acknowledged stationary disable. */
-    if(a->id_commissioning || a->diagnostic.state==1 || !routed_disabled(a,i,now) ||
+    if(a->id_commissioning || a->range_commissioning || a->diagnostic.state==1 || !routed_disabled(a,i,now) ||
        !((reg==9 && value==2000) || (reg==10 && (value==1 || value==2)))) return false;
     arm_joint *j=&a->joints[i];
     j->registers &= ~(reg==9?16u:8u); j->command_seen=false;
@@ -126,7 +130,7 @@ bool arm_routed_write(arm_controller *a,unsigned i,uint8_t reg,uint32_t value,ui
 }
 /* Explicit ID-only session: single configured slot, no motion until MCU reset. */
 bool arm_id_operation(arm_controller *a,uint8_t op,uint32_t value,uint32_t now) {
-    if(a->fault || a->save_quiet || a->diagnostic.state==1 || !routed_disabled(a,0,now)) return false;
+    if(a->fault || a->range_commissioning || a->save_quiet || a->diagnostic.state==1 || !routed_disabled(a,0,now)) return false;
     for(unsigned k=1;k<ARM_COUNT;k++) if(a->joints[k].configured) return false;
     if(op==0 && value==0 && !a->id_commissioning) {
         a->id_commissioning=true; a->id_verified=0; return true;
@@ -155,6 +159,49 @@ bool arm_id_operation(arm_controller *a,uint8_t op,uint32_t value,uint32_t now) 
         a->diagnostic.state=4; arm_fault(a,5,0,now);
     }
     return true;
+}
+static float setup_tmax(unsigned slot) { return slot<3?40.0f:12.5f; }
+static float original_tmax(unsigned slot) { return slot<3?28.0f:10.0f; }
+static bool range_setup(arm_controller *a,unsigned slot,uint8_t op,uint32_t now) {
+    /* Only the complete known rig, freshly disabled and stationary. No arbitrary
+       register/value/route writes. Motion stays locked even after fault reset. */
+    if(slot<1 || slot>=ARM_COUNT || a->fault || a->id_commissioning || a->save_quiet || a->diagnostic.state==1 || op>1) return false;
+    for(unsigned k=0;k<ARM_COUNT;k++) {
+        arm_joint *j=&a->joints[k];
+        if(!routed_disabled(a,k,now) || (j->registers & 15u)!=15u ||
+           j->cfg.bus!=(k==0?1:2) || j->cfg.id!=k+1 || j->cfg.feedback_id!=k+17 ||
+           j->model!=(k==0?1:k<3?2:3)) return false;
+    }
+    arm_joint *j=&a->joints[slot];
+    const uint8_t bit=(uint8_t)(1u<<slot);
+    if(j->cfg.torque>(slot<3?12.0f:3.5f)) return false;
+    if(op==0) {
+        if((a->range_written_mask & bit) || a->range_written_mask!=a->range_saved_mask ||
+           j->range.t!=original_tmax(slot)) return false;
+        a->range_commissioning=true; a->range_setup_slot=(uint8_t)slot;
+        a->range_written_mask|=bit; a->range_verified=false; a->range_save_attempted=false;
+        j->registers &= ~4u;
+        for(unsigned k=0;k<ARM_COUNT;k++) a->joints[k].command_seen=false;
+    } else {
+        if(!a->range_commissioning || a->range_setup_slot!=slot || !a->range_verified || a->range_save_attempted) return false;
+        a->range_save_attempted=true;
+        a->range_save_attempted_mask|=bit;
+        a->save_quiet=true; a->save_started=now;
+    }
+    uint8_t opcode=op==0?0x55:0xaa, reg=op==0?23:1;
+    a->diagnostic=(arm_diagnostic){.state=1,.bus=2,.id=j->cfg.id,.reg=reg,.opcode=opcode,.started=now};
+    /* Only the fixed model-specific TMAX is writable; save is four bytes. */
+    float target=setup_tmax(slot); uint32_t raw; memcpy(&raw,&target,4);
+    uint8_t d[8]={(uint8_t)j->cfg.id,0,opcode,reg,0,0,0,0};
+    for(unsigned k=0;k<4;k++) d[4+k]=(uint8_t)(raw>>(8*k));
+    if(!tracked_send(a,2,0x7ff,d,op==0?8:4)) {
+        a->diagnostic.state=4; arm_fault(a,5,slot,now);
+    }
+    return true;
+}
+bool arm_a2_range_setup(arm_controller *a,uint8_t op,uint32_t now) { return range_setup(a,1,op,now); }
+bool arm_load_range_setup(arm_controller *a,uint8_t joint,uint8_t op,uint32_t now) {
+    return joint>=3 && joint<=6 && range_setup(a,joint-1,op,now);
 }
 bool arm_read_register(arm_controller *a,uint8_t bus,uint16_t id,uint8_t reg,uint32_t now) {
     if(a->save_quiet || (a->fault && !a->routed_bench) || bus<1 || bus>3 || id>=0x7ff || a->diagnostic.state==1) return false;
@@ -206,7 +253,7 @@ bool arm_prepare_posvel(arm_controller *a,float lo,float hi) {
     return true; /* Wide bounds may probe, but arm_enable still forbids them. */
 }
 bool arm_configure(arm_controller *a, unsigned i, const arm_config *c) {
-    if(a->id_commissioning || a->diagnostic.state==1) return false;
+    if(a->id_commissioning || a->range_commissioning || a->diagnostic.state==1) return false;
     if(i>=ARM_COUNT || busy(a) || c->bus<1 || c->bus>3 || c->id<1 || c->id>15 ||
        (c->feedback_id<16 && !(a->routed_bench && c->feedback_id==0) && !(a->bench && i==0 && c->bus==2 && c->id==1 && c->feedback_id==0)) || c->feedback_id>=0x7ff || !isfinite(c->lo)||!isfinite(c->hi)||c->lo>=c->hi ||
        !positive(c->speed)||!positive(c->torque)||!bounded(c->kp,0,500)||!bounded(c->kd,0,5)) return false;
@@ -256,7 +303,7 @@ bool arm_reset(arm_controller *a) {
     return true;
 }
 bool arm_set(arm_controller *a,unsigned i,const dm_command *c,uint32_t now) {
-    if(i>=ARM_COUNT || a->id_commissioning || a->fault) return false;
+    if(i>=ARM_COUNT || a->id_commissioning || a->range_commissioning || a->fault) return false;
     arm_joint *j=&a->joints[i]; uint8_t d[8];
     if(!j->configured || j->registers!=31 || j->stopping ||
        !bounded(c->p,j->cfg.lo,j->cfg.hi)||!bounded(c->v,-j->cfg.speed,j->cfg.speed)||
@@ -281,7 +328,7 @@ bool arm_set_smooth(arm_controller *a,unsigned i,const dm_command *c,uint32_t no
     return true;
 }
 static bool can_enable(arm_controller *a,unsigned i,uint32_t now) {
-    if(i>=ARM_COUNT || a->id_commissioning || a->fault || a->diagnostic.state==1) return false;
+    if(i>=ARM_COUNT || a->id_commissioning || a->range_commissioning || a->fault || a->diagnostic.state==1) return false;
     /* Keep register polling out of the loaded control bus. */
     for(unsigned k=0;k<ARM_COUNT;k++) if(a->joints[k].probing) return false;
     arm_joint *j=&a->joints[i];
@@ -396,6 +443,19 @@ void arm_receive(arm_controller *a,uint8_t bus,uint16_t id,const uint8_t *d,uint
         d[0]==a->joints[0].cfg.id)) && d[1]==(uint8_t)(q->id>>8) && d[2]==q->opcode && d[3]==q->reg) {
         q->feedback_id=id;
         q->value=len==8?((uint32_t)d[4]|(uint32_t)d[5]<<8|(uint32_t)d[6]<<16|(uint32_t)d[7]<<24):0;
+        if(a->range_commissioning && q->opcode==0x33 && q->reg==23 &&
+           bus==2 && q->id==a->range_setup_slot+1 && id==a->range_setup_slot+17) {
+            float value; memcpy(&value,&q->value,4);
+            a->range_verified=value==setup_tmax(a->range_setup_slot);
+            if(a->range_verified || value==original_tmax(a->range_setup_slot)) {
+                a->joints[a->range_setup_slot].range.t=value;
+                a->joints[a->range_setup_slot].registers|=4u;
+                a->joints[a->range_setup_slot].feedback_seen=false;
+            }
+        }
+        if(a->range_commissioning && a->range_save_attempted && q->opcode==0xaa && q->reg==1 &&
+           bus==2 && q->id==a->range_setup_slot+1 && id==a->range_setup_slot+17 && q->value==0)
+            a->range_saved_mask|=(uint8_t)(1u<<a->range_setup_slot);
         if(a->id_commissioning && q->opcode==0x33) {
             arm_joint *j=&a->joints[0];
             if(bus==j->cfg.bus && id==j->cfg.feedback_id && q->id==j->cfg.id) {
@@ -415,7 +475,14 @@ void arm_receive(arm_controller *a,uint8_t bus,uint16_t id,const uint8_t *d,uint
             switch(d[3]) {
             case 21: if(positive(f) && f<=1000 && j->cfg.lo>=-f && j->cfg.hi<=f) { j->range.p=f; j->registers|=1; } break;
             case 22: if(positive(f) && f<=10000 && j->cfg.speed<=f) { j->range.v=f; j->registers|=2; } break;
-            case 23: if(positive(f) && f<=10000 && j->cfg.torque<=f) { j->range.t=f; j->registers|=4; } break;
+            case 23:
+                /* Extended trips must remain observable at feedback saturation. */
+                if(positive(f) && f<=10000 && j->cfg.torque<=f &&
+                   !(((j->model==2 && j->cfg.torque>12.0f) ||
+                      (j->model==3 && j->cfg.torque>3.5f)) && j->cfg.torque>=f)) {
+                    j->range.t=f; j->registers|=4;
+                }
+                break;
             case 10: if(u==(posvel(a,j)?2u:1u)) j->registers|=8; break;
             case 9: if(u>0 && u<=3000) j->registers|=16; break; /* 50 us/count: at most 150 ms */
             default: break;

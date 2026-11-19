@@ -150,7 +150,7 @@ def trajectory_feasibility(
     )
 
 
-def reduced_dynamics(geometry, raw_deg):
+def reduced_dynamics(geometry, raw_deg, *, pose_check=None):
     """MuJoCo mass/bias projected through the closed D3 linkage to six raw shafts.
 
     No motor torque is sent. CAD inertias are provisional: this is a model-derived
@@ -158,7 +158,7 @@ def reduced_dynamics(geometry, raw_deg):
     """
     mj = geometry.mj
     m = geometry.model
-    geometry.check(raw_deg)
+    (geometry.check if pose_check is None else pose_check)(raw_deg)
     q = geometry.data.qpos.copy()
     nv = m.nv
     geometry.data.qvel[:] = 0
@@ -187,7 +187,7 @@ def reduced_dynamics(geometry, raw_deg):
     return basis.T @ mass @ basis, basis.T @ bias
 
 
-def dynamics_constraints(geometry, raw_samples, constraints, *, acceleration_policy_deg_s2=30.0):
+def dynamics_constraints(geometry, raw_samples, constraints, *, acceleration_policy_deg_s2=30.0, pose_check=None):
     """Conservative simultaneous-acceleration box from sampled reduced inertia.
 
     Reserve half the remaining static torque for acceleration. Coriolis, friction,
@@ -198,7 +198,7 @@ def dynamics_constraints(geometry, raw_samples, constraints, *, acceleration_pol
     max_bias = np.zeros(6)
     mass_envelope = np.zeros((6, 6))
     for raw in raw_samples:
-        inertia, bias = reduced_dynamics(geometry, raw)
+        inertia, bias = reduced_dynamics(geometry, raw, pose_check=pose_check)
         max_bias = np.maximum(max_bias, abs(bias))
         mass_envelope = np.maximum(mass_envelope, abs(inertia))
     reserve = budget - max_bias

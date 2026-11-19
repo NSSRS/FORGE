@@ -22,6 +22,9 @@ from controls.controller.recovery import RECOVERY_CLEARANCE_MM, START_TOLERANCE_
 from controls.controller.preparation import PreparationClock
 from controls.controller.tracking import PositionTracker
 from controls.controller.motion_feedback import MotionFrequency
+from controls.controller.endpoint_recovery import (
+    A3Retreat, retreat_path, ALLOWANCE_DEG, SPEED_DEG_S, ACCEL_DEG_S2,
+)
 
 
 class TrajectoryPaused(RuntimeError):
@@ -56,15 +59,19 @@ class WeldController:
     stop/recovery semantics. Model and fake-drive checks are not load acceptance.
     """
 
-    ACTIVE = ("verifying_hold", "initial", "approach", "welding")
+    ACTIVE = ("verifying_hold", "endpoint_recovery", "initial", "approach", "welding")
 
     def __init__(
         self, arm=None, chassis=None, *, clock=time.monotonic, pose_check=None,
         allow_optimized_preparation=False, continuous_weld=False,
-        tracking_settings=None,
+        tracking_settings=None, endpoint_check=None,
     ):
         self.arm, self.chassis, self.clock = arm, chassis, clock
         self.pose_check = pose_check
+        self.endpoint_check = endpoint_check
+        self.endpoint_policy = None
+        self.endpoint_active = False
+        self.endpoint_minimum = None
         self.allow_optimized_preparation = allow_optimized_preparation
         self.continuous_weld = continuous_weld
         self.tracker = PositionTracker(tracking_settings) if tracking_settings is not None else None
@@ -104,14 +111,25 @@ class WeldController:
             raise ValueError(
                 "A model clearance guard is required before arm activation"
             )
-        self.pose_check(raw, clearance_mm=RECOVERY_CLEARANCE_MM if recovery else 0.5)
+        if self.endpoint_active:
+            if not recovery or self.endpoint_check is None:
+                raise ValueError("A3 retreat requires its checked inward-only guard")
+            self.endpoint_check(raw, self.endpoint_policy)
+        else:
+            self.pose_check(raw, clearance_mm=RECOVERY_CLEARANCE_MM if recovery else 0.5)
+
+    def startup_path(self):
+        return self.paths.get("endpoint_recovery", self.paths.get("home"))
 
     def joint_goal(self):
         """Current stage endpoint for display; never a new motor command."""
         if not self.arm_on or not self.paths:
             return None
         if self.state == "verifying_hold":
-            raw, label = self.paths["home"].positions[0], "Hold preload"
+            raw, label = self.startup_path().positions[0], "Hold preload"
+        elif self.state == "endpoint_recovery" or (
+                self.state == "planned" and "endpoint_recovery" in self.paths):
+            raw, label = self.paths["endpoint_recovery"].positions[-1], "A3 inward backoff"
         elif self.state in ("planned", "initial"):
             index = self.recovery_index if self.state == "initial" else 0
             raw = self.paths["home"].sample(self.recovery_stops[index])[0]
@@ -259,9 +277,29 @@ class WeldController:
                 n: JointPath.from_document(plan[n])
                 for n in ("home", "approach", "weld")
             }
+            endpoint = plan.get("endpoint_recovery")
+            if endpoint is not None:
+                policy = A3Retreat.from_document(endpoint["policy"])
+                path = JointPath.from_document(endpoint["path"])
+                policy.check_path(path)
+                if self.endpoint_check is None or not callable(getattr(self.arm, "configure_endpoint", None)):
+                    raise ValueError("A3 inward recovery guard/owner support is required")
+                if (np.max(abs(path.positions[0] - plan["current_raw_deg"])) > 1e-8
+                        or np.max(abs(path.positions[-1] - paths["home"].positions[0])) > 1e-8):
+                    raise ValueError("Discontinuous A3 recovery stage")
+                speed = positive(endpoint["speed_deg_s"], "A3 retreat speed")
+                accel = positive(endpoint["acceleration_deg_s2"], "A3 retreat acceleration")
+                if (speed > min(SPEED_DEG_S, settings.max_speed_deg_s, min(hard))
+                        or accel > min(ACCEL_DEG_S2, settings.max_accel_deg_s2)
+                        or max(path.peaks()[0]) > speed + 1e-8
+                        or max(path.peaks()[1]) >= accel):
+                    raise ValueError("Invalid A3 retreat speed/acceleration limits")
+                paths["endpoint_recovery"] = path
             if self.continuous_weld and paths["weld"].interpolation != "periodic_cubic":
                 raise ValueError("Continuous welding requires a checked periodic weld path")
             for name, path in paths.items():
+                if name == "endpoint_recovery":
+                    continue  # Its independent 1 deg/s / 5 deg/s² envelope is checked above.
                 cable_bounds = [(-math.inf, math.inf)] * 6
                 cable_bounds[3] = self.a4_bounds
                 path.check_raw_bounds(cable_bounds)
@@ -348,7 +386,8 @@ class WeldController:
                 max(
                     abs(
                         home.positions[0]
-                        - finite_vector(plan["current_raw_deg"], "planned start")
+                        - (paths["endpoint_recovery"].positions[-1] if endpoint is not None
+                           else finite_vector(plan["current_raw_deg"], "planned start"))
                     )
                 )
                 > 1e-8
@@ -365,7 +404,8 @@ class WeldController:
             ):
                 raise ValueError("Recovery does not end at standby")
             if (
-                max(abs(home.positions[0] - self.feedback(stationary=True).raw_deg))
+                max(abs(finite_vector(plan["current_raw_deg"], "planned start")
+                        - self.feedback(stationary=True).raw_deg))
                 > START_TOLERANCE_DEG
             ):
                 raise ValueError("Arm moved since calculation; calculate again")
@@ -374,6 +414,8 @@ class WeldController:
             positive(plan["duration_s"], "duration")
         self.plan = plan
         self.paths = paths
+        self.endpoint_policy = None if plan.get("endpoint_recovery") is None else plan["endpoint_recovery"]["policy"]
+        self.endpoint_active = False
         self.preparation = preparation
         self.weld_travel_deg = None
         self.weld_correction_mask = None
@@ -403,19 +445,48 @@ class WeldController:
                 + next_step
             )
         self.event("plan_loaded")
+        if self.endpoint_policy is not None:
+            q = self.endpoint_policy["start_raw_deg"][2]
+            self.message = (f"Plan ready: A3 endpoint recovery {q:.4f}° → 149.39° "
+                            "at ≤1°/s; other joints hold. Inspect preview, then Start recovery.")
+            self.event("endpoint_recovery_planned", **plan["endpoint_recovery"])
+
+    def refresh_endpoint_start(self, actual):
+        """Recheck and rebuild the retreat from fresh feedback, without motion."""
+        previous = A3Retreat.from_document(self.endpoint_policy)
+        previous.check_raw(actual)
+        policy = A3Retreat(tuple(actual), previous.mapping_fingerprint)
+        self.endpoint_check(actual, policy.document())
+        self.pose_check(policy.goal, clearance_mm=RECOVERY_CLEARANCE_MM)
+        limits = self.plan["endpoint_recovery"]
+        self.paths["endpoint_recovery"] = retreat_path(
+            policy,
+            speed=limits["speed_deg_s"],
+            acceleration=limits["acceleration_deg_s2"],
+        )
+        self.endpoint_policy = policy.document()
 
     def go_initial(self):
         if self.fault or self.state != "planned" or self.plan is None:
             raise ValueError("Calculate and inspect a fresh plan first")
         if self.arm_on:
             actual = self.feedback(stationary=True).raw_deg
-            if max(abs(actual - self.paths["home"].positions[0])) > START_TOLERANCE_DEG:
+            if max(abs(actual - self.startup_path().positions[0])) > (
+                    ALLOWANCE_DEG if self.endpoint_policy is not None else START_TOLERANCE_DEG):
                 raise ValueError("Start position changed; calculate again")
+            if self.endpoint_policy is not None:
+                # Fresh hold preload is the actual start; never command back
+                # outward to an older reading. Other joints keep this fixed pose.
+                self.refresh_endpoint_start(actual)
+                self.endpoint_active = True
+                self.endpoint_minimum = float(actual[2])
+            if hasattr(self.arm, "configure_endpoint"):
+                self.arm.configure_endpoint(self.endpoint_policy if self.endpoint_active else None)
             self.check_pose(actual, recovery=True)
             if not self.arm_holding:
                 try:
                     self.arm.hold(
-                        self.paths["home"].positions[0],
+                        self.startup_path().positions[0],
                         lambda raw: self.check_pose(raw, recovery=True),
                     )
                     self.arm_holding = True
@@ -424,7 +495,7 @@ class WeldController:
                     return
             self.recovery_index = 0
             if self.tracker is not None:
-                self.tracker.reset(self.paths["home"].positions[0], reset_model=True)
+                self.tracker.reset(self.startup_path().positions[0], reset_model=True)
                 self.tracking_projection_scale = 1.0
             for clock in self.preparation.values():
                 clock.reset()
@@ -440,6 +511,62 @@ class WeldController:
             if self.arm_on
             else "Chassis-only pass ready; arm is not commanded."
         )
+
+    def tick_endpoint(self, now):
+        """No PID lead or multi-joint staging during the exceptional retreat."""
+        actual = self.feedback()
+        self.check_pose(actual.raw_deg, recovery=True)
+        self.endpoint_minimum = min(self.endpoint_minimum, float(actual.raw_deg[2]))
+        if actual.raw_deg[2] > self.endpoint_minimum + ALLOWANCE_DEG:
+            raise ValueError("A3 moved outward during inward recovery")
+        path = self.paths["endpoint_recovery"]
+        elapsed = min(now - self.started, path.duration)
+        desired, rate = path.sample(elapsed)
+        error = desired - actual.raw_deg
+        if max(abs(error)) > self.tracking_deg:
+            self.pause("A3 recovery tracking error; hold retained; recalculate.")
+            return
+        if now - self.started > path.duration + 10:
+            self.pause("A3 recovery arrival timeout; hold retained; recalculate.")
+            return
+        self.check_pose(desired, recovery=True)
+        speed = np.full(6, self.plan["endpoint_recovery"]["speed_deg_s"])
+        self.last_observation = dict(time_s=now, stage=self.state,
+            measured_raw_deg=actual.raw_deg.tolist(), measured_velocity_deg_s=actual.velocity_deg_s.tolist(),
+            target_raw_deg=desired.tolist(), age_ms=actual.age_ms.tolist())
+        row = dict(time_s=now, stage=self.state, elapsed_s=now-self.started,
+                   path_elapsed_s=elapsed, path_clock_scale=1.0, weld_repeat_index=0,
+                   requested_raw_deg=desired.tolist(),
+                   command_raw_deg=desired.tolist(), requested_rate_deg_s=rate.tolist(),
+                   measured_raw_deg=actual.raw_deg.tolist(), measured_velocity_deg_s=actual.velocity_deg_s.tolist(),
+                   tracking_error_deg=error.tolist(), speed_limit_deg_s=speed.tolist(),
+                   age_ms=actual.age_ms.tolist(), tracker=None, dispatch_state="requested")
+        if len(self.trace) == self.trace.maxlen:
+            self.trace_dropped += 1
+        self.trace.append(row)
+        try:
+            self.arm.command(desired, speed)
+            row["dispatch_state"] = "sent"
+        except Exception:
+            row["dispatch_state"] = "incomplete"
+            raise
+        arrived = (elapsed >= path.duration and max(abs(error)) <= self.arrival_deg
+                   and max(abs(actual.velocity_deg_s)) < math.degrees(.03))
+        self.settled = (now if self.settled is None else self.settled) if arrived else None
+        if self.settled is not None and now - self.settled >= .2:
+            # The special allowance ends before any normal preparation command.
+            self.pose_check(actual.raw_deg, clearance_mm=RECOVERY_CLEARANCE_MM)
+            self.pose_check(desired, clearance_mm=RECOVERY_CLEARANCE_MM)
+            self.arm.configure_endpoint(None)
+            self.endpoint_active = False
+            self.event("endpoint_recovery_completed", duration_s=now-self.started,
+                       measured_raw_deg=actual.raw_deg.tolist(), target_raw_deg=desired.tolist())
+            self.state = "initial"
+            self.started, self.settled = now, None
+            self.preparation["home"].reset()
+            if self.tracker is not None:
+                self.tracker.reset(desired)
+            self.message = "A3 backoff settled; normal limits restored; following checked recovery."
 
     def start_weld(self):
         if self.fault or self.state != "ready":
@@ -553,6 +680,9 @@ class WeldController:
         self.recovery_stops = []
         self.recovery_index = 0
         self.hold_deviated = False
+        self.endpoint_policy = None
+        self.endpoint_active = False
+        self.endpoint_minimum = None
         self.state = "idle"
         self.message = "Motor fault reset verified. Motors remain disabled; select outputs and calculate a fresh path."
         self.event("motor_reset_completed", original_fault=previous, motors_enabled=False)
@@ -598,7 +728,7 @@ class WeldController:
                 dt = min(dt, self.max_gap_s)  # Ignore floating-point boundary noise.
             self.last_tick = now
             if self.arm_holding:
-                if self.state in ("initial", "approach", "welding"):
+                if self.state in ("endpoint_recovery", "initial", "approach", "welding"):
                     getattr(self.arm, "begin_cycle", self.arm.poll)()
                 else:
                     self.arm.poll()
@@ -629,11 +759,14 @@ class WeldController:
                     self.state = "complete"
                     self.event("completed")
                 return
+            if self.state == "endpoint_recovery":
+                self.tick_endpoint(now)
+                return
             if self.state == "verifying_hold":
                 actual = self.feedback()
                 self.check_pose(actual.raw_deg, recovery=True)
                 if (
-                    max(abs(actual.raw_deg - self.paths["home"].positions[0]))
+                    max(abs(actual.raw_deg - self.startup_path().positions[0]))
                     > START_TOLERANCE_DEG
                 ):
                     self.pause(
@@ -647,10 +780,19 @@ class WeldController:
                     else None
                 )
                 if self.settled is not None and now - self.settled >= 0.2:
-                    self.state = "initial"
+                    if self.endpoint_active:
+                        # Use the settled encoder pose for the first retreat
+                        # target, including any quantization change at enable.
+                        self.refresh_endpoint_start(actual.raw_deg)
+                        self.endpoint_minimum = min(self.endpoint_minimum, float(actual.raw_deg[2]))
+                        self.arm.configure_endpoint(self.endpoint_policy)
+                    self.state = "endpoint_recovery" if self.endpoint_active else "initial"
                     self.started, self.settled = now, None
                     self.event("hold_verified", raw_deg=actual.raw_deg.tolist())
-                    self.message = "Hold verified; following checked recovery waypoints to standby."
+                    self.message = ("Hold verified; retreating A3 inward at ≤1°/s." if self.endpoint_active
+                                    else "Hold verified; following checked recovery waypoints to standby.")
+                    if self.endpoint_active:
+                        self.event("endpoint_recovery_started", policy=self.endpoint_policy)
                 elif elapsed > 2.0:
                     self.pause(
                         "Hold did not settle; no recovery motion started. Recalculate."

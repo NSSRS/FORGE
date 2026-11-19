@@ -23,6 +23,19 @@ Manual-only six-axis controls: `bash scripts/control_arm.sh`. Position recording
 is a separate application (`bash scripts/record_arm_positions.sh`); model-guided
 calibration and obstacle retuning are in [ARM_MODEL_CALIBRATION.md](ARM_MODEL_CALIBRATION.md).
 
+**Current rig profile (Nov 19):** A2/A3 feedback TMAX is 40 Nm and A4-A6 is
+12.5 Nm. Use the [expanded-profile readback and weld commands](#expanded-gun-load-profile-a2a3-30-nm-a4-a6-10-nm).
+The baseline-profile examples elsewhere in this guide describe the original
+ranges and will fail range matching on the commissioned rig. For its manual
+launcher, explicitly select the matching trial profile:
+
+```bash
+bash scripts/control_arm.sh --plan src/robot_description/config/arm_rig_gun_a2_a6_load.json
+```
+
+This selects the same authorized trial trips; it does not qualify loaded manual
+holding. Do not bypass a range mismatch in other diagnostic/calibration tools.
+
 ## Independent encoder-to-model mirror
 
 Use this separate diagnostic to compare physical joint motion with raw encoders
@@ -219,6 +232,44 @@ and orange, and marks their nearest surface points in white. It changes only
 the rendered view; the full robot remains in every clearance check.
 Selection/calculation refresh disabled feedback through the same owner when no
 hold exists. Display updates never send CAN requests or renew a command lease.
+The Current pose view can display measured angles outside the saved raw interval,
+with the exact limit excess and any model-clearance warning. It does not wrap or
+clamp the readings, change calibration or authorize movement. An impossible D3 closure still
+withholds the pose image. Blocked actions are saved in the journal, including
+the planning-start readings when available, even when no motor was enabled.
+
+The reviewed A3 upper endpoint has a **0.25 degree startup measurement allowance**:
+raw readings up to **151.64 degrees** can qualify for a separate inward-only
+retreat to **149.39 degrees**. The same retreat can handle the nearby modeled
+A3 stop contact inside the saved interval. Calculation checks the original
+triangle meshes, rejects ambiguous/deepening contact or overlap deeper than
+0.15 mm, and checks the full retreat before ordinary staging. Other collisions,
+D3 closure, authored model limits, all other raw bounds, A4 cable travel and A1
+encoder branches remain strict. This is a provisional model policy, not a new
+physical travel limit or confirmed encoder-drift diagnosis.
+
+When applicable, the accepted plan and animation explicitly show **A3 inward
+backoff** first. **Start recovery** verifies the fresh six-axis pose, enables
+current-position hold through the same owner and verifies stationary feedback.
+Only A3 then retreats, at **at most 1 degree/s and 5 degrees/s²** (or a lower
+checked limit); the other joints retain their measured hold targets. PID lead
+is omitted for this stage and outward target changes are rejected. Actual
+outward excursion beyond the fixed 0.25 degree measurement budget faults; the
+budget never follows later outward readings. Arrival still requires 0.25 degree
+accuracy and 0.2 s of stationary feedback, plus the normal geometry checks.
+The exception ends before ordinary recovery/approach and welding. Pause retains
+a measured hold and requires recalculation; disable/fault/close retain their
+existing behavior. A larger discrepancy or failed separating-contact check stays
+blocked. No calibration file or drive parameter is rewritten.
+
+The journal records `endpoint_recovery_planned`, `endpoint_recovery_started`
+and `endpoint_recovery_completed`, and a separate `endpoint_recovery` sample
+stage. The HOLD-01 analyzer reports total time to ready, retreat time and normal
+preparation time separately. `normal_preparation_to_ready_s` starts after hold
+verification, or after retreat when present; it excludes both startup steps.
+Compare the same stages and starts
+between no-EE and loaded runs; a retreat in only one run is not payload-induced
+preparation delay. Software/model verification does not qualify loaded recovery.
 
 After a plan passes, **Play preview** animates recovery, approach and welding
 without enabling or commanding motors. Use the slider and 1x/2x/4x playback.
@@ -272,8 +323,10 @@ offline simulation starts at the configured mapping's simulation pose.
 
 ## Post-preparation hold acceptance
 
-Planned operator session: **2026-11-17**. The reported symptom is that most/all
-joints track to the prep goal, then drop slightly before welding starts.
+Current acceptance remains open after the Nov 19 loaded trials. The first
+attempt had untouched A5 motion during a fixed hold; the second held at Ready
+for 8.69 s and welded for 45.71 s with verified final cleanup. Diagnose the first
+failure separately; see the [physical review](measurements/arm-gun-load-review-2026-11-19.json).
 **HOLD-01** in [the registry](ARM_LAYER_TODOS.md#hold-01--post-preparation-joint-stiffness-and-fixed-pose-acceptance)
 owns stiffness tuning and acceptance. Software tests do not establish the cause.
 
@@ -282,7 +335,7 @@ owns stiffness tuning and acceptance. Software tests do not establish the cause.
    the [readback procedure](#disabled-currentloop-parameter-inspection-2026-11-10)
    does not change drive settings. Keep the journal path for this exact run.
 2. Review the fresh pose and calculated route before explicitly starting prep.
-   At `ready`, leave welding stopped and observe at least 10 s. Compare physical
+   At `ready`, leave welding stopped and observe at least 15 s. Compare physical
    motion with each joint's displayed goal/error and the recorded target,
    allowance, enabled/status/torque, velocity and feedback age.
 3. Confirm that `weld_endpoint_hold` retains the final target and allowance.
@@ -300,13 +353,200 @@ owns stiffness tuning and acceptance. Software tests do not establish the cause.
 5. If drive-loop tuning is required, follow HOLD-01's per-axis readback, bounded
    adjustment, restoration and thermal/current acceptance. Host speed allowance
    is not a stiffness gain. No gain preset or gain-write interface is installed
-   by this patch. Stop and diagnose unexpected drop/oscillation before a weld.
+   by the current implementation. Stop and diagnose unexpected drop/oscillation before a weld.
 
 After stable holding, separately measure total prep timing. The default hardware
 standby is unchanged and may exceed five seconds. Explicit `--optimize-preparation`
 allows the checked shorter staging route on hardware; review its preview and
 reported duration before recovery. Loaded response and actual timing remain
 physical acceptance work.
+
+### Matched runs with and without the end effector
+
+Preparation time and calculation time are separate. `--prep-seconds` sets a
+reported goal; it does not override the explicitly requested speed cap. The
+Nov 19 long-wrist start needs about 91.6 degrees of A6 travel, so 5 deg/s cannot
+reach Ready within 5–10 seconds. The offline comparison uses
+`--max-speed-deg-s 30 --prep-seconds 10`, retaining `--optimize-preparation` and
+`--approach-lift-mm 30`. It gives an 8.71 s nominal plan, 8.88 s ideal-shaft
+replay and 11.12 s with synthetic lag. A2 approaches the unchanged 3-degree
+tracking trip in the lagging replay; this is not physical speed qualification.
+Match any explicitly selected speed setting across both payload runs.
+
+For HOLD-01, first record the assembled arm with the end effector absent, then
+repeat with the approximately **1.96 kg** end effector installed (operator mass
+estimate, not a measured COM/inertia). The arm itself remains loaded in both
+conditions. Keep the full gun collision envelope in the model for both runs.
+
+Use the same reviewed mapping/standby, verified encoder branch, controller,
+speed request, acceleration limits and raised approach. Use the same physical
+starting pose and support arrangement, and record any support contact carrying
+weight during measurement. A catch for torque loss should not change the measured
+load between runs. Record initial temperatures and cable routing. Changing the
+start can cause the staging optimizer to choose another path: review the saved
+plans before attributing a timing or torque difference to the end effector.
+Never force a saved path onto changed fresh coordinates to make runs match.
+
+1. With the fixture supported and the previous owner closed by the operator,
+   use the normal reviewed weld-panel command, adding a unique
+   `--output build/arm_tests/HOLD_RUN/no-ee/session.json`. The corresponding
+   `session.jsonl` starts automatically; do not start another telemetry owner.
+2. Calculate, review the route and explicitly **Start recovery**. Leave welding
+   stopped at **Ready**, and observe **15 seconds untouched**. Record visible
+   sag/oscillation and any pushes or support contact. Timing is recovery request
+   to verified Ready, including initial hold verification and settling; planning
+   time is separate. This first pair does not qualify post-weld holding.
+3. Read the JSONL while the panel remains active if needed. Park/rest or restrain
+   the links before disable/close. Retain the final shutdown result. Install the
+   end effector only with the arm supported and torque disabled; mounting while
+   relying on powered hold is not part of this procedure.
+4. Repeat with `--output build/arm_tests/HOLD_RUN/with-ee/session.json`, keeping
+   the conditions above unchanged. If either run faults or is interrupted, retain
+   it separately and use a new filename for a retry. Do not hide the failure in
+   aggregate timing. Repeat pairs after a clean first comparison to assess
+   repeatability and temperature effects.
+
+Offline analysis (also works on a live journal; no device is opened):
+
+```bash
+python3 scripts/analyze_weld_hold.py build/arm_tests/HOLD_RUN/no-ee/session.jsonl \
+  --label no-ee --ee-mass-kg 0
+
+python3 scripts/analyze_weld_hold.py build/arm_tests/HOLD_RUN/no-ee/session.jsonl \
+  --label no-ee --ee-mass-kg 0 \
+  --compare build/arm_tests/HOLD_RUN/with-ee/session.jsonl \
+  --compare-label with-ee --compare-ee-mass-kg 1.96 \
+  --output build/arm_tests/HOLD_RUN/comparison.json
+```
+
+The analyzer separates attempts and contiguous stages; prints measured mean/peak
+speed, signed mean/RMS/peak torque feedback, both temperature peaks and observed
+temperature changes per axis; and retains command error, fixed-target/speed-allowance
+span, temperatures, sample gaps and feedback age in JSON. New hardware journals
+also preserve the selected arm profile and its load/torque policy. Motion command error is relative to the dispatched lead-corrected
+target, not the controller's nominal-reference tracking trip. For Ready holding
+the fixed target is the acceptance reference. Compare equal hold durations.
+Stale (effective age >=80 ms), disabled or faulted samples are excluded and counted;
+repeated cached samples cannot extend observed holding time. Dropped records,
+partial live lines and final shutdown results stay explicit. The sample-weighted
+statistics and metadata checks do not establish physical acceptance or calibrated
+shaft torque. Unknown payloads in historical journals must remain unlabeled.
+
+### A2 gun-load torque and temperature recording
+
+The earlier A2-only setup is complete: operator reports
+`a2-setup-20261119-175046.json` and `readback-20261119-175312.json` verify
+A2 TMAX=40 after power cycling. The original A2-only profile and staged image
+remain available for provenance. After expanding other drive ranges, use the
+following profile; the old profile's range mismatches must not be bypassed.
+
+### Expanded gun-load profile: A2/A3 30 Nm, A4-A6 10 Nm
+
+The operator confirmed **A3 matches A2 at 30 Nm; A4, A5 and A6 use 10 Nm**.
+A1 stays 20 Nm. These are absolute feedback trips, not constant torque commands
+or qualified continuous-load ratings. The rated references remain 12 Nm for
+A2/A3 and 3.5 Nm for A4-A6. There is **no added overload-duration timer**.
+Both existing 80 C temperature trips, speed/tracking/freshness checks and leases
+remain. A fault still removes holding torque from the whole arm.
+
+The new profile is `src/robot_description/config/arm_rig_gun_a2_a6_load.json`.
+It requires physical feedback TMAX **40 Nm on A2/A3** and **12.5 Nm on A4-A6**.
+The original A4-A6 encoding ended at 10 Nm and could not observe a crossing
+above 10 Nm, so the commissioning changed both range and trip together. TMAX changes encoding;
+it does not raise current, gain or temperature settings. Standard profiles and
+model planning torque budgets are unchanged; qualification flags stay false.
+
+Firmware build **f78f6b0d**, capability mask **0x1FFFF8F**, is staged at
+`build/dm_mc02/arm-load-30-10/forge_arm.elf`. The operator deployed it on Nov 19;
+`load-range-setup-20261119-185854.json` and subsequent fresh-MCU / full-profile
+readbacks verify the target ranges. The agent performed offline work only.
+See the [run review](measurements/arm-gun-load-review-2026-11-19.json).
+**Setup is complete on the current rig; do not repeat it for each launch.**
+The following remains the deployment procedure for a board/rig needing setup:
+
+1. Mechanically support every link and the gun for torque loss. Disable/close
+   the current owner, turn motor PSU off, and connect the SWD programmer. Flash:
+
+   ```bash
+   cd /home/forge2/forge2_ws
+   sudo /home/forge2/Documents/Codex/2026-10-30/read/tools/STM32CubeProgrammer/bin/STM32_Programmer_CLI \
+     -c port=SWD freq=240 mode=NORMAL reset=SWrst \
+     -w "$PWD/build/dm_mc02/arm-load-30-10/forge_arm.elf" -v -rst
+   ```
+
+2. After successful verification, restore motor power with the arm supported
+   and other owners closed. Run the disabled setup:
+
+   ```bash
+   cd /home/forge2/forge2_ws
+   .venv/bin/python scripts/setup_arm_load_ranges.py --supported --write \
+     --report "build/arm_tests/hold-01-20261119/with-ee/load-range-setup-$(date +%Y%m%d-%H%M%S).json"
+   ```
+
+   It requires a fresh unconfigured MC02, no latched fault, all six known routes,
+   and fresh stationary disabled feedback. It records all discovery registers
+   and A2-A6 control/protection settings before writing. A2 already at 40 is
+   skipped; A3 changes 28 to 40, A4-A6 change 10 to 12.5. Each drive is read back
+   independently before one save, then checked again. Only live VBus register
+   60 is excluded from configuration equality; all original values stay in
+   evidence. The motor save persists all parameters together, so a changed
+   unrelated setting blocks the operation. No motor is enabled and no mode,
+   gain, current, thermal, ID or zero parameter is changed by this command.
+
+   An uncertain write/save is never retried. It prevents setup of the next
+   motor, and motion stays locked until MCU restart, even after fault reset.
+   On failure, preserve the printed report and resolve it before launching.
+
+3. After setup succeeds, **power-cycle BOTH motor power and MC02**. Restarting
+   Python alone does not verify drive persistence or clear the MCU setup lock.
+
+4. Require a successful disabled readback of all five changed ranges before launch:
+
+   ```bash
+   cd /home/forge2/forge2_ws
+   .venv/bin/python scripts/test_dm_arm.py \
+     --plan src/robot_description/config/arm_rig_gun_a2_a6_load.json \
+     --all --check --feedback --supported \
+     --report "build/arm_tests/hold-01-20261119/with-ee/load-readback-$(date +%Y%m%d-%H%M%S).json"
+   ```
+
+   Expect six fresh disabled readings and **PASS**. Firmware/profile and actual
+   drive ranges must match; do not edit expected ranges just to bypass failure.
+   After PASS, launch the same motion settings with the new profile:
+
+   ```bash
+   .venv/bin/python scripts/control_weld.py \
+     --execute --supported --arm --profile weld \
+     --arm-profile src/robot_description/config/arm_rig_gun_a2_a6_load.json \
+     --mapping build/arm_tests/hold-01-20261119/mapping.json \
+     --initial-pose build/arm_tests/hold-01-20261119/standby.json \
+     --a1-encoder-turns 0 --tracker pid \
+     --max-speed-deg-s 30 --prep-seconds 10 \
+     --optimize-preparation --approach-lift-mm 30 \
+     --lowering-seconds 2.3 --cycles 1 \
+     --output "build/arm_tests/hold-01-20261119/with-ee/session-load-30-10-$(date +%Y%m%d-%H%M%S).json"
+   ```
+
+   This preserves the 30 deg/s preparation cap, 10-second goal and 2.3-second
+   final lowering minimum. Physical settling can exceed that goal. Calculate,
+   review the preview against the physical pose, then explicitly start recovery.
+   At Ready, record a 15-second untouched hold before separately starting welding.
+   `--cycles 1` sets the checked preview block; welding repeats until paused.
+
+5. The existing owner's cached journal records signed torque, MOS temperature
+   and motor temperature on all six axes during preparation, holding and welding.
+   Do not open another motor connection for monitoring. Offline analysis:
+
+   ```bash
+   python3 scripts/analyze_weld_hold.py /path/to/the/with-ee/session.jsonl \
+     --label gun-attached-load-30-10 --ee-mass-kg 1.96 \
+     --output /path/to/a/new/torque-temperature-summary.json
+   ```
+
+Keep the changed thresholds explicit in comparisons. The 12.0137 Nm event in
+`session-branch0-20261119-164725.jsonl` had the gun attached despite its `no-ee/`
+directory; its load-context sidecar records that correction. Temperature logging
+alone does not qualify sustained torque above the manufacturer's rated reference.
 
 ## Optional A2-A6 keyboard workflow, A1 disconnected
 
@@ -670,11 +910,15 @@ The supported baseline is **5 degrees/s**. Explicit manual travel removes
 startup-angle windows; relative zero is only a session display reference.
 Bounded mode remains separately available with a window of at most +/-3 degrees.
 All active A2–A6 measured-speed trips are **1.5 rad/s**, at the operator's request.
-Torque trips are **12 Nm for A2/A3**, **3.5 Nm for A4/A5/A6**. These are reactive
-stops, not current commands or measured load capacity. Existing 12 s host / 15 s
-MCU cutoffs, protocol range/target-distance guards, leases, temperature stops
-and fault latches remain. Continuous holding and calibrated paths are separate
-work; see [open requirements](ARM_LAYER_TODOS.md).
+The unchanged baseline profiles use **12 Nm for A2/A3** and **3.5 Nm for A4-A6**.
+The currently deployed gun-load trial instead uses **30 / 10 Nm** with matching
+40 / 12.5 Nm feedback ranges; use its [profile and commands](#expanded-gun-load-profile-a2a3-30-nm-a4-a6-10-nm).
+A baseline profile with the old feedback ranges will fail readback on this rig.
+These trips are reactive stops, not current commands or continuous-load ratings.
+Finite bench runs retain their 12 s host / 15 s MCU cutoffs; explicit holding
+and continuous welding have no such run cutoff or added overload timer. Protocol,
+freshness/lease, speed, temperature and fault guards remain. Loaded holding and
+calibrated paths remain [open work](ARM_LAYER_TODOS.md).
 
 The shared table separates `Feedback Nm` from `Trip Nm`, shows feedback age,
 and blanks stale dynamics. Shutdown reports retain enabled motion samples,

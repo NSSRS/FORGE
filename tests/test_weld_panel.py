@@ -457,6 +457,17 @@ class WeldPanelTests(unittest.TestCase):
         self.assertFalse(self.window.planning_progress.isVisible())
         self.assertIn("No accepted plan", self.window.timing_label.text())
         self.assertTrue(self.window.buttons["calculate"].isEnabled())
+        def blocked_events():
+            records = [json.loads(line) for line in self.journal_path.read_text().split('\n')[:-1]]
+            return [event for row in records for event in row.get('events', [])
+                    if event['event'] == 'action_blocked']
+        self.wait(lambda: bool(blocked_events()))
+        event = blocked_events()[-1]
+        self.assertEqual(event['action'], 'planning_result')
+        self.assertEqual(event['error'], 'No checked recovery route')
+        self.assertEqual(event['planning_start_raw_deg'], self.executor.request['current_raw_deg'])
+        self.assertFalse(c.arm.enabled)
+        self.assertEqual(c.arm.commands, [])
         previous = self.executor.future
         self.window.buttons["calculate"].click()
         self.wait(lambda: self.executor.future is not previous)
@@ -642,6 +653,16 @@ class WeldPanelTests(unittest.TestCase):
         self.assertFalse(preview.play.isEnabled())
         self.assertFalse(preview.playing)
         self.assertIsNone(c.plan)
+
+    def test_only_current_pose_requests_observation_rendering(self):
+        preview = self.window.preview
+        self.wait(lambda: bool(preview.backend.requests))
+        self.assertTrue(preview.backend.requests[-1]['measured_pose'])
+        preview.mode.setCurrentText('Standby target')
+        self.wait(lambda: preview.backend.requests[-1]['measured_pose'] is False)
+        c = self.window.worker.controller
+        self.assertFalse(c.arm.enabled)
+        self.assertEqual(c.arm.commands, [])
 
     def test_preview_failure_does_not_block_pause_or_heartbeat(self):
         with patch.object(

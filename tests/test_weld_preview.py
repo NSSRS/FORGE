@@ -4,6 +4,7 @@ import source_paths
 from copy import deepcopy
 import json
 import os
+import pickle
 from pathlib import Path
 import tempfile
 from types import SimpleNamespace
@@ -14,7 +15,7 @@ os.environ.setdefault("MUJOCO_GL", "egl")
 import numpy as np
 from controls.hardware.weld_app import main, read_start_report
 from controls.hardware.weld_ports import ArmOwner
-from motors.arm_calibration import CalibrationMap
+from motors.arm_calibration import CalibrationMap, RawAngleLimitError
 from simulation.weld_preview import (
     PlanPlayback,
     PoseRenderer,
@@ -155,6 +156,52 @@ class PreviewContracts(unittest.TestCase):
             self.assertLess(closure_error, 1e-8)
         finally:
             renderer.close()
+
+    def test_outside_endpoint_pose_is_visible_only_as_an_observation(self):
+        document = deepcopy(self.mapping.document)
+        document['joints']['5'].update(
+            model_intercept_deg=101.51405787753104,
+            raw_branch_deg=[-96.60760497201417, 114.836287036511],
+        )
+        # Nov 19 screenshot: A3 is 0.1114 degrees past its saved CCW endpoint.
+        raw = [-136.7479, -103.3943, 151.5014, 154.6925, -41.2113, -94.8044]
+        renderer = PoseRenderer(document)
+        try:
+            original = deepcopy(renderer.geometry.mapping.document)
+            request = dict(raw=raw, clearance_mm=.5, token=1, measured_pose=True)
+            result = renderer.frame(request)
+            self.assertIn('0.1114 deg above the saved upper limit', result['issue'])
+            self.assertIn('inspection only', result['issue'])
+            self.assertNotIn('Motion planning blocked', result['issue'])
+            self.assertIn('planning status above', result['issue'])
+            self.assertEqual(len(result['pixels']), 640*400*3)
+            # All six measured coordinates are rendered exactly; no clamp/wrap.
+            expected = [np.radians(document['joints'][str(i)]['model_per_raw'] * q
+                                   + document['joints'][str(i)]['model_intercept_deg'])
+                        for i, q in enumerate(raw, 1)]
+            np.testing.assert_allclose(renderer.geometry.data.qpos[renderer.geometry.addresses], expected)
+            self.assertEqual(renderer.geometry.mapping.document, original)
+            with self.assertRaises(RawAngleLimitError):
+                renderer.geometry.check(raw)
+            for measured in (False, None):
+                with self.assertRaises(RawAngleLimitError):
+                    renderer.frame(dict(request, measured_pose=measured))
+            for bad in (raw[:-1], [float('nan')]+raw[1:]):
+                with self.assertRaises(ValueError):
+                    renderer.frame(dict(request, raw=bad))
+            with patch.object(renderer.geometry.closure, 'apply', return_value=False):
+                with self.assertRaisesRegex(ValueError, 'image withheld'):
+                    renderer.frame(request)
+        finally:
+            renderer.close()
+
+    def test_limit_error_survives_planning_process_serialization(self):
+        with self.assertRaises(RawAngleLimitError) as caught:
+            self.mapping.model(3, 151.5014)
+        returned = pickle.loads(pickle.dumps(caught.exception))
+        self.assertEqual(str(returned), str(caught.exception))
+        self.assertEqual(returned.joint, 3)
+        self.assertEqual(returned.upper, 151.39)
 
     def test_contact_projection_tracks_image_axes_and_rejects_points_behind_camera(
         self,

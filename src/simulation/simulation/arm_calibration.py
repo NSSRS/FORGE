@@ -85,6 +85,32 @@ class ExplicitStops:
                 return dict(clear=False, reason='adjacent mechanical stop', **row)
         return None
 
+    def signed_clearance(self, names):
+        """Include mesh contact depth when unsigned distance reports overlap.
+
+        Used only for the reviewed A3 retreat. A saturated/incomplete contact
+        result cannot authorize escape. This is a model metric, not a sensor.
+        """
+        rows = list(self.measure())  # Also updates every object's world transform.
+        row = next((r for r in rows if tuple(r['geom_names']) == tuple(names)), None)
+        if row is None:
+            raise ValueError('Reviewed stop pair is missing')
+        a, b = (self.model.geom(name).id for name in names)
+        result = self.fcl.CollisionResult()
+        limit = 10000
+        count = self.fcl.collide(self.objects[a], self.objects[b],
+            self.fcl.CollisionRequest(num_max_contacts=limit, enable_contact=True), result)
+        if count >= limit or (count and not result.contacts):
+            raise ValueError('Incomplete stop penetration measurement')
+        if count:
+            depths = [float(c.penetration_depth) * 1000 for c in result.contacts]
+            if not all(math.isfinite(d) and d >= 0 for d in depths) or max(depths) <= 0:
+                raise ValueError('Ambiguous stop penetration measurement')
+            return -max(depths)
+        if row['distance_mm'] <= 0:
+            raise ValueError('Ambiguous zero stop distance')
+        return row['distance_mm']
+
 
 class ModelCalibrationPlanner:
     def __init__(self, scene, mapping, *, clearance_mm=2., stop_clearance_mm=.1,

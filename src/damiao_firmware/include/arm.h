@@ -11,10 +11,15 @@
 #define ARM_CAP_GROUP_HOLD (1u << 17) /* Explicit whole configured group hold activation. */
 #define ARM_CAP_SMOOTH_JOG (1u << 18) /* Type 25: leased mode-2 target slew; type 4 holds immediately. */
 #define ARM_CAP_SMOOTH_JOG_10 (1u << 19) /* Operator-requested smooth jog extension to 10 deg/s. */
+#define ARM_CAP_A2_LOAD_13 (1u << 20) /* Explicit A2/CAN2/2/18 commissioning trip up to 13 Nm. */
+#define ARM_CAP_A2_LOAD_30 (1u << 21) /* A2 trip up to 30 Nm; verified feedback range must exceed trip. */
+#define ARM_CAP_A2_RANGE_SETUP (1u << 22) /* Disabled full-rig A2 TMAX=40 setup; locks motion until reset. */
+#define ARM_CAP_GUN_LOAD (1u << 23) /* Known A3 trip <=30 Nm, A4-A6 <=10 Nm; not continuous ratings. */
+#define ARM_CAP_LOAD_RANGE_SETUP (1u << 24) /* Fixed disabled A3-A6 TMAX setup; locks motion until restart. */
 #define ARM_ROUTED_MANUAL_TRAVEL 0x80u /* USB configure mode flag; never sent to motor. */
 #define ARM_ROUTED_POSITION_HOLD 0x40u /* Requires manual travel and mode 2; leases still apply. */
 #define ARM_ROUTED_GROUP_HOLD 0x20u /* Requires position hold; complete group enable only. */
-#define ARM_CAPABILITIES (8079u | ARM_CAP_RATED_4340_TORQUE | ARM_CAP_CONTROL_READBACK | ARM_CAP_MANUAL_TRAVEL | ARM_CAP_POSITION_HOLD | ARM_CAP_GROUP_HOLD | ARM_CAP_SMOOTH_JOG | ARM_CAP_SMOOTH_JOG_10)
+#define ARM_CAPABILITIES (8079u | ARM_CAP_RATED_4340_TORQUE | ARM_CAP_CONTROL_READBACK | ARM_CAP_MANUAL_TRAVEL | ARM_CAP_POSITION_HOLD | ARM_CAP_GROUP_HOLD | ARM_CAP_SMOOTH_JOG | ARM_CAP_SMOOTH_JOG_10 | ARM_CAP_A2_LOAD_13 | ARM_CAP_A2_LOAD_30 | ARM_CAP_A2_RANGE_SETUP | ARM_CAP_GUN_LOAD | ARM_CAP_LOAD_RANGE_SETUP)
 #define ARM_BASE_API_VERSION 1u
 #ifndef FORGE_BUILD_ID
 #define FORGE_BUILD_ID 0u /* native tests/nonstandard builds */
@@ -59,12 +64,17 @@ typedef struct {
     float fault_p, fault_v, fault_t, fault_target, fault_velocity, fault_speed_limit, fault_torque_limit;
     uint8_t fault_sample_flags;
     bool id_commissioning; uint8_t id_verified;
+    bool range_commissioning, range_verified, range_save_attempted;
+    uint8_t range_setup_slot;
+    uint8_t range_written_mask, range_save_attempted_mask, range_saved_mask;
     bool fault, bench, bench_posvel, routed_bench; uint32_t last_tick, bench_enabled_at;
 } arm_controller;
 bool dm_pack(const dm_range *, const dm_command *, uint8_t out[8]);
 void arm_init(arm_controller *, arm_send_fn, void *);
 bool arm_prepare_routed(arm_controller *, unsigned, const arm_config *, uint8_t, uint8_t);
 bool arm_id_operation(arm_controller *, uint8_t, uint32_t, uint32_t);
+bool arm_a2_range_setup(arm_controller *, uint8_t, uint32_t);
+bool arm_load_range_setup(arm_controller *, uint8_t, uint8_t, uint32_t);
 bool arm_routed_write(arm_controller *, unsigned, uint8_t, uint32_t, uint32_t);
 bool arm_bench_timeout(arm_controller *, uint32_t);
 bool arm_prepare_bench(arm_controller *, float, float);

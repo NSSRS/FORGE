@@ -1,0 +1,4810 @@
+{
+  "schema": "forge.gun_load_physical_review",
+  "version": 1,
+  "created_utc": "2026-11-19T11:10:23.168704+00:00",
+  "source_report": "session-load-30-10-20261119-190025.json",
+  "source_journal": "session-load-30-10-20261119-190025.jsonl",
+  "sources": [
+    {
+      "path": "build/arm_tests/hold-01-20261119/with-ee/session-load-30-10-20261119-190025.json",
+      "bytes": 25067165,
+      "sha256": "d0f1eb56fbc6562bc66c6dbc87951f241a9ba33ecd2f05ed0fef282635b97c8a"
+    },
+    {
+      "path": "build/arm_tests/hold-01-20261119/with-ee/session-load-30-10-20261119-190025.jsonl",
+      "bytes": 41567560,
+      "sha256": "14ea5bbdf86de8b2420e247f0e28c41ecc64620e6ec25bf1a55da6a17be7d454"
+    },
+    {
+      "path": "build/arm_tests/hold-01-20261119/with-ee/session-load-30-10-20261119-190025.fault-0dv1_qj1.json",
+      "bytes": 13410,
+      "sha256": "be9c1ed50b24d05820ff8a74404f7e7a5d79322281d5508c5db97b97c6fd9901"
+    },
+    {
+      "path": "build/arm_tests/hold-01-20261119/with-ee/session-load-30-10-20261119-190025-analysis.json",
+      "bytes": 167998,
+      "sha256": "0e41a3c5cf474c1b1303e39ee3442021ae38ae259e7dce9fffb0e1a4fef722af"
+    },
+    {
+      "path": "build/arm_tests/hold-01-20261119/with-ee/load-range-setup-20261119-185854.json",
+      "bytes": 48348,
+      "sha256": "527c5846f1fb879c56f0a1d5747f05e067c4a5a176963d6edca843deb6a04dd4"
+    },
+    {
+      "path": "build/arm_tests/hold-01-20261119/with-ee/load-range-setup-20261119-185911.json",
+      "bytes": 702,
+      "sha256": "ffffbc8128f09950aa2688cc32a5e369405d4d7be8b6c1a473d6a92050c2e0fd"
+    },
+    {
+      "path": "build/arm_tests/hold-01-20261119/with-ee/load-range-setup-20261119-185939.json",
+      "bytes": 12611,
+      "sha256": "934b6c5dc9e1b165bdd4d2f9669e71b7b2d9b9f468be8a6b0a43a007be609527"
+    },
+    {
+      "path": "build/arm_tests/hold-01-20261119/with-ee/load-readback-20261119-185918.json",
+      "bytes": 5750,
+      "sha256": "22cf671e640e3a30106a06a3d3011367276169c8a405e1ba485bdc1b16aca94f"
+    },
+    {
+      "path": "build/arm_tests/hold-01-20261119/with-ee/load-readback-20261119-190024.json",
+      "bytes": 9003,
+      "sha256": "ac92508caf0d9c76f1dd797eaac9149078ecf11fa14cf0f6b537ccc3ec9d4934"
+    }
+  ],
+  "operator_observations": [
+    {
+      "statement": "It ran pretty well",
+      "scope": "overall session / successful second attempt"
+    },
+    {
+      "statement": "No, it was untouched",
+      "scope": "first attempt, about six seconds after Ready, preceding A5 speed trip"
+    }
+  ],
+  "load": {
+    "welding_gun_attached": true,
+    "end_effector_mass_kg_approximate": 1.96,
+    "mass_basis": "operator estimate"
+  },
+  "hardware_commanded_by_agent": false,
+  "hardware_qualified": false,
+  "deployment": {
+    "build_id": "f78f6b0d",
+    "capabilities": "0x1ffff8f",
+    "operator_deployed": true,
+    "saved_setup_passed": true,
+    "joint_save_acknowledged": {
+      "3": true,
+      "4": true,
+      "5": true,
+      "6": true
+    },
+    "a2_setup_skipped": true,
+    "setup_disable_acknowledged": true,
+    "post_restart_readback_passed": true,
+    "tmax_nm": [
+      54.0,
+      40.0,
+      40.0,
+      12.5,
+      12.5,
+      12.5
+    ],
+    "configured_trip_nm": [
+      20,
+      30,
+      30,
+      10,
+      10,
+      10
+    ],
+    "persistence_evidence": "Saved setup, subsequent fresh-MCU setup readback with zero lock/masks and all target ranges, then passing full-profile disabled check. Physical supply switching was operator-performed, not directly observed by agent."
+  },
+  "settings": {
+    "hz": 2.0,
+    "amplitude_m": 0.01,
+    "feed_m_s": 0.012,
+    "cycles": 1,
+    "time_scale": 1.0,
+    "max_speed_deg_s": 30.0,
+    "max_accel_deg_s2": 30.0,
+    "control_period_s": 0.02,
+    "auto_retime": true,
+    "lock_base_yaw": false,
+    "limit_profile": "weld",
+    "search_solution": null,
+    "preparation_target_s": 10.0,
+    "optimize_preparation": true,
+    "approach_lift_m": 0.03,
+    "lowering_min_s": 2.3
+  },
+  "mapping_fingerprint": "e19226781bf4e1519414315cc4c3ead50e294eea48134199d96eb95aafab398f",
+  "attempt_1": {
+    "time_to_ready_s": 11.855883854997955,
+    "ready_to_fault_event_s": 6.090180057002726,
+    "welding_started": false,
+    "outcome": "A5 speed fault during fixed Ready hold; operator confirms untouched",
+    "fault_snapshot": {
+      "fault": 1,
+      "reason": 8,
+      "slot": 4,
+      "motor_status": 1,
+      "at_ms": 128797,
+      "command_age_ms": 2,
+      "feedback_age_ms": 0,
+      "position_rad": 0.4667348861694336,
+      "velocity_rad_s": 1.5164833068847656,
+      "torque_nm": 0.47313785552978516,
+      "target_rad": 0.38009631633758545,
+      "command_velocity_rad_s": 0.5235987901687622,
+      "speed_limit_rad_s": 1.5,
+      "torque_limit_nm": 10.0,
+      "sample_flags": 3
+    },
+    "fault_speed_deg_s": 86.88809318653949,
+    "fault_position_error_deg": 4.964024394414357,
+    "ready_target_span_deg": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "a5_ready_mean_torque_nm": 6.215645813857109,
+    "a5_ready_peak_abs_torque_nm": 6.645299911499023,
+    "a5_motor_temperature_c": {
+      "first_hold_verification": 26,
+      "ready_start": 40,
+      "ready_last": 46
+    },
+    "thermal_or_torque_trip": false,
+    "operator_contact": false,
+    "cause": null,
+    "reset_completed": true
+  },
+  "attempt_2": {
+    "outcome": "Ready, continuous welding, intent pause, then verified disable and mode restoration; no further fault",
+    "time_to_ready_s": 12.527908022999327,
+    "nominal_preparation_s": 9.853991987884358,
+    "preparation_goal_s": 10,
+    "ready_hold_event_span_s": 8.68639700300264,
+    "ready_hold_fresh_axis_span_s": 8.666070605999266,
+    "ready_peak_abs_error_deg": [
+      0.15299623740828563,
+      0.1764924882158923,
+      0.05545337965808629,
+      0.02927159667680724,
+      0.12861922603409406,
+      0.024769639485200546
+    ],
+    "ready_all_axes_within_025_deg": true,
+    "ready_target_span_deg": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "welding_event_span_s": 45.7073520619997,
+    "welding_fresh_axis_span_s": 45.64353638900138,
+    "stop_reason": "Operator intent interrupted; existing arm hold retained; recalculate.",
+    "stop_trigger_detail": null,
+    "preparation_peak_abs_torque_nm": [
+      1.2791213989257812,
+      13.567764282226562,
+      6.554332733154297,
+      1.4865694046020508,
+      1.211843490600586,
+      1.7612943649291992
+    ],
+    "welding_signed_mean_torque_nm": [
+      -0.07914083019643646,
+      8.730702682795517,
+      -4.770639497544175,
+      -0.3927682094776167,
+      -0.6555208021315103,
+      0.06756956224667791
+    ],
+    "welding_peak_abs_torque_nm": [
+      3.125274658203125,
+      9.25030517578125,
+      6.632476806640625,
+      0.5097684860229492,
+      0.8089132308959961,
+      0.5708179473876953
+    ],
+    "all_stages_peak_motor_temperature_c": [
+      25,
+      35,
+      27,
+      25,
+      31,
+      24
+    ],
+    "all_stages_peak_mos_temperature_c": [
+      26,
+      27,
+      27,
+      26,
+      28,
+      27
+    ],
+    "welding_temperature_change": {
+      "1": {
+        "mos_c": {
+          "first_c": 26,
+          "last_c": 26,
+          "observed_span_s": 45.64353638900138,
+          "change_c": 0
+        },
+        "rotor_c": {
+          "first_c": 25,
+          "last_c": 25,
+          "observed_span_s": 45.64353638900138,
+          "change_c": 0
+        }
+      },
+      "2": {
+        "mos_c": {
+          "first_c": 27,
+          "last_c": 27,
+          "observed_span_s": 45.64354226799696,
+          "change_c": 0
+        },
+        "rotor_c": {
+          "first_c": 28,
+          "last_c": 35,
+          "observed_span_s": 45.64354226799696,
+          "change_c": 7
+        }
+      },
+      "3": {
+        "mos_c": {
+          "first_c": 27,
+          "last_c": 27,
+          "observed_span_s": 45.64354420699965,
+          "change_c": 0
+        },
+        "rotor_c": {
+          "first_c": 26,
+          "last_c": 27,
+          "observed_span_s": 45.64354420699965,
+          "change_c": 1
+        }
+      },
+      "4": {
+        "mos_c": {
+          "first_c": 26,
+          "last_c": 26,
+          "observed_span_s": 45.64354522400026,
+          "change_c": 0
+        },
+        "rotor_c": {
+          "first_c": 25,
+          "last_c": 25,
+          "observed_span_s": 45.64354522400026,
+          "change_c": 0
+        }
+      },
+      "5": {
+        "mos_c": {
+          "first_c": 28,
+          "last_c": 28,
+          "observed_span_s": 45.6435463859998,
+          "change_c": 0
+        },
+        "rotor_c": {
+          "first_c": 30,
+          "last_c": 29,
+          "observed_span_s": 45.6435463859998,
+          "change_c": -1
+        }
+      },
+      "6": {
+        "mos_c": {
+          "first_c": 27,
+          "last_c": 27,
+          "observed_span_s": 45.64354741599891,
+          "change_c": 0
+        },
+        "rotor_c": {
+          "first_c": 24,
+          "last_c": 24,
+          "observed_span_s": 45.64354741599891,
+          "change_c": 0
+        }
+      }
+    },
+    "nominal_reference_tracking": {
+      "initial": {
+        "samples": 204,
+        "peak_abs_tracking_error_deg": [
+          0.09996972747902078,
+          1.4124729071152444,
+          0.96621998448569,
+          0.625430002414447,
+          0.9314355845009148,
+          2.2760325709150777
+        ],
+        "minimum_clearance_correction_scale": 1.0
+      },
+      "approach": {
+        "samples": 321,
+        "peak_abs_tracking_error_deg": [
+          0.18409059102822312,
+          1.814153782801995,
+          0.49962364033032713,
+          0.3469566109131108,
+          1.7985502733122694,
+          1.2330306906014954
+        ],
+        "minimum_clearance_correction_scale": 1.0
+      },
+      "welding": {
+        "samples": 1982,
+        "peak_abs_tracking_error_deg": [
+          2.2579605540693137,
+          0.06431180421745353,
+          0.09968946948116297,
+          0.25069766309624697,
+          0.1603375931644706,
+          0.8494945742809037
+        ],
+        "minimum_clearance_correction_scale": 1.0
+      }
+    },
+    "frequency_and_travel": [
+      {
+        "joint": 1,
+        "planned_hz": 1.7306119852212318,
+        "planned_travel_deg_peak_to_peak": 2.2604994662886497,
+        "last_measured_window": {
+          "hz": 1.7288014672100163,
+          "peak_to_peak_deg": 3.8686737874085964,
+          "status": "measured",
+          "correlation": 0.9548094342294625
+        },
+        "measured_to_planned_travel_ratio": 1.7114243312608657
+      },
+      {
+        "joint": 2,
+        "planned_hz": 1.7306119852212318,
+        "planned_travel_deg_peak_to_peak": 0.0626767116431921,
+        "last_measured_window": {
+          "hz": null,
+          "peak_to_peak_deg": 0.0,
+          "status": "insufficient motion"
+        },
+        "measured_to_planned_travel_ratio": 0.0
+      },
+      {
+        "joint": 3,
+        "planned_hz": 1.7306119852212318,
+        "planned_travel_deg_peak_to_peak": 0.13167035642078417,
+        "last_measured_window": {
+          "hz": null,
+          "peak_to_peak_deg": 0.021856605344041213,
+          "status": "insufficient motion"
+        },
+        "measured_to_planned_travel_ratio": 0.16599488250941763
+      },
+      {
+        "joint": 4,
+        "planned_hz": 1.7306119852212318,
+        "planned_travel_deg_peak_to_peak": 0.09828139634777244,
+        "last_measured_window": {
+          "hz": null,
+          "peak_to_peak_deg": 0.17485284275230129,
+          "status": "irregular / collecting"
+        },
+        "measured_to_planned_travel_ratio": 1.779104176883872
+      },
+      {
+        "joint": 5,
+        "planned_hz": 1.7306119852212318,
+        "planned_travel_deg_peak_to_peak": 0.07185588538180099,
+        "last_measured_window": {
+          "hz": null,
+          "peak_to_peak_deg": 0.04371321068808243,
+          "status": "insufficient motion"
+        },
+        "measured_to_planned_travel_ratio": 0.6083455858321901
+      },
+      {
+        "joint": 6,
+        "planned_hz": 1.7306119852212318,
+        "planned_travel_deg_peak_to_peak": 0.4273135977140825,
+        "last_measured_window": {
+          "hz": 1.7296854148187,
+          "peak_to_peak_deg": 1.1802566885782042,
+          "status": "measured",
+          "correlation": 0.9423753733782084
+        },
+        "measured_to_planned_travel_ratio": 2.762038687493206
+      }
+    ],
+    "post_weld_hold_span_s": 5.107454545999644,
+    "post_weld_hold_peak_abs_error_deg": [
+      0.6994113710093057,
+      0.10928302672020401,
+      0.0,
+      0.34970568550465286,
+      0.24042265878444882,
+      0.5027019229129385
+    ]
+  },
+  "shutdown": {
+    "session_closed": true,
+    "final_fault": null,
+    "disable_acknowledged": true,
+    "mode_restoration_verified": true,
+    "bus_health": {
+      "1": {
+        "at_ms": 288004,
+        "tx_frames": 45339,
+        "tx_failed": 0,
+        "rx_frames": 45339,
+        "feedback_frames": 45164,
+        "max_feedback_gap_ms": 24,
+        "max_tick_gap_ms": 3,
+        "late_ticks": 1,
+        "bus_off_events": 0,
+        "status_flags": 1792,
+        "tx_error_count": 0,
+        "rx_error_count": 0
+      },
+      "2": {
+        "at_ms": 288004,
+        "tx_frames": 226535,
+        "tx_failed": 0,
+        "rx_frames": 226535,
+        "feedback_frames": 225820,
+        "max_feedback_gap_ms": 24,
+        "max_tick_gap_ms": 3,
+        "late_ticks": 1,
+        "bus_off_events": 0,
+        "status_flags": 1792,
+        "tx_error_count": 0,
+        "rx_error_count": 0
+      }
+    }
+  },
+  "data_quality": {
+    "jsonl_dropped_records": 0,
+    "incomplete_final_line": false,
+    "trajectory_trace_dropped": 0,
+    "bounded_arm_report_samples_dropped": 6000,
+    "notes": "Full JSONL retains both attempts; bounded embedded motor sample list dropped 6000 earlier rows. Stage statistics use fresh enabled cached JSONL samples, not the truncated embedded sample list."
+  },
+  "limitations": [
+    "Torque is drive-reported feedback, not independently calibrated shaft torque.",
+    "Statistics are sample-weighted; gaps and rejected samples remain explicit.",
+    "Match physical start, route, settings, support contact and temperatures before attributing changes to payload.",
+    "An open journal has no final shutdown result; summary does not stop or contact the motor owner.",
+    "Drive-reported motor temperature is not an independent winding thermometer.",
+    "Moving command-error statistics compare lead-corrected commands; nominal-reference errors governing the 3-degree trip are reported separately.",
+    "The two attempts had different measured starts and materially different torque signatures, even at identical Ready targets; load/contact/mechanical-state cause is not established.",
+    "Requested 15-second Ready recording and 5-10 second preparation goal are not met in attempt 2.",
+    "A1/A6 final-window travel exceeds plan; matching Hz does not qualify weave amplitude or tool-path accuracy."
+  ],
+  "next_observations": [
+    "Investigate untouched A5 motion during fixed hold and differing load/torque signatures before declaring HOLD-01 passed.",
+    "Record matched 15-second untouched Ready holds and representative thermal response, preserving original trips.",
+    "Qualify A1/A6 measured versus planned travel; distinguish shaft tracking from Cartesian tool motion.",
+    "Improve preparation settling against the 5-10 second goal without widening tracking/arrival guards."
+  ],
+  "stage_statistics": [
+    {
+      "attempt": 1,
+      "state": "verifying_hold",
+      "endpoint_hold": false,
+      "rejected": 0,
+      "duplicates": 0,
+      "joints": {
+        "1": {
+          "samples": 10,
+          "observed_span_s": 0.18582074599908083,
+          "max_sample_gap_s": 0.022038963998056715,
+          "velocity_deg_s": {
+            "mean": -0.6296887999618155,
+            "minimum": -0.6296887999618155,
+            "maximum": -0.6296887999618155,
+            "peak_abs": 0.6296887999618155,
+            "rms": 0.6296887999618155
+          },
+          "absolute_speed_deg_s": {
+            "mean": 0.6296887999618155,
+            "minimum": 0.6296887999618155,
+            "maximum": 0.6296887999618155,
+            "peak_abs": 0.6296887999618155,
+            "rms": 0.6296887999618155
+          },
+          "torque_feedback_nm": {
+            "mean": -0.05802230834960938,
+            "minimum": -0.09230804443359375,
+            "maximum": -0.013187408447265625,
+            "peak_abs": 0.09230804443359375,
+            "rms": 0.062689495828823
+          },
+          "command_error_deg": {
+            "mean": 0.0,
+            "minimum": 0.0,
+            "maximum": 0.0,
+            "peak_abs": 0.0,
+            "rms": 0.0
+          },
+          "target_span_deg": 0.0,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 26.0,
+            "minimum": 26,
+            "maximum": 26,
+            "peak_abs": 26,
+            "rms": 26.0
+          },
+          "rotor_c": {
+            "mean": 25.0,
+            "minimum": 25,
+            "maximum": 25,
+            "peak_abs": 25,
+            "rms": 25.0
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 26,
+              "last_c": 26,
+              "observed_span_s": 0.18582074599908083,
+              "change_c": 0
+            },
+            "rotor_c": {
+              "first_c": 25,
+              "last_c": 25,
+              "observed_span_s": 0.18582074599908083,
+              "change_c": 0
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 10.425158400539658,
+            "minimum": 7.814267999492586,
+            "maximum": 12.816831000236562,
+            "peak_abs": 12.816831000236562,
+            "rms": 10.547892679065471
+          }
+        },
+        "2": {
+          "samples": 10,
+          "observed_span_s": 0.18581904599705013,
+          "max_sample_gap_s": 0.022026140002708416,
+          "velocity_deg_s": {
+            "mean": -0.13993691571522124,
+            "minimum": -0.13993691571522124,
+            "maximum": -0.13993691571522124,
+            "peak_abs": 0.13993691571522124,
+            "rms": 0.13993691571522124
+          },
+          "absolute_speed_deg_s": {
+            "mean": 0.13993691571522124,
+            "minimum": 0.13993691571522124,
+            "maximum": 0.13993691571522124,
+            "peak_abs": 0.13993691571522124,
+            "rms": 0.13993691571522124
+          },
+          "torque_feedback_nm": {
+            "mean": -0.011722946166992187,
+            "minimum": -0.02930450439453125,
+            "maximum": -0.009769439697265625,
+            "peak_abs": 0.02930450439453125,
+            "rms": 0.01310622579462023
+          },
+          "command_error_deg": {
+            "mean": 0.0,
+            "minimum": 0.0,
+            "maximum": 0.0,
+            "peak_abs": 0.0,
+            "rms": 0.0
+          },
+          "target_span_deg": 0.0,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 27.0,
+            "minimum": 27,
+            "maximum": 27,
+            "peak_abs": 27,
+            "rms": 27.0
+          },
+          "rotor_c": {
+            "mean": 25.0,
+            "minimum": 25,
+            "maximum": 25,
+            "peak_abs": 25,
+            "rms": 25.0
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 27,
+              "last_c": 27,
+              "observed_span_s": 0.18581904599705013,
+              "change_c": 0
+            },
+            "rotor_c": {
+              "first_c": 25,
+              "last_c": 25,
+              "observed_span_s": 0.18581904599705013,
+              "change_c": 0
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 10.383354600708117,
+            "minimum": 7.768717001454206,
+            "maximum": 12.769340002705576,
+            "peak_abs": 12.769340002705576,
+            "rms": 10.505841088500993
+          }
+        },
+        "3": {
+          "samples": 10,
+          "observed_span_s": 0.18581803500273963,
+          "max_sample_gap_s": 0.022020597996743163,
+          "velocity_deg_s": {
+            "mean": -0.13993691571522124,
+            "minimum": -0.13993691571522124,
+            "maximum": -0.13993691571522124,
+            "peak_abs": 0.13993691571522124,
+            "rms": 0.13993691571522124
+          },
+          "absolute_speed_deg_s": {
+            "mean": 0.13993691571522124,
+            "minimum": 0.13993691571522124,
+            "maximum": 0.13993691571522124,
+            "peak_abs": 0.13993691571522124,
+            "rms": 0.13993691571522124
+          },
+          "torque_feedback_nm": {
+            "mean": -0.031258010864257814,
+            "minimum": -0.048839569091796875,
+            "maximum": -0.02930450439453125,
+            "peak_abs": 0.048839569091796875,
+            "rms": 0.03180265603586328
+          },
+          "command_error_deg": {
+            "mean": 0.0,
+            "minimum": 0.0,
+            "maximum": 0.0,
+            "peak_abs": 0.0,
+            "rms": 0.0
+          },
+          "target_span_deg": 0.0,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 27.0,
+            "minimum": 27,
+            "maximum": 27,
+            "peak_abs": 27,
+            "rms": 27.0
+          },
+          "rotor_c": {
+            "mean": 25.0,
+            "minimum": 25,
+            "maximum": 25,
+            "peak_abs": 25,
+            "rms": 25.0
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 27,
+              "last_c": 27,
+              "observed_span_s": 0.18581803500273963,
+              "change_c": 0
+            },
+            "rotor_c": {
+              "first_c": 25,
+              "last_c": 25,
+              "observed_span_s": 0.18581803500273963,
+              "change_c": 0
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 10.36589620016457,
+            "minimum": 7.758625000860775,
+            "maximum": 12.74832399940351,
+            "peak_abs": 12.74832399940351,
+            "rms": 10.488003643058283
+          }
+        },
+        "4": {
+          "samples": 10,
+          "observed_span_s": 0.18581689599886886,
+          "max_sample_gap_s": 0.022010206997947535,
+          "velocity_deg_s": {
+            "mean": -0.41975610563230364,
+            "minimum": -0.41975610563230364,
+            "maximum": -0.41975610563230364,
+            "peak_abs": 0.41975610563230364,
+            "rms": 0.41975610563230364
+          },
+          "absolute_speed_deg_s": {
+            "mean": 0.41975610563230364,
+            "minimum": 0.41975610563230364,
+            "maximum": 0.41975610563230364,
+            "peak_abs": 0.41975610563230364,
+            "rms": 0.41975610563230364
+          },
+          "torque_feedback_nm": {
+            "mean": 0.005494499206542968,
+            "minimum": 0.0030527114868164062,
+            "maximum": 0.009157180786132812,
+            "peak_abs": 0.009157180786132812,
+            "rms": 0.0062556384512703804
+          },
+          "command_error_deg": {
+            "mean": 0.0,
+            "minimum": 0.0,
+            "maximum": 0.0,
+            "peak_abs": 0.0,
+            "rms": 0.0
+          },
+          "target_span_deg": 0.0,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 26.0,
+            "minimum": 26,
+            "maximum": 26,
+            "peak_abs": 26,
+            "rms": 26.0
+          },
+          "rotor_c": {
+            "mean": 25.0,
+            "minimum": 25,
+            "maximum": 25,
+            "peak_abs": 25,
+            "rms": 25.0
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 26,
+              "last_c": 26,
+              "observed_span_s": 0.18581689599886886,
+              "change_c": 0
+            },
+            "rotor_c": {
+              "first_c": 25,
+              "last_c": 25,
+              "observed_span_s": 0.18581689599886886,
+              "change_c": 0
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 10.35264170022856,
+            "minimum": 7.751307002763497,
+            "maximum": 12.727265999274096,
+            "peak_abs": 12.727265999274096,
+            "rms": 10.474321712994955
+          }
+        },
+        "5": {
+          "samples": 10,
+          "observed_span_s": 0.18581959099901724,
+          "max_sample_gap_s": 0.02200528200046392,
+          "velocity_deg_s": {
+            "mean": -0.41975610563230364,
+            "minimum": -0.41975610563230364,
+            "maximum": -0.41975610563230364,
+            "peak_abs": 0.41975610563230364,
+            "rms": 0.41975610563230364
+          },
+          "absolute_speed_deg_s": {
+            "mean": 0.41975610563230364,
+            "minimum": 0.41975610563230364,
+            "maximum": 0.41975610563230364,
+            "peak_abs": 0.41975610563230364,
+            "rms": 0.41975610563230364
+          },
+          "torque_feedback_nm": {
+            "mean": -0.003663158416748047,
+            "minimum": -0.009157180786132812,
+            "maximum": -0.0030527114868164062,
+            "peak_abs": 0.009157180786132812,
+            "rms": 0.004095428997621464
+          },
+          "command_error_deg": {
+            "mean": 0.0,
+            "minimum": 0.0,
+            "maximum": 0.0,
+            "peak_abs": 0.0,
+            "rms": 0.0
+          },
+          "target_span_deg": 0.0,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 27.0,
+            "minimum": 27,
+            "maximum": 27,
+            "peak_abs": 27,
+            "rms": 27.0
+          },
+          "rotor_c": {
+            "mean": 26.0,
+            "minimum": 26,
+            "maximum": 26,
+            "peak_abs": 26,
+            "rms": 26.0
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 27,
+              "last_c": 27,
+              "observed_span_s": 0.18581959099901724,
+              "change_c": 0
+            },
+            "rotor_c": {
+              "first_c": 26,
+              "last_c": 26,
+              "observed_span_s": 0.18581959099901724,
+              "change_c": 0
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 10.340666300180601,
+            "minimum": 7.744255002762657,
+            "maximum": 12.71186200028751,
+            "peak_abs": 12.71186200028751,
+            "rms": 10.462043736112589
+          }
+        },
+        "6": {
+          "samples": 10,
+          "observed_span_s": 0.18582097000034992,
+          "max_sample_gap_s": 0.022001204000844155,
+          "velocity_deg_s": {
+            "mean": -0.41975610563230364,
+            "minimum": -0.41975610563230364,
+            "maximum": -0.41975610563230364,
+            "peak_abs": 0.41975610563230364,
+            "rms": 0.41975610563230364
+          },
+          "absolute_speed_deg_s": {
+            "mean": 0.41975610563230364,
+            "minimum": 0.41975610563230364,
+            "maximum": 0.41975610563230364,
+            "peak_abs": 0.41975610563230364,
+            "rms": 0.41975610563230364
+          },
+          "torque_feedback_nm": {
+            "mean": -0.0018316268920898437,
+            "minimum": -0.0030527114868164062,
+            "maximum": 0.0030527114868164062,
+            "peak_abs": 0.0030527114868164062,
+            "rms": 0.0030527114868164062
+          },
+          "command_error_deg": {
+            "mean": 0.0,
+            "minimum": 0.0,
+            "maximum": 0.0,
+            "peak_abs": 0.0,
+            "rms": 0.0
+          },
+          "target_span_deg": 0.0,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 27.0,
+            "minimum": 27,
+            "maximum": 27,
+            "peak_abs": 27,
+            "rms": 27.0
+          },
+          "rotor_c": {
+            "mean": 24.0,
+            "minimum": 24,
+            "maximum": 24,
+            "peak_abs": 24,
+            "rms": 24.0
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 27,
+              "last_c": 27,
+              "observed_span_s": 0.18582097000034992,
+              "change_c": 0
+            },
+            "rotor_c": {
+              "first_c": 24,
+              "last_c": 24,
+              "observed_span_s": 0.18582097000034992,
+              "change_c": 0
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 11.12956980088784,
+            "minimum": 7.737043000815902,
+            "maximum": 14.69747700280277,
+            "peak_abs": 14.69747700280277,
+            "rms": 11.354535070820177
+          }
+        }
+      },
+      "minimum_axis_span_s": 0.18581689599886886,
+      "all_axes_within_025_deg": true
+    },
+    {
+      "attempt": 1,
+      "state": "initial",
+      "endpoint_hold": false,
+      "rejected": 0,
+      "duplicates": 0,
+      "joints": {
+        "1": {
+          "samples": 183,
+          "observed_span_s": 4.313402184998267,
+          "max_sample_gap_s": 0.039838194999902043,
+          "velocity_deg_s": {
+            "mean": -0.7053783437032306,
+            "minimum": -4.407384467625828,
+            "maximum": -0.6296887999618155,
+            "peak_abs": 4.407384467625828,
+            "rms": 0.8102206924709485
+          },
+          "absolute_speed_deg_s": {
+            "mean": 0.7053783437032306,
+            "minimum": 0.6296887999618155,
+            "maximum": 4.407384467625828,
+            "peak_abs": 4.407384467625828,
+            "rms": 0.8102206924709485
+          },
+          "torque_feedback_nm": {
+            "mean": -0.41657352968643274,
+            "minimum": -0.9890098571777344,
+            "maximum": 0.14505386352539062,
+            "peak_abs": 0.9890098571777344,
+            "rms": 0.5108449206621641
+          },
+          "command_error_deg": {
+            "mean": -0.003042156484936103,
+            "minimum": -0.13158476574626973,
+            "maximum": 0.058965530043000314,
+            "peak_abs": 0.13158476574626973,
+            "rms": 0.05178201337525642
+          },
+          "target_span_deg": 0.40434719886474113,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 26.0,
+            "minimum": 26,
+            "maximum": 26,
+            "peak_abs": 26,
+            "rms": 26.0
+          },
+          "rotor_c": {
+            "mean": 25.0,
+            "minimum": 25,
+            "maximum": 25,
+            "peak_abs": 25,
+            "rms": 25.0
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 26,
+              "last_c": 26,
+              "observed_span_s": 4.313402184998267,
+              "change_c": 0
+            },
+            "rotor_c": {
+              "first_c": 25,
+              "last_c": 25,
+              "observed_span_s": 4.313402184998267,
+              "change_c": 0
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 0.13731528938950874,
+            "minimum": 0.04294500104151666,
+            "maximum": 11.04806800140068,
+            "peak_abs": 11.04806800140068,
+            "rms": 0.8215819567017671
+          }
+        },
+        "2": {
+          "samples": 183,
+          "observed_span_s": 4.313380753999809,
+          "max_sample_gap_s": 0.039816557997255586,
+          "velocity_deg_s": {
+            "mean": 1.3693452877921122,
+            "minimum": -0.13993691571522124,
+            "maximum": 5.456720090193227,
+            "peak_abs": 5.456720090193227,
+            "rms": 1.9741431210132874
+          },
+          "absolute_speed_deg_s": {
+            "mean": 1.415226243764316,
+            "minimum": 0.13993691571522124,
+            "maximum": 5.456720090193227,
+            "peak_abs": 5.456720090193227,
+            "rms": 1.9741431210132874
+          },
+          "torque_feedback_nm": {
+            "mean": 0.2845532359972678,
+            "minimum": -2.041515350341797,
+            "maximum": 4.581195831298828,
+            "peak_abs": 4.581195831298828,
+            "rms": 1.76754717217574
+          },
+          "command_error_deg": {
+            "mean": 1.1884313962128583,
+            "minimum": 0.0,
+            "maximum": 2.5865888697148143,
+            "peak_abs": 2.5865888697148143,
+            "rms": 1.468219952018849
+          },
+          "target_span_deg": 6.8513352356518595,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 27.0,
+            "minimum": 27,
+            "maximum": 27,
+            "peak_abs": 27,
+            "rms": 27.0
+          },
+          "rotor_c": {
+            "mean": 25.0,
+            "minimum": 25,
+            "maximum": 25,
+            "peak_abs": 25,
+            "rms": 25.0
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 27,
+              "last_c": 27,
+              "observed_span_s": 4.313380753999809,
+              "change_c": 0
+            },
+            "rotor_c": {
+              "first_c": 25,
+              "last_c": 25,
+              "observed_span_s": 4.313380753999809,
+              "change_c": 0
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 0.11247629500544487,
+            "minimum": 0.02974800008814782,
+            "maximum": 11.006859000190161,
+            "peak_abs": 11.006859000190161,
+            "rms": 0.8158923198441683
+          }
+        },
+        "3": {
+          "samples": 183,
+          "observed_span_s": 4.313368766997883,
+          "max_sample_gap_s": 0.03980440799932694,
+          "velocity_deg_s": {
+            "mean": 0.026753141833616285,
+            "minimum": -0.13993691571522124,
+            "maximum": 1.2592683168969108,
+            "peak_abs": 1.2592683168969108,
+            "rms": 0.27267815898592807
+          },
+          "absolute_speed_deg_s": {
+            "mean": 0.1980420441298434,
+            "minimum": 0.13993691571522124,
+            "maximum": 1.2592683168969108,
+            "peak_abs": 1.2592683168969108,
+            "rms": 0.27267815898592807
+          },
+          "torque_feedback_nm": {
+            "mean": 3.071584982950179,
+            "minimum": -0.02930450439453125,
+            "maximum": 5.714286804199219,
+            "peak_abs": 5.714286804199219,
+            "rms": 3.7978954924696358
+          },
+          "command_error_deg": {
+            "mean": 0.22430855330795435,
+            "minimum": 0.0,
+            "maximum": 0.4838674816783849,
+            "peak_abs": 0.4838674816783849,
+            "rms": 0.26803245252482155
+          },
+          "target_span_deg": 0.7482101206412892,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 27.0,
+            "minimum": 27,
+            "maximum": 27,
+            "peak_abs": 27,
+            "rms": 27.0
+          },
+          "rotor_c": {
+            "mean": 25.0,
+            "minimum": 25,
+            "maximum": 25,
+            "peak_abs": 25,
+            "rms": 25.0
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 27,
+              "last_c": 27,
+              "observed_span_s": 4.313368766997883,
+              "change_c": 0
+            },
+            "rotor_c": {
+              "first_c": 25,
+              "last_c": 25,
+              "observed_span_s": 4.313368766997883,
+              "change_c": 0
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 0.10910470488934798,
+            "minimum": 0.02332900112378411,
+            "maximum": 10.987614001351176,
+            "peak_abs": 10.987614001351176,
+            "rms": 0.8176006373820436
+          }
+        },
+        "4": {
+          "samples": 183,
+          "observed_span_s": 4.313360263000504,
+          "max_sample_gap_s": 0.039794748001440894,
+          "velocity_deg_s": {
+            "mean": -0.6078369720178499,
+            "minimum": -5.456720090193227,
+            "maximum": 4.617207878928619,
+            "peak_abs": 5.456720090193227,
+            "rms": 1.7328998854020379
+          },
+          "absolute_speed_deg_s": {
+            "mean": 1.208796876627449,
+            "minimum": 0.41975610563230364,
+            "maximum": 5.456720090193227,
+            "peak_abs": 5.456720090193227,
+            "rms": 1.7328998854020379
+          },
+          "torque_feedback_nm": {
+            "mean": -0.7759529332645604,
+            "minimum": -1.480463981628418,
+            "maximum": 0.009157180786132812,
+            "peak_abs": 1.480463981628418,
+            "rms": 0.8637456558561343
+          },
+          "command_error_deg": {
+            "mean": -0.06005094415569236,
+            "minimum": -0.8440912244946096,
+            "maximum": 0.14346770728692634,
+            "peak_abs": 0.8440912244946096,
+            "rms": 0.23248620271047346
+          },
+          "target_span_deg": 0.7394444067876975,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 26.0,
+            "minimum": 26,
+            "maximum": 26,
+            "peak_abs": 26,
+            "rms": 26.0
+          },
+          "rotor_c": {
+            "mean": 25.0,
+            "minimum": 25,
+            "maximum": 25,
+            "peak_abs": 25,
+            "rms": 25.0
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 26,
+              "last_c": 26,
+              "observed_span_s": 4.313360263000504,
+              "change_c": 0
+            },
+            "rotor_c": {
+              "first_c": 25,
+              "last_c": 25,
+              "observed_span_s": 4.313360263000504,
+              "change_c": 0
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 0.10214472668772802,
+            "minimum": 0.01902299845824018,
+            "maximum": 10.9733880017302,
+            "peak_abs": 10.9733880017302,
+            "rms": 0.8159708400780921
+          }
+        },
+        "5": {
+          "samples": 183,
+          "observed_span_s": 4.31335344299805,
+          "max_sample_gap_s": 0.039787027999409474,
+          "velocity_deg_s": {
+            "mean": 4.7227513957399605,
+            "minimum": -0.41975610563230364,
+            "maximum": 19.72820911563811,
+            "peak_abs": 19.72820911563811,
+            "rms": 6.885797288479968
+          },
+          "absolute_speed_deg_s": {
+            "mean": 4.979651307383775,
+            "minimum": 0.41975610563230364,
+            "maximum": 19.72820911563811,
+            "peak_abs": 19.72820911563811,
+            "rms": 6.885797288479968
+          },
+          "torque_feedback_nm": {
+            "mean": 3.8414332749413664,
+            "minimum": -0.009157180786132812,
+            "maximum": 5.967643737792969,
+            "peak_abs": 5.967643737792969,
+            "rms": 4.412440027761741
+          },
+          "command_error_deg": {
+            "mean": 1.3476951611682866,
+            "minimum": -0.0996149270633559,
+            "maximum": 3.778116687360405,
+            "peak_abs": 3.778116687360405,
+            "rms": 1.8397325016483215
+          },
+          "target_span_deg": 21.648035239337403,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 27.0,
+            "minimum": 27,
+            "maximum": 27,
+            "peak_abs": 27,
+            "rms": 27.0
+          },
+          "rotor_c": {
+            "mean": 26.628415300546447,
+            "minimum": 26,
+            "maximum": 29,
+            "peak_abs": 29,
+            "rms": 26.646132804642082
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 27,
+              "last_c": 27,
+              "observed_span_s": 4.31335344299805,
+              "change_c": 0
+            },
+            "rotor_c": {
+              "first_c": 26,
+              "last_c": 29,
+              "observed_span_s": 4.31335344299805,
+              "change_c": 3
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 0.2652129944739291,
+            "minimum": 0.015208999684546143,
+            "maximum": 10.96131200029049,
+            "peak_abs": 10.96131200029049,
+            "rms": 1.0085980408895963
+          }
+        },
+        "6": {
+          "samples": 183,
+          "observed_span_s": 4.313347667997732,
+          "max_sample_gap_s": 0.039781468996807234,
+          "velocity_deg_s": {
+            "mean": -10.626769900174029,
+            "minimum": -32.32067371855378,
+            "maximum": -0.41975610563230364,
+            "peak_abs": 32.32067371855378,
+            "rms": 14.534147878853613
+          },
+          "absolute_speed_deg_s": {
+            "mean": 10.626769900174029,
+            "minimum": 0.41975610563230364,
+            "maximum": 32.32067371855378,
+            "peak_abs": 32.32067371855378,
+            "rms": 14.534147878853613
+          },
+          "torque_feedback_nm": {
+            "mean": -1.003139297818877,
+            "minimum": -1.7429790496826172,
+            "maximum": 0.0030527114868164062,
+            "peak_abs": 1.7429790496826172,
+            "rms": 1.0809003538675959
+          },
+          "command_error_deg": {
+            "mean": -2.310070220044758,
+            "minimum": -5.61305389886622,
+            "maximum": 0.07504160163356294,
+            "peak_abs": 5.61305389886622,
+            "rms": 3.107280823519529
+          },
+          "target_span_deg": 46.10867582999833,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 27.0,
+            "minimum": 27,
+            "maximum": 27,
+            "peak_abs": 27,
+            "rms": 27.0
+          },
+          "rotor_c": {
+            "mean": 24.0,
+            "minimum": 24,
+            "maximum": 24,
+            "peak_abs": 24,
+            "rms": 24.0
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 27,
+              "last_c": 27,
+              "observed_span_s": 4.313347667997732,
+              "change_c": 0
+            },
+            "rotor_c": {
+              "first_c": 24,
+              "last_c": 24,
+              "observed_span_s": 4.313347667997732,
+              "change_c": 0
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 0.40700356274619925,
+            "minimum": 0.01115899794967845,
+            "maximum": 10.950943000352709,
+            "peak_abs": 10.950943000352709,
+            "rms": 1.1464439258841148
+          }
+        }
+      },
+      "minimum_axis_span_s": 4.313347667997732,
+      "all_axes_within_025_deg": false
+    },
+    {
+      "attempt": 1,
+      "state": "approach",
+      "endpoint_hold": false,
+      "rejected": 0,
+      "duplicates": 0,
+      "joints": {
+        "1": {
+          "samples": 319,
+          "observed_span_s": 7.285860298001353,
+          "max_sample_gap_s": 0.03974688399830484,
+          "velocity_deg_s": {
+            "mean": -0.6849510683200899,
+            "minimum": -6.925921101419649,
+            "maximum": 1.8888478338320063,
+            "peak_abs": 6.925921101419649,
+            "rms": 0.8628243554700885
+          },
+          "absolute_speed_deg_s": {
+            "mean": 0.7007412666510857,
+            "minimum": 0.6296887999618155,
+            "maximum": 6.925921101419649,
+            "peak_abs": 6.925921101419649,
+            "rms": 0.8628243554700885
+          },
+          "torque_feedback_nm": {
+            "mean": -0.4792309823828431,
+            "minimum": -0.9362640380859375,
+            "maximum": 0.3560447692871094,
+            "peak_abs": 0.9362640380859375,
+            "rms": 0.6200122922128581
+          },
+          "command_error_deg": {
+            "mean": -0.009845080382126923,
+            "minimum": -0.13968280268066222,
+            "maximum": 0.09515504340998769,
+            "peak_abs": 0.13968280268066222,
+            "rms": 0.04358350523085784
+          },
+          "target_span_deg": 0.40434719886476955,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 26.0,
+            "minimum": 26,
+            "maximum": 26,
+            "peak_abs": 26,
+            "rms": 26.0
+          },
+          "rotor_c": {
+            "mean": 25.0,
+            "minimum": 25,
+            "maximum": 25,
+            "peak_abs": 25,
+            "rms": 25.0
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 26,
+              "last_c": 26,
+              "observed_span_s": 7.285860298001353,
+              "change_c": 0
+            },
+            "rotor_c": {
+              "first_c": 25,
+              "last_c": 25,
+              "observed_span_s": 7.285860298001353,
+              "change_c": 0
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 0.08720673053458969,
+            "minimum": 0.04129500302951783,
+            "maximum": 1.0610290007898584,
+            "peak_abs": 1.0610290007898584,
+            "rms": 0.12728397299959635
+          }
+        },
+        "2": {
+          "samples": 319,
+          "observed_span_s": 7.285862567001459,
+          "max_sample_gap_s": 0.039749720999679994,
+          "velocity_deg_s": {
+            "mean": 0.8337966061931342,
+            "minimum": -5.456720090193227,
+            "maximum": 11.6130701174492,
+            "peak_abs": 11.6130701174492,
+            "rms": 3.4390975367750767
+          },
+          "absolute_speed_deg_s": {
+            "mean": 2.5303398858396458,
+            "minimum": 0.13993691571522124,
+            "maximum": 11.6130701174492,
+            "peak_abs": 11.6130701174492,
+            "rms": 3.4390975367750767
+          },
+          "torque_feedback_nm": {
+            "mean": -2.512889300020511,
+            "minimum": -6.652015686035156,
+            "maximum": 0.4395599365234375,
+            "peak_abs": 6.652015686035156,
+            "rms": 3.4352454727287585
+          },
+          "command_error_deg": {
+            "mean": 0.705932245248854,
+            "minimum": -2.7341750031461185,
+            "maximum": 6.5204382552354705,
+            "peak_abs": 6.5204382552354705,
+            "rms": 2.646250801363725
+          },
+          "target_span_deg": 13.13866398240387,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 27.0,
+            "minimum": 27,
+            "maximum": 27,
+            "peak_abs": 27,
+            "rms": 27.0
+          },
+          "rotor_c": {
+            "mean": 25.0,
+            "minimum": 25,
+            "maximum": 25,
+            "peak_abs": 25,
+            "rms": 25.0
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 27,
+              "last_c": 27,
+              "observed_span_s": 7.285862567001459,
+              "change_c": 0
+            },
+            "rotor_c": {
+              "first_c": 25,
+              "last_c": 25,
+              "observed_span_s": 7.285862567001459,
+              "change_c": 0
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 0.05472546711025415,
+            "minimum": 0.02851899989764206,
+            "maximum": 0.22987400006968528,
+            "peak_abs": 0.22987400006968528,
+            "rms": 0.06486829164964435
+          }
+        },
+        "3": {
+          "samples": 319,
+          "observed_span_s": 7.285862863998773,
+          "max_sample_gap_s": 0.0397503450003569,
+          "velocity_deg_s": {
+            "mean": -0.04167383182267291,
+            "minimum": -1.8189066967310756,
+            "maximum": 2.658418907995683,
+            "peak_abs": 2.658418907995683,
+            "rms": 0.4803001348838538
+          },
+          "absolute_speed_deg_s": {
+            "mean": 0.32502348014685584,
+            "minimum": 0.13993691571522124,
+            "maximum": 2.658418907995683,
+            "peak_abs": 2.658418907995683,
+            "rms": 0.4803001348838538
+          },
+          "torque_feedback_nm": {
+            "mean": 4.398268122658087,
+            "minimum": 2.998779296875,
+            "maximum": 6.534797668457031,
+            "peak_abs": 6.534797668457031,
+            "rms": 4.4915592484240126
+          },
+          "command_error_deg": {
+            "mean": 0.099501089297727,
+            "minimum": -0.4504153099813983,
+            "maximum": 0.6065181473569918,
+            "peak_abs": 0.6065181473569918,
+            "rms": 0.305669631531134
+          },
+          "target_span_deg": 1.5375841612869436,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 27.0,
+            "minimum": 27,
+            "maximum": 27,
+            "peak_abs": 27,
+            "rms": 27.0
+          },
+          "rotor_c": {
+            "mean": 25.25705329153605,
+            "minimum": 25,
+            "maximum": 26,
+            "peak_abs": 26,
+            "rms": 25.260833673264596
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 27,
+              "last_c": 27,
+              "observed_span_s": 7.285862863998773,
+              "change_c": 0
+            },
+            "rotor_c": {
+              "first_c": 25,
+              "last_c": 26,
+              "observed_span_s": 7.285862863998773,
+              "change_c": 1
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 0.057697921610078966,
+            "minimum": 0.02277100065839477,
+            "maximum": 1.1038959999277722,
+            "peak_abs": 1.1038959999277722,
+            "rms": 0.1295959165623311
+          }
+        },
+        "4": {
+          "samples": 319,
+          "observed_span_s": 7.285863626999344,
+          "max_sample_gap_s": 0.03974768699845299,
+          "velocity_deg_s": {
+            "mean": -0.5539700508055989,
+            "minimum": -10.49368407475415,
+            "maximum": 4.617207878928619,
+            "peak_abs": 10.49368407475415,
+            "rms": 1.3973039540558827
+          },
+          "absolute_speed_deg_s": {
+            "mean": 0.8197703523906098,
+            "minimum": 0.41975610563230364,
+            "maximum": 10.49368407475415,
+            "peak_abs": 10.49368407475415,
+            "rms": 1.3973039540558827
+          },
+          "torque_feedback_nm": {
+            "mean": -0.5510102813146704,
+            "minimum": -1.0286931991577148,
+            "maximum": -0.2960929870605469,
+            "peak_abs": 1.0286931991577148,
+            "rms": 0.5905671923495975
+          },
+          "command_error_deg": {
+            "mean": 0.0015308005429139722,
+            "minimum": -0.24966433671744082,
+            "maximum": 0.2248618560986788,
+            "peak_abs": 0.24966433671744082,
+            "rms": 0.09591367154507241
+          },
+          "target_span_deg": 0.8370348940882479,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 26.0,
+            "minimum": 26,
+            "maximum": 26,
+            "peak_abs": 26,
+            "rms": 26.0
+          },
+          "rotor_c": {
+            "mean": 25.0,
+            "minimum": 25,
+            "maximum": 25,
+            "peak_abs": 25,
+            "rms": 25.0
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 26,
+              "last_c": 26,
+              "observed_span_s": 7.285863626999344,
+              "change_c": 0
+            },
+            "rotor_c": {
+              "first_c": 25,
+              "last_c": 25,
+              "observed_span_s": 7.285863626999344,
+              "change_c": 0
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 0.0441436269131692,
+            "minimum": 0.018413000361761078,
+            "maximum": 1.045643999328604,
+            "peak_abs": 1.045643999328604,
+            "rms": 0.09443186195341408
+          }
+        },
+        "5": {
+          "samples": 319,
+          "observed_span_s": 7.285863455002982,
+          "max_sample_gap_s": 0.039748428000166314,
+          "velocity_deg_s": {
+            "mean": 2.490860964211946,
+            "minimum": -8.814768935251657,
+            "maximum": 30.641649296024564,
+            "peak_abs": 30.641649296024564,
+            "rms": 7.105019563454134
+          },
+          "absolute_speed_deg_s": {
+            "mean": 4.572510093259993,
+            "minimum": 0.41975610563230364,
+            "maximum": 30.641649296024564,
+            "peak_abs": 30.641649296024564,
+            "rms": 7.105019563454134
+          },
+          "torque_feedback_nm": {
+            "mean": 5.1463000378264905,
+            "minimum": 3.0616607666015625,
+            "maximum": 6.260683059692383,
+            "peak_abs": 6.260683059692383,
+            "rms": 5.217127138525185
+          },
+          "command_error_deg": {
+            "mean": 0.6661419677323791,
+            "minimum": -1.5598908513897878,
+            "maximum": 3.583820614386991,
+            "peak_abs": 3.583820614386991,
+            "rms": 1.5577326066078825
+          },
+          "target_span_deg": 27.405247133764586,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 27.0,
+            "minimum": 27,
+            "maximum": 27,
+            "peak_abs": 27,
+            "rms": 27.0
+          },
+          "rotor_c": {
+            "mean": 35.689655172413794,
+            "minimum": 29,
+            "maximum": 40,
+            "peak_abs": 40,
+            "rms": 35.83876292367925
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 27,
+              "last_c": 27,
+              "observed_span_s": 7.285863455002982,
+              "change_c": 0
+            },
+            "rotor_c": {
+              "first_c": 29,
+              "last_c": 40,
+              "observed_span_s": 7.285863455002982,
+              "change_c": 11
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 0.09688247022790861,
+            "minimum": 0.014222001482266933,
+            "maximum": 2.0406950020988006,
+            "peak_abs": 2.0406950020988006,
+            "rms": 0.3649590879880892
+          }
+        },
+        "6": {
+          "samples": 319,
+          "observed_span_s": 7.285863026998413,
+          "max_sample_gap_s": 0.039748776998749236,
+          "velocity_deg_s": {
+            "mean": -6.304138363184006,
+            "minimum": -40.71568654817313,
+            "maximum": -0.41975610563230364,
+            "peak_abs": 40.71568654817313,
+            "rms": 11.371177483233476
+          },
+          "absolute_speed_deg_s": {
+            "mean": 6.304138363184006,
+            "minimum": 0.41975610563230364,
+            "maximum": 40.71568654817313,
+            "peak_abs": 40.71568654817313,
+            "rms": 11.371177483233476
+          },
+          "torque_feedback_nm": {
+            "mean": -0.3068099933731892,
+            "minimum": -1.0836381912231445,
+            "maximum": -0.015262603759765625,
+            "peak_abs": 1.0836381912231445,
+            "rms": 0.4569444813713751
+          },
+          "command_error_deg": {
+            "mean": -1.3220337670536622,
+            "minimum": -6.0297165317570425,
+            "maximum": 0.10108294525867317,
+            "peak_abs": 6.0297165317570425,
+            "rms": 2.423000363864313
+          },
+          "target_span_deg": 46.10867582999838,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 27.0,
+            "minimum": 27,
+            "maximum": 27,
+            "peak_abs": 27,
+            "rms": 27.0
+          },
+          "rotor_c": {
+            "mean": 24.0,
+            "minimum": 24,
+            "maximum": 24,
+            "peak_abs": 24,
+            "rms": 24.0
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 27,
+              "last_c": 27,
+              "observed_span_s": 7.285863026998413,
+              "change_c": 0
+            },
+            "rotor_c": {
+              "first_c": 24,
+              "last_c": 24,
+              "observed_span_s": 7.285863026998413,
+              "change_c": 0
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 0.41727678371813415,
+            "minimum": 0.01079600042430684,
+            "maximum": 2.184770000487333,
+            "peak_abs": 2.184770000487333,
+            "rms": 0.8968918033622323
+          }
+        }
+      },
+      "minimum_axis_span_s": 7.285860298001353,
+      "all_axes_within_025_deg": false
+    },
+    {
+      "attempt": 1,
+      "state": "ready",
+      "endpoint_hold": true,
+      "rejected": 0,
+      "duplicates": 0,
+      "joints": {
+        "1": {
+          "samples": 281,
+          "observed_span_s": 5.62849282499883,
+          "max_sample_gap_s": 0.025224839002476074,
+          "velocity_deg_s": {
+            "mean": -0.513169759023974,
+            "minimum": -9.444457735213472,
+            "maximum": 13.222153402877483,
+            "peak_abs": 13.222153402877483,
+            "rms": 1.4258386442972801
+          },
+          "absolute_speed_deg_s": {
+            "mean": 0.8179021733189316,
+            "minimum": 0.6296887999618155,
+            "maximum": 13.222153402877483,
+            "peak_abs": 13.222153402877483,
+            "rms": 1.4258386442972801
+          },
+          "torque_feedback_nm": {
+            "mean": -0.0979390670396255,
+            "minimum": -0.9098892211914062,
+            "maximum": 3.626373291015625,
+            "peak_abs": 3.626373291015625,
+            "rms": 1.1628158694450923
+          },
+          "command_error_deg": {
+            "mean": 0.04690225274895589,
+            "minimum": -0.5027019229129385,
+            "maximum": 0.28413586947253044,
+            "peak_abs": 0.5027019229129385,
+            "rms": 0.1017091071262538
+          },
+          "target_span_deg": 0.0,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 26.0,
+            "minimum": 26,
+            "maximum": 26,
+            "peak_abs": 26,
+            "rms": 26.0
+          },
+          "rotor_c": {
+            "mean": 25.0,
+            "minimum": 25,
+            "maximum": 25,
+            "peak_abs": 25,
+            "rms": 25.0
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 26,
+              "last_c": 26,
+              "observed_span_s": 5.62849282499883,
+              "change_c": 0
+            },
+            "rotor_c": {
+              "first_c": 25,
+              "last_c": 25,
+              "observed_span_s": 5.62849282499883,
+              "change_c": 0
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 0.4977314343070694,
+            "minimum": 0.09886399857350625,
+            "maximum": 1.0368069997639395,
+            "peak_abs": 1.0368069997639395,
+            "rms": 0.5173124291297434
+          }
+        },
+        "2": {
+          "samples": 281,
+          "observed_span_s": 5.6285207490000175,
+          "max_sample_gap_s": 0.025195796002662973,
+          "velocity_deg_s": {
+            "mean": -0.2952872106350279,
+            "minimum": -12.172708497283365,
+            "maximum": -0.13993691571522124,
+            "peak_abs": 12.172708497283365,
+            "rms": 1.1493357940852564
+          },
+          "absolute_speed_deg_s": {
+            "mean": 0.2952872106350279,
+            "minimum": 0.13993691571522124,
+            "maximum": 12.172708497283365,
+            "peak_abs": 12.172708497283365,
+            "rms": 1.1493357940852564
+          },
+          "torque_feedback_nm": {
+            "mean": -6.241757647422709,
+            "minimum": -7.335773468017578,
+            "maximum": 6.593406677246094,
+            "peak_abs": 7.335773468017578,
+            "rms": 6.368853117733474
+          },
+          "command_error_deg": {
+            "mean": -0.012373494351157643,
+            "minimum": -0.22020569890374492,
+            "maximum": 0.8289113576102136,
+            "peak_abs": 0.8289113576102136,
+            "rms": 0.09738228403344522
+          },
+          "target_span_deg": 0.0,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 27.0,
+            "minimum": 27,
+            "maximum": 27,
+            "peak_abs": 27,
+            "rms": 27.0
+          },
+          "rotor_c": {
+            "mean": 25.548042704626333,
+            "minimum": 25,
+            "maximum": 26,
+            "peak_abs": 26,
+            "rms": 25.552889815751623
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 27,
+              "last_c": 27,
+              "observed_span_s": 5.6285207490000175,
+              "change_c": 0
+            },
+            "rotor_c": {
+              "first_c": 25,
+              "last_c": 26,
+              "observed_span_s": 5.6285207490000175,
+              "change_c": 1
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 0.4497095017984561,
+            "minimum": 0.08389899812755175,
+            "maximum": 0.9541149993310682,
+            "peak_abs": 0.9541149993310682,
+            "rms": 0.46743145750582415
+          }
+        },
+        "3": {
+          "samples": 281,
+          "observed_span_s": 5.62853722899672,
+          "max_sample_gap_s": 0.025190629999997327,
+          "velocity_deg_s": {
+            "mean": -0.05130624205350959,
+            "minimum": -0.13993691571522124,
+            "maximum": 9.094588125168737,
+            "peak_abs": 9.094588125168737,
+            "rms": 0.810323377334709
+          },
+          "absolute_speed_deg_s": {
+            "mean": 0.22458362024625042,
+            "minimum": 0.13993691571522124,
+            "maximum": 9.094588125168737,
+            "peak_abs": 9.094588125168737,
+            "rms": 0.810323377334709
+          },
+          "torque_feedback_nm": {
+            "mean": 4.662399997914813,
+            "minimum": -2.1391944885253906,
+            "maximum": 4.874237060546875,
+            "peak_abs": 4.874237060546875,
+            "rms": 4.690053258179801
+          },
+          "command_error_deg": {
+            "mean": -0.013606925297888784,
+            "minimum": -0.470728881194429,
+            "maximum": 0.010116436374468673,
+            "peak_abs": 0.470728881194429,
+            "rms": 0.03620069192232007
+          },
+          "target_span_deg": 0.0,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 27.0,
+            "minimum": 27,
+            "maximum": 27,
+            "peak_abs": 27,
+            "rms": 27.0
+          },
+          "rotor_c": {
+            "mean": 26.0,
+            "minimum": 26,
+            "maximum": 26,
+            "peak_abs": 26,
+            "rms": 26.0
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 27,
+              "last_c": 27,
+              "observed_span_s": 5.62853722899672,
+              "change_c": 0
+            },
+            "rotor_c": {
+              "first_c": 26,
+              "last_c": 26,
+              "observed_span_s": 5.62853722899672,
+              "change_c": 0
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 0.43348185780648313,
+            "minimum": 0.07673999789403751,
+            "maximum": 1.4588010015140753,
+            "peak_abs": 1.4588010015140753,
+            "rms": 0.45482626108238566
+          }
+        },
+        "4": {
+          "samples": 281,
+          "observed_span_s": 5.628550348003046,
+          "max_sample_gap_s": 0.025187977000314277,
+          "velocity_deg_s": {
+            "mean": -0.41079373071854175,
+            "minimum": -14.691245131077187,
+            "maximum": 7.975256723987049,
+            "peak_abs": 14.691245131077187,
+            "rms": 1.2809745324977961
+          },
+          "absolute_speed_deg_s": {
+            "mean": 0.5960218495806248,
+            "minimum": 0.41975610563230364,
+            "maximum": 14.691245131077187,
+            "peak_abs": 14.691245131077187,
+            "rms": 1.2809745324977961
+          },
+          "torque_feedback_nm": {
+            "mean": -0.3601410685909176,
+            "minimum": -0.7783880233764648,
+            "maximum": -0.05189228057861328,
+            "peak_abs": 0.7783880233764648,
+            "rms": 0.36979218359893934
+          },
+          "command_error_deg": {
+            "mean": 0.022114725149389964,
+            "minimum": -0.6701944158458076,
+            "maximum": 0.20412443942918454,
+            "peak_abs": 0.6701944158458076,
+            "rms": 0.08506219574503783
+          },
+          "target_span_deg": 0.0,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 26.0,
+            "minimum": 26,
+            "maximum": 26,
+            "peak_abs": 26,
+            "rms": 26.0
+          },
+          "rotor_c": {
+            "mean": 25.0,
+            "minimum": 25,
+            "maximum": 25,
+            "peak_abs": 25,
+            "rms": 25.0
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 26,
+              "last_c": 26,
+              "observed_span_s": 5.628550348003046,
+              "change_c": 0
+            },
+            "rotor_c": {
+              "first_c": 25,
+              "last_c": 25,
+              "observed_span_s": 5.628550348003046,
+              "change_c": 0
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 0.4145935837766056,
+            "minimum": 0.0719720010238234,
+            "maximum": 0.8987100009107962,
+            "peak_abs": 0.8987100009107962,
+            "rms": 0.43153500159647884
+          }
+        },
+        "5": {
+          "samples": 281,
+          "observed_span_s": 5.628562957997929,
+          "max_sample_gap_s": 0.025184887999785133,
+          "velocity_deg_s": {
+            "mean": 0.19567650959469868,
+            "minimum": -2.098780528161518,
+            "maximum": 51.629126728559584,
+            "peak_abs": 51.629126728559584,
+            "rms": 5.245354141915064
+          },
+          "absolute_speed_deg_s": {
+            "mean": 1.0620770123232968,
+            "minimum": 0.41975610563230364,
+            "maximum": 51.629126728559584,
+            "peak_abs": 51.629126728559584,
+            "rms": 5.245354141915064
+          },
+          "torque_feedback_nm": {
+            "mean": 6.215645813857109,
+            "minimum": 1.5170936584472656,
+            "maximum": 6.645299911499023,
+            "peak_abs": 6.645299911499023,
+            "rms": 6.234465814485675
+          },
+          "command_error_deg": {
+            "mean": -0.02235546983384598,
+            "minimum": -4.199043273599539,
+            "maximum": 0.2379022527541041,
+            "peak_abs": 4.199043273599539,
+            "rms": 0.4358092290487283
+          },
+          "target_span_deg": 0.0,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 27.81138790035587,
+            "minimum": 27,
+            "maximum": 28,
+            "peak_abs": 28,
+            "rms": 27.814139111602447
+          },
+          "rotor_c": {
+            "mean": 42.903914590747334,
+            "minimum": 40,
+            "maximum": 46,
+            "peak_abs": 46,
+            "rms": 42.9415724873558
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 27,
+              "last_c": 28,
+              "observed_span_s": 5.628562957997929,
+              "change_c": 1
+            },
+            "rotor_c": {
+              "first_c": 40,
+              "last_c": 46,
+              "observed_span_s": 5.628562957997929,
+              "change_c": 6
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 0.5342071388657138,
+            "minimum": 0.06770799882360734,
+            "maximum": 2.6418679986381903,
+            "peak_abs": 2.6418679986381903,
+            "rms": 0.726798210107306
+          }
+        },
+        "6": {
+          "samples": 281,
+          "observed_span_s": 5.62857466299829,
+          "max_sample_gap_s": 0.025186130002111895,
+          "velocity_deg_s": {
+            "mean": -0.4346940453345209,
+            "minimum": -7.135744512722441,
+            "maximum": 3.7776956676640125,
+            "peak_abs": 7.135744512722441,
+            "rms": 0.7398567091738391
+          },
+          "absolute_speed_deg_s": {
+            "mean": 0.5034077901495833,
+            "minimum": 0.41975610563230364,
+            "maximum": 7.135744512722441,
+            "peak_abs": 7.135744512722441,
+            "rms": 0.7398567091738391
+          },
+          "torque_feedback_nm": {
+            "mean": -0.10053705235817255,
+            "minimum": -0.33272266387939453,
+            "maximum": -0.0641021728515625,
+            "peak_abs": 0.33272266387939453,
+            "rms": 0.10368101766808305
+          },
+          "command_error_deg": {
+            "mean": -0.013958009083738104,
+            "minimum": -0.26519229826968754,
+            "maximum": 0.018943571202842895,
+            "peak_abs": 0.26519229826968754,
+            "rms": 0.029353927085988413
+          },
+          "target_span_deg": 0.0,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 27.0,
+            "minimum": 27,
+            "maximum": 27,
+            "peak_abs": 27,
+            "rms": 27.0
+          },
+          "rotor_c": {
+            "mean": 24.0,
+            "minimum": 24,
+            "maximum": 24,
+            "peak_abs": 24,
+            "rms": 24.0
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 27,
+              "last_c": 27,
+              "observed_span_s": 5.62857466299829,
+              "change_c": 0
+            },
+            "rotor_c": {
+              "first_c": 24,
+              "last_c": 24,
+              "observed_span_s": 5.62857466299829,
+              "change_c": 0
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 1.4776146619657744,
+            "minimum": 0.0636529985058587,
+            "maximum": 2.8534830012649763,
+            "peak_abs": 2.8534830012649763,
+            "rms": 1.7864608987159374
+          }
+        }
+      },
+      "minimum_axis_span_s": 5.62849282499883,
+      "all_axes_within_025_deg": false
+    },
+    {
+      "attempt": 2,
+      "state": "verifying_hold",
+      "endpoint_hold": false,
+      "rejected": 0,
+      "duplicates": 0,
+      "joints": {
+        "1": {
+          "samples": 10,
+          "observed_span_s": 0.18129583500194713,
+          "max_sample_gap_s": 0.022047914000722812,
+          "velocity_deg_s": {
+            "mean": -0.6296887999618155,
+            "minimum": -0.6296887999618155,
+            "maximum": -0.6296887999618155,
+            "peak_abs": 0.6296887999618155,
+            "rms": 0.6296887999618155
+          },
+          "absolute_speed_deg_s": {
+            "mean": 0.6296887999618155,
+            "minimum": 0.6296887999618155,
+            "maximum": 0.6296887999618155,
+            "peak_abs": 0.6296887999618155,
+            "rms": 0.6296887999618155
+          },
+          "torque_feedback_nm": {
+            "mean": -0.013187408447265625,
+            "minimum": -0.013187408447265625,
+            "maximum": -0.013187408447265625,
+            "peak_abs": 0.013187408447265625,
+            "rms": 0.013187408447265625
+          },
+          "command_error_deg": {
+            "mean": 0.0,
+            "minimum": 0.0,
+            "maximum": 0.0,
+            "peak_abs": 0.0,
+            "rms": 0.0
+          },
+          "target_span_deg": 0.0,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 26.0,
+            "minimum": 26,
+            "maximum": 26,
+            "peak_abs": 26,
+            "rms": 26.0
+          },
+          "rotor_c": {
+            "mean": 25.0,
+            "minimum": 25,
+            "maximum": 25,
+            "peak_abs": 25,
+            "rms": 25.0
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 26,
+              "last_c": 26,
+              "observed_span_s": 0.18129583500194713,
+              "change_c": 0
+            },
+            "rotor_c": {
+              "first_c": 25,
+              "last_c": 25,
+              "observed_span_s": 0.18129583500194713,
+              "change_c": 0
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 9.44602079980541,
+            "minimum": 7.665193999855546,
+            "maximum": 11.628264001046773,
+            "peak_abs": 11.628264001046773,
+            "rms": 9.510753839170478
+          }
+        },
+        "2": {
+          "samples": 10,
+          "observed_span_s": 0.1813026700001501,
+          "max_sample_gap_s": 0.02205609500015271,
+          "velocity_deg_s": {
+            "mean": -0.13993691571522124,
+            "minimum": -0.13993691571522124,
+            "maximum": -0.13993691571522124,
+            "peak_abs": 0.13993691571522124,
+            "rms": 0.13993691571522124
+          },
+          "absolute_speed_deg_s": {
+            "mean": 0.13993691571522124,
+            "minimum": 0.13993691571522124,
+            "maximum": 0.13993691571522124,
+            "peak_abs": 0.13993691571522124,
+            "rms": 0.13993691571522124
+          },
+          "torque_feedback_nm": {
+            "mean": 0.027350997924804686,
+            "minimum": 0.009769439697265625,
+            "maximum": 0.048839569091796875,
+            "peak_abs": 0.048839569091796875,
+            "rms": 0.029304377245956154
+          },
+          "command_error_deg": {
+            "mean": 0.0,
+            "minimum": 0.0,
+            "maximum": 0.0,
+            "peak_abs": 0.0,
+            "rms": 0.0
+          },
+          "target_span_deg": 0.0,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 27.0,
+            "minimum": 27,
+            "maximum": 27,
+            "peak_abs": 27,
+            "rms": 27.0
+          },
+          "rotor_c": {
+            "mean": 25.0,
+            "minimum": 25,
+            "maximum": 25,
+            "peak_abs": 25,
+            "rms": 25.0
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 27,
+              "last_c": 27,
+              "observed_span_s": 0.1813026700001501,
+              "change_c": 0
+            },
+            "rotor_c": {
+              "first_c": 25,
+              "last_c": 25,
+              "observed_span_s": 0.1813026700001501,
+              "change_c": 0
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 9.40891370009922,
+            "minimum": 7.635219000803772,
+            "maximum": 11.596755000937264,
+            "peak_abs": 11.596755000937264,
+            "rms": 9.473754309916675
+          }
+        },
+        "3": {
+          "samples": 10,
+          "observed_span_s": 0.18130181999731576,
+          "max_sample_gap_s": 0.02206023699909565,
+          "velocity_deg_s": {
+            "mean": -0.13993691571522124,
+            "minimum": -0.13993691571522124,
+            "maximum": -0.13993691571522124,
+            "peak_abs": 0.13993691571522124,
+            "rms": 0.13993691571522124
+          },
+          "absolute_speed_deg_s": {
+            "mean": 0.13993691571522124,
+            "minimum": 0.13993691571522124,
+            "maximum": 0.13993691571522124,
+            "peak_abs": 0.13993691571522124,
+            "rms": 0.13993691571522124
+          },
+          "torque_feedback_nm": {
+            "mean": -0.027350997924804686,
+            "minimum": -0.02930450439453125,
+            "maximum": -0.009769439697265625,
+            "peak_abs": 0.02930450439453125,
+            "rms": 0.027971821092450205
+          },
+          "command_error_deg": {
+            "mean": 0.0,
+            "minimum": 0.0,
+            "maximum": 0.0,
+            "peak_abs": 0.0,
+            "rms": 0.0
+          },
+          "target_span_deg": 0.0,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 27.0,
+            "minimum": 27,
+            "maximum": 27,
+            "peak_abs": 27,
+            "rms": 27.0
+          },
+          "rotor_c": {
+            "mean": 25.0,
+            "minimum": 25,
+            "maximum": 25,
+            "peak_abs": 25,
+            "rms": 25.0
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 27,
+              "last_c": 27,
+              "observed_span_s": 0.18130181999731576,
+              "change_c": 0
+            },
+            "rotor_c": {
+              "first_c": 25,
+              "last_c": 25,
+              "observed_span_s": 0.18130181999731576,
+              "change_c": 0
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 9.392169499551528,
+            "minimum": 7.620824999321485,
+            "maximum": 11.57781499932753,
+            "peak_abs": 11.57781499932753,
+            "rms": 9.456985854509007
+          }
+        },
+        "4": {
+          "samples": 10,
+          "observed_span_s": 0.18130021300021326,
+          "max_sample_gap_s": 0.022062342999561224,
+          "velocity_deg_s": {
+            "mean": -0.41975610563230364,
+            "minimum": -0.41975610563230364,
+            "maximum": -0.41975610563230364,
+            "peak_abs": 0.41975610563230364,
+            "rms": 0.41975610563230364
+          },
+          "absolute_speed_deg_s": {
+            "mean": 0.41975610563230364,
+            "minimum": 0.41975610563230364,
+            "maximum": 0.41975610563230364,
+            "peak_abs": 0.41975610563230364,
+            "rms": 0.41975610563230364
+          },
+          "torque_feedback_nm": {
+            "mean": -0.004273605346679687,
+            "minimum": -0.009157180786132812,
+            "maximum": -0.0030527114868164062,
+            "peak_abs": 0.009157180786132812,
+            "rms": 0.004921994507044543
+          },
+          "command_error_deg": {
+            "mean": 0.0,
+            "minimum": 0.0,
+            "maximum": 0.0,
+            "peak_abs": 0.0,
+            "rms": 0.0
+          },
+          "target_span_deg": 0.0,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 26.0,
+            "minimum": 26,
+            "maximum": 26,
+            "peak_abs": 26,
+            "rms": 26.0
+          },
+          "rotor_c": {
+            "mean": 25.0,
+            "minimum": 25,
+            "maximum": 25,
+            "peak_abs": 25,
+            "rms": 25.0
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 26,
+              "last_c": 26,
+              "observed_span_s": 0.18130021300021326,
+              "change_c": 0
+            },
+            "rotor_c": {
+              "first_c": 25,
+              "last_c": 25,
+              "observed_span_s": 0.18130021300021326,
+              "change_c": 0
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 9.37939569921582,
+            "minimum": 7.610713000758551,
+            "maximum": 11.563365998881636,
+            "peak_abs": 11.563365998881636,
+            "rms": 9.444174535524999
+          }
+        },
+        "5": {
+          "samples": 10,
+          "observed_span_s": 0.18129929800124955,
+          "max_sample_gap_s": 0.022064605000196025,
+          "velocity_deg_s": {
+            "mean": -0.41975610563230364,
+            "minimum": -0.41975610563230364,
+            "maximum": -0.41975610563230364,
+            "peak_abs": 0.41975610563230364,
+            "rms": 0.41975610563230364
+          },
+          "absolute_speed_deg_s": {
+            "mean": 0.41975610563230364,
+            "minimum": 0.41975610563230364,
+            "maximum": 0.41975610563230364,
+            "peak_abs": 0.41975610563230364,
+            "rms": 0.41975610563230364
+          },
+          "torque_feedback_nm": {
+            "mean": -0.003663158416748047,
+            "minimum": -0.009157180786132812,
+            "maximum": -0.0030527114868164062,
+            "peak_abs": 0.009157180786132812,
+            "rms": 0.004095428997621464
+          },
+          "command_error_deg": {
+            "mean": 0.0,
+            "minimum": 0.0,
+            "maximum": 0.0,
+            "peak_abs": 0.0,
+            "rms": 0.0
+          },
+          "target_span_deg": 0.0,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 28.0,
+            "minimum": 28,
+            "maximum": 28,
+            "peak_abs": 28,
+            "rms": 28.0
+          },
+          "rotor_c": {
+            "mean": 31.0,
+            "minimum": 31,
+            "maximum": 31,
+            "peak_abs": 31,
+            "rms": 31.0
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 28,
+              "last_c": 28,
+              "observed_span_s": 0.18129929800124955,
+              "change_c": 0
+            },
+            "rotor_c": {
+              "first_c": 31,
+              "last_c": 31,
+              "observed_span_s": 0.18129929800124955,
+              "change_c": 0
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 9.367578499222873,
+            "minimum": 7.60060700122267,
+            "maximum": 11.549591999937547,
+            "peak_abs": 11.549591999937547,
+            "rms": 9.432303743223276
+          }
+        },
+        "6": {
+          "samples": 10,
+          "observed_span_s": 0.18129712199879577,
+          "max_sample_gap_s": 0.022066699999413686,
+          "velocity_deg_s": {
+            "mean": -0.41975610563230364,
+            "minimum": -0.41975610563230364,
+            "maximum": -0.41975610563230364,
+            "peak_abs": 0.41975610563230364,
+            "rms": 0.41975610563230364
+          },
+          "absolute_speed_deg_s": {
+            "mean": 0.41975610563230364,
+            "minimum": 0.41975610563230364,
+            "maximum": 0.41975610563230364,
+            "peak_abs": 0.41975610563230364,
+            "rms": 0.41975610563230364
+          },
+          "torque_feedback_nm": {
+            "mean": -0.0018316268920898437,
+            "minimum": -0.0030527114868164062,
+            "maximum": 0.0030527114868164062,
+            "peak_abs": 0.0030527114868164062,
+            "rms": 0.0030527114868164062
+          },
+          "command_error_deg": {
+            "mean": 0.0,
+            "minimum": 0.0,
+            "maximum": 0.0,
+            "peak_abs": 0.0,
+            "rms": 0.0
+          },
+          "target_span_deg": 0.0,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 27.0,
+            "minimum": 27,
+            "maximum": 27,
+            "peak_abs": 27,
+            "rms": 27.0
+          },
+          "rotor_c": {
+            "mean": 24.0,
+            "minimum": 24,
+            "maximum": 24,
+            "peak_abs": 24,
+            "rms": 24.0
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 27,
+              "last_c": 27,
+              "observed_span_s": 0.18129712199879577,
+              "change_c": 0
+            },
+            "rotor_c": {
+              "first_c": 24,
+              "last_c": 24,
+              "observed_span_s": 0.18129712199879577,
+              "change_c": 0
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 10.556839599422528,
+            "minimum": 7.591477999085328,
+            "maximum": 13.536381000041729,
+            "peak_abs": 13.536381000041729,
+            "rms": 10.717708269258218
+          }
+        }
+      },
+      "minimum_axis_span_s": 0.18129583500194713,
+      "all_axes_within_025_deg": true
+    },
+    {
+      "attempt": 2,
+      "state": "initial",
+      "endpoint_hold": false,
+      "rejected": 0,
+      "duplicates": 0,
+      "joints": {
+        "1": {
+          "samples": 204,
+          "observed_span_s": 4.982019987000967,
+          "max_sample_gap_s": 0.04012274699925911,
+          "velocity_deg_s": {
+            "mean": -0.6296866571573699,
+            "minimum": -1.8888478338320063,
+            "maximum": 1.8888478338320063,
+            "peak_abs": 1.8888478338320063,
+            "rms": 0.6772659190326397
+          },
+          "absolute_speed_deg_s": {
+            "mean": 0.6543781927827996,
+            "minimum": 0.6296887999618155,
+            "maximum": 1.8888478338320063,
+            "peak_abs": 1.8888478338320063,
+            "rms": 0.6772659190326397
+          },
+          "torque_feedback_nm": {
+            "mean": 0.21409180585075827,
+            "minimum": -0.5934066772460938,
+            "maximum": 0.9362640380859375,
+            "peak_abs": 0.9362640380859375,
+            "rms": 0.4176613614183111
+          },
+          "command_error_deg": {
+            "mean": 0.016735017991356724,
+            "minimum": -0.09897959367101647,
+            "maximum": 0.07649811870416826,
+            "peak_abs": 0.09897959367101647,
+            "rms": 0.058243333811992135
+          },
+          "target_span_deg": 0.07649811870416556,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 26.0,
+            "minimum": 26,
+            "maximum": 26,
+            "peak_abs": 26,
+            "rms": 26.0
+          },
+          "rotor_c": {
+            "mean": 25.0,
+            "minimum": 25,
+            "maximum": 25,
+            "peak_abs": 25,
+            "rms": 25.0
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 26,
+              "last_c": 26,
+              "observed_span_s": 4.982019987000967,
+              "change_c": 0
+            },
+            "rotor_c": {
+              "first_c": 25,
+              "last_c": 25,
+              "observed_span_s": 4.982019987000967,
+              "change_c": 0
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 0.12272450003722185,
+            "minimum": 0.042240000766469166,
+            "maximum": 8.563938998122467,
+            "peak_abs": 8.563938998122467,
+            "rms": 0.6079121629590264
+          }
+        },
+        "2": {
+          "samples": 204,
+          "observed_span_s": 4.98201541600065,
+          "max_sample_gap_s": 0.040179175997764105,
+          "velocity_deg_s": {
+            "mean": 1.5267369176912762,
+            "minimum": -0.13993691571522124,
+            "maximum": 5.456720090193227,
+            "peak_abs": 5.456720090193227,
+            "rms": 2.1222099239568437
+          },
+          "absolute_speed_deg_s": {
+            "mean": 1.562407111893195,
+            "minimum": 0.13993691571522124,
+            "maximum": 5.456720090193227,
+            "peak_abs": 5.456720090193227,
+            "rms": 2.1222099239568437
+          },
+          "torque_feedback_nm": {
+            "mean": 5.941918765797334,
+            "minimum": 0.009769439697265625,
+            "maximum": 10.85226058959961,
+            "peak_abs": 10.85226058959961,
+            "rms": 6.727649082252542
+          },
+          "command_error_deg": {
+            "mean": 1.4671637569314488,
+            "minimum": 0.0,
+            "maximum": 3.3461115139841366,
+            "peak_abs": 3.3461115139841366,
+            "rms": 1.8489912381163192
+          },
+          "target_span_deg": 8.916811761420277,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 27.0,
+            "minimum": 27,
+            "maximum": 27,
+            "peak_abs": 27,
+            "rms": 27.0
+          },
+          "rotor_c": {
+            "mean": 25.073529411764707,
+            "minimum": 25,
+            "maximum": 26,
+            "peak_abs": 26,
+            "rms": 25.074887836239668
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 27,
+              "last_c": 27,
+              "observed_span_s": 4.98201541600065,
+              "change_c": 0
+            },
+            "rotor_c": {
+              "first_c": 25,
+              "last_c": 26,
+              "observed_span_s": 4.98201541600065,
+              "change_c": 1
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 0.09842945109994616,
+            "minimum": 0.029238999559311196,
+            "maximum": 8.53218799966271,
+            "peak_abs": 8.53218799966271,
+            "rms": 0.6016335741381024
+          }
+        },
+        "3": {
+          "samples": 204,
+          "observed_span_s": 4.982011115000205,
+          "max_sample_gap_s": 0.04019472700019833,
+          "velocity_deg_s": {
+            "mean": 0.8628136025060225,
+            "minimum": -0.13993691571522124,
+            "maximum": 4.337388689011537,
+            "peak_abs": 4.337388689011537,
+            "rms": 1.4597176120031476
+          },
+          "absolute_speed_deg_s": {
+            "mean": 0.9478732963721374,
+            "minimum": 0.13993691571522124,
+            "maximum": 4.337388689011537,
+            "peak_abs": 4.337388689011537,
+            "rms": 1.4597176120031476
+          },
+          "torque_feedback_nm": {
+            "mean": -0.9793865540448357,
+            "minimum": -2.627593994140625,
+            "maximum": 0.5177040100097656,
+            "peak_abs": 2.627593994140625,
+            "rms": 1.3801591243111864
+          },
+          "command_error_deg": {
+            "mean": 0.7779322530401471,
+            "minimum": 0.0,
+            "maximum": 1.940258327652203,
+            "peak_abs": 1.940258327652203,
+            "rms": 1.0200743512142436
+          },
+          "target_span_deg": 5.1632990416506885,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 27.0,
+            "minimum": 27,
+            "maximum": 27,
+            "peak_abs": 27,
+            "rms": 27.0
+          },
+          "rotor_c": {
+            "mean": 25.0,
+            "minimum": 25,
+            "maximum": 25,
+            "peak_abs": 25,
+            "rms": 25.0
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 27,
+              "last_c": 27,
+              "observed_span_s": 4.982011115000205,
+              "change_c": 0
+            },
+            "rotor_c": {
+              "first_c": 25,
+              "last_c": 25,
+              "observed_span_s": 4.982011115000205,
+              "change_c": 0
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 0.08935118623020233,
+            "minimum": 0.023214000975713134,
+            "maximum": 8.517859998391941,
+            "peak_abs": 8.517859998391941,
+            "rms": 0.5996364815094662
+          }
+        },
+        "4": {
+          "samples": 204,
+          "observed_span_s": 4.982008143000712,
+          "max_sample_gap_s": 0.04020655599742895,
+          "velocity_deg_s": {
+            "mean": -0.2386859157813758,
+            "minimum": -4.617207878928619,
+            "maximum": 7.135744512722441,
+            "peak_abs": 7.135744512722441,
+            "rms": 1.5694595163431957
+          },
+          "absolute_speed_deg_s": {
+            "mean": 0.9629623895761961,
+            "minimum": 0.41975610563230364,
+            "maximum": 7.135744512722441,
+            "peak_abs": 7.135744512722441,
+            "rms": 1.5694595163431957
+          },
+          "torque_feedback_nm": {
+            "mean": -1.0570937511967677,
+            "minimum": -1.4865694046020508,
+            "maximum": -0.0030527114868164062,
+            "peak_abs": 1.4865694046020508,
+            "rms": 1.144211931800578
+          },
+          "command_error_deg": {
+            "mean": 0.03649366432189408,
+            "minimum": -0.6707160324110895,
+            "maximum": 0.3752087785700264,
+            "peak_abs": 0.6707160324110895,
+            "rms": 0.1998877201556042
+          },
+          "target_span_deg": 1.3916019350129716,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 26.0,
+            "minimum": 26,
+            "maximum": 26,
+            "peak_abs": 26,
+            "rms": 26.0
+          },
+          "rotor_c": {
+            "mean": 25.0,
+            "minimum": 25,
+            "maximum": 25,
+            "peak_abs": 25,
+            "rms": 25.0
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 26,
+              "last_c": 26,
+              "observed_span_s": 4.982008143000712,
+              "change_c": 0
+            },
+            "rotor_c": {
+              "first_c": 25,
+              "last_c": 25,
+              "observed_span_s": 4.982008143000712,
+              "change_c": 0
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 0.0872188873854968,
+            "minimum": 0.018737002392299473,
+            "maximum": 8.507223999913549,
+            "peak_abs": 8.507223999913549,
+            "rms": 0.6025186430005217
+          }
+        },
+        "5": {
+          "samples": 204,
+          "observed_span_s": 4.982003796001663,
+          "max_sample_gap_s": 0.04025372600153787,
+          "velocity_deg_s": {
+            "mean": 3.440296108089833,
+            "minimum": -5.456720090193227,
+            "maximum": 12.172708497283365,
+            "peak_abs": 12.172708497283365,
+            "rms": 5.461168476187898
+          },
+          "absolute_speed_deg_s": {
+            "mean": 3.868281654195057,
+            "minimum": 0.41975610563230364,
+            "maximum": 12.172708497283365,
+            "peak_abs": 12.172708497283365,
+            "rms": 5.461168476187898
+          },
+          "torque_feedback_nm": {
+            "mean": 0.5597751795076856,
+            "minimum": -0.08241748809814453,
+            "maximum": 1.1874237060546875,
+            "peak_abs": 1.1874237060546875,
+            "rms": 0.6979311244263005
+          },
+          "command_error_deg": {
+            "mean": 0.8888917309222564,
+            "minimum": -0.16515742233870173,
+            "maximum": 2.4608222899808383,
+            "peak_abs": 2.4608222899808383,
+            "rms": 1.3122068587735358
+          },
+          "target_span_deg": 20.249185176562207,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 28.0,
+            "minimum": 28,
+            "maximum": 28,
+            "peak_abs": 28,
+            "rms": 28.0
+          },
+          "rotor_c": {
+            "mean": 31.0,
+            "minimum": 31,
+            "maximum": 31,
+            "peak_abs": 31,
+            "rms": 31.0
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 28,
+              "last_c": 28,
+              "observed_span_s": 4.982003796001663,
+              "change_c": 0
+            },
+            "rotor_c": {
+              "first_c": 31,
+              "last_c": 31,
+              "observed_span_s": 4.982003796001663,
+              "change_c": 0
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 0.17354514711198635,
+            "minimum": 0.014476001524599269,
+            "maximum": 8.497155999066308,
+            "peak_abs": 8.497155999066308,
+            "rms": 0.7477524151938533
+          }
+        },
+        "6": {
+          "samples": 204,
+          "observed_span_s": 4.981998937000753,
+          "max_sample_gap_s": 0.040266752999741584,
+          "velocity_deg_s": {
+            "mean": -9.592509987064892,
+            "minimum": -31.48116150728917,
+            "maximum": -0.41975610563230364,
+            "peak_abs": 31.48116150728917,
+            "rms": 13.623891746507752
+          },
+          "absolute_speed_deg_s": {
+            "mean": 9.592509987064892,
+            "minimum": 0.41975610563230364,
+            "maximum": 31.48116150728917,
+            "peak_abs": 31.48116150728917,
+            "rms": 13.623891746507752
+          },
+          "torque_feedback_nm": {
+            "mean": -1.2845950220145432,
+            "minimum": -1.7612943649291992,
+            "maximum": 0.0030527114868164062,
+            "peak_abs": 1.7612943649291992,
+            "rms": 1.3525086352996134
+          },
+          "command_error_deg": {
+            "mean": -2.141972937869156,
+            "minimum": -5.6076230413248425,
+            "maximum": 0.031355711702161386,
+            "peak_abs": 5.6076230413248425,
+            "rms": 3.012546677448656
+          },
+          "target_span_deg": 48.2943636851591,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 27.0,
+            "minimum": 27,
+            "maximum": 27,
+            "peak_abs": 27,
+            "rms": 27.0
+          },
+          "rotor_c": {
+            "mean": 24.0,
+            "minimum": 24,
+            "maximum": 24,
+            "peak_abs": 24,
+            "rms": 24.0
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 27,
+              "last_c": 27,
+              "observed_span_s": 4.981998937000753,
+              "change_c": 0
+            },
+            "rotor_c": {
+              "first_c": 24,
+              "last_c": 24,
+              "observed_span_s": 4.981998937000753,
+              "change_c": 0
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 0.6335669900905557,
+            "minimum": 0.010753999958978966,
+            "maximum": 10.487724997394253,
+            "peak_abs": 10.487724997394253,
+            "rms": 1.2954338502910758
+          }
+        }
+      },
+      "minimum_axis_span_s": 4.981998937000753,
+      "all_axes_within_025_deg": false
+    },
+    {
+      "attempt": 2,
+      "state": "approach",
+      "endpoint_hold": false,
+      "rejected": 0,
+      "duplicates": 0,
+      "joints": {
+        "1": {
+          "samples": 321,
+          "observed_span_s": 7.292232191000949,
+          "max_sample_gap_s": 0.03841864100104431,
+          "velocity_deg_s": {
+            "mean": -0.5943737004984504,
+            "minimum": -3.1482254337556372,
+            "maximum": 9.444457735213472,
+            "peak_abs": 9.444457735213472,
+            "rms": 0.9745683764512408
+          },
+          "absolute_speed_deg_s": {
+            "mean": 0.7473726614712648,
+            "minimum": 0.6296887999618155,
+            "maximum": 9.444457735213472,
+            "peak_abs": 9.444457735213472,
+            "rms": 0.9745683764512408
+          },
+          "torque_feedback_nm": {
+            "mean": -0.1291979139096269,
+            "minimum": -0.9098892211914062,
+            "maximum": 1.2791213989257812,
+            "peak_abs": 1.2791213989257812,
+            "rms": 0.6311093231289332
+          },
+          "command_error_deg": {
+            "mean": 0.0038253788817487104,
+            "minimum": -0.21339550225131465,
+            "maximum": 0.14589467203183007,
+            "peak_abs": 0.21339550225131465,
+            "rms": 0.07517346210761142
+          },
+          "target_span_deg": 0.07649811870410872,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 26.0,
+            "minimum": 26,
+            "maximum": 26,
+            "peak_abs": 26,
+            "rms": 26.0
+          },
+          "rotor_c": {
+            "mean": 25.0,
+            "minimum": 25,
+            "maximum": 25,
+            "peak_abs": 25,
+            "rms": 25.0
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 26,
+              "last_c": 26,
+              "observed_span_s": 7.292232191000949,
+              "change_c": 0
+            },
+            "rotor_c": {
+              "first_c": 25,
+              "last_c": 25,
+              "observed_span_s": 7.292232191000949,
+              "change_c": 0
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 0.07749867291973811,
+            "minimum": 0.04153500049142167,
+            "maximum": 0.3545300023688469,
+            "peak_abs": 0.3545300023688469,
+            "rms": 0.0907391401720283
+          }
+        },
+        "2": {
+          "samples": 321,
+          "observed_span_s": 7.292233463002049,
+          "max_sample_gap_s": 0.03840527000284055,
+          "velocity_deg_s": {
+            "mean": 1.0282344659345486,
+            "minimum": -5.176900900276144,
+            "maximum": 11.053377096101675,
+            "peak_abs": 11.053377096101675,
+            "rms": 3.8411408859444656
+          },
+          "absolute_speed_deg_s": {
+            "mean": 2.7874345001729885,
+            "minimum": 0.13993691571522124,
+            "maximum": 11.053377096101675,
+            "peak_abs": 11.053377096101675,
+            "rms": 3.8411408859444656
+          },
+          "torque_feedback_nm": {
+            "mean": 9.920250711411331,
+            "minimum": 6.730159759521484,
+            "maximum": 13.567764282226562,
+            "peak_abs": 13.567764282226562,
+            "rms": 10.202992660303567
+          },
+          "command_error_deg": {
+            "mean": 0.927076154375558,
+            "minimum": -2.7619761580243534,
+            "maximum": 7.227793669381328,
+            "peak_abs": 7.227793669381328,
+            "rms": 2.965602392004206
+          },
+          "target_span_deg": 15.204140508172344,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 27.0,
+            "minimum": 27,
+            "maximum": 27,
+            "peak_abs": 27,
+            "rms": 27.0
+          },
+          "rotor_c": {
+            "mean": 27.1588785046729,
+            "minimum": 26,
+            "maximum": 28,
+            "peak_abs": 28,
+            "rms": 27.17177388302346
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 27,
+              "last_c": 27,
+              "observed_span_s": 7.292233463002049,
+              "change_c": 0
+            },
+            "rotor_c": {
+              "first_c": 26,
+              "last_c": 28,
+              "observed_span_s": 7.292233463002049,
+              "change_c": 2
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 0.0527077103458886,
+            "minimum": 0.028623999241972342,
+            "maximum": 0.2873390003514942,
+            "peak_abs": 0.2873390003514942,
+            "rms": 0.06201077122435529
+          }
+        },
+        "3": {
+          "samples": 321,
+          "observed_span_s": 7.292232973999489,
+          "max_sample_gap_s": 0.038404455001000315,
+          "velocity_deg_s": {
+            "mean": 0.5731724528691647,
+            "minimum": -2.3785997180786005,
+            "maximum": 5.176900900276144,
+            "peak_abs": 5.176900900276144,
+            "rms": 1.4482762974990024
+          },
+          "absolute_speed_deg_s": {
+            "mean": 0.9018386023884325,
+            "minimum": 0.13993691571522124,
+            "maximum": 5.176900900276144,
+            "peak_abs": 5.176900900276144,
+            "rms": 1.4482762974990024
+          },
+          "torque_feedback_nm": {
+            "mean": -4.17483489609953,
+            "minimum": -6.554332733154297,
+            "maximum": -2.3931617736816406,
+            "peak_abs": 6.554332733154297,
+            "rms": 4.36160026384741
+          },
+          "command_error_deg": {
+            "mean": 0.5421117359764069,
+            "minimum": -0.5674027043165291,
+            "maximum": 2.8335402796552622,
+            "peak_abs": 2.8335402796552622,
+            "rms": 1.0945702630967848
+          },
+          "target_span_deg": 5.952673082297238,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 27.0,
+            "minimum": 27,
+            "maximum": 27,
+            "peak_abs": 27,
+            "rms": 27.0
+          },
+          "rotor_c": {
+            "mean": 25.0,
+            "minimum": 25,
+            "maximum": 25,
+            "peak_abs": 25,
+            "rms": 25.0
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 27,
+              "last_c": 27,
+              "observed_span_s": 7.292232973999489,
+              "change_c": 0
+            },
+            "rotor_c": {
+              "first_c": 25,
+              "last_c": 25,
+              "observed_span_s": 7.292232973999489,
+              "change_c": 0
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 0.04357271346546829,
+            "minimum": 0.022866999643156305,
+            "maximum": 0.26645100297173485,
+            "peak_abs": 0.26645100297173485,
+            "rms": 0.052686535506628926
+          }
+        },
+        "4": {
+          "samples": 321,
+          "observed_span_s": 7.29223241499858,
+          "max_sample_gap_s": 0.03840345899880049,
+          "velocity_deg_s": {
+            "mean": -0.2419168743740905,
+            "minimum": -7.975256723987049,
+            "maximum": 7.135744512722441,
+            "peak_abs": 7.975256723987049,
+            "rms": 1.450467544918196
+          },
+          "absolute_speed_deg_s": {
+            "mean": 0.8669674439432703,
+            "minimum": 0.41975610563230364,
+            "maximum": 7.975256723987049,
+            "peak_abs": 7.975256723987049,
+            "rms": 1.450467544918196
+          },
+          "torque_feedback_nm": {
+            "mean": -0.5834844565465814,
+            "minimum": -1.309523582458496,
+            "maximum": -0.08241748809814453,
+            "peak_abs": 1.309523582458496,
+            "rms": 0.6889856395145914
+          },
+          "command_error_deg": {
+            "mean": 0.09009556719008764,
+            "minimum": -0.08875180044624487,
+            "maximum": 0.4540238740862731,
+            "peak_abs": 0.4540238740862731,
+            "rms": 0.15397809579907826
+          },
+          "target_span_deg": 1.3916019350129716,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 26.0,
+            "minimum": 26,
+            "maximum": 26,
+            "peak_abs": 26,
+            "rms": 26.0
+          },
+          "rotor_c": {
+            "mean": 25.0,
+            "minimum": 25,
+            "maximum": 25,
+            "peak_abs": 25,
+            "rms": 25.0
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 26,
+              "last_c": 26,
+              "observed_span_s": 7.29223241499858,
+              "change_c": 0
+            },
+            "rotor_c": {
+              "first_c": 25,
+              "last_c": 25,
+              "observed_span_s": 7.29223241499858,
+              "change_c": 0
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 0.03649678500468924,
+            "minimum": 0.018549999367678538,
+            "maximum": 0.24649199986015446,
+            "peak_abs": 0.24649199986015446,
+            "rms": 0.044813965962149455
+          }
+        },
+        "5": {
+          "samples": 321,
+          "observed_span_s": 7.292232505998982,
+          "max_sample_gap_s": 0.03840099899753113,
+          "velocity_deg_s": {
+            "mean": 2.2975030308902737,
+            "minimum": -7.975256723987049,
+            "maximum": 38.19714991437931,
+            "peak_abs": 38.19714991437931,
+            "rms": 7.722361801343381
+          },
+          "absolute_speed_deg_s": {
+            "mean": 4.59109366133485,
+            "minimum": 0.41975610563230364,
+            "maximum": 38.19714991437931,
+            "peak_abs": 38.19714991437931,
+            "rms": 7.722361801343381
+          },
+          "torque_feedback_nm": {
+            "mean": -0.5304793895590714,
+            "minimum": -1.211843490600586,
+            "maximum": 0.9371185302734375,
+            "peak_abs": 1.211843490600586,
+            "rms": 0.7059841128356239
+          },
+          "command_error_deg": {
+            "mean": 0.5698338713997017,
+            "minimum": -1.1249933172777122,
+            "maximum": 3.9177554051875347,
+            "peak_abs": 3.9177554051875347,
+            "rms": 1.472967827043014
+          },
+          "target_span_deg": 26.006397070989355,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 28.0,
+            "minimum": 28,
+            "maximum": 28,
+            "peak_abs": 28,
+            "rms": 28.0
+          },
+          "rotor_c": {
+            "mean": 31.0,
+            "minimum": 31,
+            "maximum": 31,
+            "peak_abs": 31,
+            "rms": 31.0
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 28,
+              "last_c": 28,
+              "observed_span_s": 7.292232505998982,
+              "change_c": 0
+            },
+            "rotor_c": {
+              "first_c": 31,
+              "last_c": 31,
+              "observed_span_s": 7.292232505998982,
+              "change_c": 0
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 0.12347157638528343,
+            "minimum": 0.014313998690340668,
+            "maximum": 2.043921998440055,
+            "peak_abs": 2.043921998440055,
+            "rms": 0.43915089755646053
+          }
+        },
+        "6": {
+          "samples": 321,
+          "observed_span_s": 7.2922332270027255,
+          "max_sample_gap_s": 0.038399760000174865,
+          "velocity_deg_s": {
+            "mean": -6.481925952371692,
+            "minimum": -35.678722563612205,
+            "maximum": 7.135744512722441,
+            "peak_abs": 35.678722563612205,
+            "rms": 11.623203057388624
+          },
+          "absolute_speed_deg_s": {
+            "mean": 6.573460870839629,
+            "minimum": 0.41975610563230364,
+            "maximum": 35.678722563612205,
+            "peak_abs": 35.678722563612205,
+            "rms": 11.623203057388624
+          },
+          "torque_feedback_nm": {
+            "mean": -0.3561348306055752,
+            "minimum": -1.5354089736938477,
+            "maximum": 0.22283267974853516,
+            "peak_abs": 1.5354089736938477,
+            "rms": 0.6518894950607571
+          },
+          "command_error_deg": {
+            "mean": -1.3735763666494112,
+            "minimum": -5.886063234232046,
+            "maximum": 0.4310126343243478,
+            "peak_abs": 5.886063234232046,
+            "rms": 2.4968486194140196
+          },
+          "target_span_deg": 48.27250707981505,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 27.0,
+            "minimum": 27,
+            "maximum": 27,
+            "peak_abs": 27,
+            "rms": 27.0
+          },
+          "rotor_c": {
+            "mean": 24.0,
+            "minimum": 24,
+            "maximum": 24,
+            "peak_abs": 24,
+            "rms": 24.0
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 27,
+              "last_c": 27,
+              "observed_span_s": 7.2922332270027255,
+              "change_c": 0
+            },
+            "rotor_c": {
+              "first_c": 24,
+              "last_c": 24,
+              "observed_span_s": 7.2922332270027255,
+              "change_c": 0
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 0.4822532523592435,
+            "minimum": 0.010575000487733632,
+            "maximum": 2.2186990022892132,
+            "peak_abs": 2.2186990022892132,
+            "rms": 0.9705160351974065
+          }
+        }
+      },
+      "minimum_axis_span_s": 7.292232191000949,
+      "all_axes_within_025_deg": false
+    },
+    {
+      "attempt": 2,
+      "state": "ready",
+      "endpoint_hold": true,
+      "rejected": 0,
+      "duplicates": 0,
+      "joints": {
+        "1": {
+          "samples": 432,
+          "observed_span_s": 8.666070605999266,
+          "max_sample_gap_s": 0.024074114000541158,
+          "velocity_deg_s": {
+            "mean": -0.6500903220426744,
+            "minimum": -10.703616769083663,
+            "maximum": 1.8888478338320063,
+            "peak_abs": 10.703616769083663,
+            "rms": 0.8525608167432522
+          },
+          "absolute_speed_deg_s": {
+            "mean": 0.6792405575404117,
+            "minimum": 0.6296887999618155,
+            "maximum": 10.703616769083663,
+            "peak_abs": 10.703616769083663,
+            "rms": 0.8525608167432522
+          },
+          "torque_feedback_nm": {
+            "mean": -0.44664212509437845,
+            "minimum": -0.75164794921875,
+            "maximum": 0.6989021301269531,
+            "peak_abs": 0.75164794921875,
+            "rms": 0.5176122419041049
+          },
+          "command_error_deg": {
+            "mean": 0.013407408370765771,
+            "minimum": -0.15299623740828563,
+            "maximum": 0.15299623740828563,
+            "peak_abs": 0.15299623740828563,
+            "rms": 0.04822369383727172
+          },
+          "target_span_deg": 0.0,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 26.0,
+            "minimum": 26,
+            "maximum": 26,
+            "peak_abs": 26,
+            "rms": 26.0
+          },
+          "rotor_c": {
+            "mean": 25.0,
+            "minimum": 25,
+            "maximum": 25,
+            "peak_abs": 25,
+            "rms": 25.0
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 26,
+              "last_c": 26,
+              "observed_span_s": 8.666070605999266,
+              "change_c": 0
+            },
+            "rotor_c": {
+              "first_c": 25,
+              "last_c": 25,
+              "observed_span_s": 8.666070605999266,
+              "change_c": 0
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 0.4995105209083569,
+            "minimum": 0.0983299978543073,
+            "maximum": 0.9899879987642635,
+            "peak_abs": 0.9899879987642635,
+            "rms": 0.5197560679014837
+          }
+        },
+        "2": {
+          "samples": 432,
+          "observed_span_s": 8.666110103000392,
+          "max_sample_gap_s": 0.02404320599816856,
+          "velocity_deg_s": {
+            "mean": -0.1528916343259967,
+            "minimum": -1.5390875068139933,
+            "maximum": -0.13993691571522124,
+            "peak_abs": 1.5390875068139933,
+            "rms": 0.18064671068706908
+          },
+          "absolute_speed_deg_s": {
+            "mean": 0.1528916343259967,
+            "minimum": 0.13993691571522124,
+            "maximum": 1.5390875068139933,
+            "peak_abs": 1.5390875068139933,
+            "rms": 0.18064671068706908
+          },
+          "torque_feedback_nm": {
+            "mean": 7.260344469988787,
+            "minimum": 6.730159759521484,
+            "maximum": 7.765567779541016,
+            "peak_abs": 7.765567779541016,
+            "rms": 7.262109861817004
+          },
+          "command_error_deg": {
+            "mean": -0.020359423188786023,
+            "minimum": -0.1764924882158923,
+            "maximum": -0.0016396454635658913,
+            "peak_abs": 0.1764924882158923,
+            "rms": 0.042532915250414235
+          },
+          "target_span_deg": 0.0,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 27.0,
+            "minimum": 27,
+            "maximum": 27,
+            "peak_abs": 27,
+            "rms": 27.0
+          },
+          "rotor_c": {
+            "mean": 28.0,
+            "minimum": 28,
+            "maximum": 28,
+            "peak_abs": 28,
+            "rms": 28.0
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 27,
+              "last_c": 27,
+              "observed_span_s": 8.666110103000392,
+              "change_c": 0
+            },
+            "rotor_c": {
+              "first_c": 28,
+              "last_c": 28,
+              "observed_span_s": 8.666110103000392,
+              "change_c": 0
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 0.4534959051667371,
+            "minimum": 0.08310799967148341,
+            "maximum": 0.9089720006159041,
+            "peak_abs": 0.9089720006159041,
+            "rms": 0.47178949055755276
+          }
+        },
+        "3": {
+          "samples": 432,
+          "observed_span_s": 8.666127541000606,
+          "max_sample_gap_s": 0.02404130799914128,
+          "velocity_deg_s": {
+            "mean": -0.147709923960665,
+            "minimum": -1.8189066967310756,
+            "maximum": -0.13993691571522124,
+            "peak_abs": 1.8189066967310756,
+            "rms": 0.18657022251948155
+          },
+          "absolute_speed_deg_s": {
+            "mean": 0.147709923960665,
+            "minimum": 0.13993691571522124,
+            "maximum": 1.8189066967310756,
+            "peak_abs": 1.8189066967310756,
+            "rms": 0.18657022251948155
+          },
+          "torque_feedback_nm": {
+            "mean": -5.157147372210467,
+            "minimum": -6.358974456787109,
+            "maximum": -4.991451263427734,
+            "peak_abs": 6.358974456787109,
+            "rms": 5.164468854287112
+          },
+          "command_error_deg": {
+            "mean": 0.02615473242510309,
+            "minimum": -0.05545337965808629,
+            "maximum": 0.03197304171807692,
+            "peak_abs": 0.05545337965808629,
+            "rms": 0.033993732161608954
+          },
+          "target_span_deg": 0.0,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 27.0,
+            "minimum": 27,
+            "maximum": 27,
+            "peak_abs": 27,
+            "rms": 27.0
+          },
+          "rotor_c": {
+            "mean": 25.98611111111111,
+            "minimum": 25,
+            "maximum": 26,
+            "peak_abs": 26,
+            "rms": 25.986374634924868
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 27,
+              "last_c": 27,
+              "observed_span_s": 8.666127541000606,
+              "change_c": 0
+            },
+            "rotor_c": {
+              "first_c": 25,
+              "last_c": 26,
+              "observed_span_s": 8.666127541000606,
+              "change_c": 1
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 0.4332144583848411,
+            "minimum": 0.0761359988246113,
+            "maximum": 0.8905340000637807,
+            "peak_abs": 0.8905340000637807,
+            "rms": 0.45079707178879186
+          }
+        },
+        "4": {
+          "samples": 432,
+          "observed_span_s": 8.66614404199936,
+          "max_sample_gap_s": 0.024034480997215724,
+          "velocity_deg_s": {
+            "mean": -0.41975610563230364,
+            "minimum": -1.2592683168969108,
+            "maximum": 0.41975610563230364,
+            "peak_abs": 1.2592683168969108,
+            "rms": 0.4236249072840761
+          },
+          "absolute_speed_deg_s": {
+            "mean": 0.4216994209361569,
+            "minimum": 0.41975610563230364,
+            "maximum": 1.2592683168969108,
+            "peak_abs": 1.2592683168969108,
+            "rms": 0.4236249072840761
+          },
+          "torque_feedback_nm": {
+            "mean": -0.32722570719542327,
+            "minimum": -0.33272266387939453,
+            "maximum": -0.3083028793334961,
+            "peak_abs": 0.33272266387939453,
+            "rms": 0.32724583866582835
+          },
+          "command_error_deg": {
+            "mean": 0.008882217154472878,
+            "minimum": 0.007414991332766436,
+            "maximum": 0.02927159667680724,
+            "peak_abs": 0.02927159667680724,
+            "rms": 0.010431184290527794
+          },
+          "target_span_deg": 0.0,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 26.0,
+            "minimum": 26,
+            "maximum": 26,
+            "peak_abs": 26,
+            "rms": 26.0
+          },
+          "rotor_c": {
+            "mean": 25.0,
+            "minimum": 25,
+            "maximum": 25,
+            "peak_abs": 25,
+            "rms": 25.0
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 26,
+              "last_c": 26,
+              "observed_span_s": 8.66614404199936,
+              "change_c": 0
+            },
+            "rotor_c": {
+              "first_c": 25,
+              "last_c": 25,
+              "observed_span_s": 8.66614404199936,
+              "change_c": 0
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 0.41713364120604873,
+            "minimum": 0.07094399916240945,
+            "maximum": 0.8747970023250673,
+            "peak_abs": 0.8747970023250673,
+            "rms": 0.43424998669780923
+          }
+        },
+        "5": {
+          "samples": 432,
+          "observed_span_s": 8.666160716999002,
+          "max_sample_gap_s": 0.024026122002396733,
+          "velocity_deg_s": {
+            "mean": -0.4061528985053308,
+            "minimum": -2.098780528161518,
+            "maximum": 1.2592683168969108,
+            "peak_abs": 2.098780528161518,
+            "rms": 0.4350249230089872
+          },
+          "absolute_speed_deg_s": {
+            "mean": 0.4255860515438634,
+            "minimum": 0.41975610563230364,
+            "maximum": 2.098780528161518,
+            "peak_abs": 2.098780528161518,
+            "rms": 0.4350249230089872
+          },
+          "torque_feedback_nm": {
+            "mean": -0.6713527595555341,
+            "minimum": -0.729548454284668,
+            "maximum": -0.5647134780883789,
+            "peak_abs": 0.729548454284668,
+            "rms": 0.6718425623533628
+          },
+          "command_error_deg": {
+            "mean": -0.0048477297473402715,
+            "minimum": -0.04623361671823235,
+            "maximum": 0.12861922603409406,
+            "peak_abs": 0.12861922603409406,
+            "rms": 0.03465983138111796
+          },
+          "target_span_deg": 0.0,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 28.0,
+            "minimum": 28,
+            "maximum": 28,
+            "peak_abs": 28,
+            "rms": 28.0
+          },
+          "rotor_c": {
+            "mean": 30.305555555555557,
+            "minimum": 30,
+            "maximum": 31,
+            "peak_abs": 31,
+            "rms": 30.309056219039366
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 28,
+              "last_c": 28,
+              "observed_span_s": 8.666160716999002,
+              "change_c": 0
+            },
+            "rotor_c": {
+              "first_c": 31,
+              "last_c": 30,
+              "observed_span_s": 8.666160716999002,
+              "change_c": -1
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 0.5454549444470844,
+            "minimum": 0.06604599911952391,
+            "maximum": 2.697321996995015,
+            "peak_abs": 2.697321996995015,
+            "rms": 0.7571414156513685
+          }
+        },
+        "6": {
+          "samples": 432,
+          "observed_span_s": 8.666177268001775,
+          "max_sample_gap_s": 0.02401687900055549,
+          "velocity_deg_s": {
+            "mean": -0.41975610563230364,
+            "minimum": -1.2592683168969108,
+            "maximum": 0.41975610563230364,
+            "peak_abs": 1.2592683168969108,
+            "rms": 0.4236249072840761
+          },
+          "absolute_speed_deg_s": {
+            "mean": 0.4216994209361569,
+            "minimum": 0.41975610563230364,
+            "maximum": 1.2592683168969108,
+            "peak_abs": 1.2592683168969108,
+            "rms": 0.4236249072840761
+          },
+          "torque_feedback_nm": {
+            "mean": -0.058167084499641704,
+            "minimum": -0.07020759582519531,
+            "maximum": -0.045787811279296875,
+            "peak_abs": 0.07020759582519531,
+            "rms": 0.05831348956662625
+          },
+          "command_error_deg": {
+            "mean": -0.018900736198374776,
+            "minimum": -0.024769639485200546,
+            "maximum": -0.0029130341411597433,
+            "peak_abs": 0.024769639485200546,
+            "rms": 0.02123836401404155
+          },
+          "target_span_deg": 0.0,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 27.0,
+            "minimum": 27,
+            "maximum": 27,
+            "peak_abs": 27,
+            "rms": 27.0
+          },
+          "rotor_c": {
+            "mean": 24.0,
+            "minimum": 24,
+            "maximum": 24,
+            "peak_abs": 24,
+            "rms": 24.0
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 27,
+              "last_c": 27,
+              "observed_span_s": 8.666177268001775,
+              "change_c": 0
+            },
+            "rotor_c": {
+              "first_c": 24,
+              "last_c": 24,
+              "observed_span_s": 8.666177268001775,
+              "change_c": 0
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 1.216224289388467,
+            "minimum": 0.16492800205014646,
+            "maximum": 2.7933800006867386,
+            "peak_abs": 2.7933800006867386,
+            "rms": 1.5693346673443371
+          }
+        }
+      },
+      "minimum_axis_span_s": 8.666070605999266,
+      "all_axes_within_025_deg": true
+    },
+    {
+      "attempt": 2,
+      "state": "welding",
+      "endpoint_hold": false,
+      "rejected": 0,
+      "duplicates": 0,
+      "joints": {
+        "1": {
+          "samples": 1981,
+          "observed_span_s": 45.64353638900138,
+          "max_sample_gap_s": 0.04663222099770792,
+          "velocity_deg_s": {
+            "mean": -0.5501650695042672,
+            "minimum": -24.555240405869522,
+            "maximum": 27.073777039663344,
+            "peak_abs": 27.073777039663344,
+            "rms": 12.713733346201257
+          },
+          "absolute_speed_deg_s": {
+            "mean": 11.143498108129863,
+            "minimum": 0.6296887999618155,
+            "maximum": 27.073777039663344,
+            "peak_abs": 27.073777039663344,
+            "rms": 12.713733346201257
+          },
+          "torque_feedback_nm": {
+            "mean": -0.07914083019643646,
+            "minimum": -3.0988998413085938,
+            "maximum": 3.125274658203125,
+            "peak_abs": 3.125274658203125,
+            "rms": 1.3377330622394679
+          },
+          "command_error_deg": {
+            "mean": 0.013393815880919152,
+            "minimum": -4.396842703345534,
+            "maximum": 4.5993455852800995,
+            "peak_abs": 4.5993455852800995,
+            "rms": 2.2323288226519185
+          },
+          "target_span_deg": 7.6247882666886255,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 26.0,
+            "minimum": 26,
+            "maximum": 26,
+            "peak_abs": 26,
+            "rms": 26.0
+          },
+          "rotor_c": {
+            "mean": 25.0,
+            "minimum": 25,
+            "maximum": 25,
+            "peak_abs": 25,
+            "rms": 25.0
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 26,
+              "last_c": 26,
+              "observed_span_s": 45.64353638900138,
+              "change_c": 0
+            },
+            "rotor_c": {
+              "first_c": 25,
+              "last_c": 25,
+              "observed_span_s": 45.64353638900138,
+              "change_c": 0
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 0.07832900605078728,
+            "minimum": 0.04098400313523598,
+            "maximum": 0.4441419987415429,
+            "peak_abs": 0.4441419987415429,
+            "rms": 0.09367463890180934
+          }
+        },
+        "2": {
+          "samples": 1981,
+          "observed_span_s": 45.64354226799696,
+          "max_sample_gap_s": 0.04664781500105164,
+          "velocity_deg_s": {
+            "mean": -0.1406432007182999,
+            "minimum": -1.2592683168969108,
+            "maximum": -0.13993691571522124,
+            "peak_abs": 1.2592683168969108,
+            "rms": 0.14301047411356574
+          },
+          "absolute_speed_deg_s": {
+            "mean": 0.1406432007182999,
+            "minimum": 0.13993691571522124,
+            "maximum": 1.2592683168969108,
+            "peak_abs": 1.2592683168969108,
+            "rms": 0.14301047411356574
+          },
+          "torque_feedback_nm": {
+            "mean": 8.730702682795517,
+            "minimum": 7.023197174072266,
+            "maximum": 9.25030517578125,
+            "peak_abs": 9.25030517578125,
+            "rms": 8.748043642976347
+          },
+          "command_error_deg": {
+            "mean": 0.007148721839062486,
+            "minimum": -0.07513941848849004,
+            "maximum": 0.11101396961021487,
+            "peak_abs": 0.11101396961021487,
+            "rms": 0.03519958748853794
+          },
+          "target_span_deg": 0.16564098127993532,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 27.0,
+            "minimum": 27,
+            "maximum": 27,
+            "peak_abs": 27,
+            "rms": 27.0
+          },
+          "rotor_c": {
+            "mean": 31.88288743059061,
+            "minimum": 28,
+            "maximum": 35,
+            "peak_abs": 35,
+            "rms": 31.941121375586274
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 27,
+              "last_c": 27,
+              "observed_span_s": 45.64354226799696,
+              "change_c": 0
+            },
+            "rotor_c": {
+              "first_c": 28,
+              "last_c": 35,
+              "observed_span_s": 45.64354226799696,
+              "change_c": 7
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 0.052462070203506836,
+            "minimum": 0.02826100171660073,
+            "maximum": 0.372070000594249,
+            "peak_abs": 0.372070000594249,
+            "rms": 0.06322456891113062
+          }
+        },
+        "3": {
+          "samples": 1981,
+          "observed_span_s": 45.64354420699965,
+          "max_sample_gap_s": 0.0466543129987258,
+          "velocity_deg_s": {
+            "mean": -0.1406430352215406,
+            "minimum": -0.9793944854664683,
+            "maximum": 0.13993691571522124,
+            "peak_abs": 0.9793944854664683,
+            "rms": 0.14383710955610082
+          },
+          "absolute_speed_deg_s": {
+            "mean": 0.14134943055579205,
+            "minimum": 0.13993691571522124,
+            "maximum": 0.9793944854664683,
+            "peak_abs": 0.9793944854664683,
+            "rms": 0.14383710955610082
+          },
+          "torque_feedback_nm": {
+            "mean": -4.770639497544175,
+            "minimum": -6.632476806640625,
+            "maximum": -3.7411460876464844,
+            "peak_abs": 6.632476806640625,
+            "rms": 4.825334556325707
+          },
+          "command_error_deg": {
+            "mean": 0.009649163623519268,
+            "minimum": -0.14880435115559684,
+            "maximum": 0.22059889384421782,
+            "peak_abs": 0.22059889384421782,
+            "rms": 0.0745442972521642
+          },
+          "target_span_deg": 0.3484637249343052,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 27.0,
+            "minimum": 27,
+            "maximum": 27,
+            "peak_abs": 27,
+            "rms": 27.0
+          },
+          "rotor_c": {
+            "mean": 26.552246340232205,
+            "minimum": 26,
+            "maximum": 27,
+            "peak_abs": 27,
+            "rms": 26.556902229595735
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 27,
+              "last_c": 27,
+              "observed_span_s": 45.64354420699965,
+              "change_c": 0
+            },
+            "rotor_c": {
+              "first_c": 26,
+              "last_c": 27,
+              "observed_span_s": 45.64354420699965,
+              "change_c": 1
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 0.04287706866290889,
+            "minimum": 0.02216199936810881,
+            "maximum": 0.35432599906926043,
+            "peak_abs": 0.35432599906926043,
+            "rms": 0.05335455426647996
+          }
+        },
+        "4": {
+          "samples": 1981,
+          "observed_span_s": 45.64354522400026,
+          "max_sample_gap_s": 0.046658318999106996,
+          "velocity_deg_s": {
+            "mean": -0.3998381844922144,
+            "minimum": -6.2962323014578345,
+            "maximum": 5.456720090193227,
+            "peak_abs": 6.2962323014578345,
+            "rms": 1.0784645227519356
+          },
+          "absolute_speed_deg_s": {
+            "mean": 0.7630177334891689,
+            "minimum": 0.41975610563230364,
+            "maximum": 6.2962323014578345,
+            "peak_abs": 6.2962323014578345,
+            "rms": 1.0784645227519356
+          },
+          "torque_feedback_nm": {
+            "mean": -0.3927682094776167,
+            "minimum": -0.5097684860229492,
+            "maximum": -0.22893810272216797,
+            "peak_abs": 0.5097684860229492,
+            "rms": 0.39454537478459173
+          },
+          "command_error_deg": {
+            "mean": 0.00922905404443065,
+            "minimum": -0.1376346914677014,
+            "maximum": 0.25714440506708697,
+            "peak_abs": 0.25714440506708697,
+            "rms": 0.06643785687187974
+          },
+          "target_span_deg": 0.15190111630033698,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 26.0,
+            "minimum": 26,
+            "maximum": 26,
+            "peak_abs": 26,
+            "rms": 26.0
+          },
+          "rotor_c": {
+            "mean": 25.0,
+            "minimum": 25,
+            "maximum": 25,
+            "peak_abs": 25,
+            "rms": 25.0
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 26,
+              "last_c": 26,
+              "observed_span_s": 45.64354522400026,
+              "change_c": 0
+            },
+            "rotor_c": {
+              "first_c": 25,
+              "last_c": 25,
+              "observed_span_s": 45.64354522400026,
+              "change_c": 0
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 0.03515314990380445,
+            "minimum": 0.017989998013945296,
+            "maximum": 0.3367729987076018,
+            "peak_abs": 0.3367729987076018,
+            "rms": 0.04435994669052466
+          }
+        },
+        "5": {
+          "samples": 1981,
+          "observed_span_s": 45.6435463859998,
+          "max_sample_gap_s": 0.04666145199735183,
+          "velocity_deg_s": {
+            "mean": -0.4066188625484052,
+            "minimum": -5.456720090193227,
+            "maximum": 4.617207878928619,
+            "peak_abs": 5.456720090193227,
+            "rms": 0.5896399832864618
+          },
+          "absolute_speed_deg_s": {
+            "mean": 0.4998507999094149,
+            "minimum": 0.41975610563230364,
+            "maximum": 5.456720090193227,
+            "peak_abs": 5.456720090193227,
+            "rms": 0.5896399832864618
+          },
+          "torque_feedback_nm": {
+            "mean": -0.6555208021315103,
+            "minimum": -0.8089132308959961,
+            "maximum": -0.4914531707763672,
+            "peak_abs": 0.8089132308959961,
+            "rms": 0.6571255591342724
+          },
+          "command_error_deg": {
+            "mean": 0.015632294436597378,
+            "minimum": -0.12404564503543379,
+            "maximum": 0.13108690232113213,
+            "peak_abs": 0.13108690232113213,
+            "rms": 0.04560060046684164
+          },
+          "target_span_deg": 0.18797152302041553,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 28.0,
+            "minimum": 28,
+            "maximum": 28,
+            "peak_abs": 28,
+            "rms": 28.0
+          },
+          "rotor_c": {
+            "mean": 29.587582029278142,
+            "minimum": 29,
+            "maximum": 30,
+            "peak_abs": 30,
+            "rms": 29.59167686575755
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 28,
+              "last_c": 28,
+              "observed_span_s": 45.6435463859998,
+              "change_c": 0
+            },
+            "rotor_c": {
+              "first_c": 30,
+              "last_c": 29,
+              "observed_span_s": 45.6435463859998,
+              "change_c": -1
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 0.10101599245690536,
+            "minimum": 0.014093002391746268,
+            "maximum": 2.2776040018943604,
+            "peak_abs": 2.2776040018943604,
+            "rms": 0.3884276635685483
+          }
+        },
+        "6": {
+          "samples": 1981,
+          "observed_span_s": 45.64354741599891,
+          "max_sample_gap_s": 0.046663796001666924,
+          "velocity_deg_s": {
+            "mean": -0.4744168717820701,
+            "minimum": -21.407233538167326,
+            "maximum": 19.72820911563811,
+            "peak_abs": 21.407233538167326,
+            "rms": 4.652246282269899
+          },
+          "absolute_speed_deg_s": {
+            "mean": 3.1039508580600317,
+            "minimum": 0.41975610563230364,
+            "maximum": 21.407233538167326,
+            "peak_abs": 21.407233538167326,
+            "rms": 4.652246282269899
+          },
+          "torque_feedback_nm": {
+            "mean": 0.06756956224667791,
+            "minimum": -0.33882808685302734,
+            "maximum": 0.5708179473876953,
+            "peak_abs": 0.5708179473876953,
+            "rms": 0.19225404519886935
+          },
+          "command_error_deg": {
+            "mean": 0.010731104738314016,
+            "minimum": -1.454953319422436,
+            "maximum": 1.4198043755808647,
+            "peak_abs": 1.454953319422436,
+            "rms": 0.7004497098615228
+          },
+          "target_span_deg": 1.942747221218191,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 27.0,
+            "minimum": 27,
+            "maximum": 27,
+            "peak_abs": 27,
+            "rms": 27.0
+          },
+          "rotor_c": {
+            "mean": 24.0,
+            "minimum": 24,
+            "maximum": 24,
+            "peak_abs": 24,
+            "rms": 24.0
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 27,
+              "last_c": 27,
+              "observed_span_s": 45.64354741599891,
+              "change_c": 0
+            },
+            "rotor_c": {
+              "first_c": 24,
+              "last_c": 24,
+              "observed_span_s": 45.64354741599891,
+              "change_c": 0
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 0.4528435481704318,
+            "minimum": 0.0106229999801144,
+            "maximum": 2.1088839999283664,
+            "peak_abs": 2.1088839999283664,
+            "rms": 0.9400783081261032
+          }
+        }
+      },
+      "minimum_axis_span_s": 45.64353638900138,
+      "all_axes_within_025_deg": false
+    },
+    {
+      "attempt": 2,
+      "state": "paused",
+      "endpoint_hold": false,
+      "rejected": 0,
+      "duplicates": 6,
+      "joints": {
+        "1": {
+          "samples": 255,
+          "observed_span_s": 5.107497963999776,
+          "max_sample_gap_s": 0.025424143997952342,
+          "velocity_deg_s": {
+            "mean": -0.5556051933068555,
+            "minimum": -10.703616769083663,
+            "maximum": 8.18508013528984,
+            "peak_abs": 10.703616769083663,
+            "rms": 1.524544386381105
+          },
+          "absolute_speed_deg_s": {
+            "mean": 0.9161020419990171,
+            "minimum": 0.6296887999618155,
+            "maximum": 10.703616769083663,
+            "peak_abs": 10.703616769083663,
+            "rms": 1.524544386381105
+          },
+          "torque_feedback_nm": {
+            "mean": -0.2536522958792892,
+            "minimum": -1.75384521484375,
+            "maximum": 1.3318672180175781,
+            "peak_abs": 1.75384521484375,
+            "rms": 0.6062531909236099
+          },
+          "command_error_deg": {
+            "mean": 0.04062757228656997,
+            "minimum": -0.15299623740828563,
+            "maximum": 0.6994113710093057,
+            "peak_abs": 0.6994113710093057,
+            "rms": 0.16826830855085334
+          },
+          "target_span_deg": 0.0,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 26.0,
+            "minimum": 26,
+            "maximum": 26,
+            "peak_abs": 26,
+            "rms": 26.0
+          },
+          "rotor_c": {
+            "mean": 25.0,
+            "minimum": 25,
+            "maximum": 25,
+            "peak_abs": 25,
+            "rms": 25.0
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 26,
+              "last_c": 26,
+              "observed_span_s": 5.107497963999776,
+              "change_c": 0
+            },
+            "rotor_c": {
+              "first_c": 25,
+              "last_c": 25,
+              "observed_span_s": 5.107497963999776,
+              "change_c": 0
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 0.16743802762528717,
+            "minimum": 0.04419300239533186,
+            "maximum": 0.4926080000586808,
+            "peak_abs": 0.4926080000586808,
+            "rms": 0.18088484919640024
+          }
+        },
+        "2": {
+          "samples": 255,
+          "observed_span_s": 5.107470972001465,
+          "max_sample_gap_s": 0.02543483200133778,
+          "velocity_deg_s": {
+            "mean": -0.13225453321723546,
+            "minimum": -0.699575295549386,
+            "maximum": 1.8189066967310756,
+            "peak_abs": 1.8189066967310756,
+            "rms": 0.19962360987227187
+          },
+          "absolute_speed_deg_s": {
+            "mean": 0.15639708234372945,
+            "minimum": 0.13993691571522124,
+            "maximum": 1.8189066967310756,
+            "peak_abs": 1.8189066967310756,
+            "rms": 0.19962360987227187
+          },
+          "torque_feedback_nm": {
+            "mean": 7.552893290800207,
+            "minimum": 5.75335693359375,
+            "maximum": 9.172161102294922,
+            "peak_abs": 9.172161102294922,
+            "rms": 7.686247948176975
+          },
+          "command_error_deg": {
+            "mean": -0.03848476784107577,
+            "minimum": -0.10928302672020401,
+            "maximum": 0.0,
+            "peak_abs": 0.10928302672020401,
+            "rms": 0.05445692037667498
+          },
+          "target_span_deg": 0.0,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 27.0,
+            "minimum": 27,
+            "maximum": 27,
+            "peak_abs": 27,
+            "rms": 27.0
+          },
+          "rotor_c": {
+            "mean": 35.0,
+            "minimum": 35,
+            "maximum": 35,
+            "peak_abs": 35,
+            "rms": 35.0
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 27,
+              "last_c": 27,
+              "observed_span_s": 5.107470972001465,
+              "change_c": 0
+            },
+            "rotor_c": {
+              "first_c": 35,
+              "last_c": 35,
+              "observed_span_s": 5.107470972001465,
+              "change_c": 0
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 0.11709591383217177,
+            "minimum": 0.03145300070173107,
+            "maximum": 0.4094700016139541,
+            "peak_abs": 0.4094700016139541,
+            "rms": 0.12715267236504543
+          }
+        },
+        "3": {
+          "samples": 255,
+          "observed_span_s": 5.107464185999561,
+          "max_sample_gap_s": 0.025439694996748585,
+          "velocity_deg_s": {
+            "mean": -0.13993691571522124,
+            "minimum": -0.13993691571522124,
+            "maximum": -0.13993691571522124,
+            "peak_abs": 0.13993691571522124,
+            "rms": 0.13993691571522124
+          },
+          "absolute_speed_deg_s": {
+            "mean": 0.13993691571522124,
+            "minimum": 0.13993691571522124,
+            "maximum": 0.13993691571522124,
+            "peak_abs": 0.13993691571522124,
+            "rms": 0.13993691571522124
+          },
+          "torque_feedback_nm": {
+            "mean": -3.9090038374358533,
+            "minimum": -3.956043243408203,
+            "maximum": -3.877899169921875,
+            "peak_abs": 3.956043243408203,
+            "rms": 3.909036306356739
+          },
+          "command_error_deg": {
+            "mean": 0.0,
+            "minimum": 0.0,
+            "maximum": 0.0,
+            "peak_abs": 0.0,
+            "rms": 0.0
+          },
+          "target_span_deg": 0.0,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 27.0,
+            "minimum": 27,
+            "maximum": 27,
+            "peak_abs": 27,
+            "rms": 27.0
+          },
+          "rotor_c": {
+            "mean": 27.0,
+            "minimum": 27,
+            "maximum": 27,
+            "peak_abs": 27,
+            "rms": 27.0
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 27,
+              "last_c": 27,
+              "observed_span_s": 5.107464185999561,
+              "change_c": 0
+            },
+            "rotor_c": {
+              "first_c": 27,
+              "last_c": 27,
+              "observed_span_s": 5.107464185999561,
+              "change_c": 0
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 0.09492649014824636,
+            "minimum": 0.024398003006353974,
+            "maximum": 0.390220000554109,
+            "peak_abs": 0.390220000554109,
+            "rms": 0.10425113561994248
+          }
+        },
+        "4": {
+          "samples": 255,
+          "observed_span_s": 5.107459224000195,
+          "max_sample_gap_s": 0.025449169999774313,
+          "velocity_deg_s": {
+            "mean": -0.43621627226081183,
+            "minimum": -4.617207878928619,
+            "maximum": 2.098780528161518,
+            "peak_abs": 4.617207878928619,
+            "rms": 0.7933839119913694
+          },
+          "absolute_speed_deg_s": {
+            "mean": 0.5679044622631032,
+            "minimum": 0.41975610563230364,
+            "maximum": 4.617207878928619,
+            "peak_abs": 4.617207878928619,
+            "rms": 0.7933839119913694
+          },
+          "torque_feedback_nm": {
+            "mean": -0.40459425309125113,
+            "minimum": -0.8150186538696289,
+            "maximum": -0.22893810272216797,
+            "peak_abs": 0.8150186538696289,
+            "rms": 0.42130101333060227
+          },
+          "command_error_deg": {
+            "mean": -0.0034310584781253074,
+            "minimum": -0.21862069495376812,
+            "maximum": 0.34970568550465286,
+            "peak_abs": 0.34970568550465286,
+            "rms": 0.08548140506766061
+          },
+          "target_span_deg": 0.0,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 26.0,
+            "minimum": 26,
+            "maximum": 26,
+            "peak_abs": 26,
+            "rms": 26.0
+          },
+          "rotor_c": {
+            "mean": 25.0,
+            "minimum": 25,
+            "maximum": 25,
+            "peak_abs": 25,
+            "rms": 25.0
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 26,
+              "last_c": 26,
+              "observed_span_s": 5.107459224000195,
+              "change_c": 0
+            },
+            "rotor_c": {
+              "first_c": 25,
+              "last_c": 25,
+              "observed_span_s": 5.107459224000195,
+              "change_c": 0
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 0.07504362358446873,
+            "minimum": 0.019349001377122477,
+            "maximum": 0.37633800093317404,
+            "peak_abs": 0.37633800093317404,
+            "rms": 0.08353669460198719
+          }
+        },
+        "5": {
+          "samples": 255,
+          "observed_span_s": 5.107455584999116,
+          "max_sample_gap_s": 0.025453861999267247,
+          "velocity_deg_s": {
+            "mean": -0.43950847701086915,
+            "minimum": -6.2962323014578345,
+            "maximum": 2.098780528161518,
+            "peak_abs": 6.2962323014578345,
+            "rms": 0.7650065720265593
+          },
+          "absolute_speed_deg_s": {
+            "mean": 0.5349824147625304,
+            "minimum": 0.41975610563230364,
+            "maximum": 6.2962323014578345,
+            "peak_abs": 6.2962323014578345,
+            "rms": 0.7650065720265593
+          },
+          "torque_feedback_nm": {
+            "mean": -0.4292298073862113,
+            "minimum": -0.5769233703613281,
+            "maximum": -0.11904716491699219,
+            "peak_abs": 0.5769233703613281,
+            "rms": 0.4479531333495507
+          },
+          "command_error_deg": {
+            "mean": -0.004885594135726768,
+            "minimum": -0.0655698160321224,
+            "maximum": 0.24042265878444882,
+            "peak_abs": 0.24042265878444882,
+            "rms": 0.06776169732612093
+          },
+          "target_span_deg": 0.0,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 28.0,
+            "minimum": 28,
+            "maximum": 28,
+            "peak_abs": 28,
+            "rms": 28.0
+          },
+          "rotor_c": {
+            "mean": 29.0,
+            "minimum": 29,
+            "maximum": 29,
+            "peak_abs": 29,
+            "rms": 29.0
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 28,
+              "last_c": 28,
+              "observed_span_s": 5.107455584999116,
+              "change_c": 0
+            },
+            "rotor_c": {
+              "first_c": 29,
+              "last_c": 29,
+              "observed_span_s": 5.107455584999116,
+              "change_c": 0
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 0.12076403937272856,
+            "minimum": 0.014638000720879063,
+            "maximum": 2.0788249999459367,
+            "peak_abs": 2.0788249999459367,
+            "rms": 0.36846966219079885
+          }
+        },
+        "6": {
+          "samples": 255,
+          "observed_span_s": 5.107454545999644,
+          "max_sample_gap_s": 0.025456740000663558,
+          "velocity_deg_s": {
+            "mean": -0.4658461150113274,
+            "minimum": -6.2962323014578345,
+            "maximum": 13.85173291981258,
+            "peak_abs": 13.85173291981258,
+            "rms": 1.3666084391879503
+          },
+          "absolute_speed_deg_s": {
+            "mean": 0.7160511046503464,
+            "minimum": 0.41975610563230364,
+            "maximum": 13.85173291981258,
+            "peak_abs": 13.85173291981258,
+            "rms": 1.3666084391879503
+          },
+          "torque_feedback_nm": {
+            "mean": 0.0672388001984241,
+            "minimum": -0.3266181945800781,
+            "maximum": 0.3266181945800781,
+            "peak_abs": 0.3266181945800781,
+            "rms": 0.13110941062088657
+          },
+          "command_error_deg": {
+            "mean": -0.010114036982732607,
+            "minimum": -0.5027019229129385,
+            "maximum": 0.21856605344040803,
+            "peak_abs": 0.5027019229129385,
+            "rms": 0.12272714874888402
+          },
+          "target_span_deg": 0.0,
+          "speed_allowance_span_deg_s": 0.0,
+          "mos_c": {
+            "mean": 27.0,
+            "minimum": 27,
+            "maximum": 27,
+            "peak_abs": 27,
+            "rms": 27.0
+          },
+          "rotor_c": {
+            "mean": 24.0,
+            "minimum": 24,
+            "maximum": 24,
+            "peak_abs": 24,
+            "rms": 24.0
+          },
+          "temperature_change_c": {
+            "mos_c": {
+              "first_c": 27,
+              "last_c": 27,
+              "observed_span_s": 5.107454545999644,
+              "change_c": 0
+            },
+            "rotor_c": {
+              "first_c": 24,
+              "last_c": 24,
+              "observed_span_s": 5.107454545999644,
+              "change_c": 0
+            }
+          },
+          "effective_feedback_age_ms": {
+            "mean": 0.8396536392822871,
+            "minimum": 0.010265001037623733,
+            "maximum": 2.091816000349354,
+            "peak_abs": 2.091816000349354,
+            "rms": 1.2896911570376297
+          }
+        }
+      },
+      "minimum_axis_span_s": 5.107454545999644,
+      "all_axes_within_025_deg": false
+    }
+  ]
+}

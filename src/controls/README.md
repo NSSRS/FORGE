@@ -21,16 +21,21 @@ named explicitly; the motor API boundary uses raw output-shaft radians/rad/s.
 .venv/bin/python scripts/control_weld.py --simulate --profile weld --cycles 1
 ```
 
-The current flow is measured pose -> checked recovery -> weld start -> explicit
+The current flow is measured pose -> verified hold -> optional checked A3
+endpoint retreat -> recovery/staging -> approach/lowering -> Ready -> explicit
 continuous weld -> Pause / Hold. The checked `--cycles` block repeats; add
 `--single-pass` for bounded completion and endpoint hold. Preparation defaults to 5 deg/s; the five-second
 staging comparison requires explicit `--optimize-preparation` on hardware.
 The default host PID tracker uses nominal preparation time, bounded velocity lead
 and acceleration-bounded braking inside each finite leg. Welding keeps the tiny
 nominal axis motions while omitting host correction below 0.3 deg peak-to-peak.
-Frequency and measured/planned travel use cached feedback. Five-second physical
-timing remains unqualified. HOLD-01 owns stiffness and post-prep sag acceptance. Native mode-2 drive gain writes, gravity feedforward, Cartesian
-outer correction and ESO are not installed.
+Frequency, measured/planned travel and torque/temperature evidence use cached
+feedback. `--lowering-seconds` stretches only the final raised-approach lowering
+leg. The latest loaded preparation took 12.53 s, above the 5–10 s goal; HOLD-01
+also retains the unresolved untouched A5 hold fault. GUI-01 is the next software
+task: show Nm and both temperatures and clarify the verbose windows. Native
+mode-2 drive gain writes, gravity feedforward, Cartesian outer correction and
+ESO are not installed.
 
 Start with [WELD_MOTION.md](../../docs/WELD_MOTION.md),
 [the execution API](controls/hardware/README.md),

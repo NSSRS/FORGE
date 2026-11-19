@@ -1,6 +1,6 @@
-# Damiao torque ratings and the A2 rig trips
+# Damiao torque ratings and rig trips
 
-Manufacturer/incident review: 2026-11-10; current profile updated 2026-11-15. This separates manufacturer ratings, FORGE configuration
+Manufacturer/incident review: 2026-11-10; expanded gun-load profile added 2026-11-19. This separates manufacturer ratings, FORGE configuration
 ceilings, per-test trip thresholds and motor-side current protection.
 
 ## Manufacturer manuals
@@ -33,7 +33,51 @@ GREF and OC_Value. Disabled read-only support is implemented; application
 protection and unit/scaling verification remain PROTECT-01 work.
 No current, temperature, persistent zero or calibration register was changed.
 
-## Current profile and command path
+## Gun-load recording profile (2026-11-19)
+
+The operator confirmed the approximately 1.96 kg gun was attached during the
+12.0137 Nm A2 trip despite the journal's `no-ee/` directory. The A2-only 30 Nm
+profile was subsequently deployed, with physical TMAX=40 persistence verified
+in `readback-20261119-175312.json`. After A5 later faulted at 3.5140 Nm against
+3.5 Nm, the operator confirmed **A3 matches A2; A4, A5 and A6 use 10 Nm**.
+
+The explicit `arm_rig_gun_a2_a6_load.json` requests A2/A3 **30 Nm**, A4-A6
+**10 Nm** and unchanged A1 **20 Nm**. These are commissioning thresholds,
+not manufacturer-approved continuous ratings. No overload-duration cutoff is
+added, as requested. Temperature logging does not establish permissible peak
+duration or duty cycle; these are not specified in the reviewed manuals.
+A2/A3 remain rated 12 Nm, A4-A6 3.5 Nm. The estimated payload mass is not a
+measured torque calculation; required torque changes with pose and acceleration.
+
+MC02 capability `0x800000` extends the exact known A3-A6 routes; A2 retains
+`0x200000`. Both host and firmware apply the configured absolute torque trip.
+The original profiles remain unchanged. The new profile requires actual drive
+TMAX **40 on A2/A3** and **12.5 on A4-A6**. Their prior ranges, 28/10, cannot
+observe a crossing above the requested 30/10 Nm trips. Changing TMAX changes
+feedback encoding; changing only host JSON mis-scales it. Host readback and MCU
+probing reject mismatches and unobservable extended trips before enable.
+
+The disabled `scripts/setup_arm_load_ranges.py` requires capability `0x1000000`
+and the complete freshly disabled/stationary rig. It skips ranges already at
+target, writes only fixed TMAX values, independently reads back before one save,
+and compares all captured configuration exactly except live VBus register 60.
+Original values are durably recorded before any write. No current/gain/thermal,
+mode, encoder-zero or ID setting is changed. The drive saves all its parameters
+together, so unexpected unrelated changes block progress. An uncertain save is
+never retried; global motion lock persists until MCU restart. A3-A6 setup/readback is now physically recorded in the operator's Nov 19
+reports: the first setup writes/saves all four, a subsequent fresh-MCU check
+finds retained values, and full-profile disabled readback passes. Firmware
+f78f6b0d was deployed by the operator. See the
+[physical review](measurements/arm-gun-load-review-2026-11-19.json); the agent
+performed offline analysis only.
+
+Normal cached feedback records signed estimated torque, MOS/drive temperature
+and motor `rotor_c` temperature throughout preparation, holding and welding.
+No second owner or enabled register polling is added. Both **80 C** temperature
+trips, speed/tracking/freshness/lease checks and latched whole-arm fault disable
+remain. Follow the [operator commands](ARM_RIG_TEST.md#expanded-gun-load-profile-a2a3-30-nm-a4-a6-10-nm).
+
+## Standard profile and command path
 
 The current supported rig includes all six axes. Manual mode-2 non-holding/
 teaching uses 5 deg/s; holding-mode jogs default to 10 deg/s. The separate
@@ -49,8 +93,8 @@ determine torque/current; `Feedback Nm` is a motor estimate decoded with the
 verified TMAX, not independently measured shaft torque or PSU current.
 See the pinned 4340P manual pp. 12/16 for the mode-2 command/feedback format.
 
-Python/routed firmware permit torque configuration ceilings of 20/12/3.5 Nm
-for 8009P/4340P/4310P. Profiles can request less. Capability 0x2000 gates
+Standard torque configuration ceilings are 20/12/3.5 Nm
+for 8009P/4340P/4310P, with the explicit A2 trial exception above. Profiles can request less. Capability 0x2000 gates
 4340P trips above the old 3 Nm ceiling. The Nov 12 saved deployed build
 **d61f6d16 / 0xFFF8F** retains disabled control reads (0x4000) and manual travel
 (0x8000), with additional explicit holding and optional jog-smoothing capabilities.
@@ -86,6 +130,10 @@ completed A2–A6 control-register inspection. Selected decoded values:
 | Imax | approximately 20.5224 | approximately 20.5224 |
 | KT_Value | 0 | 0 |
 | VBus | approximately 24 V | approximately 24 V |
+
+VBus (register 60 / 0x3C) is live read-only bus voltage, not a saved setting.
+The A2 range setup records it but excludes it from configuration equality
+before and after parameter save; other captured settings remain checked exactly.
 
 These are register values, not verified engineering-unit current limits.
 In particular, a zero KT_Value must not be used to infer zero delivered torque.
