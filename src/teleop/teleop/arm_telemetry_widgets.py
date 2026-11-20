@@ -148,6 +148,17 @@ class TelemetryPanel(QtWidgets.QWidget):
             self.cards.append(dict(title=title, torque=torque, load=load, temperatures=temperatures,
                                    torque_plot=torque_plot, temp_plot=temp_plot, peaks=peaks, frame=card))
 
+    def set_display_scale(self, scale):
+        text_height = self.fontMetrics().height()
+        for card in self.cards:
+            card["torque"].setStyleSheet(
+                f"font-size: {round(20 * scale)}px; font-weight: 600; color: #172b46"
+            )
+            card["peaks"].setStyleSheet(f"color: #526176; font-size: {round(11 * scale)}px")
+            card["load"].setFixedHeight(max(round(17 * scale), text_height + 2))
+            for name in ("torque_plot", "temp_plot"):
+                card[name].setFixedHeight(max(round(18 * scale), text_height + 6))
+
     def update_samples(self, rows, *, captured_at=None, stage="idle", run=None, stale=False):
         now = time.monotonic()
         captured_at = now if captured_at is None else captured_at

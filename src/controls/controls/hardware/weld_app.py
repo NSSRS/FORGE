@@ -63,6 +63,7 @@ def make_window(args, mapping, initial, settings, root):
         def __init__(self):
             super().__init__()
             self.commands = queue.Queue(maxsize=16)
+            self.command_revision = 0
             self.cancel = threading.Event()
             self.cancel_cause = "operator_input"
             self.finish = threading.Event()
@@ -97,11 +98,15 @@ def make_window(args, mapping, initial, settings, root):
                         self.commands.get_nowait()
                     except queue.Empty:
                         break
+            self.command_revision += 1
+            revision = self.command_revision
             try:
-                self.commands.put_nowait((action, values, self.focus_generation))
+                self.commands.put_nowait((action, values, self.focus_generation, revision))
             except queue.Full:
                 self.cancel_cause = "queue_full"
                 self.cancel.set()
+                return None
+            return revision
 
         def set_foreground(self, active):
             if active:
@@ -297,6 +302,7 @@ def make_window(args, mapping, initial, settings, root):
                     c.fail(RuntimeError(arm.fault))
                 last_display = 0.0
                 displayed_plan = None
+                command_revision = 0
                 while not self.finish.is_set():
                     tick_start = time.monotonic()
                     expired = tick_start - self.heartbeat > 0.15
@@ -321,7 +327,7 @@ def make_window(args, mapping, initial, settings, root):
                         self.cancel.clear()
                     self.pause_for_focus_loss()
                     try:
-                        action, values, focus_generation = self.commands.get_nowait()
+                        action, values, focus_generation, command_revision = self.commands.get_nowait()
                     except queue.Empty:
                         action = None
                     try:
@@ -434,6 +440,7 @@ def make_window(args, mapping, initial, settings, root):
                                 message=c.message,
                                 arm_on=c.arm_on,
                                 chassis_on=c.chassis_on,
+                                command_revision=command_revision,
                                 holding=c.arm_holding,
                                 measured_motion=c.motion_frequency.result if c.state == "welding" else None,
                                 planned_travel_deg=c.weld_travel_deg if c.plan is not None else None,
@@ -462,6 +469,7 @@ def make_window(args, mapping, initial, settings, root):
                                     else None
                                 ),
                                 feed_m_s=0 if chassis is None else chassis.last_feed,
+                                chassis_motion=None if chassis is None else chassis.simulated_motion(),
                                 timing=(
                                     None
                                     if c.plan is None
@@ -560,28 +568,19 @@ def make_window(args, mapping, initial, settings, root):
             self.worker = OwnerThread()
             self.last_state = "idle"
             self.last_status = None
+            self.selection_revision = 0
             self.first_fault = None
             self.next_telemetry_paint = 0
             self.closing = False
-            font = self.font()
-            font.setPointSize(10)
-            self.setFont(font)
+            self.ui_scale = None
+            self.ui_screen = None
+            self.screen_tracking = False
+            self.state_severity = None
             self.setWindowTitle("FORGE Weld Motion · " + ("Supported hardware" if args.execute else "Offline simulation"))
-            self.setStyleSheet("""
-                QWidget { color: #172b46; }
-                QPushButton { padding: 7px 10px; border: 1px solid #bccbdc; border-radius: 5px; background: #f8fafc; }
-                QPushButton:disabled { color: #8b99aa; background: #f1f5f9; }
-                QPushButton:hover:enabled { background: #e6eef9; }
-                QGroupBox { font-weight: 600; }
-                QTabWidget::pane { border: 1px solid #d8e1ec; background: #f8fafc; }
-                QTabBar::tab { padding: 7px 14px; }
-            """)
             layout = QtWidgets.QVBoxLayout(self)
-            layout.setContentsMargins(12, 10, 12, 8)
-            layout.setSpacing(7)
             header = QtWidgets.QHBoxLayout()
             title = QtWidgets.QLabel("FORGE  /  WELD MOTION")
-            title.setStyleSheet("font-size: 17px; font-weight: 700")
+            title.setObjectName("weldTitle")
             header.addWidget(title)
             header.addStretch()
             header.addWidget(QtWidgets.QLabel("SUPPORTED HARDWARE" if args.execute else "OFFLINE SIMULATION"))
@@ -589,19 +588,22 @@ def make_window(args, mapping, initial, settings, root):
             self.state_label = QtWidgets.QLabel("Initializing the control thread…")
             self.state_label.setWordWrap(True)
             self.state_label.setTextFormat(QtCore.Qt.PlainText)
-            self.state_label.setMinimumHeight(40)
+            self.state_label.setObjectName("weldState")
             layout.addWidget(self.state_label)
             self.next_action = QtWidgets.QLabel()
             self.next_action.setWordWrap(True)
             self.output_label = QtWidgets.QLabel("Arm output OFF · Chassis output OFF · Arm hold inactive")
+            self.output_label.setWordWrap(True)
+            self.output_label.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
             summary = QtWidgets.QHBoxLayout()
             summary.addWidget(self.next_action, 1)
-            summary.addWidget(self.output_label)
+            summary.addWidget(self.output_label, 1)
             layout.addLayout(summary)
             controls = QtWidgets.QHBoxLayout()
             self.arm = QtWidgets.QCheckBox("Arm output")
             self.arm.setToolTip("Selection does not enable motors. Changing outputs keeps an existing hold and invalidates the plan.")
             self.chassis = QtWidgets.QCheckBox("Chassis feed")
+            self.chassis.setToolTip("Drive forward at the planned feed rate during welding.")
             self.arm.setEnabled(args.arm)
             self.chassis.setEnabled(args.chassis)
             for widget in (self.arm, self.chassis):
@@ -634,18 +636,16 @@ def make_window(args, mapping, initial, settings, root):
             layout.addLayout(stop_row)
             self.planning_progress = QtWidgets.QProgressBar()
             self.planning_progress.setRange(0, 0)
-            self.planning_progress.setFixedHeight(5)
             self.planning_progress.setTextVisible(False)
             self.planning_progress.hide()
             layout.addWidget(self.planning_progress)
             self.motion_progress = QtWidgets.QProgressBar()
             self.motion_progress.setRange(0, 1000)
-            self.motion_progress.setFixedHeight(19)
             self.motion_progress.hide()
             layout.addWidget(self.motion_progress)
             self.preparation_label = QtWidgets.QLabel(f"Preparation goal {settings.preparation_target_s:g} s · No measured run yet")
             layout.addWidget(self.preparation_label)
-            content = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
+            self.content = content = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
             self.preview = None
             if not getattr(args, "no_preview", False):
                 from simulation.weld_preview import make_preview
@@ -661,7 +661,7 @@ def make_window(args, mapping, initial, settings, root):
             legend = QtWidgets.QLabel("30 s trends · Torque: axis color · Temperature: motor orange / MOS purple")
             legend.setToolTip("Fresh-only peaks: current stage / recovery run. Hover a card for temperature peaks.")
             legend.setWordWrap(True)
-            legend.setStyleSheet("color: #526176; font-size: 11px")
+            legend.setProperty("weldTextRole", "caption")
             telemetry_layout.addWidget(legend)
             self.telemetry = TelemetryPanel()
             telemetry_layout.addWidget(self.telemetry, 1)
@@ -682,7 +682,7 @@ def make_window(args, mapping, initial, settings, root):
                 axis = QtWidgets.QLabel(f"A{i+1}")
                 axis.setStyleSheet(f"color: {color}; font-weight: 700")
                 reading = QtWidgets.QLabel("—")
-                reading.setStyleSheet("font-size: 18px; font-weight: 600")
+                reading.setProperty("weldTextRole", "reading")
                 detail = QtWidgets.QLabel("Waiting for welding")
                 detail.setWordWrap(True)
                 for widget in (axis, reading, detail):
@@ -699,9 +699,7 @@ def make_window(args, mapping, initial, settings, root):
             self.table.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
             self.table.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Stretch)
             self.table.verticalHeader().hide()
-            self.table.verticalHeader().setDefaultSectionSize(26)
             self.table.horizontalHeader().setSectionResizeMode(0, QtWidgets.QHeaderView.Fixed)
-            self.table.setColumnWidth(0, 48)
             for axis in range(6):
                 for column in range(6):
                     item = QtWidgets.QTableWidgetItem(f"A{axis+1}" if column == 0 else "—")
@@ -725,7 +723,9 @@ def make_window(args, mapping, initial, settings, root):
             self.tabs.addTab(motion_scroll, "Targets && response")
             content.addWidget(self.tabs)
             content.setChildrenCollapsible(False)
-            content.setSizes([510, 740])
+            if self.preview is not None:
+                content.setStretchFactor(0, 2)
+                content.setStretchFactor(1, 3)
             layout.addWidget(content, 1)
             self.details_toggle = QtWidgets.QToolButton()
             self.details_toggle.setText("Diagnostics && evidence")
@@ -735,7 +735,6 @@ def make_window(args, mapping, initial, settings, root):
             layout.addWidget(self.details_toggle)
             self.details = QtWidgets.QScrollArea()
             self.details.setWidgetResizable(True)
-            self.details.setMaximumHeight(165)
             detail_body = QtWidgets.QWidget()
             detail_layout = QtWidgets.QVBoxLayout(detail_body)
             self.controller_label = QtWidgets.QLabel("Tracker: PID + velocity feedforward" if tracker_settings is not None else "Tracker: feedback-paced")
@@ -772,7 +771,8 @@ def make_window(args, mapping, initial, settings, root):
             self.evidence_warning.hide()
             layout.addWidget(self.evidence_warning)
             note = QtWidgets.QLabel("Motion only · Pause retains arm hold · Disable / fault / close removes torque")
-            note.setStyleSheet("color: #526176; font-size: 11px")
+            note.setProperty("weldTextRole", "caption")
+            note.setWordWrap(True)
             layout.addWidget(note)
             self.show_motor_frequency(dict(state="idle", arm_on=False))
             self.worker.status.connect(self.show_status)
@@ -790,15 +790,103 @@ def make_window(args, mapping, initial, settings, root):
             self.timer = QtCore.QTimer(self)
             self.timer.timeout.connect(self.heartbeat)
             self.timer.start(30)
-            self.resize(1280, 800)
+            self.fit_to_screen(self.screen())
             self.worker.start()
+
+        def showEvent(self, event):
+            super().showEvent(event)
+            if not self.screen_tracking:
+                handle = self.windowHandle()
+                handle.screenChanged.connect(self.fit_to_screen)
+                self.fit_to_screen(handle.screen())
+                self.screen_tracking = True
+
+        def fit_to_screen(self, screen):
+            if screen is None:
+                return
+            if screen is not self.ui_screen:
+                if self.ui_screen is not None:
+                    try:
+                        self.ui_screen.availableGeometryChanged.disconnect(self.apply_work_area)
+                    except (TypeError, RuntimeError):
+                        pass  # The previous display was removed.
+                self.ui_screen = screen
+                screen.availableGeometryChanged.connect(self.apply_work_area)
+            self.apply_work_area(screen.availableGeometry())
+            if self.preview is not None:
+                self.preview.picture.fit_frame()
+
+        def apply_work_area(self, available):
+            # Qt supplies logical pixels. An unscaled 4K desktop still needs
+            # larger controls, while a desktop already scaled by Qt needs less.
+            scale = max(1.0, min(2.0, available.width() / 1920, available.height() / 1050))
+            old_scale = self.ui_scale
+            if scale != old_scale:
+                self.ui_scale = scale
+                self.apply_display_scale(scale)
+            if not (self.isMaximized() or self.isFullScreen()):
+                desired = (QtCore.QSize(1280, 800) * scale if old_scale is None
+                           else self.size() * (scale / old_scale))
+                target = desired.boundedTo(available.size() * 0.94)
+                self.arrange_content(target.width())
+                self.layout().activate()
+                self.resize(target)
+                if old_scale is None:
+                    self.move(available.center() - self.rect().center())
+            self.arrange_content()
+
+        def apply_display_scale(self, scale):
+            font = self.font()
+            font.setPointSizeF(10 * scale)
+            self.setFont(font)
+            pad = round(7 * scale)
+            self.setStyleSheet(f"""
+                QWidget {{ color: #172b46; font-size: {10 * scale:.2f}pt; }}
+                QCheckBox::indicator {{ width: {round(13 * scale)}px; height: {round(13 * scale)}px; }}
+                QPushButton {{ padding: {pad}px {round(10 * scale)}px; border: 1px solid #bccbdc; border-radius: 5px; background: #f8fafc; }}
+                QPushButton:disabled {{ color: #8b99aa; background: #f1f5f9; }}
+                QPushButton:hover:enabled {{ background: #e6eef9; }}
+                QGroupBox {{ font-weight: 600; }}
+                QTabWidget::pane {{ border: 1px solid #d8e1ec; background: #f8fafc; }}
+                QTabBar::tab {{ padding: {pad}px {2 * pad}px; }}
+                QLabel#weldTitle, QLabel#weldState {{ font-size: {13 * scale:.2f}pt; font-weight: 700; }}
+                QLabel[weldTextRole="caption"] {{ color: #526176; font-size: {8.5 * scale:.2f}pt; }}
+                QLabel[weldTextRole="reading"] {{ font-size: {13.5 * scale:.2f}pt; font-weight: 600; }}
+            """)
+            self.layout().setContentsMargins(round(12 * scale), round(10 * scale),
+                                             round(12 * scale), round(8 * scale))
+            self.layout().setSpacing(pad)
+            self.state_label.setMinimumHeight(round(40 * scale))
+            self.planning_progress.setFixedHeight(round(5 * scale))
+            self.motion_progress.setFixedHeight(max(round(19 * scale), self.fontMetrics().height() + 4))
+            self.table.verticalHeader().setDefaultSectionSize(round(26 * scale))
+            self.table.setColumnWidth(0, round(48 * scale))
+            self.details.setMaximumHeight(round(165 * scale))
+            self.telemetry.set_display_scale(scale)
+
+        def resizeEvent(self, event):
+            super().resizeEvent(event)
+            self.arrange_content()
+
+        def arrange_content(self, width=None):
+            if self.ui_scale is None or self.preview is None:
+                return
+            width = self.width() if width is None else width
+            wide = width >= 1120 * self.ui_scale
+            orientation = QtCore.Qt.Horizontal if wide else QtCore.Qt.Vertical
+            if self.content.orientation() != orientation:
+                self.content.setOrientation(orientation)
+                space = self.content.width() if wide else self.content.height()
+                self.content.setSizes([round(space * 0.43), round(space * 0.57)])
 
         def toggle_details(self, expanded):
             self.details.setVisible(expanded)
             self.details_toggle.setArrowType(QtCore.Qt.DownArrow if expanded else QtCore.Qt.RightArrow)
 
         def selection(self):
-            self.worker.send("select", self.arm.isChecked(), self.chassis.isChecked())
+            revision = self.worker.send("select", self.arm.isChecked(), self.chassis.isChecked())
+            if revision is not None:
+                self.selection_revision = revision
 
         def heartbeat(self):
             self.worker.heartbeat = time.monotonic()
@@ -848,8 +936,12 @@ def make_window(args, mapping, initial, settings, root):
             colors = {"normal": ("#e8f3ee", "#215844"), "planning": ("#eaf0fd", "#294e91"),
                       "paused": ("#fff2cf", "#79560b"), "warning": ("#fff2cf", "#79560b"),
                       "blocked": ("#fff0e0", "#8c4a14"), "fault": ("#fbe8e9", "#a12535")}
-            background, foreground = colors[severity]
-            self.state_label.setStyleSheet(f"background: {background}; color: {foreground}; padding: 8px; border-radius: 5px; font-size: 17px; font-weight: 600")
+            if severity != self.state_severity:
+                background, foreground = colors[severity]
+                self.state_label.setStyleSheet(
+                    f"background: {background}; color: {foreground}; padding: 8px; border-radius: 5px;"
+                )
+                self.state_severity = severity
             if severity in ("fault", "blocked"):
                 message = value["message"]
                 title += ": " + (message if len(message) <= 220 else message[:217] + "…")
@@ -927,10 +1019,12 @@ def make_window(args, mapping, initial, settings, root):
                 )
             else:
                 self.tracking_label.clear()
-            for widget, key in ((self.arm, "arm_on"), (self.chassis, "chassis_on")):
-                widget.blockSignals(True)
-                widget.setChecked(value[key])
-                widget.blockSignals(False)
+            # Older status snapshots can arrive between clicks on the two outputs.
+            if (value.get("command_revision", 0) >= self.selection_revision
+                    or value["state"] in ("fault", "resetting")):
+                self.selection_revision = 0
+                self.arm.setChecked(value["arm_on"])
+                self.chassis.setChecked(value["chassis_on"])
             self.buttons["initial"].setEnabled(value["state"] == "planned")
             self.buttons["weld"].setEnabled(value["state"] == "ready")
             self.buttons["reset"].setEnabled(bool(value.get("reset_available")))
@@ -970,7 +1064,10 @@ def make_window(args, mapping, initial, settings, root):
                     for column in (1, 3):
                         self.table.item(i, column).setText("—")
             if self.preview is not None:
-                self.preview.set_pose(value["raw_deg"], value.get("feedback_age_ms"))
+                self.preview.set_pose(
+                    value["raw_deg"], value.get("feedback_age_ms"),
+                    chassis_motion=value.get("chassis_motion"),
+                )
 
         def show_motor_frequency(self, value):
             """Render cached measurements only; never infer actual Hz from the plan."""
@@ -1316,11 +1413,15 @@ def main(argv=None):
             from simulation.arm_calibration import scene_fingerprint
 
             args.scene_fingerprint = scene_fingerprint(model_directory() / "robot.xml")
-            from PyQt5 import QtWidgets
+            from PyQt5 import QtCore, QtGui, QtWidgets
 
-            app = QtWidgets.QApplication.instance() or QtWidgets.QApplication(
-                [sys.argv[0]]
-            )
+            app = QtWidgets.QApplication.instance()
+            if app is None:
+                QtCore.QCoreApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling)
+                QtGui.QGuiApplication.setHighDpiScaleFactorRoundingPolicy(
+                    QtCore.Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
+                )
+                app = QtWidgets.QApplication([sys.argv[0]])
             args.journal_path = output.with_suffix(".jsonl")
             print(f"Live journal: {args.journal_path}", flush=True)
             window = make_window(args, mapping, initial, settings, root)

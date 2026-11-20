@@ -13,7 +13,7 @@ import unittest
 from unittest.mock import patch
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-from PyQt5 import QtWidgets, QtTest, QtCore
+from PyQt5 import QtWidgets, QtTest, QtCore, QtGui
 from controls.hardware import weld_app
 from controls.hardware.weld_plan import Settings
 from motors.arm_calibration import CalibrationMap, digest
@@ -237,9 +237,19 @@ class WeldPanelTests(unittest.TestCase):
         self.wait(lambda: any(e["event"] == "weld_started" for e in c.events))
         self.assertEqual(c.state, "welding")
 
-    def test_default_weld_keeps_running_until_space_then_holds(self):
+    def test_combined_weld_drives_the_top_view_until_space_then_holds(self):
+        self.wait(lambda: self.window.last_status is not None)
+        prior_status = self.window.last_status
+        self.window.chassis.click()
+        self.window.show_status(prior_status)
+        self.assertTrue(self.window.chassis.isChecked())
+        self.wait(lambda: self.window.worker.controller.chassis_on)
+        preview = self.window.preview
+        preview.view.setCurrentText("Top")
         c = self.ready_arm()
         self.assertTrue(c.continuous_weld)
+        self.assertTrue(c.plan["chassis_enabled"])
+        self.assertEqual(preview.chassis_motion["distance_m"], 0)
         self.assertIn("continuous until Pause", self.window.weld_run_label.text())
         self.wait(lambda: self.window.buttons["weld"].isEnabled())
         self.window.buttons["weld"].click()
@@ -250,6 +260,11 @@ class WeldPanelTests(unittest.TestCase):
         )
         self.assertEqual(c.state, "welding", c.message)
         self.assertTrue(c.arm.enabled)
+        self.assertGreater(c.chassis.last_feed, 0)
+        self.wait(lambda: any(
+            r["view"] == "Top" and r["chassis_travel_m"] > 0.001 for r in preview.backend.requests
+        ))
+        self.assertIn("mm traveled", preview.caption.text())
         self.window.table.setFocus()
         QtTest.QTest.keyClick(self.window.table, QtCore.Qt.Key_Space)
         self.wait(lambda: c.state == "paused")
@@ -258,6 +273,10 @@ class WeldPanelTests(unittest.TestCase):
         self.assertTrue(c.arm.enabled)
         self.assertEqual(c.arm.target.tolist(), target.tolist())
         self.assertEqual(c.chassis.last_feed, 0)
+        self.wait(lambda: preview.chassis_motion["speed_m_s"] == 0)
+        stopped_distance = preview.chassis_motion["distance_m"]
+        QtTest.QTest.qWait(250)
+        self.assertEqual(preview.chassis_motion["distance_m"], stopped_distance)
 
     def test_ready_does_not_execute_a_start_queued_before_focus_changed(self):
         c = self.ready_arm()
@@ -637,11 +656,78 @@ class WeldPanelTests(unittest.TestCase):
         self.assertNotIn("Checking recovery", c.message)
         self.window.timer.start(30)
 
-    def test_offline_window_render(self):
+    def test_window_scales_across_display_sizes_and_stacks_when_narrow(self):
+        self.window.apply_work_area(QtCore.QRect(0, 0, 1920, 1080))
+        self.window.resize(1280, 800)
+        self.app.processEvents()
+        baseline_text_height = self.window.buttons["calculate"].fontMetrics().height()
+        for width, height, scale in ((1920, 1080, 1), (2560, 1440, 4 / 3), (3840, 2160, 2)):
+            with self.subTest(width=width):
+                available = QtCore.QRect(0, 0, width, height)
+                self.window.apply_work_area(available)
+                self.app.processEvents()
+                self.assertAlmostEqual(self.window.font().pointSizeF(), 10 * scale, delta=0.01)
+                self.assertAlmostEqual(self.window.width(), 1280 * scale, delta=2)
+                button_text_height = self.window.buttons["calculate"].fontMetrics().height()
+                self.assertAlmostEqual(button_text_height, baseline_text_height * scale, delta=3)
+                self.assertLessEqual(self.window.height(), height)
+                self.assertEqual(self.window.content.orientation(), QtCore.Qt.Horizontal)
+                for action in ("calculate", "initial", "weld", "pause"):
+                    self.assertTrue(self.window.rect().contains(self.window.buttons[action].geometry()))
+        self.window.apply_work_area(QtCore.QRect(3840, 0, 1080, 1920))
+        self.app.processEvents()
+        self.assertLessEqual(self.window.width(), 1080)
+        self.assertEqual(self.window.content.orientation(), QtCore.Qt.Vertical)
         out = ROOT / "build/weld/panel.png"
         out.parent.mkdir(parents=True, exist_ok=True)
         self.assertTrue(self.window.grab().save(str(out)))
-        self.assertGreater(self.window.width(), 900)
+
+    def test_model_viewport_gestures_and_resize_only_change_the_view(self):
+        preview = self.window.preview
+        picture = preview.picture
+        image = QtGui.QImage(640, 400, QtGui.QImage.Format_RGB888)
+        image.fill(QtGui.QColor("#345678"))
+
+        def drag(button):
+            start = picture.rect().center()
+            end = start + QtCore.QPoint(24, 12)
+            QtTest.QTest.mousePress(picture, button, pos=start)
+            event = QtGui.QMouseEvent(QtCore.QEvent.MouseMove, QtCore.QPointF(end),
+                                      QtCore.Qt.NoButton, button, QtCore.Qt.NoModifier)
+            self.app.sendEvent(picture, event)
+            QtTest.QTest.mouseRelease(picture, button, pos=end)
+
+        picture.set_frame(image)
+        fitted = picture.pixmap().size()
+        picture.resize(picture.size() * 1.25)
+        self.assertNotEqual(picture.pixmap().size(), fitted)
+        drag(QtCore.Qt.LeftButton)
+        self.assertNotEqual(preview.camera_yaw, 0)
+        self.assertNotEqual(preview.camera_pitch, 0)
+        point = picture.rect().center()
+        wheel = QtGui.QWheelEvent(
+            QtCore.QPointF(point), QtCore.QPointF(picture.mapToGlobal(point)),
+            QtCore.QPoint(), QtCore.QPoint(0, 120), QtCore.Qt.NoButton,
+            QtCore.Qt.NoModifier, QtCore.Qt.ScrollUpdate, False,
+        )
+        self.app.sendEvent(picture, wheel)
+        self.assertLess(preview.camera_zoom, 1)
+        self.wait(lambda: any(r["camera"][2] < 1 for r in preview.backend.requests))
+        preview.view.setCurrentText("Top")
+        self.assertEqual(preview.camera_yaw, 0)
+        self.assertEqual(preview.camera_zoom, 1)
+        picture.set_frame(image)
+        preview.pan_axes = ([1, 0, 0], [0, 1, 0])
+        drag(QtCore.Qt.LeftButton)
+        self.assertLess(preview.camera_pan[0], 0)
+        self.assertGreater(preview.camera_pan[1], 0)
+        drag(QtCore.Qt.RightButton)
+        self.assertEqual(preview.camera_pitch, 0)
+        preview.reset_view.click()
+        self.assertEqual(preview.camera_pan, (0, 0, 0))
+        controller = self.window.worker.controller
+        self.assertFalse(controller.arm.enabled)
+        self.assertEqual(controller.chassis.last_feed, 0)
 
     def test_dashboard_states_fit_small_screen_and_retain_first_fault(self):
         self.window.worker.status.disconnect(self.window.show_status)

@@ -1,5 +1,6 @@
 """Embedded kinematic preview. Rendering runs in a process with no motor owner."""
 
+import math
 import multiprocessing
 import os
 import sys
@@ -122,6 +123,11 @@ def annotated_frame(result):
             frame.height() - 13,
             "Projected through surfaces | Red: blocked | Blue: mesh gap passes",
         )
+    if result.get("wire_tip_xy") is not None:
+        tip = QtCore.QPointF(*result["wire_tip_xy"])
+        painter.setPen(QtGui.QPen(QtGui.QColor("#182638"), 2))
+        painter.setBrush(QtGui.QColor("#37efd0"))
+        painter.drawEllipse(tip, 4, 4)
     painter.end()
     return frame
 
@@ -161,6 +167,12 @@ class PlanPlayback:
             ]
         )
         self.duration = sum(segment[1] for segment in self.segments)
+        self.feed_m_s = plan["feed_m_s"] if plan.get("chassis_enabled") else 0.0
+
+    def chassis_travel(self, elapsed):
+        weld_duration = self.paths["weld"].duration
+        weld_elapsed = min(weld_duration, max(0.0, elapsed - (self.duration - weld_duration)))
+        return self.feed_m_s * weld_elapsed
 
     def sample(self, elapsed):
         elapsed = max(0.0, min(float(elapsed), self.duration))
@@ -175,12 +187,18 @@ class PlanPlayback:
 class PoseRenderer:
     def __init__(self, mapping):
         import mujoco as mj
+        import numpy as np
         from motors.arm_calibration import CalibrationMap
         from controls.controller.weld_plan import WeldGeometry
+        from controls.simulation.weave_xy_z import WHEEL_RADIUS
+        from simulation.velocity_control import DRIVEN_JOINTS, WHEEL_DIRECTIONS
 
         self.mj = mj
         self.geometry = WeldGeometry(CalibrationMap(mapping))
         model = self.geometry.model
+        self.base_x = int(model.joint("floating_base").qposadr[0])
+        self.wheel_addresses = [int(model.joint(name).qposadr[0]) for name in DRIVEN_JOINTS]
+        self.wheel_roll_per_m = np.asarray(WHEEL_DIRECTIONS) / WHEEL_RADIUS
         model.vis.global_.offwidth = max(640, model.vis.global_.offwidth)
         model.vis.global_.offheight = max(400, model.vis.global_.offheight)
         self.renderer = mj.Renderer(model, width=640, height=400)
@@ -188,6 +206,7 @@ class PoseRenderer:
         self.option.geomgroup[3:] = 0
         self.option.sitegroup[:] = 0
         self.camera = mj.MjvCamera()
+        self.vertical_fov = model.vis.global_.fovy
 
     def observed_pose(self, raw, clearance_mm):
         """Render raw observations outside saved limits without authorizing a path.
@@ -226,8 +245,26 @@ class PoseRenderer:
         return ('Measured pose shown for inspection only. ' + ' '.join(issues)
                 + ' See the planning status above for the path-check result.')
 
+    def update_view(self, data, controls):
+        camera = self.camera
+        yaw, pitch, zoom, *pan = controls or (0, 0, 1, 0, 0, 0)
+        camera.lookat[:] += pan
+        visual = self.geometry.model.vis.global_
+        visual.orthographic = camera.orthographic
+        visual.fovy = self.vertical_fov
+        if camera.orthographic:
+            # Zoom the orthographic span without moving the camera into the arm.
+            visual.fovy = 2 * camera.distance * math.tan(math.radians(self.vertical_fov) / 2) * zoom
+        else:
+            camera.distance *= zoom
+            camera.azimuth += yaw
+            camera.elevation = max(-89.0, min(89.0, camera.elevation + pitch))
+        self.renderer.update_scene(data, camera=camera, scene_option=self.option)
+
     def frame(self, request):
+        import numpy as np
         from controls.controller.weld_plan import finite_vector
+        from controls.simulation.weave_xy_z import SEAM_WIDTH, line
         from motors.arm_calibration import RawAngleLimitError
 
         geometry, mj = self.geometry, self.mj
@@ -250,11 +287,23 @@ class PoseRenderer:
                 ("Arm/environment clearance:", "Adjacent mechanical stop:")
             ):
                 raise
+        travel = request.get("chassis_travel_m", 0.0)
+        offset = np.array([travel, 0.0, 0.0])
+        if travel:
+            # Render flat-floor travel after checking the arm in the planner frame.
+            geometry.data.qpos[self.base_x] += travel
+            geometry.data.qpos[self.wheel_addresses] += travel * self.wheel_roll_per_m
+            mj.mj_kinematics(geometry.model, geometry.data)
+            mj.mj_comPos(geometry.model, geometry.data)
         camera = self.camera
         view = request.get("view", "Overview")
-        camera.lookat[:] = [-0.06, 0, 0.18]
+        # Hold the start in view for the first part of the weld, then follow.
+        camera.lookat[:] = [-0.06 + max(0.0, travel - 0.20), 0, 0.18]
         camera.distance, camera.azimuth, camera.elevation = 1.30, 108, -25
-        if view == "Side":
+        camera.orthographic = view == "Top"
+        if view == "Top":
+            camera.distance, camera.azimuth, camera.elevation = 1.55, 90, -90
+        elif view == "Side":
             camera.azimuth, camera.elevation = 90, -8
         elif view == "Wrist":
             camera.lookat[:] = geometry.data.body("l5_arm_linkage_d5").xpos
@@ -267,11 +316,9 @@ class PoseRenderer:
         isolated = view == "Contact parts" and bool(contacts)
         if view in ("Contact", "Contact parts") and contacts:
             first = next((row for row in contacts if row["blocked"]), contacts[0])
-            camera.lookat[:] = first["point"]
+            camera.lookat[:] = first["point"] + offset
             camera.distance, camera.elevation = 0.42, -12
         if isolated:
-            import numpy as np
-
             model, data = geometry.model, geometry.data
             selected = [model.geom(name).id for name in first["geom_names"]]
             groups, rgba, materials = (
@@ -306,9 +353,7 @@ class PoseRenderer:
                     [0.18, 0.59, 0.95, 1],
                     [1.0, 0.48, 0.12, 1],
                 ]
-                self.renderer.update_scene(
-                    data, camera=camera, scene_option=self.option
-                )
+                self.update_view(data, None)
                 if len(vertices):
                     # Fit the two meshes in screen space, including room for the
                     # labels, rather than sizing from their foreshortened 3D box.
@@ -326,9 +371,8 @@ class PoseRenderer:
                         - delta @ gl.forward
                     )
                     camera.distance = max(0.10, float(np.max(required)))
-                    self.renderer.update_scene(
-                        data, camera=camera, scene_option=self.option
-                    )
+                if len(vertices) or request.get("camera"):
+                    self.update_view(data, request.get("camera"))
             finally:
                 model.geom_group[:], model.geom_rgba[:], model.geom_matid[:] = (
                     groups,
@@ -337,12 +381,40 @@ class PoseRenderer:
                 )
             contacts = [first]
         else:
-            self.renderer.update_scene(
-                geometry.data, camera=camera, scene_option=self.option
-            )
+            self.update_view(geometry.data, request.get("camera"))
         from simulation.arm_sweep import BODY_LABELS
 
         gl_camera = mj.mjv_averageCamera(*self.renderer.scene.camera)
+        view_height = gl_camera.frustum_top - gl_camera.frustum_bottom
+        if not gl_camera.orthographic:
+            view_height *= camera.distance / gl_camera.frustum_near
+        pan_axes = (
+            (view_height * np.cross(gl_camera.forward, gl_camera.up)).tolist(),
+            (view_height * gl_camera.up).tolist(),
+        )
+        wire_tip_xy = None
+        if view == "Top":
+            x, y, _ = geometry.origin
+            floor_z = geometry.data.geom("preview_floor").xpos[2] + 0.001
+            scene = self.renderer.scene
+            for light in scene.lights[:scene.nlight]:
+                if light.headlight:
+                    light.diffuse[:] *= 0.65
+                    light.specular[:] = 0
+            half_length = (travel + 1.5) / 2
+            if scene.ngeom < scene.maxgeom:
+                mj.mjv_initGeom(
+                    scene.geoms[scene.ngeom],
+                    mj.mjtGeom.mjGEOM_BOX,
+                    [half_length, SEAM_WIDTH / 2, 0.0001],
+                    [x + half_length, y, floor_z],
+                    np.eye(3).ravel(),
+                    [0.60, 0.31, 0.08, 1],
+                )
+                scene.ngeom += 1
+            line(scene, [x, y - SEAM_WIDTH, floor_z + 0.001],
+                 [x, y + SEAM_WIDTH, floor_z + 0.001], [0.60, 0.31, 0.08, 1], 3)
+            wire_tip_xy = project_point(gl_camera, geometry.data.site("wire_tip").xpos, 640, 400)
         for contact in contacts:
             labels = []
             for name in contact["geom_names"]:
@@ -354,9 +426,9 @@ class PoseRenderer:
                     else BODY_LABELS.get(body, BODY_LABELS.get(name, name))
                 )
             contact["labels"] = labels
-            contact["screen_xy"] = project_point(gl_camera, contact["point"], 640, 400)
+            contact["screen_xy"] = project_point(gl_camera, contact["point"] + offset, 640, 400)
             contact["nearest_screen_xy"] = [
-                project_point(gl_camera, p, 640, 400)
+                project_point(gl_camera, p + offset, 640, 400)
                 for p in contact.get("nearest_points", [])
             ]
         return dict(
@@ -365,6 +437,8 @@ class PoseRenderer:
             issue=issue,
             contacts=contacts,
             isolated=isolated,
+            wire_tip_xy=wire_tip_xy,
+            pan_axes=pan_axes,
             width=640,
             height=400,
         )
@@ -443,6 +517,87 @@ class PreviewProcess:
 def make_preview(mapping, initial, *, simulated, parent=None, backend_factory=None):
     from PyQt5 import QtCore, QtGui, QtWidgets
 
+    class ModelViewport(QtWidgets.QLabel):
+        dragged = QtCore.pyqtSignal(float, float, bool)
+        zoomed = QtCore.pyqtSignal(float)
+
+        def __init__(self):
+            super().__init__("Loading model…")
+            self.frame = None
+            self.drag_button = QtCore.Qt.NoButton
+            self.drag_position = QtCore.QPoint()
+            self.setAlignment(QtCore.Qt.AlignCenter)
+            self.setMinimumSize(300, 160)
+            self.setSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Ignored)
+            self.setStyleSheet("background: #182638; color: #dce6f0;")
+            self.setCursor(QtCore.Qt.OpenHandCursor)
+
+        def set_frame(self, frame):
+            self.frame = QtGui.QPixmap.fromImage(frame)
+            self.fit_frame()
+
+        def fit_frame(self):
+            if self.frame is not None:
+                ratio = self.devicePixelRatioF()
+                pixmap = self.frame.scaled(
+                    self.size() * ratio, QtCore.Qt.KeepAspectRatio,
+                    QtCore.Qt.SmoothTransformation,
+                )
+                pixmap.setDevicePixelRatio(ratio)
+                self.setPixmap(pixmap)
+
+        def resizeEvent(self, event):
+            super().resizeEvent(event)
+            self.fit_frame()
+
+        def clear(self):
+            self.frame = None
+            super().clear()
+
+        def mousePressEvent(self, event):
+            if self.frame is not None and event.button() in (
+                QtCore.Qt.LeftButton, QtCore.Qt.RightButton, QtCore.Qt.MiddleButton,
+            ):
+                self.drag_button = event.button()
+                self.drag_position = event.pos()
+                self.setCursor(QtCore.Qt.ClosedHandCursor)
+                event.accept()
+            else:
+                super().mousePressEvent(event)
+
+        def mouseMoveEvent(self, event):
+            if not event.buttons() & self.drag_button:
+                self.end_drag()
+                super().mouseMoveEvent(event)
+                return
+            pixmap = self.pixmap()
+            if pixmap is not None and not pixmap.isNull():
+                delta = event.pos() - self.drag_position
+                self.drag_position = event.pos()
+                height = pixmap.height() / pixmap.devicePixelRatioF()
+                self.dragged.emit(delta.x() / height, delta.y() / height,
+                                  self.drag_button == QtCore.Qt.LeftButton)
+            event.accept()
+
+        def mouseReleaseEvent(self, event):
+            if event.button() == self.drag_button:
+                self.end_drag()
+                event.accept()
+            else:
+                super().mouseReleaseEvent(event)
+
+        def end_drag(self):
+            self.drag_button = QtCore.Qt.NoButton
+            self.setCursor(QtCore.Qt.OpenHandCursor)
+
+        def wheelEvent(self, event):
+            steps = event.angleDelta().y() / 120 or event.pixelDelta().y() / 40
+            if self.frame is not None and steps:
+                self.zoomed.emit(steps)
+                event.accept()
+            else:
+                event.ignore()
+
     class Preview(QtWidgets.QGroupBox):
         def __init__(self):
             super().__init__("3D model / animation", parent)
@@ -450,6 +605,7 @@ def make_preview(mapping, initial, *, simulated, parent=None, backend_factory=No
             self.raw = None
             self.raw_seen = None
             self.raw_age_ms = 0.0
+            self.chassis_motion = None
             self.plan = None
             self.standby = list(initial)
             self.elapsed = 0.0
@@ -458,22 +614,26 @@ def make_preview(mapping, initial, *, simulated, parent=None, backend_factory=No
             self.token = 0
             self.last_request = None
             self.closed = False
+            self.camera_yaw = self.camera_pitch = 0.0
+            self.camera_zoom = 1.0
+            self.camera_pan = (0.0, 0.0, 0.0)
+            self.pan_axes = None
             layout = QtWidgets.QVBoxLayout(self)
             row = QtWidgets.QHBoxLayout()
             self.mode = QtWidgets.QComboBox()
             self.mode.addItems(["Current pose", "Standby target", "Checked path"])
             self.view = QtWidgets.QComboBox()
             self.view.addItems(
-                ["Overview", "Side", "Wrist", "Contact", "Contact parts"]
+                ["Overview", "Top", "Side", "Wrist", "Contact", "Contact parts"]
             )
             row.addWidget(self.mode, 1)
             row.addWidget(self.view)
+            self.reset_view = QtWidgets.QToolButton()
+            self.reset_view.setText("Reset view")
+            self.reset_view.setToolTip("Restore the selected camera preset")
+            row.addWidget(self.reset_view)
             layout.addLayout(row)
-            self.picture = QtWidgets.QLabel("Loading model…")
-            self.picture.setAlignment(QtCore.Qt.AlignCenter)
-            self.picture.setMinimumSize(340, 180)
-            self.picture.setSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Ignored)
-            self.picture.setStyleSheet("background: #182638; color: #dce6f0;")
+            self.picture = ModelViewport()
             layout.addWidget(self.picture, 1)
             self.caption = QtWidgets.QLabel()
             self.caption.setWordWrap(True)
@@ -497,30 +657,35 @@ def make_preview(mapping, initial, *, simulated, parent=None, backend_factory=No
             row.addWidget(self.scrub, 1)
             row.addWidget(self.speed)
             layout.addLayout(row)
-            note = QtWidgets.QLabel(
-                "Kinematic preview only · Gun included · Chassis fixed\n"
-                "No motor commands or load simulation."
-            )
-            note.setWordWrap(True)
-            layout.addWidget(note)
+            self.camera_hint = QtWidgets.QLabel()
+            self.camera_hint.setWordWrap(True)
+            layout.addWidget(self.camera_hint)
             self.mode.currentIndexChanged.connect(self.change_mode)
-            self.view.currentIndexChanged.connect(self.invalidate_frame)
+            self.view.currentIndexChanged.connect(self.reset_camera)
+            self.reset_view.clicked.connect(self.reset_camera)
+            self.picture.dragged.connect(self.drag_camera)
+            self.picture.zoomed.connect(self.zoom_camera)
+            self.reset_camera()
             self.play.clicked.connect(self.toggle_play)
             self.scrub.sliderPressed.connect(self.pause_playback)
             self.scrub.valueChanged.connect(self.seek)
             self.timer = QtCore.QTimer(self)
             self.timer.timeout.connect(self.tick)
             self.timer.start(100)
+            self.camera_idle = QtCore.QTimer(self)
+            self.camera_idle.setSingleShot(True)
+            self.camera_idle.timeout.connect(lambda: self.timer.setInterval(100))
             try:
                 self.backend = (backend_factory or PreviewProcess)(mapping.document)
             except Exception as exc:
                 self.geometry_status.setText("Preview unavailable: " + str(exc))
                 self.timer.stop()
 
-        def set_pose(self, raw, age_ms=None):
+        def set_pose(self, raw, age_ms=None, *, chassis_motion=None):
             self.raw = None if raw is None else list(raw)
             self.raw_seen = None if raw is None else time.monotonic()
             self.raw_age_ms = float(age_ms or 0.0)
+            self.chassis_motion = chassis_motion if simulated else None
 
         def set_plan(self, plan):
             self.pause_playback()
@@ -544,6 +709,42 @@ def make_preview(mapping, initial, *, simulated, parent=None, backend_factory=No
             self.last_request = None
             self.picture.clear()
             self.geometry_status.setText("Updating preview…")
+
+        def reset_camera(self, *_):
+            self.camera_yaw = self.camera_pitch = 0.0
+            self.camera_zoom = 1.0
+            self.camera_pan = (0.0, 0.0, 0.0)
+            self.pan_axes = None
+            if self.view.currentText() == "Top":
+                hint = "Drag to pan · Scroll to zoom · Amber seam · Cyan wire tip"
+            else:
+                hint = "Drag to orbit · Right-drag to pan · Scroll to zoom"
+            self.camera_hint.setText(hint)
+            self.picture.setToolTip(hint)
+            self.invalidate_frame()
+
+        def drag_camera(self, dx, dy, orbit):
+            if orbit and self.view.currentText() != "Top":
+                self.camera_yaw = (self.camera_yaw - dx * 180) % 360
+                self.camera_pitch = max(-178.0, min(178.0, self.camera_pitch + dy * 180))
+            elif self.pan_axes is not None:
+                right, up = self.pan_axes
+                self.camera_pan = tuple(
+                    offset - dx * horizontal + dy * vertical
+                    for offset, horizontal, vertical in zip(self.camera_pan, right, up)
+                )
+            self.refresh_camera()
+
+        def zoom_camera(self, steps):
+            log_zoom = math.log(self.camera_zoom) - steps * 0.20
+            self.camera_zoom = math.exp(max(math.log(0.2), min(math.log(5.0), log_zoom)))
+            self.refresh_camera()
+
+        def refresh_camera(self):
+            if self.timer.isActive():
+                if self.timer.interval() != 33:
+                    self.timer.setInterval(33)
+                self.camera_idle.start(250)
 
         def change_mode(self, *_):
             self.pause_playback()
@@ -574,6 +775,7 @@ def make_preview(mapping, initial, *, simulated, parent=None, backend_factory=No
             delta, self.last_tick = min(now - self.last_tick, 0.25), now
             mode = self.mode.currentText()
             endpoint_policy = None
+            travel = 0.0
             if mode == "Current pose":
                 raw, clearance = self.raw, 0.5
                 source = "Simulated feedback" if simulated else "Last motor feedback"
@@ -595,6 +797,13 @@ def make_preview(mapping, initial, *, simulated, parent=None, backend_factory=No
                     suffix += (
                         " (historical pose; select/calculate to refresh while disabled)"
                     )
+                if self.chassis_motion is not None:
+                    travel = self.chassis_motion["distance_m"]
+                    if raw is None:
+                        raw = initial
+                        source, suffix = "Saved arm pose", ""
+                    speed_mm_s = self.chassis_motion["speed_m_s"] * 1000
+                    suffix += f" · Chassis {speed_mm_s:.2f} mm/s · {travel * 1000:.1f} mm traveled"
                 self.caption.setText(source + suffix)
             elif mode == "Standby target":
                 raw, clearance = self.standby, 2.0
@@ -622,9 +831,11 @@ def make_preview(mapping, initial, *, simulated, parent=None, backend_factory=No
                     approach="Approach weld start",
                     weld="Weld motion",
                 )
-                self.caption.setText(
-                    f"Preview: {names[stage]} | {self.elapsed:.1f} / {self.plan.duration:.1f} s"
-                )
+                travel = self.plan.chassis_travel(self.elapsed)
+                caption = f"Preview: {names[stage]} | {self.elapsed:.1f} / {self.plan.duration:.1f} s"
+                if self.plan.feed_m_s:
+                    caption += f" · Planned chassis travel {travel * 1000:.1f} mm"
+                self.caption.setText(caption)
                 self.scrub.blockSignals(True)
                 self.scrub.setValue(round(self.elapsed / self.plan.duration * 1000))
                 self.scrub.blockSignals(False)
@@ -641,14 +852,8 @@ def make_preview(mapping, initial, *, simulated, parent=None, backend_factory=No
                             "Preview unavailable: " + result["error"]
                         )
                     else:
-                        frame = annotated_frame(result)
-                        self.picture.setPixmap(
-                            QtGui.QPixmap.fromImage(frame).scaled(
-                                self.picture.size(),
-                                QtCore.Qt.KeepAspectRatio,
-                                QtCore.Qt.SmoothTransformation,
-                            )
-                        )
+                        self.pan_axes = result.get("pan_axes")
+                        self.picture.set_frame(annotated_frame(result))
                         issue = result["issue"]
                         message = (
                             "Model warning: " + issue
@@ -670,15 +875,20 @@ def make_preview(mapping, initial, *, simulated, parent=None, backend_factory=No
                     self.geometry_status.setText("No pose/path to display.")
                     self.last_request = None
                     return
-                key = (tuple(raw), self.view.currentText(), clearance, self.token)
+                camera = (
+                    self.camera_yaw, self.camera_pitch, self.camera_zoom, *self.camera_pan,
+                )
+                key = (tuple(raw), self.view.currentText(), clearance, travel, camera, self.token)
                 if key != self.last_request and self.backend.submit(
                     dict(
                         raw=raw,
                         view=self.view.currentText(),
                         clearance_mm=clearance,
                         token=self.token,
-                        measured_pose=mode == 'Current pose',
+                        measured_pose=mode == "Current pose" and self.raw is not None,
                         endpoint_policy=endpoint_policy,
+                        chassis_travel_m=travel,
+                        camera=camera,
                     )
                 ):
                     self.last_request = key
@@ -691,6 +901,7 @@ def make_preview(mapping, initial, *, simulated, parent=None, backend_factory=No
             if not self.closed:
                 self.closed = True
                 self.timer.stop()
+                self.camera_idle.stop()
                 if self.backend is not None:
                     self.backend.close()
 

@@ -32,11 +32,23 @@ Selection/planning do not enable an unpowered arm. Calculate, inspect, then choo
 **Start recovery**. **Start welding motion** is a separate explicit action after
 arrival at weld start. The application never energizes a welder.
 
-The embedded viewer has current pose, standby/staging target and checked-path
-views, with overview/side/wrist and explicit contact diagnostics. A blocked plan
-has no playable route. Switching windows preserves planning and preview, but
-cancels queued starts and pauses active motor motion. Space/Escape and lost UI
-heartbeat cancel planning/motion. Returning never resumes motion automatically.
+To simulate forward travel during the weave, launch with both `--arm --chassis`
+(also the simulation default when neither flag is given). Select **Arm output**
+and **Chassis feed** before calculating the path. In **Current pose**, choose
+**Top** to watch the robot feed forward along the amber seam while the cyan wire
+tip follows the arm. Feed begins on **Start welding** and stops on **Pause / Hold**.
+The distance and speed are estimates from simulated wheel rotation on a flat floor.
+**Checked path** shows the planned travel during the weld segment.
+Drag the viewer to orbit, right-drag to pan, and scroll to zoom. In **Top**,
+dragging pans while keeping the camera overhead. **Reset view** restores the
+selected camera. The panel scales to the display and stacks the viewer above
+the dashboard when the window is narrow.
+
+The embedded viewer also has standby/staging, overview, side, wrist and contact
+views. A blocked plan has no playable route. Switching windows preserves
+planning and preview, but cancels queued starts and pauses active motor motion.
+Space/Escape and lost UI heartbeat cancel planning/motion. Returning never
+resumes motion automatically.
 `--start-report PATH` seeds fake shafts from saved six-axis data and is rejected
 in hardware mode; `--no-preview` disables rendering.
 

@@ -52,6 +52,11 @@ class PreviewContracts(unittest.TestCase):
         self.assertEqual(name, "weld")
         np.testing.assert_allclose(raw, [0.9] * 6)
         np.testing.assert_allclose(timeline.sample(1e6)[1], [0.6] * 6)
+        weld_start = timeline.duration - timeline.paths["weld"].duration
+        self.assertEqual(timeline.chassis_travel(weld_start), 0.0)
+        self.assertAlmostEqual(timeline.chassis_travel(weld_start + 0.5), 0.0005)
+        self.assertAlmostEqual(timeline.chassis_travel(1e6), 0.001)
+        self.assertEqual(PlanPlayback(simple_plan(chassis=False)).chassis_travel(1e6), 0.0)
 
     def test_start_report_orders_axes_and_rejects_missing_enabled_or_nonfinite(self):
         raw = list(self.mapping.simulation_pose().values())
@@ -154,6 +159,43 @@ class PreviewContracts(unittest.TestCase):
                 - geometry.data.site_xpos[geometry.closure.sites[1]]
             )
             self.assertLess(closure_error, 1e-8)
+        finally:
+            renderer.close()
+
+    def test_top_view_advances_the_robot_and_wire_tip_along_the_floor(self):
+        renderer = PoseRenderer(self.mapping.document)
+        try:
+            geometry = renderer.geometry
+            standby = json.loads(
+                (ROOT / "src/robot_description/config/arm_standby_compact.json").read_text()
+            )
+            request = dict(raw=standby["raw_output_shaft_deg"], clearance_mm=2, token=1, view="Top")
+            before = renderer.frame(request)
+            base = geometry.data.body("body").xpos.copy()
+            floor = geometry.data.geom("preview_floor").xpos.copy()
+            moved = renderer.frame(dict(request, chassis_travel_m=0.12))
+            np.testing.assert_allclose(geometry.data.body("body").xpos, base + [0.12, 0, 0])
+            np.testing.assert_allclose(geometry.data.geom("preview_floor").xpos, floor)
+            self.assertEqual(before["issue"], moved["issue"])
+            self.assertNotEqual(before["pixels"], moved["pixels"])
+            self.assertIsNotNone(before["wire_tip_xy"])
+            self.assertIsNotNone(moved["wire_tip_xy"])
+            self.assertGreater(np.linalg.norm(np.subtract(before["wire_tip_xy"], moved["wire_tip_xy"])), 20)
+            self.assertTrue(renderer.camera.orthographic)
+            zoomed = renderer.frame(dict(request, camera=(20, 30, 0.75, 0.05, 0.0, 0.0)))
+            self.assertEqual(renderer.camera.elevation, -90)
+            self.assertAlmostEqual(renderer.camera.distance, 1.55)
+            self.assertTrue(renderer.renderer.scene.camera[0].orthographic)
+            self.assertLess(np.linalg.norm(zoomed["pan_axes"][0]), np.linalg.norm(before["pan_axes"][0]))
+            self.assertNotEqual(zoomed["wire_tip_xy"], before["wire_tip_xy"])
+            renderer.frame(dict(request, view="Overview", camera=(20, 30, 1, 0, 0, 0)))
+            np.testing.assert_allclose(geometry.data.body("body").xpos, base)
+            self.assertEqual(renderer.camera.azimuth, 128)
+            self.assertEqual(renderer.camera.elevation, 5)
+            self.assertFalse(renderer.camera.orthographic)
+            renderer.frame(dict(request, view="Overview"))
+            self.assertEqual(renderer.camera.azimuth, 108)
+            self.assertEqual(renderer.camera.elevation, -25)
         finally:
             renderer.close()
 

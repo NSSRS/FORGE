@@ -519,6 +519,29 @@ class ChassisOwner:
             self.bus.velocity(motor, rpm)
         self.last_feed = feed
 
+    def simulated_motion(self):
+        """Estimate straight-line motion from the simulated wheel feedback."""
+        if not self.simulated:
+            return None
+        wheels = {row["motor_id"]: row for row in self.bus.snapshot()["motors"]}
+        distances, speeds = [], []
+        for motor, direction, ratio, scale in zip(
+            self.drive.wheel_motor_ids,
+            self.drive.wheel_directions,
+            self.drive.external_ratios,
+            self.drive.wheel_rpm_scales,
+        ):
+            wheel = wheels[motor]
+            meters_per_degree = (
+                math.radians(1) * self.drive.wheel_radius_m * direction / (ratio * scale)
+            )
+            distances.append(wheel["position_deg"] * meters_per_degree)
+            speeds.append(wheel["velocity_rpm"] * 6 * meters_per_degree)
+        return dict(
+            distance_m=sum(distances) / len(distances),
+            speed_m_s=sum(speeds) / len(speeds),
+        )
+
     def check(self):
         self.bus.check()
 
