@@ -185,10 +185,35 @@ clearance under tracking error, or loaded shutdown.
 
 Add `--optimize-preparation` to `--simulate`, `--plan-only`, or explicit hardware
 `--execute --arm --supported`. It compares the
-requested standby with three raw-joint interpolated staging poses toward the
-same full weld start. Each candidate checks recovery at 2 mm, approach at the
+requested standby with the current pose and three raw-joint interpolated staging
+poses toward the same full weld start. Each candidate checks recovery at 2 mm, approach at the
 normal clearance, fixed travel bounds and sampled reduced-inertia acceleration.
 Exact cubic extrema set timing with a 2% margin and 10% pacing reserve.
+Independent transfer timing retains the authored two-second final lowering
+floor; it must not compress that short leg merely because its derivative limits
+allow it. The explicit 2.3-second loaded-trial minimum still takes precedence.
+
+The default `--preparation-planner direct-first` checks the current-pose route
+first. For an explicit raised approach, it skips a staged candidate only when
+ideal recovery plus its known approach spline timed at the full policy ceilings
+already exceeds the best checked route. The bound includes the required stops,
+lowering minimum and settling; it does not
+claim a global optimum. `--preparation-planner staged` checks every candidate
+for comparison. A failed direct route retains the staged search.
+
+Static clearance checks include every cubic knot and bound each sampling interval
+to at most 0.1 degree of raw travel on every axis, using exact interval derivative
+extrema. Slow or stationary paths need fewer repeated geometry queries. This is
+sampled clearance checking, not continuous collision detection. Private planner
+models omit only chassis-only contact pairs while preserving all original pairs
+that touch the arm. The runtime clearance thresholds and motion guards remain.
+
+The persistent planner process reuses a private copy of the initialized scene
+and a start-independent weave solution keyed by model contents, calibration,
+settings and effective motor constraints. Each start still gets fresh recovery,
+approach and arrival checks. Final scene fingerprint checks reject changes made
+during calculation. Reports separate `planning_timing_s` from preparation time.
+See the [seeded benchmark and reproduction commands](PLANNER_BENCHMARK.md).
 
 ```bash
 .venv/bin/python scripts/control_weld.py --simulate --arm --profile weld \
@@ -205,8 +230,9 @@ OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 QT_QPA_PLATFORM=offscreen \
   .venv/bin/python -m unittest discover -s tests -p test_weld_preparation_search.py -v
 ```
 
-That case improves from 20.9272 s nominal to 4.5526 s; ideal fake-shaft arrival is
-4.62 s including stationary checks. It changes the intermediate pose. Hardware
+The earlier comparison for that case recorded 20.9272 s nominal versus 4.5526 s,
+with 4.62 s ideal fake-shaft arrival including stationary checks. It changed the
+intermediate pose. Hardware
 requires explicit `--optimize-preparation`; the controller otherwise rejects
 staging-search plans. Historical plans marked `offline_only` remain rejected
 even with the option. The panel identifies optimized staging and reports the
@@ -227,13 +253,14 @@ route alternative, not a change to the 0.5 mm approach clearance or 2 mm final
 wire-tip gap, and not a proof for every possible tracking error.
 
 `--lowering-seconds 2.3` sets a minimum duration for the final lowering move;
-it requires an explicit `--approach-lift-mm`. It is applied after staging
-selection, so the selected standby, earlier movement timings and stationary
+it requires an explicit `--approach-lift-mm`. Its cost is included when choosing
+the staging route, and the stretching is applied after selection, so earlier movement timings and stationary
 dwell remain unchanged. Only the time after the last stopped boundary is
 stretched, preserving every geometric cubic and the final target. An already
 slower lowering move is retained. The plan records `lowering_timing` and updates
-its total preparation estimate; the 10-second goal does not override this
-minimum or measured settling. The default is zero (existing timing).
+its total preparation estimate; the requested preparation goal does not override this
+minimum or measured settling. The default is zero additional minimum; optimized
+raised routes still retain their authored two-second lowering floor.
 
 The Nov 17 direct route reaches the modeled floor guard with unequal synthetic
 joint lag. The raised route is exercised against those starts with the same
@@ -433,8 +460,51 @@ is separate from normal panel launch. See [deployment and current status](ARM_RI
 journal offline: separate preparation attempts/stages, time to Ready, endpoint
 retreat, speed, torque, motor/MOS temperature, fixed-target error and data gaps.
 An attempt reaching Ready does not mean its later hold/weld passed; inspect its
-segments and fault history. GUI-01 will visualize this telemetry and simplify
-the control windows; that presentation work is still queued.
+segments and fault history. The GUI-01 dashboard presents the same cached
+telemetry; display-rate trends and peaks complement the full-rate journal.
+
+## Telemetry dashboard
+
+The weld window presents the current stage and next action above the controls.
+Output selection and active holding are distinct. **Calculate path**, **Start
+recovery** and **Start welding** remain separate explicit actions. The always
+visible Pause / Hold, Disable arm torque and Reset motor fault controls retain
+their existing behavior and keyboard shortcuts.
+
+**Load & temperature** shows A1-A6 signed reported torque in Nm, absolute torque
+as a percentage of the active reactive trip, motor/MOS temperatures in °C and
+sample age. A stale sample (80 ms or more), unavailable field, reset or fault
+never displays a fabricated zero or old enabled state. No torque or temperature
+is synthesized for fake shafts. The manual arm window has the same telemetry
+tab alongside its existing joint table.
+
+Each card has 30-second display-rate traces: torque uses the axis color, motor
+temperature is orange and MOS temperature purple. Fresh-only torque peaks are
+shown for the stage and recovery run; hover a card for both temperature peaks.
+A new recovery resets run peaks; a stage transition resets stage peaks.
+The manual panel starts a run when motion/holding becomes active. Histories
+are bounded and independent of motor authorization. The full JSONL remains
+the source for complete owner-rate analysis.
+
+**Targets & response** keeps raw targets, measured angles, remaining distance,
+frequency and travel together. **Diagnostics & evidence** expands the full
+controller message, tracking details, original first-fault evidence, profile
+trip/rating/TMAX distinctions and journal path. Evidence-write failures remain
+visible even when diagnostics are collapsed. The first fault remains readable
+after an explicit reset.
+
+Calculation time is separate from measured preparation time, its nominal plan
+and requested goal. Path progress describes the checked reference; 100% is not
+an arrival confirmation. Arrival still requires the existing stationary/error
+checks. A paused run freezes the preparation clock, while Ready retains its
+completed preparation duration. Continuous welding shows block progress and
+run elapsed time separately.
+
+Pause events record `cause`: `operator_input`, `focus_loss`, `ui_heartbeat`,
+`motion_guard`, or the corresponding selection/recalculation/disable action.
+Ready focus/heartbeat pauses retain the existing checked plan and fixed hold;
+interrupted travel requires recalculation. This is presentation and evidence
+work, not drive tuning, new register polling or physical holding qualification.
 
 ## Operator hardware entry points
 

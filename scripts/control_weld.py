@@ -8,7 +8,7 @@ sys.path[:0] = [
     str(source),
     *(
         str(source / name)
-        for name in ("controls", "motor_control", "simulation", "robot_description")
+        for name in ("controls", "motor_control", "simulation", "robot_description", "teleop")
     ),
 ]
 from controls.hardware.weld_app import main

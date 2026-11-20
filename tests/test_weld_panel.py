@@ -208,6 +208,7 @@ class WeldPanelTests(unittest.TestCase):
         sent = len(c.arm.commands)
         self.set_foreground(False)
         self.wait(lambda: "Window focus lost" in c.message)
+        self.assertEqual(c.events[-1]["cause"], "focus_loss")
         QtTest.QTest.qWait(250)
         self.assertEqual(c.state, "ready")
         self.assertIs(c.plan, plan)
@@ -217,6 +218,7 @@ class WeldPanelTests(unittest.TestCase):
         self.assertEqual(len(c.arm.commands), sent)
         self.window.timer.stop()
         self.wait(lambda: "UI heartbeat lost" in c.message)
+        self.assertEqual(c.events[-1]["cause"], "ui_heartbeat")
         QtTest.QTest.qWait(200)
         self.assertEqual(c.state, "ready")
         self.assertIs(c.plan, plan)
@@ -226,6 +228,10 @@ class WeldPanelTests(unittest.TestCase):
         QtTest.QTest.keyClick(self.window, QtCore.Qt.Key_Space)
         QtTest.QTest.qWait(100)
         self.assertEqual(c.state, "ready")
+        self.assertEqual(c.events[-1]["cause"], "operator_input")
+        records = [json.loads(line) for line in self.journal_path.read_text().split('\n')[:-1]]
+        causes = {event.get("cause") for row in records for event in row.get("events", []) if event["event"] == "pause"}
+        self.assertTrue({"focus_loss", "ui_heartbeat", "operator_input"}.issubset(causes))
         self.assertIs(self.executor.future, future)
         self.window.buttons["weld"].click()
         self.wait(lambda: any(e["event"] == "weld_started" for e in c.events))
@@ -275,6 +281,21 @@ class WeldPanelTests(unittest.TestCase):
             self.wait(lambda: "Window focus changed" in c.message)
         self.assertEqual(c.state, "ready")
         self.assertFalse(any(e["event"] == "weld_started" for e in c.events))
+        self.assertTrue(c.arm.enabled)
+
+    def test_focus_cancellation_inside_dispatch_keeps_precise_pause_cause(self):
+        from controls.hardware.weld_control import TrajectoryPaused
+        c = self.ready_arm()
+        def interrupted(*args):
+            self.window.worker.set_foreground(False)
+            raise TrajectoryPaused("Intent cancelled inside dispatch")
+        with patch.object(c.arm, "command", side_effect=interrupted):
+            self.window.worker.send("weld")
+            self.wait(lambda: c.state == "paused")
+        self.assertEqual(c.pause_cause, "focus_loss")
+        pauses = [event for event in c.events if event["event"] == "pause"]
+        self.assertEqual(pauses[-1]["cause"], "focus_loss")
+        self.assertIsNone(c.plan)
         self.assertTrue(c.arm.enabled)
 
     def test_reset_button_and_r_use_owner_and_drop_queued_motion(self):
@@ -392,7 +413,7 @@ class WeldPanelTests(unittest.TestCase):
     def test_switches_are_independent_and_start_off(self):
         c = self.window.worker.controller
         self.assertTrue(c.allow_optimized_preparation)
-        self.assertIn("optimized staging enabled", self.window.preparation_route_label.text())
+        self.assertIn("optimized staging", self.window.preparation_route_label.text())
         self.assertFalse(c.arm_on or c.chassis_on)
         self.window.arm.click()
         self.wait(lambda: c.arm_on)
@@ -449,13 +470,14 @@ class WeldPanelTests(unittest.TestCase):
         self.wait(lambda: c.chassis_on)
         self.window.buttons["calculate"].click()
         self.wait(lambda: self.window.planning_progress.isVisible())
-        self.assertTrue(self.window.state_label.text().startswith("Planning ("))
+        self.assertEqual(self.window.state_label.text(), "Checking path")
+        self.assertIn("Calculation:", self.window.timing_label.text())
         self.assertFalse(self.window.buttons["initial"].isEnabled())
         self.assertFalse(c.arm.enabled)
         self.executor.future.set_exception(ValueError("No checked recovery route"))
         self.wait(lambda: "Blocked:" in self.window.state_label.text())
         self.assertFalse(self.window.planning_progress.isVisible())
-        self.assertIn("No accepted plan", self.window.timing_label.text())
+        self.assertIn("No accepted path", self.window.timing_label.text())
         self.assertTrue(self.window.buttons["calculate"].isEnabled())
         def blocked_events():
             records = [json.loads(line) for line in self.journal_path.read_text().split('\n')[:-1]]
@@ -477,7 +499,7 @@ class WeldPanelTests(unittest.TestCase):
         self.wait(lambda: self.window.buttons["initial"].isEnabled())
         self.assertEqual(c.state, "planned")
         self.assertFalse(self.window.planning_progress.isVisible())
-        self.assertIn("Calculated:", self.window.timing_label.text())
+        self.assertIn("Planned ", self.window.timing_label.text())
 
     def test_focus_loss_preserves_pending_plan_and_preview_playback(self):
         c = self.window.worker.controller
@@ -490,7 +512,7 @@ class WeldPanelTests(unittest.TestCase):
         QtTest.QTest.qWait(100)
         self.assertIs(self.window.worker.pending, future)
         self.assertTrue(self.window.planning_progress.isVisible())
-        self.assertIn("You may switch windows", self.window.timing_label.text())
+        self.assertIn("separate from motion time", self.window.timing_label.text())
         self.finish_arm_plan()
         self.set_foreground(True)
         self.window.preview.play.click()
@@ -620,6 +642,29 @@ class WeldPanelTests(unittest.TestCase):
         out.parent.mkdir(parents=True, exist_ok=True)
         self.assertTrue(self.window.grab().save(str(out)))
         self.assertGreater(self.window.width(), 900)
+
+    def test_dashboard_states_fit_small_screen_and_retain_first_fault(self):
+        self.window.worker.status.disconnect(self.window.show_status)
+        self.window.resize(1366, 768)
+        value = dict(state="idle", message="Select outputs", pending=False,
+                     arm_on=False, chassis_on=False, raw_deg=None)
+        output = ROOT / "build/weld/gui-01"
+        output.mkdir(parents=True, exist_ok=True)
+        for state in ("idle", "planned", "initial", "ready", "welding", "paused", "fault", "resetting"):
+            value.update(state=state, message="A5 speed trip" if state == "fault" else "State preview")
+            if state == "fault":
+                value.update(fault="Original A5 fault", fault_evidence=dict(fault_snapshot=dict(velocity_rad_s=1.51648)))
+            self.window.show_status(value)
+            self.app.processEvents()
+            self.assertLessEqual(self.window.height(), 768)
+            self.assertTrue(self.window.grab().save(str(output / f"layout-{state}.png")))
+        self.window.details_toggle.setChecked(True)
+        self.app.processEvents()
+        self.assertIn("Original A5 fault", self.window.fault_detail.text())
+        self.assertIn("1.51648", self.window.fault_detail.text())
+        self.assertLessEqual(self.window.height(), 768)
+        self.window.show_status(dict(value, state="idle", fault=None, fault_evidence=None))
+        self.assertIn("Original A5 fault", self.window.fault_detail.text())
 
     def test_preview_playback_never_enables_or_commands_arm(self):
         c = self.window.worker.controller

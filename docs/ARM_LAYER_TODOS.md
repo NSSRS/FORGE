@@ -1,6 +1,6 @@
 # Arm cross-layer TODO registry
 
-Updated 2026-11-19, based on branch `nathan`. This registry contains **open work only**.
+Updated 2026-11-20, based on branch `nathan`. This registry contains **open work only**.
 Read [current status](ARM_SESSION_HANDOFF.md) and [the base contract](ARM_BASE_LAYER.md)
 first. Stable IDs link package responsibilities; update the owning entry when
 work changes, and retire completed tasks instead of appending session history.
@@ -14,39 +14,26 @@ in the guides; full hardware qualification below remains separate.
 
 ## Immediate priorities
 
-**Next software task: GUI-01.** The operator requested a clearer tuning and
-observation interface after the Nov 19 loaded trials. Record it here before
-implementing the redesign. Hardware acceptance remains HOLD-01 (the untouched
-A5 holding fault), with CAL-01/SUPPORT-01 as prerequisites. Then finish
-WEAVE-01/SPEED-01. LOAD-01 and FEEDBACK-01 remain deferred until the first
-qualified arm welding run. The latest successful close is evidence for that
-run, not general loaded qualification.
+**GUI-01 is implemented locally; operator review remains.** Hardware acceptance
+remains HOLD-01 (the untouched A5 holding fault), with CAL-01/SUPPORT-01 as
+prerequisites. Then finish WEAVE-01/SPEED-01. LOAD-01 and FEEDBACK-01 remain
+deferred until the first qualified arm welding run. Fixed-reference holding
+software is implemented; HOLD-01's remaining work is physical diagnosis and
+acceptance, not reimplementation of that fix.
 
-### GUI-01 — motor telemetry and clearer control windows
+### GUI-01 — operator review of the telemetry dashboard
 
-Owner: `src/controls/controls/hardware/`, shared arm GUI components where useful.
+Owner: `src/controls/controls/hardware/`, `src/teleop/teleop/` shared arm views.
 
-- [ ] Show A1-A6 **torque in Nm, motor temperature and MOS temperature in C**,
-  with signed torque, absolute load relative to the active trip, units and
-  sample age. Distinguish configured trip from motor rating/feedback range.
-- [ ] Add compact live trends and peak values for the current stage/run. Clearly
-  mark unavailable or stale values; never substitute zero. Keep axis colors and
-  units consistent between overview, detail views and saved evidence.
-- [ ] Replace repeated explanatory paragraphs with a clear current stage, active
-  outputs/hold state, progress, elapsed versus planned time and next action.
-  Separate planning time from physical preparation time; distinguish warning,
-  blocked path, paused hold and latched fault.
-- [ ] Keep the model, targets and measured response readable. Put raw diagnostics,
-  register/profile details and lengthy explanations in an expandable detail view;
-  retain precise first-fault evidence and the journal path.
-- [ ] Explain pause causes individually (operator input, focus loss, UI heartbeat)
-  in both GUI and logs. Preserve the current stop/hold behavior and explicit restart.
-- [ ] Review the current arm/weld windows for duplicated labels and ambiguous
-  wording. Validate normal, stale, planning, recovery, Ready, welding, pause and
-  fault layouts at the NUC screen size before operator acceptance.
-- [ ] Consume existing cached telemetry only: no extra CAN/register polling,
-  second owner, motion-lease renewal or protection changes. GUI tuning here means
-  presentation/observation; gain/current editing needs separately scoped work.
+Implementation and cached-data contracts are documented in
+[the interface guide](WELD_MOTION.md#telemetry-dashboard). Offline regression
+and screen-layout verification are complete; operator acceptance remains below.
+
+- [ ] Review the offline-checked layouts on the actual NUC display and accept
+  readability during normal, stale, planning, recovery, Ready, welding, pause
+  and fault states. Confirm the telemetry and diagnostic views are useful for
+  the operator's next supported session. This review does not qualify holding,
+  temperatures, continuous load or drive tuning.
 
 ### SUPPORT-01 — base, gravity support and physical stopping
 
@@ -133,7 +120,7 @@ Owner: `src/controls/`, `src/motors/arm_position.py`, `src/teleop/`, firmware/pr
   resolve unequal-axis tracking and gun/floor clearance under load without
   inferring a gain defect from the failed nominal path. Software replay does not
   qualify physical recovery.
-  Meet the requested 5–10 second physical preparation goal by reducing unnecessary travel
+  Meet the current five-second physical preparation goal by reducing unnecessary travel
   and qualifying tracking, not by widening trips or speeding up the renderer.
   See [current evidence](ARM_SESSION_HANDOFF.md#calibration-and-evidence).
 - [ ] **Broader manual-jog investigation deferred:** investigate moving-only A1/A4/A5/A6 jitter; A2/A3 are smooth
@@ -257,7 +244,7 @@ from successful intervals; use the current handoff for dated evidence.
   explicit disable and faults under the supported load. Never treat active hold
   as a mechanical brake. Keep SUPPORT-01 and shutdown failures open.
 - [ ] Only after stable holding, measure complete prep-to-ready time against
-  the requested 5–10 seconds. The latest successful loaded preparation took
+  the current five-second goal. The latest successful loaded preparation took
   12.53 s; qualify the actual start, selected route and measured response.
   Keep calculation latency separate from physical movement time.
 
@@ -293,6 +280,11 @@ CAL-01, ROS-02 and BASE-06. The existing D3-closed single-joint clearance study
 is documented in [ARM_COLLISION_STUDY.md](ARM_COLLISION_STUDY.md); its sampled
 intervals are not independently combinable hardware limits.
 
+- [ ] Reduce the remaining joint-order recovery/staging planning delays and
+  extend random-start coverage. Qualify the work-area starting region that meets
+  the five-second preparation goal; broad starts still exceed it and one Nov 20
+  case exceeded the planning deadline. Preserve checked paths and explicit
+  failures. See the [planner benchmark](PLANNER_BENCHMARK.md).
 - [ ] Add a visible encoder-drift check between **Calculate and check path**
   and **Start recovery**. Compare fresh feedback from all six joints with the
   encoder pose used to calculate the accepted path, while waiting and again

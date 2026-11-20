@@ -38,6 +38,7 @@ class Feedback:
     raw_deg: np.ndarray
     velocity_deg_s: np.ndarray
     age_ms: np.ndarray
+    telemetry: list | None = None
 
     def validate(self, stationary=False):
         self.raw_deg = finite_vector(self.raw_deg, "feedback position")
@@ -64,7 +65,7 @@ class WeldController:
     def __init__(
         self, arm=None, chassis=None, *, clock=time.monotonic, pose_check=None,
         allow_optimized_preparation=False, continuous_weld=False,
-        tracking_settings=None, endpoint_check=None,
+        tracking_settings=None, endpoint_check=None, intent_pause_cause=None,
     ):
         self.arm, self.chassis, self.clock = arm, chassis, clock
         self.pose_check = pose_check
@@ -104,6 +105,8 @@ class WeldController:
         self.preparation = {}
         self.last_observation = None
         self.hold_deviated = False
+        self.pause_cause = None
+        self.intent_pause_cause = intent_pause_cause
 
     def check_pose(self, raw, *, recovery=False):
         check_a4(float(raw[3]), self.a4_bounds)
@@ -195,6 +198,8 @@ class WeldController:
             )
 
     def event(self, kind, **data):
+        if kind in ("selection", "plan_loaded", "recovery_requested", "weld_started", "motor_reset_completed"):
+            self.pause_cause = None
         self.events.append(
             dict(event=kind, time_s=self.clock(), state=self.state, **data)
         )
@@ -217,7 +222,7 @@ class WeldController:
             raise ValueError("Participation switches must be booleans")
         if arm and self.arm is None or chassis and self.chassis is None:
             raise ValueError("Connect the selected hardware owner first")
-        self.pause(preserve_ready=False)
+        self.pause(preserve_ready=False, cause="output_selection")
         if self.fault:
             raise RuntimeError("Stop failed; no component may be enabled")
         if arm and not self.arm_holding:
@@ -374,14 +379,20 @@ class WeldController:
                 or abs(stops[-1] - home.duration) > 1e-8
             ):
                 raise ValueError("Invalid recovery waypoint times")
-            for t in stops:
+            for index, t in enumerate(stops):
+                knot = float(home.times[np.argmin(abs(home.times - t))])
                 if (
-                    np.min(abs(home.times - t)) > 1e-8
-                    or max(abs(home.sample(float(t))[1])) > 0.001
+                    abs(knot - t) > 1e-8
+                    or max(abs(home.sample(knot)[1])) > 0.001
                 ):
                     raise ValueError(
                         "Recovery waypoints must be stationary trajectory knots"
                     )
+                # Retiming can round a stop one ULP beyond the path endpoint.
+                # Use the exact checked knot for finite PID position intervals.
+                stops[index] = knot
+            if stops[0] <= 0 or np.any(np.diff(stops) <= 0):
+                raise ValueError("Recovery waypoints must be distinct positive knots")
             if (
                 max(
                     abs(
@@ -605,7 +616,7 @@ class WeldController:
             if self.continuous_weld else "Welding motion active; one planned pass."
         )
 
-    def pause(self, reason=None, *, preserve_ready=True):
+    def pause(self, reason=None, *, preserve_ready=True, cause=None):
         # Attempt both actions even when one transport fails.
         keep_ready = bool(
             preserve_ready and self.state == "ready" and self.plan is not None
@@ -638,12 +649,13 @@ class WeldController:
         )
         if reason:
             self.message = reason
-        self.event("pause", reason=reason, ready_preserved=keep_ready)
+        self.pause_cause = cause or ("motion_guard" if reason else "operator_input")
+        self.event("pause", reason=reason, cause=self.pause_cause, ready_preserved=keep_ready)
         if errors:
             self.fail(RuntimeError("; ".join(errors)))
 
     def disable_arm(self):
-        self.pause(preserve_ready=False)
+        self.pause(preserve_ready=False, cause="disable")
         try:
             if self.arm is not None:
                 self.arm.disable()
@@ -998,13 +1010,13 @@ class WeldController:
                         arrival_tolerance_deg=self.arrival_deg,
                     )
         except TrajectoryPaused as exc:
-            self.pause(str(exc))
+            self.pause(str(exc), cause=self.intent_pause_cause() if self.intent_pause_cause else "intent_cancelled")
         except Exception as exc:
             self.fail(exc)
 
     def close(self):
         errors = []
-        self.pause(preserve_ready=False)
+        self.pause(preserve_ready=False, cause="close")
         for port in (self.chassis, self.arm):
             if port is not None:
                 try:

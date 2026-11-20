@@ -59,12 +59,21 @@ The operator confirmed the earlier A1 undervoltage issue was fixed.
 
 ## Current welding implementation (2026-11-19)
 
+Nov 20 GUI/planner release status: **sim and actual motor test pending**.
+Automated model/fake-shaft benchmarks do not replace interactive simulator review
+or loaded motor acceptance. The current preparation goal is within five seconds,
+separate from calculation latency; see `docs/PLANNER_BENCHMARK.md`. Preserve guards
+and report starts that cannot meet the goal. Planner caches reuse unchanged scene
+and weave inputs only; recovery is checked from each fresh measured start.
+
 Use `docs/ARM_SESSION_HANDOFF.md` for current evidence and `docs/WELD_MOTION.md`
 for architecture. Shared planning belongs in `src/controls/controls/controller/`;
-`hardware/` and `simulation/` are siblings. **GUI-01 is the next software TODO**:
-visualize torque and both temperatures, simplify verbose windows, and distinguish
-state/progress/fault/pause causes using cached telemetry. The redesign is not yet
-implemented. HOLD-01 remains the next hardware acceptance priority.
+`hardware/` and `simulation/` are siblings. **GUI-01 is implemented locally; operator screen review remains**:
+torque and both temperatures, trends/peaks and cached ages are visible in the
+weld/manual panels. State/progress/fault/pause causes are distinct; diagnostics
+are expandable. The fixed-reference holding software is corrected; HOLD-01
+tracks the separate unresolved physical fault and remains the next hardware
+acceptance priority.
 
 The operator deployed MC02 `f78f6b0d`, capabilities `0x1FFFF8F`, and verified the
 explicit `arm_rig_gun_a2_a6_load.json` profile: A2/A3 trips 30 Nm with TMAX 40;

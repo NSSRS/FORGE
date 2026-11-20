@@ -120,6 +120,37 @@ class WeldControlTests(unittest.TestCase):
         self.assertEqual(self.chassis.last_feed, 0)
         self.assertTrue(self.arm.enabled)
 
+    def test_retimed_stop_roundoff_uses_exact_knot_for_pid_interval(self):
+        for direction in (-np.inf, np.inf):
+            with self.subTest(direction=direction):
+                clock = Clock()
+                arm = SimulatedArm([0] * 6, clock=clock)
+                control = WeldController(arm, FakeChassis(), clock=clock,
+                    pose_check=lambda *a, **k: None, tracking_settings=TrackingSettings())
+                plan = simple_plan()
+                end = plan["home"]["times_s"][-1]
+                plan["recovery"]["waypoint_times_s"] = [float(np.nextafter(end, direction))]
+                try:
+                    control.select(True, True)
+                    control.load_plan(plan)
+                    self.assertEqual(control.recovery_stops, [end])
+                    control.go_initial()
+                    for _ in range(500):
+                        clock.advance()
+                        control.tick()
+                        if control.state in ("ready", "fault", "paused"):
+                            break
+                    self.assertEqual(control.state, "ready", control.message)
+                finally:
+                    control.close()
+
+    def test_recovery_stop_outside_existing_knot_tolerance_is_rejected(self):
+        plan = simple_plan()
+        plan["recovery"]["waypoint_times_s"][0] += 1e-6
+        self.control.select(True, True)
+        with self.assertRaisesRegex(ValueError, "Invalid recovery waypoint times"):
+            self.control.load_plan(plan)
+
     def test_continuous_weld_repeats_without_dwell_until_pause_then_holds(self):
         self.control.continuous_weld = True
         plan = simple_plan()

@@ -42,6 +42,10 @@ compatibility export; all planner implementation lives in `controller/`.
 preserves the full weld endpoint and requested raised approach. Hardware use
 requires explicit `--optimize-preparation` and Start recovery in the panel;
 searching or loading a plan cannot enable motors.
+`controller/path_sampling.py`, `collision_filter.py` and `planning_cache.py`
+own static geometric sampling, arm-pair-preserving contact filtering and bounded
+reuse of unchanged model/weave inputs. `simulation/planner_benchmark.py` owns
+seeded offline experiments; `scripts/benchmark_weld_planner.py` is its launcher.
 `controller/endpoint_recovery.py` owns the reviewed A3 startup allowance and
 inward-only backoff. It is a separate preparation stage; normal mapping and
 travel limits remain strict. `simulation.arm_calibration.ExplicitStops` supplies
@@ -49,6 +53,9 @@ triangle contact depth for the separating-contact check. The controller, native
 owner, preview and journal share the explicit retreat policy.
 `hardware/weld_ports.py` explicitly latches settled endpoint holds without
 changing position, mode or speed allowance. Drive-gain tuning remains HOLD-01.
+`hardware/weld_dashboard.py` derives read-only state/progress presentation.
+`teleop/arm_telemetry_widgets.py` shares cached torque/temperature cards, bounded
+trends and peaks between manual and weld windows. No widget owns a transport.
 `hardware/weld_recording.py` persists cached evidence on a bounded writer thread;
 it does not own a transport or renew motor leases. `hardware/hold_analysis.py`
 provides offline per-attempt/stage timing, torque, temperature and hold summaries;

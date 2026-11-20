@@ -9,9 +9,17 @@ from .preparation import preparation_timing
 from .recovery import recovery_path
 
 
-STAGING_FRACTIONS = (0.25, 0.5, 0.75)
+STAGING_FRACTIONS = (0.0, 0.25, 0.5, 0.75)
 TIMING_MARGIN = 1.02
 PATH_ACCELERATION_FRACTION = 0.9
+
+
+def stopped_move_lower_bound(start, goal, speed, acceleration):
+    """Optimistic rest-to-rest time; ignores path detours and reduced inertia."""
+    distance = abs(np.asarray(goal) - start)
+    speed, acceleration = np.asarray(speed), np.asarray(acceleration)
+    return float(np.max(np.where(distance <= speed**2 / acceleration,
+        2 * np.sqrt(distance / acceleration), distance / speed + speed / acceleration)))
 
 
 def fit_timing(path, speed, acceleration):
@@ -32,7 +40,7 @@ def fit_timing(path, speed, acceleration):
     return JointPath(path.times * factor, path.positions, path.interpolation)
 
 
-def fit_approach_timing(path, speed, acceleration):
+def fit_approach_timing(path, speed, acceleration, *, minimum_final_s=0.0):
     """Time moving legs independently across existing stationary intervals.
 
     The raised approach contains a stopped transfer followed by a short lowering
@@ -67,7 +75,8 @@ def fit_approach_timing(path, speed, acceleration):
             float(np.sqrt(np.max(acceleration_peak[start:end] /
                                 (PATH_ACCELERATION_FRACTION * acceleration)))),
         )
-        steps[start:end] *= max(factor, 0.5 / float(np.sum(steps[start:end])))
+        minimum = max(0.5, minimum_final_s if end == len(steps) else 0.0)
+        steps[start:end] *= max(factor, minimum / float(np.sum(steps[start:end])))
         start = end
     return JointPath(np.r_[0.0, np.cumsum(steps)], path.positions)
 
@@ -113,14 +122,14 @@ def apply_lowering_minimum(plan, settings):
 
 
 def optimize_preparation(plan, geometry, settings):
-    """Compare three staging poses to the requested standby, without new limits.
+    """Compare current pose and three staging poses to the requested standby.
 
     A staging pose is a raw-coordinate interpolation toward the same weld start,
     not a truncated approach. Check recovery at 2 mm and approach at the normal
     clearance, including fixed cable bounds and reduced-inertia acceleration.
     This small search is not a global optimum or a physical readiness claim.
     """
-    from .weld_plan import approach_path
+    from .weld_plan import approach_path, raised_approach_path, APPROACH_LOWERING_SECONDS
 
     best = deepcopy(plan)
     start = np.asarray(plan["current_raw_deg"])
@@ -128,9 +137,41 @@ def optimize_preparation(plan, geometry, settings):
     speed = np.minimum(plan["raw_speed_limits_deg_s"], settings.max_speed_deg_s)
     constraints = plan["optimization"]["constraints"]
     candidates = []
+    def selection_duration(timing, approach):
+        extra = 0.0
+        if settings.lowering_min_s:
+            flat = np.all(np.diff(approach.positions, axis=0) == 0, axis=1)
+            if not np.any(flat) or flat[-1]:
+                raise ValueError("Lowering duration requires a raised approach with a stationary boundary")
+            start_lowering = approach.times[int(np.flatnonzero(flat)[-1]) + 1]
+            extra = max(0.0, settings.lowering_min_s - (approach.duration - start_lowering))
+        return timing["nominal_total_s"] + extra
+    from .weld_plan import JointPath
+    best_duration = selection_duration(best["preparation_timing"], JointPath.from_document(best["approach"]))
     for fraction in STAGING_FRACTIONS:
         staging = start + fraction * (end - start)
         row = dict(fraction=fraction, staging_raw_deg=staging.tolist())
+        key = (float(settings.approach_lift_m), tuple(float(q) for q in end))
+        lower = getattr(geometry, "lowering_cache", {}).get(key)
+        if (fraction and settings.preparation_planner == "direct-first"
+                and settings.approach_lift_m and settings.search_solution is None
+                and isinstance(lower, np.ndarray)):
+            # This fixed-height branch has one known approach spline. Time it
+            # cheaply at the full policy ceilings, before mesh/inertia checks
+            # can reject it or lower those ceilings. Add an ideal rest-to-rest
+            # recovery bound (even a detour cannot beat that). This estimates
+            # a lower bound, never accepts an unchecked geometric route.
+            home_bound = max(.5, stopped_move_lower_bound(start, staging, speed, settings.max_accel_deg_s2))
+            approach_bound = fit_approach_timing(
+                raised_approach_path(staging, lower, settings), speed,
+                np.full(6, settings.max_accel_deg_s2),
+                minimum_final_s=max(APPROACH_LOWERING_SECONDS, settings.lowering_min_s))
+            bound = home_bound + approach_bound.duration + .6
+            if bound >= best_duration + 1e-9:
+                row.update(checked=False, pruned=True, duration_lower_bound_s=bound,
+                           reason="Optimistic recovery/approach timing cannot improve the best checked route")
+                candidates.append(row)
+                continue
         try:
             home, recovery = recovery_path(geometry, start, staging, settings)
             approach, route = approach_path(geometry, staging, end, settings)
@@ -148,7 +189,11 @@ def optimize_preparation(plan, geometry, settings):
             acceleration = np.asarray(dynamics["raw_acceleration_deg_s2"])
             old_duration = home.duration
             home = fit_timing(home, speed, acceleration)
-            approach = fit_approach_timing(approach, speed, acceleration)
+            # Retain the authored lowering duration when shortening the long
+            # transfer. Compressing this leg caused a synthetic A2 tracking
+            # pause even though nominal derivative limits were satisfied.
+            approach = fit_approach_timing(approach, speed, acceleration,
+                                          minimum_final_s=APPROACH_LOWERING_SECONDS)
             recovery["waypoint_times_s"] = [
                 t * home.duration / old_duration for t in recovery["waypoint_times_s"]
             ]
@@ -163,11 +208,10 @@ def optimize_preparation(plan, geometry, settings):
                 acceleration,
                 settings.preparation_target_s,
             )
-            row.update(checked=True, timing=timing)
-            if (
-                timing["nominal_total_s"]
-                < best["preparation_timing"]["nominal_total_s"]
-            ):
+            duration = selection_duration(timing, approach)
+            row.update(checked=True, timing=timing, selection_duration_s=duration)
+            if duration < best_duration:
+                best_duration = duration
                 best.update(
                     initial_raw_deg=staging.tolist(),
                     home=home.document(),
@@ -190,6 +234,8 @@ def optimize_preparation(plan, geometry, settings):
         original_nominal_total_s=plan["preparation_timing"]["nominal_total_s"],
         candidates=candidates,
         changed_standby=best["initial_raw_deg"] != plan["initial_raw_deg"],
-        guarantee="Best of three checked staging candidates and requested standby; physical time unverified.",
+        selection_includes_lowering_minimum=True,
+        planner=settings.preparation_planner,
+        guarantee="Best checked candidate; pruned fixed-height candidates cannot beat optimistic recovery/approach timing. Physical time unverified.",
     )
     return best

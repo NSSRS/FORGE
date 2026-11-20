@@ -471,7 +471,8 @@ def make_preview(mapping, initial, *, simulated, parent=None, backend_factory=No
             layout.addLayout(row)
             self.picture = QtWidgets.QLabel("Loading model…")
             self.picture.setAlignment(QtCore.Qt.AlignCenter)
-            self.picture.setMinimumSize(400, 250)
+            self.picture.setMinimumSize(340, 180)
+            self.picture.setSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Ignored)
             self.picture.setStyleSheet("background: #182638; color: #dce6f0;")
             layout.addWidget(self.picture, 1)
             self.caption = QtWidgets.QLabel()
@@ -497,8 +498,8 @@ def make_preview(mapping, initial, *, simulated, parent=None, backend_factory=No
             row.addWidget(self.speed)
             layout.addLayout(row)
             note = QtWidgets.QLabel(
-                "Preview only — does not command motors. Gun included; chassis fixed. "
-                "Kinematic model, not a camera or load simulation."
+                "Kinematic preview only · Gun included · Chassis fixed\n"
+                "No motor commands or load simulation."
             )
             note.setWordWrap(True)
             layout.addWidget(note)

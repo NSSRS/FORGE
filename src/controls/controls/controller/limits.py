@@ -176,7 +176,9 @@ def reduced_dynamics(geometry, raw_deg, *, pose_check=None):
         for sign in (-1, 1):
             data = mj.MjData(m)
             data.qpos[:] = q
-            closure = ArmClosure(m, data)
+            # Only the differentiated positions are consumed here. The mass
+            # and bias above already used full dynamics at the reference pose.
+            closure = ArmClosure(m, data, forward=False)
             data.qpos[geometry.addresses[i]] += sign * eps * row["model_per_raw"]
             if not closure.apply(data):
                 raise ValueError("Cannot differentiate D3 closure")

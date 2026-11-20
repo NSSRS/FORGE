@@ -8,6 +8,7 @@ from dataclasses import dataclass
 import json
 import math
 from pathlib import Path
+import time
 
 import numpy as np
 from scipy.interpolate import PchipInterpolator, CubicSpline
@@ -20,6 +21,8 @@ from .limits import (
     trajectory_feasibility,
 )
 from .recovery import recovery_path
+
+APPROACH_LOWERING_SECONDS = 2.0
 
 
 def finite_vector(values, label, size=6):
@@ -64,6 +67,7 @@ class Settings:
     optimize_preparation: bool = False
     approach_lift_m: float = 0.0
     lowering_min_s: float = 0.0
+    preparation_planner: str = "direct-first"
 
     def __post_init__(self):
         for name in (
@@ -94,6 +98,8 @@ class Settings:
             raise ValueError("Solver switches must be booleans")
         if type(self.optimize_preparation) is not bool:
             raise ValueError("Preparation optimization switch must be boolean")
+        if self.preparation_planner not in ("direct-first", "staged"):
+            raise ValueError("Unknown preparation planner")
         if (
             isinstance(self.approach_lift_m, bool)
             or not math.isfinite(self.approach_lift_m)
@@ -238,19 +244,28 @@ def move_path(start, goal, settings):
     t = np.linspace(0, duration, max(21, math.ceil(duration / 0.02) + 1))
     u = t / duration
     s = 10 * u**3 - 15 * u**4 + 6 * u**5
-    return JointPath(t, start[None, :] + s[:, None] * (goal - start)[None, :])
+    positions = start[None, :] + s[:, None] * (goal - start)[None, :]
+    # Preserve exact shared endpoints; rounding in start + (goal - start)
+    # must not turn a stationary join into a tiny moving cubic.
+    positions[0], positions[-1] = start, goal
+    return JointPath(t, positions)
 
 
 class WeldGeometry:
-    def __init__(self, mapping, *, clearance_mm=0.5):
+    def __init__(self, mapping, *, clearance_mm=0.5, arm_contacts_only=True, scene_identity=None):
         import mujoco as mj
-        from controls.simulation.weave_xy_z import floor_scene, SEAM_XY, WIRE_GAP
+        from controls.simulation.weave_xy_z import SEAM_XY, WIRE_GAP
         from simulation.arm_calibration import ExplicitStops
         from simulation.arm_sweep import descendant_bodies
         from simulation.arm_closure import ArmClosure
 
         self.mj, self.mapping = mj, mapping
-        self.model, self.data = floor_scene()
+        if scene_identity is None:
+            from simulation.arm_calibration import scene_fingerprint
+            from simulation.paths import MODEL_DIR
+            scene_identity = scene_fingerprint(MODEL_DIR / "robot.xml")
+        from .planning_cache import scene_copy
+        self.model, self.data = scene_copy(scene_identity)
         self.origin = np.array(
             [*SEAM_XY, self.data.geom("preview_floor").xpos[2] + WIRE_GAP]
         )
@@ -258,6 +273,9 @@ class WeldGeometry:
         self.seed = self.data.qpos.copy()
         self.closure = ArmClosure(self.model, self.data, forward=False)
         self.arm_bodies = descendant_bodies(self.model, self.model.body(DRIVES[0]).id)
+        self.arm_geoms = np.isin(self.model.geom_bodyid, list(self.arm_bodies))
+        from .collision_filter import retain_arm_pairs
+        self.arm_contacts_only = arm_contacts_only and retain_arm_pairs(self.model, self.arm_geoms)
         self.clearance = clearance_mm / 1000
         self.model.geom_margin[:] = np.maximum(
             self.model.geom_margin, max(0.005, self.clearance * 2)
@@ -272,16 +290,21 @@ class WeldGeometry:
         self.concave_pair = ("collision_139", "collision_463")
         self.concave = ExplicitStops(self.model, self.data, [self.concave_pair])
         self.contact_report = []
+        # Request-local reuse only. All complete approach paths still receive
+        # their own clearance validation after joining to the measured start.
+        self.lowering_cache = {}
 
     def inspect_contacts(self, clearance_mm):
         """Report convex candidates and the reviewed pair's mesh narrow phase."""
         candidates = {}
-        for contact in self.data.contact:
+        contacts = self.data.contact
+        # Most floor/chassis contacts are irrelevant to the arm. Filter the
+        # native arrays once instead of constructing Python rows for each one.
+        relevant = ((contacts.dist * 1000 < clearance_mm)
+                    & np.any(self.arm_geoms[contacts.geom], axis=1))
+        for index in np.flatnonzero(relevant):
+            contact = contacts[int(index)]
             ids = tuple(int(g) for g in contact.geom)
-            if contact.dist * 1000 >= clearance_mm or not any(
-                int(self.model.geom_bodyid[g]) in self.arm_bodies for g in ids
-            ):
-                continue
             names = tuple(self.model.geom(g).name for g in ids)
             row = dict(
                 geom_names=list(names),
@@ -484,15 +507,25 @@ class WeldGeometry:
         return raw
 
     def validate_path(self, path, *, clearance_mm=None):
+        from .path_sampling import geometry_times
+
         path.check_raw_bounds([self.mapping.raw_limits(i) for i in range(1, 7)])
-        # Bound each interval by its exact cubic speed maximum, not endpoint distance.
-        peak = max(path.peaks()[0])
-        dt = min(0.02, 0.20 / max(peak, 1e-9))
-        count = max(2, math.ceil(path.duration / dt) + 1)
-        if count > 150000:
-            raise ValueError("Path exceeds offline validation budget; shorten the pass")
-        for t in np.linspace(0, path.duration, count):
-            self.check(path.sample(float(t))[0], clearance_mm=clearance_mm)
+        times = geometry_times(path)
+        positions = path.curve(times)
+        # Reject blocked endpoints/interiors before an expensive full scan.
+        # These are a subset of the same final samples, never an acceptance test.
+        if len(times) > 32:
+            saved_qpos, saved_branch = self.data.qpos.copy(), self.closure.last.copy()
+            try:
+                for index in np.linspace(0, len(times) - 1, 17, dtype=int):
+                    self.check(positions[index], clearance_mm=clearance_mm)
+            finally:
+                # Coarse rejection must not choose the starting D3 branch for
+                # the authoritative ordered traversal that follows.
+                self.data.qpos[:] = saved_qpos
+                self.closure.last = saved_branch
+        for raw in positions:
+            self.check(raw, clearance_mm=clearance_mm)
 
 
 def smooth_level(phase):
@@ -674,7 +707,20 @@ def solve_weave(geometry, settings, root):
             settings.search_solution, geometry, settings, constraints
         )
         options = [("cmaes", True, None, candidate)]
+    evaluated = {}
     for name, free, weights, candidate in options:
+        key = (free, None if weights is None else tuple(weights),
+               None if candidate is None else digest(candidate))
+        if key in evaluated:
+            from copy import deepcopy
+            previous, solution = evaluated[key]
+            row = deepcopy(previous)
+            row.update(name=name, reused_from=previous["name"])
+            candidates.append(row)
+            if solution is not None:
+                duration, final, _, dynamics, factor = solution
+                solutions.append((duration, final, name, dynamics, factor))
+            continue
         try:
             path = weave_path(
                 geometry, settings, free_yaw=free, weights=weights, candidate=candidate
@@ -720,8 +766,10 @@ def solve_weave(geometry, settings, root):
                 )
             )
             solutions.append((final.duration, final, name, dynamics, factor))
+            evaluated[key] = (candidates[-1], solutions[-1])
         except ValueError as exc:
             candidates.append(dict(name=name, feasible=False, reason=str(exc)))
+            evaluated[key] = (candidates[-1], None)
     if not solutions:
         raise ValueError("No feasible constrained solution: " + json.dumps(candidates))
     _, path, name, dynamics, factor = min(
@@ -762,6 +810,18 @@ def speed_report(path, settings, speed_limits=None, accel_limits=None):
     )
 
 
+def raised_approach_path(initial, lower, settings):
+    """Construct a fixed-height candidate; callers must validate its geometry."""
+    first = move_path(initial, lower[0], settings)
+    times = np.linspace(0, APPROACH_LOWERING_SECONDS, len(lower))
+    path = JointPath(
+        np.r_[first.times, first.duration + 0.2, first.duration + 0.2 + times[1:]],
+        np.vstack([first.positions, lower[0], lower[1:]]),
+    )
+    factor = speed_report(path, settings)["additional_time_scale"] * 1.02
+    return JointPath(path.times * factor, path.positions)
+
+
 def approach_path(geometry, initial, weld_start, settings):
     failures = []
     if not settings.approach_lift_m:
@@ -779,33 +839,28 @@ def approach_path(geometry, initial, weld_start, settings):
     # collision. Each candidate includes the entire initial-to-raised route.
     for height in heights:
         try:
-            geometry.data.qpos[:] = geometry.seed
-            geometry.closure.apply(geometry.data)
-            raised = geometry.solve(geometry.origin + [0, 0, height])
-            first = move_path(initial, raised, settings)
-            geometry.validate_path(first)
-            times = np.linspace(0, 2.0, 81)
-            u = times / times[-1]
-            s = 10 * u**3 - 15 * u**4 + 6 * u**5
-            lower = [
-                geometry.solve(geometry.origin + [0, 0, height * (1 - float(v))])
-                for v in s
-            ]
-            lower[0] = raised
-            if max(abs(np.asarray(lower[-1]) - weld_start)) > 0.05:
-                raise ValueError(
-                    "Approach reached a different inverse-kinematics branch"
-                )
-            lower[-1] = list(weld_start)
-            t = np.r_[
-                first.times, first.duration + 0.2, first.duration + 0.2 + times[1:]
-            ]
-            q = np.vstack(
-                [first.positions, np.asarray(raised)[None, :], np.asarray(lower[1:])]
-            )
-            path = JointPath(t, q)
-            factor = speed_report(path, settings)["additional_time_scale"] * 1.02
-            path = JointPath(path.times * factor, path.positions)
+            times = np.linspace(0, APPROACH_LOWERING_SECONDS, 81)
+            key = (float(height), tuple(float(q) for q in weld_start))
+            cache = getattr(geometry, "lowering_cache", {})
+            if key not in cache:
+                geometry.data.qpos[:] = geometry.seed
+                geometry.closure.apply(geometry.data)
+                raised = geometry.solve(geometry.origin + [0, 0, height])
+                u = times / times[-1]
+                s = 10 * u**3 - 15 * u**4 + 6 * u**5
+                lower = [
+                    geometry.solve(geometry.origin + [0, 0, height * (1 - float(v))])
+                    for v in s
+                ]
+                lower[0] = raised
+                if max(abs(np.asarray(lower[-1]) - weld_start)) > 0.05:
+                    raise ValueError(
+                        "Approach reached a different inverse-kinematics branch"
+                    )
+                lower[-1] = list(weld_start)
+                cache[key] = np.asarray(lower).copy()
+            lower = cache[key]
+            path = raised_approach_path(initial, lower, settings)
             geometry.validate_path(path)
             return (
                 path,
@@ -822,7 +877,7 @@ def approach_path(geometry, initial, weld_start, settings):
             try:
                 geometry.check(weld_start)
                 anchor = geometry.data.qpos[geometry.addresses].copy()
-                times = np.linspace(0, 2.0, 81)
+                times = np.linspace(0, APPROACH_LOWERING_SECONDS, 81)
                 u = times / times[-1]
                 fractions = 10 * u**3 - 15 * u**4 + 6 * u**5
                 lift = [list(weld_start)]
@@ -863,6 +918,13 @@ def approach_path(geometry, initial, weld_start, settings):
 
 def build_plan(request):
     """Run in a separate process. A result never enables or starts a motor."""
+    started = phase_started = time.perf_counter()
+    timings = {}
+    def phase(name):
+        nonlocal phase_started
+        now = time.perf_counter()
+        timings[name] = now - phase_started
+        phase_started = now
     settings = Settings(**request.get("settings", {}))
     from simulation.arm_calibration import scene_fingerprint
     from simulation.paths import MODEL_DIR
@@ -876,20 +938,26 @@ def build_plan(request):
     mapping = CalibrationMap(request["mapping"])
     current = finite_vector(request["current_raw_deg"], "current")
     initial = finite_vector(request["initial_raw_deg"], "initial")
-    geometry = WeldGeometry(mapping)
+    phase("input_and_fingerprints")
+    geometry = WeldGeometry(mapping, scene_identity=fingerprint)
+    phase("model_initialization")
     from .endpoint_recovery import prepare_retreat, A3Retreat
     endpoint = prepare_retreat(geometry, current, settings)
     recovered = current if endpoint is None else A3Retreat.from_document(endpoint['policy']).goal
     geometry.check(initial)
     home, recovery = recovery_path(geometry, recovered, initial, settings)
+    phase("requested_recovery")
     root = Path(__file__).resolve().parents[4]
-    weld, optimization = solve_weave(geometry, settings, root)
+    from .planning_cache import cached_weave
+    weld, optimization, weave_reused = cached_weave(geometry, settings, root, fingerprint)
+    phase("weave_solve")
     weld_limits = np.array(
         [row["deployment_deg_s"] for row in optimization["constraints"]["joints"]]
     )
     weld_acceleration = np.array(optimization["dynamics"]["raw_acceleration_deg_s2"])
     report = speed_report(weld, settings, weld_limits, weld_acceleration)
     approach, route = approach_path(geometry, initial, weld.positions[0], settings)
+    phase("requested_approach")
     # Only one cycle needs geometric checking; all cycles use the same body-relative path.
     one = JointPath(weld.times[:201], weld.positions[:201], weld.interpolation)
     geometry.validate_path(one)
@@ -967,11 +1035,13 @@ def build_plan(request):
         hardware_qualified=False,
         world_tracking="nominal counterpart assumed even when its output is OFF; no switch compensation",
     )
+    phase("limits_and_timing")
 
     if settings.optimize_preparation:
         from .preparation_search import optimize_preparation
 
         plan = optimize_preparation(plan, geometry, settings)
+    phase("preparation_search")
     if settings.lowering_min_s:
         from .preparation_search import apply_lowering_minimum
 
@@ -1003,6 +1073,9 @@ def build_plan(request):
             (tip[2] - geometry.data.geom("preview_floor").xpos[2]) * 1000
         ),
     )
+    phase("final_checks")
+    plan["planning_timing_s"] = dict(timings, total=time.perf_counter() - started)
+    plan["planning_reuse"] = dict(weave=weave_reused, recovery=False, approach=False)
     return plan
 
 

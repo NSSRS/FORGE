@@ -1,0 +1,300 @@
+{
+  "date": "2026-11-20",
+  "release_status": "sim and actual motor test pending",
+  "evidence": "Automated MuJoCo geometry and ideal fake shafts; interactive simulator and actual motor acceptance pending",
+  "hardware_qualified": false,
+  "baseline_completed_cases": 14,
+  "baseline_interrupted": true,
+  "baseline_source_sha256": {
+    "weld_plan.py": "91c53b91a7ccf7623d2ecb53eaa1a74b0143a1be8b0eba603f694e5791f63b99",
+    "limits.py": "4edde6b1a1f0a280c50dcb0fb722b3f36a13ccd0ea8341df9165c45247a7494d",
+    "recovery.py": "159e75ed69fae44442bbf46eb081ef5df3eb8f3f8494aefdeca491eadc80b79e",
+    "preparation_search.py": "6650dc77002e94cc8cff387c0de1704604a7057c75b55a40112399a39cd882a3"
+  },
+  "paired_comparison": {
+    "planning_s": {
+      "baseline_median": 73.10437695849987,
+      "optimized_median": 24.796697885502,
+      "median_pair_ratio": 3.6527325974419123,
+      "median_reduction_percent": 66.08041964494319
+    },
+    "preparation_s": {
+      "baseline_median": 9.827821050691,
+      "optimized_median": 8.481043777004892,
+      "median_pair_ratio": 1.1567818012510465,
+      "median_reduction_percent": 13.70372198211134
+    }
+  },
+  "random_corpus": {
+    "seed": 20261120,
+    "accepted": 48,
+    "attempts": 91,
+    "nearby": 24,
+    "broad": 24
+  },
+  "optimized": {
+    "cases": 48,
+    "successful": 47,
+    "failed": 1,
+    "latency_s": {
+      "median": 18.68493702449996,
+      "p95": 83.08525780355113,
+      "maximum": 180.00088705899907,
+      "total": 1367.1164202180116
+    },
+    "successful_median_s": 15.697188842001196,
+    "preparation": {
+      "median_s": 7.74690650476575,
+      "minimum_s": 6.195406760442527,
+      "maximum_s": 29.574857154603848,
+      "within_five_seconds": 0
+    },
+    "verification_errors": 0
+  },
+  "optimized_source_manifest_sha256": "7be46d117c5888bb671e63aed1d7290272c5eeb2cd71bd61aaad88e0daf34d17",
+  "settings": {
+    "hz": 2.0,
+    "amplitude_m": 0.01,
+    "feed_m_s": 0.012,
+    "cycles": 1,
+    "time_scale": 1.0,
+    "max_speed_deg_s": 100,
+    "max_accel_deg_s2": 30.0,
+    "control_period_s": 0.02,
+    "auto_retime": true,
+    "lock_base_yaw": false,
+    "limit_profile": "weld",
+    "search_solution": null,
+    "preparation_target_s": 5,
+    "optimize_preparation": true,
+    "approach_lift_m": 0.03,
+    "lowering_min_s": 2.3,
+    "preparation_planner": "direct-first"
+  },
+  "parallelism": {
+    "serial-4": {
+      "wall_s": 88.89616901599948,
+      "summary": {
+        "cases": 4,
+        "successful": 4,
+        "failed": 0,
+        "latency_s": {
+          "median": 20.840212654000425,
+          "p95": 33.522837136399716,
+          "maximum": 34.40084847199978,
+          "total": 88.86742377200062
+        },
+        "successful_median_s": 20.840212654000425,
+        "preparation": {
+          "median_s": 8.81826403612937,
+          "minimum_s": 6.454759524115563,
+          "maximum_s": 10.942449295699301,
+          "within_five_seconds": 0
+        },
+        "verification_errors": 0
+      }
+    },
+    "threads-2-4": {
+      "wall_s": 116.96903845500128,
+      "summary": {
+        "cases": 4,
+        "successful": 4,
+        "failed": 0,
+        "latency_s": {
+          "median": 58.47295467249933,
+          "p95": 77.25036485134915,
+          "maximum": 79.09653116299887,
+          "total": 230.46902383199995
+        },
+        "successful_median_s": 58.47295467249933,
+        "preparation": {
+          "median_s": 8.81826403612937,
+          "minimum_s": 6.454759524115563,
+          "maximum_s": 10.942449295699301,
+          "within_five_seconds": 0
+        },
+        "verification_errors": 0
+      }
+    },
+    "processes-2-4": {
+      "wall_s": 53.964869976000045,
+      "summary": {
+        "cases": 4,
+        "successful": 4,
+        "failed": 0,
+        "latency_s": {
+          "median": 26.624170414001128,
+          "p95": 34.65882874309791,
+          "maximum": 35.71941042499748,
+          "total": 102.22392525699979
+        },
+        "successful_median_s": 26.624170414001128,
+        "preparation": {
+          "median_s": 8.81826403612937,
+          "minimum_s": 6.454759524115563,
+          "maximum_s": 10.942449295699301,
+          "within_five_seconds": 0
+        },
+        "verification_errors": 0
+      }
+    }
+  },
+  "staged-4": {
+    "wall_s": 94.95119346499996,
+    "summary": {
+      "cases": 4,
+      "successful": 4,
+      "failed": 0,
+      "latency_s": {
+        "median": 46.55426395449831,
+        "p95": 66.85411069474921,
+        "maximum": 67.35532665199935,
+        "total": 187.36117007299617
+      },
+      "successful_median_s": 46.55426395449831,
+      "preparation": {
+        "median_s": 8.81826403612937,
+        "minimum_s": 6.454759524115563,
+        "maximum_s": 10.942449295699301,
+        "within_five_seconds": 0
+      },
+      "verification_errors": 0
+    }
+  },
+  "work-area-16": {
+    "wall_s": 96.51213881300282,
+    "summary": {
+      "cases": 16,
+      "successful": 16,
+      "failed": 0,
+      "latency_s": {
+        "median": 10.081723981998948,
+        "p95": 22.99879978475019,
+        "maximum": 23.34143910200146,
+        "total": 186.37977316099204
+      },
+      "successful_median_s": 10.081723981998948,
+      "preparation": {
+        "median_s": 4.678145074783581,
+        "minimum_s": 4.455983257812788,
+        "maximum_s": 4.812813858705473,
+        "within_five_seconds": 16
+      },
+      "verification_errors": 0
+    }
+  },
+  "verify-random-final": {
+    "total": 47,
+    "passed": 47,
+    "ideal_ready_min_s": 6.339999999999953,
+    "ideal_ready_max_s": 29.799999999999454,
+    "within_five_seconds": 0,
+    "failures": []
+  },
+  "verify-work-area": {
+    "total": 16,
+    "passed": 16,
+    "ideal_ready_min_s": 4.57999999999999,
+    "ideal_ready_max_s": 4.939999999999983,
+    "within_five_seconds": 16,
+    "failures": []
+  },
+  "corpus_identity": {
+    "mapping_fingerprint": "e19226781bf4e1519414315cc4c3ead50e294eea48134199d96eb95aafab398f",
+    "scene_fingerprint": "71d3831e54513d590bc2834dbfee27215c1b2330ac2a8bc88fa59b4e1f06d9fd",
+    "sha256": "e1ac377c300a056bc531c3675a1b46e6e7345897e76e5a7ed50f5aee3a466e83"
+  },
+  "work_area_sampling": {
+    "method": "Uniform independent raw perturbations about the required raised approach pose, rejected at 2 mm clearance",
+    "anchor_raw_deg": [
+      -174.69159564640077,
+      -93.17432347914307,
+      128.13050260989087,
+      173.44296542568557,
+      27.5351265628137,
+      63.799047764154736
+    ],
+    "radius_raw_deg": [
+      5,
+      2,
+      2,
+      6,
+      4,
+      6
+    ],
+    "count": 16,
+    "seed": 20261121,
+    "attempts": 16
+  },
+  "artifacts_directory": "build/planner-benchmark/2026-11-20",
+  "artifact_sha256": {
+    "final-v2-48/report.json": "e947a125e18832e4ec1c25b5cf7562da53d5e1f3c65cdf51a76a818d3c019393",
+    "work-area-16/report.json": "418b6fab4f9c075b9815c0a79b1e95d6b226266b8edead3b71430e4778a30b71",
+    "serial-4/report.json": "2d5ef27f5d2058a7f690f4797bb69e82ba3d31cb0985b28198acef1ed22a0387",
+    "threads-2-4/report.json": "113f0b46bec8ad2e7ef612e152d66c7c2aa0c1d563f0da7d0a1a4231df122097",
+    "processes-2-4/report.json": "a9e2f37b2b4248b17ed3012f321f80dbff55470acfe9e7a04feb66684c0a125c",
+    "staged-4/report.json": "1306ba7308147398929f1ec74b6fd2fa961cd503299dfb7e7fbd1c2d40c5fa2f",
+    "verify-random/report.json": "d948cab5f2c10e113f96d650a3a3ca8f9e4971d48a1981e377c3d9da3eca9372",
+    "verify-random-final/report.json": "abf44a8983787a276a9100071ad722c7296c80ce032c41eb49179e2da0be836c",
+    "verify-work-area/report.json": "6a758d20cba0fd5a660a17faaf729afc1ef8fa44909545120bf92c6bf4ff3c34",
+    "final-controller-replay/report.json": "9812e6425e07859acec1f653cc78e3493b78e9756ff3c13f9cd8174ec4e0c343",
+    "baseline-five-second/partial.json": "f891b6113bea4f79e11890b974927b61b3d6cd9d77679ddc505cd723af613b95"
+  },
+  "environment": {
+    "platform": "Linux-7.0.0-43-generic-x86_64-with-glibc2.39",
+    "python": "3.12.3",
+    "logical_cpus": 16,
+    "blas_threads": {
+      "OPENBLAS_NUM_THREADS": "1",
+      "OMP_NUM_THREADS": "1"
+    },
+    "paired_process_workers": 4,
+    "memory_gib": 16
+  },
+  "unresolved": [
+    "sim and actual motor test pending",
+    "Broad starting poses do not meet the five-second goal under the retained constraints",
+    "broad-007 exceeded the 180-second planning budget"
+  ],
+  "performance_runs_include_verification": false,
+  "source_changes_after_measurement": {
+    "src/controls/controls/hardware/weld_control.py": {
+      "measured_sha256": "ef5f56a4e430324f960d1b9a7e262eef77ca87c31fa5622559a133be3ea56ae9",
+      "release_sha256": "618a643b9ef7dbe009f15665b9216ec673c755b5d0eca2a432b121eed3466dfd"
+    }
+  },
+  "controller_correction": "Resolve validated recovery stops to exact stationary knots within the existing 1e-8 s tolerance; fixes one-ULP endpoint interval failure. Timed planner implementation unchanged.",
+  "final_controller_replay": {
+    "total": 63,
+    "passed": 63,
+    "controller_sha256": "618a643b9ef7dbe009f15665b9216ec673c755b5d0eca2a432b121eed3466dfd",
+    "geometry_checked_separately": true,
+    "cohorts": {
+      "random": {
+        "total": 47,
+        "passed": 47,
+        "minimum_ready_s": 6.339999999999953,
+        "maximum_ready_s": 29.799999999999454,
+        "within_five_seconds": 0
+      },
+      "work_area": {
+        "total": 16,
+        "passed": 16,
+        "minimum_ready_s": 4.57999999999999,
+        "maximum_ready_s": 4.939999999999983,
+        "within_five_seconds": 16
+      }
+    }
+  },
+  "regression_tests": {
+    "weld": {
+      "passed": 223,
+      "log_sha256": "e4296cd4ef03ac3242f6a05745436a85ceef1ad59fadafaddb80cdbb70266385"
+    },
+    "shared_arm_gui_model": {
+      "passed": 30,
+      "log_sha256": "b3de94e8e4ebe7420acf64d8a3a0c0f5623b2e46f89a76b636b9aba4d386423f"
+    }
+  },
+  "checkpoint_smoke": "Matching checkpoints reused without calling the planner; changed settings rejected. Synthetic checkpoint test, excluded from performance statistics."
+}

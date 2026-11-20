@@ -375,6 +375,13 @@ running those cases sequentially passed. The 64 endpoint/hardware tests were
 also rerun after the A3 startup helper cleanup. These are software/model results;
 physical acceptance remains in the [handoff](../docs/ARM_SESSION_HANDOFF.md).
 
+GUI-01 verification (Nov 20): 166 tests passed across `test_weld_dashboard`,
+`test_weld_panel`, `test_weld_hardware`, `test_weld_recording`,
+`test_weld_preview`, `test_damiao_keyboard`, `test_arm_group_hold`,
+`test_damiao_arm`, `test_arm_capture` and `test_pocket_gui`. Offline state
+renders fit 1366×768; manual telemetry was checked at 1000×768. UI preview
+screenshots use synthetic readings and do not establish hardware acceptance.
+
 Run all weld tests without hardware:
 
 ```bash
@@ -409,9 +416,11 @@ and [Nov 17 archive](../docs/measurements/weld/2026-11-17/README.md).
 | `test_weld_tracking.py` | Nominal-clock PID with unequal/delayed response, recorded A6 overshoot/two-cycle regressions, tiny-axis correction isolation under full clearance checks, finite-leg braking at variable tick intervals, ordered recovery stops, command derivative limits, anti-windup, fixed endpoint and pause holding, failure guards, full recorded-route geometry, repeated welding, measured Hz and insufficient-motion rejection |
 | `test_weld_preparation_search.py` | Nov 16 <=5 s ideal replay; Nov 17 raised approach with unequal lag and full geometry; Nov 19 long-wrist start at explicit 30 deg/s under 10 s with ideal shafts; final lowering minimum preserves selected staging, earlier timings, geometric cubics and limits, including the recorded loaded start with synthetic lag; independent stopped-leg timing, required lift, acceleration reserve, hardware opt-in and legacy offline-plan rejection |
 | `test_weld_recovery.py` | Bounded route search, start/preload validation, waypoint arrival and cancelled activation |
+| `test_weld_planner_performance.py` | Interval sampling bounds and retiming invariance, exact joined endpoints, contact-mask equivalence against the full model, cache invalidation/copy isolation and optimistic stopped-motion bounds; latency itself belongs in the seeded benchmark |
 | `test_weld_endpoint_recovery.py` | Recorded A3 contact separation, 0.25 deg startup boundary, unchanged other limits, explicit inward-only activation, pause/replan, stale/outward rejection, strict handoff, preview and full optimized model replay; fake-CAN command guards are also in `test_weld_hardware.py` |
 | `test_weld_model.py` | Actual D3/triangle-clearance/inertia checks, complete-route fake-shaft replay and repeated weld boundaries |
-| `test_weld_panel.py` | Worker ownership, ready hold across focus/heartbeat loss, active-motion cancellation, startup fault reset/R, queued-action rejection, reset failure/close and preview isolation |
+| `test_weld_dashboard.py` | Cached temperatures, signed torque/trip display, age rejection, bounded stage/run peaks, preparation clocks and distinct state/pause causes |
+| `test_weld_panel.py` | Worker ownership, ready hold across focus/heartbeat loss, active-motion cancellation, startup fault reset/R, queued-action rejection, reset failure/close, preview isolation, pause-cause journals and compact layouts with retained first-fault evidence |
 | `test_weld_preview.py` | Saved-start validation, nominal settling intervals, actual MuJoCo rendering and contact diagnostics; out-of-range measured-pose display without clamping or weakening target/command limits; planner exception serialization |
 | `test_weld_recording.py` | Bounded asynchronous JSONL, cached snapshots, overflow and disk errors |
 | `test_weld_search.py` | CMA-ES mobility semantics, objective constraints and stale-identity rejection |
@@ -420,6 +429,10 @@ The default audit uses the measured-bound standby. `--plan-only --cycles 1`
 also checks the full approach. Native/model tests require the existing compiler
 and optional simulation dependencies; the full suite may take several minutes.
 Search dependencies are in `src/controls/search-requirements.txt`.
+
+Use the [seeded planner benchmark](../docs/PLANNER_BENCHMARK.md) for planning
+latency, random-start success and the separate five-second motion goal. Keep
+timing runs separate from this suite and model-mutating tests.
 
 Post-arrival tests impose six-axis disturbances, verify that target/allowance
 remain fixed, check cached drift/recovery events, and reject welding start when

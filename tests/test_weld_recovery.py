@@ -21,6 +21,10 @@ class Obstacle:
     def __init__(self, reverse=False):
         self.reverse = reverse
         self.mapping = SimpleNamespace(raw_limits=lambda joint: (-2., 2.))
+        # The production validator restores model/closure scratch state between
+        # its coarse rejection pass and the ordered path traversal.
+        self.data = SimpleNamespace(qpos=np.zeros(1))
+        self.closure = SimpleNamespace(last=np.zeros(1))
 
     def check(self, raw, **kwargs):
         a, b = raw[:2][::-1] if self.reverse else raw[:2]

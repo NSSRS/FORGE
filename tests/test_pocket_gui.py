@@ -51,12 +51,12 @@ class DashboardTests(unittest.TestCase):
     def test_hardware_display_ages_existing_samples_without_transport(self):
         port = object.__new__(ArmPositionPort)
         port.bus = Mock()
-        port.session = SimpleNamespace(origins={0:1.})
+        port.session = SimpleNamespace(origins={0:1.}, bounds={0:(-12.5,12.5)})
         port.window = .5
         port.motors = [dict(torque_trip_nm=12.)]
         port._display_rows = {}
         port.selected=1;port.armed=True;port.moving=True
-        sample = SimpleNamespace(position=1.2,age_ms=4,enabled=True,velocity=.05,torque=2.4)
+        sample = SimpleNamespace(position=1.2,age_ms=4,enabled=True,velocity=.05,torque=2.4,rotor_c=35,mos_c=29)
         with patch('motors.arm_position.time.monotonic',return_value=10.):
             port._remember_sample(0,sample)
         with patch('motors.arm_position.time.monotonic',return_value=10.1):
@@ -65,6 +65,8 @@ class DashboardTests(unittest.TestCase):
         self.assertEqual(result['rows'][0]['position_rad'],1.2)
         self.assertEqual(result['rows'][0]['torque_feedback_nm'],2.4)
         self.assertEqual(result['rows'][0]['torque_trip_nm'],12.)
+        self.assertEqual(result['rows'][0]['rotor_c'],35)
+        self.assertEqual(result['rows'][0]['mos_c'],29)
         self.assertEqual(port.bus.mock_calls,[])
 
     def test_qt_live_angles_raw_channels_staleness_and_stop(self):

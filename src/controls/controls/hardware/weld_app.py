@@ -25,6 +25,7 @@ from controls.controller.weld_plan import (
 )
 from .weld_control import WeldController
 from .weld_recording import SessionJournal, cached_arm_evidence
+from .weld_dashboard import controller_presentation, state_summary
 
 
 def read_start_report(path, mapping):
@@ -50,6 +51,7 @@ def read_start_report(path, mapping):
 def make_window(args, mapping, initial, settings, root):
     from PyQt5 import QtCore, QtGui, QtWidgets
     from .weld_ports import ArmOwner, SimulatedArm, ChassisOwner
+    from teleop.arm_telemetry_widgets import TelemetryPanel, AXIS_COLORS
 
     tracker_settings = TrackingSettings() if getattr(args, "tracker", "pid") == "pid" else None
     tracker_document = None if tracker_settings is None else tracker_settings.document()
@@ -62,6 +64,7 @@ def make_window(args, mapping, initial, settings, root):
             super().__init__()
             self.commands = queue.Queue(maxsize=16)
             self.cancel = threading.Event()
+            self.cancel_cause = "operator_input"
             self.finish = threading.Event()
             self.foreground = threading.Event()
             self.focus_stop = threading.Event()
@@ -87,6 +90,7 @@ def make_window(args, mapping, initial, settings, root):
             if self.resetting.is_set():
                 return  # Recovery owns the transport; require fresh input afterward.
             if action in ("pause", "disable", "select", "reset"):
+                self.cancel_cause = {"select": "output_selection", "pause": "operator_input"}.get(action, action)
                 self.cancel.set()
                 while True:
                     try:
@@ -96,6 +100,7 @@ def make_window(args, mapping, initial, settings, root):
             try:
                 self.commands.put_nowait((action, values, self.focus_generation))
             except queue.Full:
+                self.cancel_cause = "queue_full"
                 self.cancel.set()
 
         def set_foreground(self, active):
@@ -124,8 +129,18 @@ def make_window(args, mapping, initial, settings, root):
             self.focus_stop.clear()
             c = self.controller
             if c.state in c.ACTIVE or (c.state == "ready" and newly_lost):
-                c.pause()
+                c.pause(cause="focus_loss")
                 c.message = "Window focus lost. " + c.message
+
+        def intent_pause_cause(self):
+            """Label cancellation during dispatch without changing stop behavior."""
+            if self.focus_stop.is_set() or not self.foreground.is_set():
+                return "focus_loss"
+            if time.monotonic() - self.heartbeat >= .15:
+                return "ui_heartbeat"
+            if self.finish.is_set():
+                return "close"
+            return self.cancel_cause if self.cancel.is_set() else "intent_cancelled"
 
         def reset_motor_fault(self):
             c = self.controller
@@ -186,6 +201,7 @@ def make_window(args, mapping, initial, settings, root):
                     message=c.message,
                     events=events,
                     fault=c.fault,
+                    pause_cause=c.pause_cause,
                     observation=c.last_observation,
                     measured_motion=c.motion_frequency.result if c.state == "welding" else None,
                     last_command=None if not c.trace else c.trace[-1],
@@ -209,6 +225,7 @@ def make_window(args, mapping, initial, settings, root):
                             continuous_weld=not getattr(args, "single_pass", False),
                             settings=asdict(settings),
                             tracker=tracker_document,
+                            display_axis_colors={f"A{i+1}": color for i, color in enumerate(AXIS_COLORS)},
                             mapping=mapping.document,
                             initial_raw_deg=list(initial),
                             created_utc=datetime.now(timezone.utc).isoformat(),
@@ -274,6 +291,7 @@ def make_window(args, mapping, initial, settings, root):
                     allow_optimized_preparation=settings.optimize_preparation,
                     continuous_weld=not getattr(args, "single_pass", False),
                     tracking_settings=tracker_settings,
+                    intent_pause_cause=self.intent_pause_cause,
                 )
                 if getattr(arm, "fault", None):
                     c.fail(RuntimeError(arm.fault))
@@ -294,7 +312,7 @@ def make_window(args, mapping, initial, settings, root):
                             or c.state in c.ACTIVE
                             or c.state in ("planned", "ready")
                         ):
-                            c.pause()
+                            c.pause(cause="ui_heartbeat" if newly_expired else self.cancel_cause)
                             if tick_start - self.heartbeat > 0.15:
                                 c.message = (
                                     "UI heartbeat lost; planning/motion cancelled. "
@@ -319,7 +337,7 @@ def make_window(args, mapping, initial, settings, root):
                             c.select(*values)
                         elif action == "pause":
                             self.clear_planning()
-                            c.pause()
+                            c.pause(cause="operator_input")
                         elif action == "disable":
                             self.clear_planning()
                             c.disable_arm()
@@ -327,7 +345,7 @@ def make_window(args, mapping, initial, settings, root):
                             self.reset_motor_fault()
                         elif action == "calculate":
                             self.clear_planning()
-                            c.pause(preserve_ready=False)
+                            c.pause(preserve_ready=False, cause="recalculate")
                             if c.arm_on or c.chassis_on:
                                 raw = (
                                     c.feedback(stationary=True).raw_deg.tolist()
@@ -384,7 +402,7 @@ def make_window(args, mapping, initial, settings, root):
                             c.message += f"; motor reset failed: {exc}"
                     if self.cancel.is_set():
                         self.clear_planning()
-                        c.pause()
+                        c.pause(cause=self.cancel_cause)
                         self.cancel.clear()
                     self.pause_for_focus_loss()
                     c.tick()
@@ -408,6 +426,11 @@ def make_window(args, mapping, initial, settings, root):
                                     else None
                                 ),
                                 state=c.state,
+                                **controller_presentation(c, tick_start),
+                                captured_at=time.monotonic(),
+                                telemetry=None if rows is None else rows.telemetry,
+                                fault=c.fault,
+                                fault_evidence=cached_arm_evidence(arm) if c.fault else None,
                                 message=c.message,
                                 arm_on=c.arm_on,
                                 chassis_on=c.chassis_on,
@@ -536,217 +559,222 @@ def make_window(args, mapping, initial, settings, root):
             super().__init__()
             self.worker = OwnerThread()
             self.last_state = "idle"
+            self.last_status = None
+            self.first_fault = None
+            self.next_telemetry_paint = 0
             self.closing = False
             font = self.font()
             font.setPointSize(10)
             self.setFont(font)
-            self.setWindowTitle(
-                "FORGE Weld Motion Control — "
-                + (
-                    "Hardware / Supported Fixture"
-                    if args.execute
-                    else "Offline Simulation"
-                )
-            )
+            self.setWindowTitle("FORGE Weld Motion · " + ("Supported hardware" if args.execute else "Offline simulation"))
+            self.setStyleSheet("""
+                QWidget { color: #172b46; }
+                QPushButton { padding: 7px 10px; border: 1px solid #bccbdc; border-radius: 5px; background: #f8fafc; }
+                QPushButton:disabled { color: #8b99aa; background: #f1f5f9; }
+                QPushButton:hover:enabled { background: #e6eef9; }
+                QGroupBox { font-weight: 600; }
+                QTabWidget::pane { border: 1px solid #d8e1ec; background: #f8fafc; }
+                QTabBar::tab { padding: 7px 14px; }
+            """)
             layout = QtWidgets.QVBoxLayout(self)
-            layout.setContentsMargins(6, 6, 6, 6)
-            layout.setSpacing(2)
-            staging_label = "optimized staging" if settings.optimize_preparation else "standby"
-            info = QtWidgets.QLabel(
-                f"Sequence: check measured pose → verify hold → {staging_label} → weld start → wait → weld motion\n"
-                f"Requested: {settings.hz/settings.time_scale:.4f} Hz, "
-                f"±{settings.amplitude_m*1000:g} mm, feed {settings.feed_m_s/settings.time_scale*1000:.3f} mm/s\n"
-                f"Profile: {settings.limit_profile}; preparation speed request: {settings.max_speed_deg_s:g}°/s, bounded by motor guards. "
-                "Weld speed is calculated from the selected constraints.\n"
-                "Output switches do not add motion compensation. The calculated frequency is shown after planning."
-            )
-            info.setWordWrap(True)
-            layout.addWidget(info)
-            self.controller_label = QtWidgets.QLabel(
-                "Tracking: PID + velocity feedforward; planned preparation timing; fixed endpoint hold."
-                if tracker_settings is not None else
-                "Tracking: legacy feedback-paced preparation."
-            )
-            self.controller_label.setWordWrap(True)
-            layout.addWidget(self.controller_label)
-            self.weld_run_label = QtWidgets.QLabel(
-                f"Welding: one planned pass ({settings.cycles} cycles), then hold."
-                if getattr(args, "single_pass", False) else
-                "Welding: continuous until Pause / Hold; each checked block repeats without stopping."
-            )
-            self.weld_run_label.setWordWrap(True)
-            layout.addWidget(self.weld_run_label)
-            self.preparation_route_label = QtWidgets.QLabel(
-                "Preparation route: optimized staging enabled; the checked plan may replace the saved standby."
-                if settings.optimize_preparation else "Preparation route: saved standby."
-            )
-            self.preparation_route_label.setWordWrap(True)
-            layout.addWidget(self.preparation_route_label)
-            if settings.approach_lift_m:
-                lift_label = QtWidgets.QLabel(
-                    f"Approach: via a point {settings.approach_lift_m*1000:g} mm above the weld point, then lower to the unchanged target."
-                    + (f" Final lowering: at least {settings.lowering_min_s:g} s."
-                       if settings.lowering_min_s else "")
-                )
-                lift_label.setWordWrap(True)
-                layout.addWidget(lift_label)
-            branch = mapping.document.get("encoder_branch_selection")
-            if branch:
-                layout.addWidget(QtWidgets.QLabel(
-                    f"A1 encoder branch: {branch['turns']:+d} turn "
-                    f"({branch['raw_shift_deg']:+g}° raw). Verify the physical pose before recovery."
-                ))
-            if getattr(args, "start_report", None):
-                source = QtWidgets.QLabel(
-                    f"Offline start: saved feedback from {args.start_report.name}. This is not live hardware."
-                )
-                source.setWordWrap(True)
-                layout.addWidget(source)
-            self.arm = QtWidgets.QCheckBox(
-                "Select arm (selection does not enable motors; existing hold is retained)"
-            )
+            layout.setContentsMargins(12, 10, 12, 8)
+            layout.setSpacing(7)
+            header = QtWidgets.QHBoxLayout()
+            title = QtWidgets.QLabel("FORGE  /  WELD MOTION")
+            title.setStyleSheet("font-size: 17px; font-weight: 700")
+            header.addWidget(title)
+            header.addStretch()
+            header.addWidget(QtWidgets.QLabel("SUPPORTED HARDWARE" if args.execute else "OFFLINE SIMULATION"))
+            layout.addLayout(header)
+            self.state_label = QtWidgets.QLabel("Initializing the control thread…")
+            self.state_label.setWordWrap(True)
+            self.state_label.setTextFormat(QtCore.Qt.PlainText)
+            self.state_label.setMinimumHeight(40)
+            layout.addWidget(self.state_label)
+            self.next_action = QtWidgets.QLabel()
+            self.next_action.setWordWrap(True)
+            self.output_label = QtWidgets.QLabel("Arm output OFF · Chassis output OFF · Arm hold inactive")
+            summary = QtWidgets.QHBoxLayout()
+            summary.addWidget(self.next_action, 1)
+            summary.addWidget(self.output_label)
+            layout.addLayout(summary)
+            controls = QtWidgets.QHBoxLayout()
+            self.arm = QtWidgets.QCheckBox("Arm output")
+            self.arm.setToolTip("Selection does not enable motors. Changing outputs keeps an existing hold and invalidates the plan.")
             self.chassis = QtWidgets.QCheckBox("Chassis feed")
             self.arm.setEnabled(args.arm)
             self.chassis.setEnabled(args.chassis)
-            layout.addWidget(self.arm)
-            layout.addWidget(self.chassis)
-            self.arm.clicked.connect(self.selection)
-            self.chassis.clicked.connect(self.selection)
-            buttons = QtWidgets.QHBoxLayout()
-            layout.addLayout(buttons)
+            for widget in (self.arm, self.chassis):
+                controls.addWidget(widget)
+                widget.clicked.connect(self.selection)
+            controls.addStretch()
             self.buttons = {}
-            for label, action in (
-                ("Calculate and check path", "calculate"),
-                ("Start recovery", "initial"),
-                ("Start welding motion", "weld"),
-                ("Pause / Hold (Space)", "pause"),
-                ("Disable arm torque", "disable"),
-                ("Reset motor fault (R)", "reset"),
-            ):
+            for label, action in (("1  Calculate path", "calculate"), ("2  Start recovery", "initial"), ("3  Start welding", "weld")):
                 button = QtWidgets.QPushButton(label)
                 button.setFocusPolicy(QtCore.Qt.NoFocus)
-                button.clicked.connect(
-                    lambda checked=False, a=action: self.worker.send(a)
-                )
-                buttons.addWidget(button)
+                button.clicked.connect(lambda checked=False, a=action: self.worker.send(a))
+                controls.addWidget(button)
                 self.buttons[action] = button
-            self.buttons["initial"].setToolTip(
-                "Verify current-position hold, recover to standby, then move to the weld start."
-            )
+            layout.addLayout(controls)
+            stop_row = QtWidgets.QHBoxLayout()
+            self.timing_label = QtWidgets.QLabel("No accepted path")
+            self.timing_label.setWordWrap(True)
+            stop_row.addWidget(self.timing_label, 1)
+            for label, action in (("Pause / Hold  [Space]", "pause"), ("Disable arm torque", "disable"), ("Reset motor fault  [R]", "reset")):
+                button = QtWidgets.QPushButton(label)
+                button.setFocusPolicy(QtCore.Qt.NoFocus)
+                button.clicked.connect(lambda checked=False, a=action: self.worker.send(a))
+                stop_row.addWidget(button)
+                self.buttons[action] = button
+            self.buttons["pause"].setStyleSheet("background: #fff0c2; color: #674a00; font-weight: 600")
+            self.buttons["disable"].setStyleSheet("color: #a52c35; border-color: #d7a3a8")
+            self.buttons["initial"].setToolTip("Verify current-position hold, recover to standby, then move to the weld start.")
             self.buttons["reset"].setEnabled(False)
-            self.buttons["reset"].setToolTip(
-                "Save fault evidence and reset through the connected arm owner. "
-                "Requires disabled, stationary motors; success leaves motors disabled."
-            )
-            self.state_label = QtWidgets.QLabel("Initializing the control thread…")
-            self.state_label.setWordWrap(True)
-            layout.addWidget(self.state_label)
+            self.buttons["reset"].setToolTip("Save first-fault evidence and verify disabled, stationary motors through the existing owner. Success stays disabled.")
+            layout.addLayout(stop_row)
             self.planning_progress = QtWidgets.QProgressBar()
             self.planning_progress.setRange(0, 0)
+            self.planning_progress.setFixedHeight(5)
             self.planning_progress.setTextVisible(False)
             self.planning_progress.hide()
             layout.addWidget(self.planning_progress)
-            self.timing_label = QtWidgets.QLabel(
-                "Awaiting plan: components with output OFF are assumed to follow their nominal motion."
-            )
-            self.timing_label.setWordWrap(True)
-            layout.addWidget(self.timing_label)
-            self.preparation_label = QtWidgets.QLabel(
-                f"Preparation time target: {settings.preparation_target_s:g} s (hold, standby, weld start)."
-            )
-            self.preparation_label.setWordWrap(True)
+            self.motion_progress = QtWidgets.QProgressBar()
+            self.motion_progress.setRange(0, 1000)
+            self.motion_progress.setFixedHeight(19)
+            self.motion_progress.hide()
+            layout.addWidget(self.motion_progress)
+            self.preparation_label = QtWidgets.QLabel(f"Preparation goal {settings.preparation_target_s:g} s · No measured run yet")
             layout.addWidget(self.preparation_label)
-            self.tracking_label = QtWidgets.QLabel()
-            self.tracking_label.setWordWrap(True)
-            layout.addWidget(self.tracking_label)
-            self.journal_label = QtWidgets.QLabel()
-            self.journal_label.setWordWrap(True)
-            layout.addWidget(self.journal_label)
-            self.frequency_group = QtWidgets.QGroupBox(
-                "Measured motor frequency — live encoder feedback"
-                if args.execute else "Simulated motor frequency — simulated shaft feedback"
-            )
-            frequency_layout = QtWidgets.QVBoxLayout(self.frequency_group)
-            frequency_layout.setContentsMargins(6, 6, 6, 6)
-            frequency_layout.setSpacing(3)
-            frequency_row = QtWidgets.QHBoxLayout()
-            self.frequency_values = []
-            self.frequency_details = []
-            for i in range(6):
-                card = QtWidgets.QFrame()
-                card.setFrameShape(QtWidgets.QFrame.StyledPanel)
-                card_layout = QtWidgets.QVBoxLayout(card)
-                card_layout.setContentsMargins(4, 4, 4, 4)
-                card_layout.setSpacing(1)
-                axis = QtWidgets.QLabel(f"A{i+1}")
-                axis.setAlignment(QtCore.Qt.AlignCenter)
-                card_layout.addWidget(axis)
-                reading = QtWidgets.QLabel("—")
-                reading.setAlignment(QtCore.Qt.AlignCenter)
-                reading_font = reading.font()
-                reading_font.setPointSize(20)
-                reading_font.setBold(True)
-                reading.setFont(reading_font)
-                card_layout.addWidget(reading)
-                detail = QtWidgets.QLabel("Waiting for welding")
-                detail.setAlignment(QtCore.Qt.AlignCenter)
-                detail.setWordWrap(True)
-                card_layout.addWidget(detail)
-                frequency_row.addWidget(card, 1)
-                self.frequency_values.append(reading)
-                self.frequency_details.append(detail)
-            frequency_layout.addLayout(frequency_row)
-            self.frequency_status = QtWidgets.QLabel()
-            self.frequency_status.setWordWrap(True)
-            frequency_layout.addWidget(self.frequency_status)
-            layout.addWidget(self.frequency_group)
-            self.show_motor_frequency(dict(state="idle", arm_on=False))
-            self.table = QtWidgets.QTableWidget(6, 6)
-            self.table.setHorizontalHeaderLabels(
-                [
-                    "Motor",
-                    "Measured raw\nangle (°)",
-                    "Stage goal raw\nangle (°)",
-                    "Remaining to\nstage goal (°)",
-                    "Measured Hz",
-                    "Measured travel\n(° peak-to-peak)",
-                ]
-            )
-            self.table.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
-            self.table.horizontalHeader().setSectionResizeMode(
-                QtWidgets.QHeaderView.Stretch
-            )
-            self.table.verticalHeader().hide()
-            self.table.horizontalHeader().setSectionResizeMode(0, QtWidgets.QHeaderView.Fixed)
-            self.table.setColumnWidth(0, 48)
-            for i in range(6):
-                self.table.setItem(i, 0, QtWidgets.QTableWidgetItem(f"A{i+1}"))
-                self.table.setItem(i, 1, QtWidgets.QTableWidgetItem("—"))
-                self.table.setItem(
-                    i, 2, QtWidgets.QTableWidgetItem(f"{initial[i]:+.4f}")
-                )
-                self.table.setItem(i, 3, QtWidgets.QTableWidgetItem("—"))
-                for column in (4, 5):
-                    self.table.setItem(i, column, QtWidgets.QTableWidgetItem("—"))
-            content = QtWidgets.QHBoxLayout()
-            content.addWidget(self.table, 3)
+            content = QtWidgets.QSplitter(QtCore.Qt.Horizontal)
             self.preview = None
             if not getattr(args, "no_preview", False):
                 from simulation.weld_preview import make_preview
-
-                self.preview = make_preview(
-                    mapping, initial, simulated=not args.execute, parent=self
-                )
-                content.addWidget(self.preview, 3)
+                self.preview = make_preview(mapping, initial, simulated=not args.execute, parent=self)
+                preview_scroll = QtWidgets.QScrollArea()
+                preview_scroll.setWidgetResizable(True)
+                preview_scroll.setWidget(self.preview)
+                content.addWidget(preview_scroll)
                 self.worker.preview_plan.connect(self.preview.set_plan)
-            layout.addLayout(content, 1)
-            note = QtWidgets.QLabel(
-                "This application controls motion only; it does not energize the welder. "
-                "Pause stops the chassis and retains an existing arm hold. "
-                "Disable, faults, or closing the window remove arm torque."
-            )
-            note.setWordWrap(True)
+            self.tabs = QtWidgets.QTabWidget()
+            telemetry_page = QtWidgets.QWidget()
+            telemetry_layout = QtWidgets.QVBoxLayout(telemetry_page)
+            legend = QtWidgets.QLabel("30 s trends · Torque: axis color · Temperature: motor orange / MOS purple")
+            legend.setToolTip("Fresh-only peaks: current stage / recovery run. Hover a card for temperature peaks.")
+            legend.setWordWrap(True)
+            legend.setStyleSheet("color: #526176; font-size: 11px")
+            telemetry_layout.addWidget(legend)
+            self.telemetry = TelemetryPanel()
+            telemetry_layout.addWidget(self.telemetry, 1)
+            telemetry_scroll = QtWidgets.QScrollArea()
+            telemetry_scroll.setWidgetResizable(True)
+            telemetry_scroll.setWidget(telemetry_page)
+            self.tabs.addTab(telemetry_scroll, "Load && temperature")
+            motion_page = QtWidgets.QWidget()
+            motion_layout = QtWidgets.QVBoxLayout(motion_page)
+            self.frequency_group = QtWidgets.QGroupBox("Motor response")
+            frequency_layout = QtWidgets.QVBoxLayout(self.frequency_group)
+            frequency_grid = QtWidgets.QGridLayout()
+            self.frequency_values, self.frequency_details = [], []
+            for i, color in enumerate(AXIS_COLORS):
+                card = QtWidgets.QWidget()
+                box = QtWidgets.QVBoxLayout(card)
+                box.setContentsMargins(3, 3, 3, 3)
+                axis = QtWidgets.QLabel(f"A{i+1}")
+                axis.setStyleSheet(f"color: {color}; font-weight: 700")
+                reading = QtWidgets.QLabel("—")
+                reading.setStyleSheet("font-size: 18px; font-weight: 600")
+                detail = QtWidgets.QLabel("Waiting for welding")
+                detail.setWordWrap(True)
+                for widget in (axis, reading, detail):
+                    box.addWidget(widget)
+                frequency_grid.addWidget(card, i // 3, i % 3)
+                self.frequency_values.append(reading)
+                self.frequency_details.append(detail)
+            frequency_layout.addLayout(frequency_grid)
+            self.frequency_status = QtWidgets.QLabel()
+            self.frequency_status.setWordWrap(True)
+            frequency_layout.addWidget(self.frequency_status)
+            self.table = QtWidgets.QTableWidget(6, 6)
+            self.table.setHorizontalHeaderLabels(["Motor", "Measured raw\nangle (°)", "Stage goal raw\nangle (°)", "Remaining to\nstage goal (°)", "Measured Hz", "Travel\n(° p-p)"])
+            self.table.setEditTriggers(QtWidgets.QAbstractItemView.NoEditTriggers)
+            self.table.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Stretch)
+            self.table.verticalHeader().hide()
+            self.table.verticalHeader().setDefaultSectionSize(26)
+            self.table.horizontalHeader().setSectionResizeMode(0, QtWidgets.QHeaderView.Fixed)
+            self.table.setColumnWidth(0, 48)
+            for axis in range(6):
+                for column in range(6):
+                    item = QtWidgets.QTableWidgetItem(f"A{axis+1}" if column == 0 else "—")
+                    if column == 0:
+                        item.setForeground(QtGui.QColor(AXIS_COLORS[axis]))
+                    self.table.setItem(axis, column, item)
+            motion_layout.addWidget(self.table, 1)
+            self.frequency_toggle = QtWidgets.QToolButton()
+            self.frequency_toggle.setText("Frequency && travel details")
+            self.frequency_toggle.setCheckable(True)
+            self.frequency_toggle.setArrowType(QtCore.Qt.RightArrow)
+            self.frequency_toggle.setToolButtonStyle(QtCore.Qt.ToolButtonTextBesideIcon)
+            self.frequency_toggle.toggled.connect(self.frequency_group.setVisible)
+            self.frequency_toggle.toggled.connect(lambda checked: self.frequency_toggle.setArrowType(QtCore.Qt.DownArrow if checked else QtCore.Qt.RightArrow))
+            motion_layout.addWidget(self.frequency_toggle)
+            motion_layout.addWidget(self.frequency_group)
+            self.frequency_group.hide()
+            motion_scroll = QtWidgets.QScrollArea()
+            motion_scroll.setWidgetResizable(True)
+            motion_scroll.setWidget(motion_page)
+            self.tabs.addTab(motion_scroll, "Targets && response")
+            content.addWidget(self.tabs)
+            content.setChildrenCollapsible(False)
+            content.setSizes([510, 740])
+            layout.addWidget(content, 1)
+            self.details_toggle = QtWidgets.QToolButton()
+            self.details_toggle.setText("Diagnostics && evidence")
+            self.details_toggle.setCheckable(True)
+            self.details_toggle.setArrowType(QtCore.Qt.RightArrow)
+            self.details_toggle.setToolButtonStyle(QtCore.Qt.ToolButtonTextBesideIcon)
+            layout.addWidget(self.details_toggle)
+            self.details = QtWidgets.QScrollArea()
+            self.details.setWidgetResizable(True)
+            self.details.setMaximumHeight(165)
+            detail_body = QtWidgets.QWidget()
+            detail_layout = QtWidgets.QVBoxLayout(detail_body)
+            self.controller_label = QtWidgets.QLabel("Tracker: PID + velocity feedforward" if tracker_settings is not None else "Tracker: feedback-paced")
+            self.weld_run_label = QtWidgets.QLabel(f"Welding: one planned pass ({settings.cycles} cycles), then hold." if getattr(args, "single_pass", False) else "Welding: continuous until Pause / Hold.")
+            self.preparation_route_label = QtWidgets.QLabel("Route: " + ("optimized staging" if settings.optimize_preparation else "saved standby") + f" · request {settings.max_speed_deg_s:g}°/s · lift {settings.approach_lift_m*1000:g} mm · final lowering minimum {settings.lowering_min_s:g} s")
+            self.tracking_label = QtWidgets.QLabel()
+            self.message_detail = QtWidgets.QLabel()
+            self.fault_detail = QtWidgets.QLabel()
+            self.journal_label = QtWidgets.QLabel()
+            for widget in (self.controller_label, self.weld_run_label, self.preparation_route_label, self.tracking_label, self.message_detail, self.fault_detail, self.journal_label):
+                widget.setWordWrap(True)
+                widget.setTextFormat(QtCore.Qt.PlainText)
+                widget.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
+                detail_layout.addWidget(widget)
+            profile = getattr(args, "arm_profile", None)
+            profile_text = f"Arm profile: {profile or 'simulation'}\nTorque trip = reactive guard; TMAX = feedback encoding range; neither is a continuous rating. Temperature trips: motor / MOS 80 °C."
+            if profile and profile.exists():
+                document = json.loads(profile.read_text())
+                ratings = document.get("torque_policy", {}).get("rated_reference_nm", {})
+                profile_text += "\n" + " | ".join(f"{motor['unit']}: trip {motor['torque_trip_nm']:g} Nm, TMAX {motor['ranges']['tmax']:g} Nm, rated {ratings.get(motor['unit'], 'unknown')} Nm" for motor in document["motors"])
+            branch = mapping.document.get("encoder_branch_selection")
+            if branch:
+                profile_text += f"\nA1 branch: {branch['turns']:+d} turn, {branch['raw_shift_deg']:+g}° raw shift. Verify physical pose."
+            profile_label = QtWidgets.QLabel(profile_text)
+            profile_label.setWordWrap(True)
+            detail_layout.addWidget(profile_label)
+            self.details.setWidget(detail_body)
+            self.details.hide()
+            self.details_toggle.toggled.connect(self.toggle_details)
+            layout.addWidget(self.details)
+            self.evidence_warning = QtWidgets.QLabel()
+            self.evidence_warning.setWordWrap(True)
+            self.evidence_warning.setStyleSheet("color: #a52c35")
+            self.evidence_warning.hide()
+            layout.addWidget(self.evidence_warning)
+            note = QtWidgets.QLabel("Motion only · Pause retains arm hold · Disable / fault / close removes torque")
+            note.setStyleSheet("color: #526176; font-size: 11px")
             layout.addWidget(note)
+            self.show_motor_frequency(dict(state="idle", arm_on=False))
             self.worker.status.connect(self.show_status)
             self.pause_shortcuts = []
             for key in (QtCore.Qt.Key_Space, QtCore.Qt.Key_Escape):
@@ -762,61 +790,104 @@ def make_window(args, mapping, initial, settings, root):
             self.timer = QtCore.QTimer(self)
             self.timer.timeout.connect(self.heartbeat)
             self.timer.start(30)
-            self.resize(1400, 940 if self.preview is not None else 720)
+            self.resize(1280, 800)
             self.worker.start()
+
+        def toggle_details(self, expanded):
+            self.details.setVisible(expanded)
+            self.details_toggle.setArrowType(QtCore.Qt.DownArrow if expanded else QtCore.Qt.RightArrow)
 
         def selection(self):
             self.worker.send("select", self.arm.isChecked(), self.chassis.isChecked())
 
         def heartbeat(self):
             self.worker.heartbeat = time.monotonic()
+            if self.last_status is not None and time.monotonic() >= self.next_telemetry_paint:
+                self.refresh_telemetry()
             if self.closing and not self.worker.isRunning():
                 self.close()
 
+        def refresh_telemetry(self):
+            value = self.last_status
+            self.telemetry.update_samples(
+                value.get("telemetry"), captured_at=value["captured_at"],
+                stage=value["state"], run=value.get("run_id"),
+                stale=value["state"] in ("fault", "resetting"),
+            )
+            self.next_telemetry_paint = time.monotonic() + .1
+
         def show_status(self, value):
+            value = dict(value)
+            value.setdefault("captured_at", time.monotonic())
+            self.last_status = value
             self.last_state = value["state"]
+            self.refresh_telemetry()
             preparation = value.get("preparation_timing")
             if preparation:
+                measured = value.get("preparation_elapsed_s")
                 self.preparation_label.setText(
-                    f"Preparation target: {preparation['target_s']:.2f} s | "
-                    f"Nominal plan including minimum settling: {preparation['nominal_total_s']:.2f} s | "
-                    + (
-                        "Nominal target met; physical time unverified."
-                        if preparation["nominal_meets_target"]
-                        else "Target NOT met; measured settling can take longer."
-                    )
+                    f"Preparation · {'measured —' if measured is None else f'measured {measured:.2f} s'}"
+                    f" / nominal {preparation['nominal_total_s']:.2f} s / goal {preparation['target_s']:.2f} s"
+                    + (" · nominal goal exceeded" if not preparation["nominal_meets_target"] else "")
                 )
+            else:
+                self.preparation_label.setText(f"Preparation goal {settings.preparation_target_s:g} s · No accepted timing")
             if value.get("journal_error") or value.get("journal_dropped"):
                 self.journal_label.setText(
                     f"Evidence incomplete: {value.get('journal_error') or ''}; "
                     f"dropped records: {value.get('journal_dropped', 0)}"
                 )
+                self.evidence_warning.setText(self.journal_label.text())
+                self.evidence_warning.show()
             elif getattr(args, "journal_path", None):
                 self.journal_label.setText(f"Live evidence: {args.journal_path}")
+                self.evidence_warning.hide()
             planning = value["pending"]
             self.planning_progress.setVisible(planning)
-            if planning:
-                elapsed = value.get("planning_elapsed_s") or 0.0
-                self.state_label.setText(
-                    f"Planning ({elapsed:.1f} s): " + value["message"]
+            title, action, severity = state_summary(value)
+            colors = {"normal": ("#e8f3ee", "#215844"), "planning": ("#eaf0fd", "#294e91"),
+                      "paused": ("#fff2cf", "#79560b"), "warning": ("#fff2cf", "#79560b"),
+                      "blocked": ("#fff0e0", "#8c4a14"), "fault": ("#fbe8e9", "#a12535")}
+            background, foreground = colors[severity]
+            self.state_label.setStyleSheet(f"background: {background}; color: {foreground}; padding: 8px; border-radius: 5px; font-size: 17px; font-weight: 600")
+            if severity in ("fault", "blocked"):
+                message = value["message"]
+                title += ": " + (message if len(message) <= 220 else message[:217] + "…")
+            self.state_label.setText(title)
+            self.state_label.setToolTip(value["message"])
+            self.next_action.setText(action)
+            self.message_detail.setText(value["message"])
+            fault_evidence = value.get("fault_evidence") or {}
+            if value["state"] == "fault" and self.first_fault is None:
+                self.first_fault = dict(message=value.get("fault") or value["message"], evidence=fault_evidence)
+            if self.first_fault is not None:
+                self.fault_detail.setText("First fault (retained): " + str(self.first_fault["message"]) + "\n"
+                                          + json.dumps(self.first_fault["evidence"], ensure_ascii=True, sort_keys=True))
+            self.output_label.setText(
+                f"Selected: arm {'ON' if value['arm_on'] else 'OFF'} / chassis {'ON' if value['chassis_on'] else 'OFF'}"
+                f" · Arm hold {'active' if value.get('holding') else 'inactive'}"
+            )
+            progress = value.get("stage_progress")
+            self.motion_progress.setVisible(progress is not None and not planning)
+            if progress is not None:
+                self.motion_progress.setValue(round(progress * 1000))
+                elapsed, nominal = value.get("stage_elapsed_s"), value.get("stage_nominal_s")
+                self.motion_progress.setFormat(
+                    f"{'Block' if value['state'] == 'welding' else 'Path'} {progress*100:.0f}%"
+                    + (f" · {'run' if value['state'] == 'welding' else 'leg'} elapsed {elapsed:.1f} s / nominal {'block' if value['state'] == 'welding' else 'leg'} {nominal:.1f} s" if elapsed is not None and nominal is not None else "")
                 )
-            else:
-                label = "A3 inward recovery" if value["state"] == "endpoint_recovery" else value["state"]
-                self.state_label.setText(label + ": " + value["message"])
             timing = value.get("timing")
             if planning:
                 self.timing_label.setText(
-                    "Rechecking the complete path from the current pose. "
-                    "You may switch windows; calculation and preview continue without starting motion."
+                    f"Calculation: {value.get('planning_elapsed_s') or 0:.1f} s · separate from motion time"
                 )
             elif timing and timing.get("effective_hz") is not None:
                 self.timing_label.setText(
-                    f"Calculated: {timing['effective_hz']:.5f} Hz (planned); nominal feed {timing['feed_m_s']*1000:.4f} mm/s. "
-                    "Actual motor frequencies are shown in the live readout below."
+                    f"Planned {timing['effective_hz']:.3f} Hz · {timing['feed_m_s']*1000:.2f} mm/s"
                 )
             else:
                 self.timing_label.setText(
-                    "No accepted plan. Select outputs and calculate a path before starting recovery."
+                    "No accepted path"
                 )
             tracking = value.get("tracking")
             if tracking:
@@ -871,7 +942,7 @@ def make_window(args, mapping, initial, settings, root):
             self.arm.setEnabled(args.arm and value["state"] not in ("fault", "resetting"))
             self.chassis.setEnabled(args.chassis and value["state"] not in ("fault", "resetting"))
             goal = value.get("joint_goal")
-            motion = value.get("measured_motion")
+            motion = value.get("measured_motion") if value["state"] == "welding" else None
             self.show_motor_frequency(value)
             self.table.horizontalHeaderItem(2).setText(
                 f"{goal['label']}\nraw angle (°)" if goal else "Stage goal raw\nangle (°)"
@@ -1077,6 +1148,8 @@ def main(argv=None):
         action="store_true",
         help="compare shorter checked staging poses within selected limits; explicitly permits them on hardware",
     )
+    parser.add_argument("--preparation-planner", choices=("direct-first", "staged"),
+                        default="direct-first", help="prefer a checked direct raised approach, or compare all staging candidates")
     parser.add_argument(
         "--approach-lift-mm",
         type=float,
@@ -1192,6 +1265,7 @@ def main(argv=None):
             optimize_preparation=args.optimize_preparation,
             approach_lift_m=args.approach_lift_mm / 1000,
             lowering_min_s=args.lowering_seconds,
+            preparation_planner=args.preparation_planner,
         )
         if args.audit:
             result = audit(

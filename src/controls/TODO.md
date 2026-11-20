@@ -3,12 +3,11 @@
 The canonical acceptance criteria are in [ARM_LAYER_TODOS.md](../../docs/ARM_LAYER_TODOS.md).
 Current implementation and reproduction: [WELD_MOTION.md](../../docs/WELD_MOTION.md).
 
-- **GUI-01 — next software task:** visualize per-axis Nm and motor/MOS temperature,
-  trends/peaks, feedback age and active trip; replace repeated prose with clear
-  stage/progress/hold/fault/next-action displays. Keep technical detail expandable
-  and log the actual pause cause. Use cached owner data and preserve all motion
-  semantics. Review the weld/arm windows at the NUC screen size; see the
-  [canonical acceptance checklist](../../docs/ARM_LAYER_TODOS.md#gui-01--motor-telemetry-and-clearer-control-windows).
+- **GUI-01 — operator review:** the dashboard implementation is complete;
+  review the telemetry, targets/response and expandable diagnostics on the
+  actual NUC screen. Offline layout and cached-data regression checks do not
+  replace operator acceptance. See the
+  [remaining checklist](../../docs/ARM_LAYER_TODOS.md#gui-01--operator-review-of-the-telemetry-dashboard).
 - **HOLD-01:** diagnose the Nov 19 untouched A5 fixed-hold speed fault; the
   successful second attempt does not resolve it. Qualify 15-second Ready and
   post-weld holds, stiffness and temperatures with the installed load. Complete
@@ -21,9 +20,15 @@ Current implementation and reproduction: [WELD_MOTION.md](../../docs/WELD_MOTION
   and [matched-run procedure](../../docs/ARM_RIG_TEST.md#matched-runs-with-and-without-the-end-effector).
 - **WEAVE-01:** qualify repeatable recovery -> raised approach/lowering -> weld ->
   hold with both output switches and physical clearance. The 2.3 s final-lowering
-  trial reached Ready, but latest total preparation is 12.53 s versus the 5–10 s
-  goal. Reduce unnecessary travel and qualify response without widening guards.
-  Diagnose remaining calculation latency separately from physical motion time.
+  trial reached Ready, but latest total preparation is 12.53 s versus the current
+  five-second goal. Qualify response and the supported starting region without
+  widening guards. Track infeasible starts explicitly; faster calculation does
+  not make a long physical move meet the deadline. See the
+  [offline planner benchmark](../../docs/PLANNER_BENCHMARK.md).
+- **PLAN-01:** reduce remaining worst-case joint-order recovery/staging latency
+  while retaining checked candidates and explicit failure. Extend random-start
+  coverage and qualify the starting region that meets the five-second goal;
+  the broad benchmark does not establish that deadline for arbitrary poses.
 - **SPEED-01:** qualify PID/velocity lead under unequal load, reversals and
   saturation using actual timing, error, phase, measured Hz/travel and thermal
   evidence. Nov 19 A1/A6 frequency matches the ~1.73 Hz plan but travel exceeds

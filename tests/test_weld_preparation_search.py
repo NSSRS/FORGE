@@ -112,6 +112,17 @@ class TimingTests(unittest.TestCase):
         actual = fit_approach_timing(path, limits, np.full(6, 30.))
         np.testing.assert_array_equal(actual.times, expected.times)
 
+    def test_final_leg_floor_preserves_transfer_and_dwell(self):
+        path = JointPath.from_document(self.lowering_plan()["approach"])
+        speed, acceleration = np.full(6, 30.), np.full(6, 30.)
+        fitted = fit_approach_timing(path, speed, acceleration)
+        preserved = fit_approach_timing(path, speed, acceleration, minimum_final_s=2.)
+        np.testing.assert_array_equal(preserved.times[:4], fitted.times[:4])
+        np.testing.assert_array_equal(preserved.positions, fitted.positions)
+        self.assertAlmostEqual(preserved.duration - preserved.times[3], 2.)
+        for old, new in zip(fitted.peaks(), preserved.peaks()):
+            self.assertTrue(np.all(new <= old + 1e-10))
+
     def test_required_lift_cannot_fall_back_to_direct_route(self):
         geometry = MagicMock()
         geometry.solve.side_effect = ValueError("raised route blocked")

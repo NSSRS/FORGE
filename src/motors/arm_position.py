@@ -40,6 +40,8 @@ class JointPosition:
     velocity_rad_s: float | None = None
     torque_feedback_nm: float | None = None
     torque_trip_nm: float | None = None
+    rotor_c: float | None = None
+    mos_c: float | None = None
 
     @property
     def relative_degrees(self):
@@ -170,7 +172,7 @@ class ArmPositionPort:
                     if i not in self.slots:continue
                     p=min(12.5,self.motors[i]['ranges']['pmax'])
                     row=JointPosition(i+1,s.position,s.position,-p,p,s.age_ms,bool(s.enabled),
-                                      s.velocity,s.torque,self.motors[i]['torque_trip_nm'])
+                                      s.velocity,s.torque,self.motors[i]['torque_trip_nm'],s.rotor_c,s.mos_c)
                     self._display_rows[i]=(row,time.monotonic())
         except BaseException:
             self.close()
@@ -444,7 +446,7 @@ class ArmPositionPort:
         lo,hi=self._limits(slot)
         row=JointPosition(slot+1,state.position,self.session.origins[slot],lo,hi,
                           state.age_ms,bool(state.enabled), state.velocity, state.torque,
-                          self.motors[slot]['torque_trip_nm'])
+                          self.motors[slot]['torque_trip_nm'],state.rotor_c,state.mos_c)
         self._display_rows[slot]=(row,time.monotonic())
         return row
 

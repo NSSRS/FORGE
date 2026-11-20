@@ -283,6 +283,9 @@ class ArmOwner:
             np.degrees([r.position_rad for r in rows]),
             np.degrees([r.velocity_rad_s for r in rows]),
             np.array([r.age_ms for r in rows], float),
+            [dict(joint=r.joint, age_ms=r.age_ms,
+                  **{key: getattr(r, key, None) for key in
+                     ("enabled", "torque_feedback_nm", "torque_trip_nm", "rotor_c", "mos_c")}) for r in rows],
         )
 
     def display_feedback(self):

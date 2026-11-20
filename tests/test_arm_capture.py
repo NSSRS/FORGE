@@ -223,7 +223,9 @@ class CaptureTests(unittest.TestCase):
                 self.capture.capture(1, now=10.6)
                 self.assertTrue(entered.wait(1))
                 with patch.object(self.port, 'poll', wraps=self.port.poll) as poll:
-                    self.keys.tick()
+                    # File/thread setup time is not a simulated missed UI tick.
+                    with patch('teleop.arm_keyboard.time.monotonic', return_value=self.keys.last_tick+.02):
+                        self.keys.tick()
                     poll.assert_called_once()
                 self.assertFalse(self.capture.pending[0].done())
                 self.assertTrue(self.port.holding)

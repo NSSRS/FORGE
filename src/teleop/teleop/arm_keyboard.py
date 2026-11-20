@@ -217,6 +217,7 @@ def make_window(port,mode,*,speed_deg_s=45,recovery_report_path=None,teach=None,
                 keys_factory=ArmJogKeys,panel_factory=None,table_factory=None):
     from PyQt5 import QtCore,QtWidgets
     from .arm_widgets import JointPositionTable
+    from .arm_telemetry_widgets import TelemetryPanel, position_telemetry
     class RecoveryThread(QtCore.QThread):
         def __init__(self,parent):
             super().__init__(parent);self.error=None
@@ -229,9 +230,11 @@ def make_window(port,mode,*,speed_deg_s=45,recovery_report_path=None,teach=None,
             super().__init__();self.keys=keys_factory(port,speed_deg_s,recovery_report_path=recovery_report_path,teach=teach,capture=capture);self.next_display=0
             self.recovery_thread=None;self.close_after_recovery=False
             self.starting=False;self.cancel_start=False;self.close_after_start=False
-            self.setWindowTitle('FORGE • Arm joint jog • '+mode);self.resize(880,420)
+            self.last_telemetry=[];self.telemetry_at=time.monotonic();self.telemetry_run=0;self.was_active=False
+            self.setWindowTitle('FORGE • Arm joint jog • '+mode);self.resize(960,720)
             layout=QtWidgets.QVBoxLayout(self);layout.setContentsMargins(8,8,8,8);layout.setSpacing(4)
             self.title=QtWidgets.QLabel();layout.addWidget(self.title)
+            self.title.setStyleSheet('font-size: 17px; font-weight: 600; padding: 8px; background: #eaf0fd; color: #294e91')
             shortcuts=QtWidgets.QLabel('1–6 select   •   E arm   •   Hold ↑/→ positive, ↓/← negative   •   '+
                 ('Space pause/hold   •   D disable   •   R recover' if self.keys.position_hold else 'Space stop   •   R recover'))
             shortcuts.setWordWrap(True);layout.addWidget(shortcuts);self.shortcuts=shortcuts
@@ -271,7 +274,13 @@ def make_window(port,mode,*,speed_deg_s=45,recovery_report_path=None,teach=None,
             self.table.verticalHeader().setMinimumSectionSize(20)
             self.table.verticalHeader().setDefaultSectionSize(22)
             self.table.setMinimumHeight(self.table.horizontalHeader().sizeHint().height()+6*22+2*self.table.frameWidth())
-            layout.addWidget(self.table)
+            self.tabs=QtWidgets.QTabWidget()
+            self.tabs.addTab(self.table,'Joint positions')
+            telemetry_page=QtWidgets.QWidget();telemetry_layout=QtWidgets.QVBoxLayout(telemetry_page)
+            legend=QtWidgets.QLabel('Cached feedback · 30 s trends · Motor orange / MOS purple · Hover for temperature peaks')
+            legend.setWordWrap(True);telemetry_layout.addWidget(legend)
+            self.telemetry=TelemetryPanel();telemetry_layout.addWidget(self.telemetry)
+            self.tabs.addTab(telemetry_page,'Load && temperature');layout.addWidget(self.tabs,1)
             self.status=QtWidgets.QLabel();self.status.setWordWrap(True);layout.addWidget(self.status)
             if panel_factory:panel_factory(self,layout)
             if self.keys.group_hold:
@@ -332,6 +341,9 @@ def make_window(port,mode,*,speed_deg_s=45,recovery_report_path=None,teach=None,
             self.title.setText(f'{mode} — A{port.selected} — '+('RECOVERING' if self.keys.recovering else 'FAULT' if self.keys.failed else 'MOVING' if port.moving else
                 ('HOLDING — ARMED' if port.armed else 'HOLDING — MOTION DISARMED') if getattr(port,'holding',False) else 'ARMED' if port.armed else 'DISARMED'))
             self.status.setText(self.keys.message)
+            active=port.moving or getattr(port,'holding',False)
+            if active and not self.was_active:self.telemetry_run+=1
+            self.was_active=active
             if teach:self.pose_label.setText(teach.describe(port.selected))
             if capture:self.recording_panel.refresh()
             self.status.setMinimumHeight(self.status.heightForWidth(max(1,self.status.width())))
@@ -341,7 +353,11 @@ def make_window(port,mode,*,speed_deg_s=45,recovery_report_path=None,teach=None,
                     # row is not evidence that the motor remains enabled.
                     rows=port.cached_positions() if self.keys.failed or port.moving or getattr(port,'holding',False) else port.positions()
                     self.table.update_positions(rows,port.selected,stale=self.keys.failed)
+                    self.last_telemetry=position_telemetry(rows);self.telemetry_at=time.monotonic()
                 self.invoke(refresh);self.next_display=time.monotonic()+.1
+            self.telemetry.update_samples(self.last_telemetry,captured_at=self.telemetry_at,
+                stage='moving' if port.moving else 'holding' if getattr(port,'holding',False) else 'idle',
+                run=self.telemetry_run,stale=self.keys.failed or self.keys.recovering)
         def key_name(self,event):
             return {QtCore.Qt.Key_Left:'left',QtCore.Qt.Key_Right:'right',QtCore.Qt.Key_Up:'up',QtCore.Qt.Key_Down:'down',QtCore.Qt.Key_Escape:'stop',QtCore.Qt.Key_C:'c'}.get(event.key(),event.text().lower())
         def start_motion(self, key):

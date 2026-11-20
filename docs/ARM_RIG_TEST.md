@@ -137,9 +137,10 @@ explicitly labeled offline. Code and interface text remain English.
 
 The panel defaults to `--tracker pid` for bounded host PID position tracking and
 velocity lead. Use the same reviewed mapping, standby and launch speed arguments;
-an already running panel does not reload changed code. The header should say
-**Tracking: PID + velocity feedforward**. The large **Measured motor frequency**
-readout shows A1–A6 actual Hz and measured/planned peak-to-peak travel.
+an already running panel does not reload changed code. **Diagnostics & evidence**
+shows **Tracker: PID + velocity feedforward**. **Targets & response** shows
+A1–A6 actual Hz and travel; expand **Frequency & travel details** for comparison
+with planned peak-to-peak travel.
 It labels a half-weave-frequency pattern as **Two-cycle response**; other rates
 are shown relative to the weave. Individual joints may have harmonics of that
 weave, so this ratio alone is not a tracking-error score. It updates every 0.5 s
@@ -190,7 +191,7 @@ reporting fixed-target hold error after arrival. The 3 deg tracking trip and
 goal, not a timeout or playback speed. Add `--optimize-preparation` to explicitly
 enable checked staging on hardware. It can replace the saved standby with a
 shorter intermediate pose, while retaining the full weld target and all path/
-motion checks. The panel shows **Preparation route: optimized staging enabled**.
+motion checks. Diagnostics show **Route: optimized staging**.
 Use `--max-speed-deg-s 10 --prep-seconds 5` for the speed and goal of the recorded
 five-second comparison; other starts and physical tracking may take longer.
 See [route comparison](WELD_MOTION.md#checked-preparation-route-comparison).
@@ -219,11 +220,20 @@ A1 encoder branch. Calculate from fresh feedback, review the raised route, then
 explicitly start recovery. Leave welding stopped at ready for the hold acceptance
 below. A fresh tracking or clearance failure needs its new report, not weaker trips.
 
+The default **Load & temperature** tab shows signed torque, absolute load versus
+trip, motor/MOS temperatures, cached sample ages, 30-second display-rate trends
+and stage/run torque peaks. Hover a card for temperature peaks. Missing or stale
+values show a dash. **Diagnostics & evidence** contains the complete controller
+message, first-fault snapshot, profile definitions and journal path. The first
+fault remains visible after an explicit reset. The manual arm panel shares the
+telemetry tab. The status banner names operator, focus and heartbeat pauses;
+calculation time and measured preparation time are separate.
+
 The terminal/panel show a live `.jsonl` journal path. It can be read while the
 owner remains active and records cached data only. A bounded writer reports
 lost records or disk errors. The final JSON also records shutdown results.
 
-Select **Select arm**, then **Calculate and check path**. The embedded
+Select **Arm output**, then **1 Calculate path**. The embedded
 **Current pose** view displays cached encoder feedback in the model, with sample
 age; **Standby target** shows the target. Choose **Overview**, **Side**, **Wrist**
 or **Contact**; Contact centers the camera on the first blocking or refined pair.
@@ -279,7 +289,7 @@ finish or resolve the displayed blocking/cancellation reason and calculate again
 **Start recovery** is the separate physical action; it checks the fresh start,
 verifies hold, then moves to standby and the weld start. **Start welding motion**
 is a further explicit action. At `ready`, Space/Escape, switching windows and a
-lost UI heartbeat preserve the fixed hold and checked plan. **Start welding motion**
+lost UI heartbeat preserve the fixed hold and checked plan. **3 Start welding**
 stays available; return to the panel and click it when ready. A fresh start still
 requires stationary feedback within 0.25 deg of the weld start and valid clearance.
 During travel, Space/Escape, focus loss or a lost heartbeat pause motion and
