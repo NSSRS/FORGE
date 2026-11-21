@@ -12,6 +12,27 @@ from simulation.place_on_floor import place_on_floor
 from simulation.velocity_control import install_velocity_actuators
 from simulation.paths import MODEL_DIR, source_workspace
 DRIVES=['b2_arm_d1','b3_arm_d2','b4_arm_d3','b5_arm_d4','b6_arm_d5','b7_arm_d6']
+
+
+def center_wheel_4_tread(root):
+    """Center the exported wheel tread on its hinge, retaining its axial placement."""
+    wheel = root.find(".//body[@name='linkage_wheel_4']")
+    if wheel is None:
+        raise ValueError("Missing wheel_4 linkage")
+    joint = wheel.find("joint[@name='wheel_4']")
+    treads = wheel.findall("geom[@mesh='sus_ref8_磁铁轮_80mm_1']")
+    if joint is None or not treads:
+        raise ValueError("Missing wheel_4 hinge or 80 mm tread")
+
+    pivot = np.fromstring(joint.get("pos", "0 0 0"), sep=" ")
+    axis = np.fromstring(joint.get("axis", "0 0 1"), sep=" ")
+    axis /= np.linalg.norm(axis)
+    for geom in treads:
+        position = np.fromstring(geom.get("pos", "0 0 0"), sep=" ")
+        centered = pivot + np.dot(position - pivot, axis) * axis
+        geom.set("pos", " ".join(f"{coordinate:.12g}" for coordinate in centered))
+
+
 def prepare(folder):
     tree=ET.parse(folder/'robot.xml'); root=tree.getroot()
     mapping={'b1_main_frame':'body','b2_suspension_left_1':'suspension_1','b2_suspension_right_2':'suspension_2','b2_suspension_front_3':'suspension_3','b3_freedrive_5':'freedrive_1','b3_freedrive_6':'freedrive_2'}
@@ -23,6 +44,7 @@ def prepare(folder):
         for attr in ('name','body1','body2','joint','joint1','joint2'):
             if el.get(attr) in mapping: el.set(attr,mapping[el.get(attr)])
     normalize_d3_rod_centers(root)
+    center_wheel_4_tread(root)
     tree.write(folder/'robot.xml',encoding='utf-8',xml_declaration=True)
     merge_model(folder,10000,preserve_collision=True)
     place_on_floor(folder)

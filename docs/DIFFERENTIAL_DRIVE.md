@@ -38,10 +38,11 @@ are lower commissioning settings, not copied simulation speed requests.
 
 The loaded model's driven joint centers have wall-frame X coordinates
 `+0.3685,+0.3685,-0.3685,-0.3685` m: track width 0.737 m. Front/rear driven
-centers are separated by 0.496 m. The nominal wheel radius is 0.040 m, matching
-the radial mesh envelope of wheels 1, 2 and 4. Wheel 3's merged visual envelope
-extends to about 0.04118 m; use the nominal rolling radius as a calibration
-starting point, not a claim that every mesh vertex lies on its tread.
+centers are separated by approximately 0.496 m. The four driven wheels have
+a 0.040 m tread radius. The model compatibility test compares the controller's
+configured radius and track against the visual and collision geometry and the
+driven wheel joint centers. Integration centers the exported wheel 4 tread on
+its hinge before merging visual meshes.
 Suspension motion, skid slip and surface curvature can change effective track
 and rolling radius. This controller provides nominal velocity mixing, not
 closed-loop yaw tracking, odometry or a dynamic contact model.

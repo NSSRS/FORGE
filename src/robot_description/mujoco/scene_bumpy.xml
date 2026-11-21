@@ -636,7 +636,7 @@
               <geom type="mesh" class="collision" pos="0.0112583 -0.0065 0.003" quat="0.456154 -0.456154 0.5403 -0.5403" mesh="sus_ref11_4_6销子_1" material="sus_ref11_4_6销子_1_material" group="3" mass="0" name="collision_329" />
               <geom type="mesh" class="collision" pos="0 0.013 0.003" quat="0.69599 -0.69599 -0.124891 0.124891" mesh="sus_ref11_4_6销子_1" material="sus_ref11_4_6销子_1_material" group="3" mass="0" name="collision_331" />
               <geom type="mesh" class="collision" pos="-0 0 -0.035" quat="0.67107 -0.67107 -0.222855 0.222855" mesh="sus_ref7_垫圈20_25_2_1" material="sus_ref7_垫圈20_25_2_1_material" group="3" mass="0" name="collision_333" />
-              <geom type="mesh" class="collision" pos="-0.004 -0 -0.08" quat="0 0 -0.707107 -0.707107" mesh="sus_ref8_磁铁轮_80mm_1" material="sus_ref8_磁铁轮_80mm_1_material" group="3" mass="0" name="collision_335" />
+              <geom type="mesh" class="collision" pos="0 0 -0.08" quat="0 0 -0.707107 -0.707107" mesh="sus_ref8_磁铁轮_80mm_1" material="sus_ref8_磁铁轮_80mm_1_material" group="3" mass="0" name="collision_335" />
               <geom name="body_07_linkage_wheel_4" type="mesh" mesh="body_07_linkage_wheel_4" group="2" mass="0" rgba="0.792157 0.819608 0.933333 1.0" contype="0" conaffinity="0" material="wheel_checker_material" />
             </body>
             <geom name="body_05_b2_suspension_right_3" type="mesh" mesh="body_05_b2_suspension_right_3" group="2" mass="0" rgba="0.647059 0.619608 0.588235 1.0" contype="0" conaffinity="0" />
@@ -1055,7 +1055,7 @@
     </frame>
   </worldbody>
   <keyframe>
-    <key name="terrain_spawn" qpos="-0.0074999988316100004 -0.70168228662400001 5.4767513810099997 0.99996340911924464 0.0042798489274510467 -0.0074065549831918119 -7.9114204372719352e-05 0.0255295220579 0 0 0.047663137910999999 0 0 -0.086254053006199996 -0.00030643477402700001 0 1.3634379186000001e-05 0 0 0.094200000000000006 -0.44 0.94364116796947195 0.13576626869028594 -0.21016011134619919 -0.21666008861366468 -0.43958064224419718 0 -0.188 0" ctrl="0 0 0 0 0 0.0942 -0.44 0 -0.188 0" />
+    <key name="terrain_spawn" qpos="-0.00750000000046 -0.701853165268 5.4759310893 0.999988605509 0.00405342539578 -0.00252146608361 2.8330760415e-05 0.0256428225796 0 0 0.0471966547419 0 0 -0.0863549283743 -6.94017296276e-05 0 1.53373692315e-05 0 0 0.0942 -0.44 0.975893987462 0.00038909171168 -0.21824387359 -0.000620872891169 -0.439580642322 0 -0.188 0" ctrl="0 0 0 0 0 0.0942 -0.44 0 -0.188 0" />
   </keyframe>
   <compiler angle="radian" meshdir="assets" autolimits="true" />
   <default>

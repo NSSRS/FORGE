@@ -209,7 +209,7 @@
             <geom type="mesh" class="collision" pos="0.0112583 -0.0065 0.003" quat="0.456154 -0.456154 0.5403 -0.5403" mesh="sus_ref11_4_6销子_1" material="sus_ref11_4_6销子_1_material" group="3" mass="0" name="collision_329" />
             <geom type="mesh" class="collision" pos="0 0.013 0.003" quat="0.69599 -0.69599 -0.124891 0.124891" mesh="sus_ref11_4_6销子_1" material="sus_ref11_4_6销子_1_material" group="3" mass="0" name="collision_331" />
             <geom type="mesh" class="collision" pos="-0 0 -0.035" quat="0.67107 -0.67107 -0.222855 0.222855" mesh="sus_ref7_垫圈20_25_2_1" material="sus_ref7_垫圈20_25_2_1_material" group="3" mass="0" name="collision_333" />
-            <geom type="mesh" class="collision" pos="-0.004 -0 -0.08" quat="0 0 -0.707107 -0.707107" mesh="sus_ref8_磁铁轮_80mm_1" material="sus_ref8_磁铁轮_80mm_1_material" group="3" mass="0" name="collision_335" />
+            <geom type="mesh" class="collision" pos="0 0 -0.08" quat="0 0 -0.707107 -0.707107" mesh="sus_ref8_磁铁轮_80mm_1" material="sus_ref8_磁铁轮_80mm_1_material" group="3" mass="0" name="collision_335" />
             <geom name="body_07_linkage_wheel_4" type="mesh" mesh="body_07_linkage_wheel_4" group="2" mass="0" rgba="0.572549 0.647059 0.733333 1" contype="0" conaffinity="0" material="body_color_linkage_wheel_4" />
           </body>
           <geom name="body_05_b2_suspension_right_3" type="mesh" mesh="body_05_b2_suspension_right_3" group="2" mass="0" rgba="0.552941 0.666667 0.647059 1" contype="0" conaffinity="0" />

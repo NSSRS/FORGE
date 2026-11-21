@@ -119,8 +119,9 @@ src/robot_description/mujoco/config.json, using the supplied examples. Never com
 
 Export stages downloads, backs up unmodified source XML/meshes under ignored
 build/simulation/backups/raw-*, converts unsupported STL files, omits zero-thickness meshes,
-and integrates the old scene features. It merges visual geometry by rigid body
-while retaining separate per-part collision geoms. It does not merge across joints.
+and integrates the old scene features. It centers wheel 4's visual and collision
+treads on its hinge while preserving their axial placement. It merges visual
+geometry by rigid body and retains separate per-part collision geoms.
 Validation precedes promotion; promotion failures roll back.
 src/robot_description/mujoco/omitted_surfaces.json records omissions.
 

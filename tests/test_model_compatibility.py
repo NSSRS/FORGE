@@ -41,6 +41,50 @@ class ModelCompatibilityTests(unittest.TestCase):
             self.assertAlmostEqual(d.qpos[other],.0942)
             self.assertEqual(d.time,0)
             self.assertLess(np.linalg.norm(d.site_xpos[solver.sites[0]]-d.site_xpos[solver.sites[1]]),1e-6)
+    @unittest.skipUnless(importlib.util.find_spec("yaml"), "requires PyYAML to read chassis.yaml")
+    def test_driven_wheel_geometry_matches_chassis_config(self):
+        import yaml
+
+        config_path = ROOT / "src/bringup/config/chassis.yaml"
+        config = yaml.safe_load(config_path.read_text())["motor_driver"]["ros__parameters"]
+        model = mujoco.MjModel.from_xml_path(str(MODEL_DIR / "scene.xml"))
+        data = mujoco.MjData(model)
+        mujoco.mj_forward(model, data)
+
+        joints = [model.joint(f"wheel_{number}").id for number in range(1, 5)]
+        centers = data.xanchor[joints]
+        lateral = data.xaxis[joints[0]]
+        track = abs(np.dot(centers[:2].mean(axis=0) - centers[2:].mean(axis=0), lateral))
+        tolerance_m = 0.00005  # Allow mesh tessellation and CAD export rounding.
+        self.assertAlmostEqual(track, config["track_width_m"], delta=tolerance_m)
+
+        for number, joint in enumerate(joints, start=1):
+            anchor = data.xanchor[joint]
+            axis = data.xaxis[joint]
+            wheel_geoms = np.flatnonzero(model.geom_bodyid == model.jnt_bodyid[joint])
+            treads = {
+                int(model.geom_group[geom]): geom
+                for geom in wheel_geoms
+                if model.geom_type[geom] == mujoco.mjtGeom.mjGEOM_MESH
+                and (
+                    model.geom_group[geom] == 2
+                    or model.mesh(int(model.geom_dataid[geom])).name == "sus_ref8_磁铁轮_80mm_1"
+                )
+            }
+            with self.subTest(wheel=number):
+                self.assertEqual(set(treads), {2, 3})
+                collision_center = data.geom_xpos[treads[3]]
+                self.assertLess(np.linalg.norm(np.cross(collision_center - anchor, axis)), tolerance_m)
+            for group, geom in treads.items():
+                with self.subTest(wheel=number, geom_group=group):
+                    mesh = model.geom_dataid[geom]
+                    first = model.mesh_vertadr[mesh]
+                    points = model.mesh_vert[first:first + model.mesh_vertnum[mesh]]
+                    rotation = data.geom_xmat[geom].reshape(3, 3)
+                    world = points @ rotation.T + data.geom_xpos[geom]
+                    radius = np.linalg.norm(np.cross(world - anchor, axis), axis=1).max()
+                    self.assertAlmostEqual(radius, config["wheel_radius_m"], delta=tolerance_m)
+
     def test_wheel_projection_preserves_full_spawn(self):
         spec=importlib.util.spec_from_file_location('model_mirror',ROOT/'scripts/mujoco_motor_viewer.py')
         module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)

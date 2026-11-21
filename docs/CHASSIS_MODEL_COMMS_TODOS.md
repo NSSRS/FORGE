@@ -8,7 +8,6 @@ when their acceptance evidence exists. Arm ownership remains in
 
 | ID | Remaining work | Acceptance |
 | --- | --- | --- |
-| CHASSIS-01 | Compare updated CAD wheel geometry with independently configured controller radius/track, currently 0.040/0.737 m. | Automated mismatch detection; reviewed geometry revision. |
 | CHASSIS-02 | Complete four-wheel ID, CAN slot, direction and external gearing mapping; current bench explicitly omits motor 4. | Per-wheel signed physical checks and a versioned full-chassis profile. |
 | CHASSIS-03 | Qualify effective radius/track, slip, mass/inertia, magnetic/contact and actuator parameters. | Measured motion, stopping and load evidence; no promotion of illustrative dynamics. |
 | CHASSIS-04 | Complete full ROS description/TF, sensor mounting transforms, odometry, fusion and closed-loop path tracking; coordinate seam-relative correction with [FEEDBACK-01](ARM_LAYER_TODOS.md#feedback-01--sensor-feedback-and-bounded-weld-tip-correction). | Measured frame/pose agreement and defined path/endpoint tolerances. |
@@ -19,7 +18,7 @@ when their acceptance evidence exists. Arm ownership remains in
 | COMMS-05 | Add chassis source arbitration/system safety management and production ROS arm lifecycle. | Explicit activation, stop, supported disable, recovery and re-arm; [ROS-02](ARM_LAYER_TODOS.md). |
 | COMMS-06 | Complete both families' current/thermal/fault/load acceptance. | [PROTECT-01/SUPPORT-01](ARM_LAYER_TODOS.md) and independent current/stop evidence. |
 
-Prioritize geometry/configuration consistency, full wheel mapping and
-feedback/host-loss qualification before localization and coordinated trajectories.
+Prioritize full wheel mapping and feedback/host-loss qualification before
+localization and coordinated trajectories.
 Welding motion implementation belongs under `src/controls/controls/hardware/`;
 its offline tests do not retire the physical acceptance items above.
