@@ -32,10 +32,10 @@ nominal axis motions while omitting host correction below 0.3 deg peak-to-peak.
 Frequency, measured/planned travel and torque/temperature evidence use cached
 feedback. `--lowering-seconds` stretches only the final raised-approach lowering
 leg. The latest loaded preparation took 12.53 s, above the 5–10 s goal; HOLD-01
-also retains the unresolved untouched A5 hold fault. GUI-01 is the next software
-task: show Nm and both temperatures and clarify the verbose windows. Native
-mode-2 drive gain writes, gravity feedforward, Cartesian outer correction and
-ESO are not installed.
+also retains the unresolved untouched A5 hold fault. The next supported motion
+test uses the [accuracy analyzer](../../docs/ARM_RIG_TEST.md#weld-motion-accuracy-test).
+Native mode-2 drive gain writes, gravity feedforward, Cartesian outer correction
+and ESO are not installed.
 
 Start with [WELD_MOTION.md](../../docs/WELD_MOTION.md),
 [the execution API](controls/hardware/README.md),

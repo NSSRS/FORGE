@@ -375,7 +375,7 @@ running those cases sequentially passed. The 64 endpoint/hardware tests were
 also rerun after the A3 startup helper cleanup. These are software/model results;
 physical acceptance remains in the [handoff](../docs/ARM_SESSION_HANDOFF.md).
 
-GUI-01 verification (Nov 20): 166 tests passed across `test_weld_dashboard`,
+Weld dashboard verification (Nov 20): 166 tests passed across `test_weld_dashboard`,
 `test_weld_panel`, `test_weld_hardware`, `test_weld_recording`,
 `test_weld_preview`, `test_damiao_keyboard`, `test_arm_group_hold`,
 `test_damiao_arm`, `test_arm_capture` and `test_pocket_gui`. Offline state
@@ -408,6 +408,7 @@ and [Nov 17 archive](../docs/measurements/weld/2026-11-17/README.md).
 
 | Suite | Contract |
 | --- | --- |
+| `test_weld_accuracy.py` | Cached weld tracking RMS/peaks, scene and mapping identity, synchronized workpiece-relative tip data, and incomplete evidence rejection |
 | `test_weld_hold_analysis.py` | Offline HOLD-01 timing and torque/speed summaries; separate interrupted attempts, reject stale/faulted samples, deduplicate cached feedback, preserve gaps and shutdown uncertainty, and flag changed comparison paths/settings |
 | `test_weld_constraints.py` | Calibration identifiability, output-shaft units, physical/host limits and exact retiming |
 | `test_weld_encoder_branch.py` | Explicit A1 restart-branch selection, unchanged physical interval/A4 winding limits, source fingerprints and raw target continuity |

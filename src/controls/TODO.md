@@ -3,11 +3,6 @@
 The canonical acceptance criteria are in [ARM_LAYER_TODOS.md](../../docs/ARM_LAYER_TODOS.md).
 Current implementation and reproduction: [WELD_MOTION.md](../../docs/WELD_MOTION.md).
 
-- **GUI-01 — operator review:** the dashboard implementation is complete;
-  review the telemetry, targets/response and expandable diagnostics on the
-  actual NUC screen. Offline layout and cached-data regression checks do not
-  replace operator acceptance. See the
-  [remaining checklist](../../docs/ARM_LAYER_TODOS.md#gui-01--operator-review-of-the-telemetry-dashboard).
 - **HOLD-01:** diagnose the Nov 19 untouched A5 fixed-hold speed fault; the
   successful second attempt does not resolve it. Qualify 15-second Ready and
   post-weld holds, stiffness and temperatures with the installed load. Complete
@@ -18,13 +13,9 @@ Current implementation and reproduction: [WELD_MOTION.md](../../docs/WELD_MOTION
   The expanded trips remain trial settings under PROTECT-01, not continuous
   torque ratings. See the [physical review](../../docs/measurements/arm-gun-load-review-2026-11-19.json)
   and [matched-run procedure](../../docs/ARM_RIG_TEST.md#matched-runs-with-and-without-the-end-effector).
-- **WEAVE-01:** qualify repeatable recovery -> raised approach/lowering -> weld ->
-  hold with both output switches and physical clearance. The 2.3 s final-lowering
-  trial reached Ready, but latest total preparation is 12.53 s versus the current
-  five-second goal. Qualify response and the supported starting region without
-  widening guards. Track infeasible starts explicitly; faster calculation does
-  not make a long physical move meet the deadline. See the
-  [offline planner benchmark](../../docs/PLANNER_BENCHMARK.md).
+- **ACCURACY-01:** record supported weld passes with the cached journal, then
+  compare planned, dispatched and measured positions and workpiece-relative
+  wire-tip accuracy. See the [operator test](../../docs/ARM_RIG_TEST.md#weld-motion-accuracy-test).
 - **PLAN-01:** reduce remaining worst-case joint-order recovery/staging latency
   while retaining checked candidates and explicit failure. Extend random-start
   coverage and qualify the starting region that meets the five-second goal;

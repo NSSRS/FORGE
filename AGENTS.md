@@ -59,17 +59,17 @@ The operator confirmed the earlier A1 undervoltage issue was fixed.
 
 ## Current welding implementation (2026-11-19)
 
-Nov 20 GUI/planner release status: **sim and actual motor test pending**.
-Automated model/fake-shaft benchmarks do not replace interactive simulator review
-or loaded motor acceptance. The current preparation goal is within five seconds,
+HOLD-01 and ACCURACY-01 track the next supported motor tests. The accuracy
+analyzer reads the existing session journal and optional independent tip
+measurements without acquiring a transport. The current preparation goal is within five seconds,
 separate from calculation latency; see `docs/PLANNER_BENCHMARK.md`. Preserve guards
 and report starts that cannot meet the goal. Planner caches reuse unchanged scene
 and weave inputs only; recovery is checked from each fresh measured start.
 
 Use `docs/ARM_SESSION_HANDOFF.md` for current evidence and `docs/WELD_MOTION.md`
 for architecture. Shared planning belongs in `src/controls/controls/controller/`;
-`hardware/` and `simulation/` are siblings. **GUI-01 is implemented locally; operator screen review remains**:
-torque and both temperatures, trends/peaks and cached ages are visible in the
+`hardware/` and `simulation/` are siblings. Torque and both temperatures,
+trends/peaks and cached ages are visible in the
 weld/manual panels. State/progress/fault/pause causes are distinct; diagnostics
 are expandable. The fixed-reference holding software is corrected; HOLD-01
 tracks the separate unresolved physical fault and remains the next hardware

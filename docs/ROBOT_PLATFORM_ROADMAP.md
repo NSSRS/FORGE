@@ -11,7 +11,7 @@ alignment, closed-chain planning, physical motor envelopes, multi-start CMA-ES,
 actual motor adapters and checked plan animation are implemented in
 [the weld controller](WELD_MOTION.md). Independent arm/chassis switches gate output.
 The configured target remains 2 Hz; the checked provisional-model solution is
-about 1.815288 Hz. Physical welding acceptance is still open under WEAVE-01.
+about 1.815288 Hz. Physical weld motion accuracy is open under ACCURACY-01.
 LOAD-01 weight compensation and FEEDBACK-01 sensor/ESO feedback follow the first
 arm welding run. These additions do not complete localization or production
 hold/stop qualification; the proposed system below remains a roadmap.

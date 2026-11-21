@@ -9,9 +9,8 @@ Both families now expose cached telemetry through existing owners; see
 these APIs; no enabled register polling or second owner is added.
 
 Next: support HOLD-01/PROTECT-01 diagnosis of the untouched loaded A5 hold
-fault using the recorded settings, torque and temperature evidence. The new
-GUI-01 views must consume cached owner data without register polling or lease
-renewal. Physical calibration, stopping, torque decoding and thermal behavior
+fault using the recorded settings, torque and temperature evidence.
+Physical calibration, stopping, torque decoding and thermal behavior
 remain open; follow the registry rather than repeating completed range setup.
 
 Completed implementation and run instructions belong in the

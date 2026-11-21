@@ -6,12 +6,10 @@ operator commands belong in [ARM_RIG_TEST.md](ARM_RIG_TEST.md).
 
 ## Current status and next session
 
-**Release status: sim and actual motor test pending.** Automated MuJoCo geometry,
-fake-shaft controller checks and seeded planner measurements are offline evidence;
-interactive simulator acceptance and actual loaded motor testing remain pending.
-The current preparation target is **within five seconds**, separate from planning
-latency. Starts that cannot meet it under the retained motion/clearance constraints
-must be reported as over budget. See [planner experiments](PLANNER_BENCHMARK.md).
+**Next motor tests:** HOLD-01 and ACCURACY-01. The current preparation target is
+**within five seconds**, separate from planning latency. Report any start that
+exceeds the goal under the retained motion and clearance constraints.
+See the [planner experiments](PLANNER_BENCHMARK.md).
 
 The Nov 20 paired 14-start comparison reduced median planning from **73.10 to
 24.80 s**. The complete random corpus produced 47/48 plans, with one 180 s
@@ -27,16 +25,14 @@ roundoff faults. Hard joint-order searches remain open under PLAN-01.
 Release regressions passed **223 weld tests plus 30 shared arm/GUI/model tests**;
 no motor hardware was operated.
 
-**GUI-01 is implemented locally and ready for operator review.** The weld
-panel has six cached torque/temperature cards, trends and stage/run peaks,
+The weld panel has six cached torque/temperature cards, trends and stage/run peaks,
 separate targets/response, clear state/next action and expandable diagnostics.
 The manual panel shares the telemetry view. Planning and physical preparation
 clocks are separate; operator/focus/heartbeat pauses have distinct journal
 causes. No protection settings or motion behavior were intentionally changed.
 Offline verification passed 166 controller/Qt/cached-data/shared-panel tests;
 state renders were checked at 1366×768. No hardware was operated.
-See [the interface guide](WELD_MOTION.md#telemetry-dashboard) and
-[remaining operator review](ARM_LAYER_TODOS.md#gui-01--operator-review-of-the-telemetry-dashboard).
+See the [interface guide](WELD_MOTION.md#telemetry-dashboard).
 
 The fixed-reference hold target and speed-allowance defects were corrected.
 HOLD-01 remains open for the separate physical acceptance below; it does not
@@ -240,10 +236,10 @@ Shared planning belongs in `controller/`; hardware and simulation are siblings.
 Normal host changes need no flash. The operator performs hardware work; do not
 open a second owner or interrupt a powered owner while its load depends on torque.
 
-GUI-01 awaits operator review. Hardware acceptance remains HOLD-01 with the
-required CAL-01/SUPPORT-01 checks, then WEAVE-01/SPEED-01. LOAD-01 and FEEDBACK-01
-remain deferred until the first qualified arm welding run. Reproduction checks
-are in [tests/README.md](../tests/README.md).
+Hardware acceptance remains HOLD-01 with the required CAL-01/SUPPORT-01 checks,
+then ACCURACY-01/SPEED-01. Use the [weld motion accuracy procedure](ARM_RIG_TEST.md#weld-motion-accuracy-test)
+for the next bounded pass. LOAD-01 and FEEDBACK-01 follow the first qualified
+arm welding run. Reproduction checks are in [tests/README.md](../tests/README.md).
 
 ## Publication validation — November 19
 

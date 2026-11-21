@@ -1,6 +1,6 @@
 # Arm cross-layer TODO registry
 
-Updated 2026-11-20, based on branch `nathan`. This registry contains **open work only**.
+Updated 2026-11-22, based on branch `nathan`. This registry contains **open work only**.
 Read [current status](ARM_SESSION_HANDOFF.md) and [the base contract](ARM_BASE_LAYER.md)
 first. Stable IDs link package responsibilities; update the owning entry when
 work changes, and retire completed tasks instead of appending session history.
@@ -14,26 +14,10 @@ in the guides; full hardware qualification below remains separate.
 
 ## Immediate priorities
 
-**GUI-01 is implemented locally; operator review remains.** Hardware acceptance
-remains HOLD-01 (the untouched A5 holding fault), with CAL-01/SUPPORT-01 as
-prerequisites. Then finish WEAVE-01/SPEED-01. LOAD-01 and FEEDBACK-01 remain
-deferred until the first qualified arm welding run. Fixed-reference holding
-software is implemented; HOLD-01's remaining work is physical diagnosis and
-acceptance, not reimplementation of that fix.
-
-### GUI-01 — operator review of the telemetry dashboard
-
-Owner: `src/controls/controls/hardware/`, `src/teleop/teleop/` shared arm views.
-
-Implementation and cached-data contracts are documented in
-[the interface guide](WELD_MOTION.md#telemetry-dashboard). Offline regression
-and screen-layout verification are complete; operator acceptance remains below.
-
-- [ ] Review the offline-checked layouts on the actual NUC display and accept
-  readability during normal, stale, planning, recovery, Ready, welding, pause
-  and fault states. Confirm the telemetry and diagnostic views are useful for
-  the operator's next supported session. This review does not qualify holding,
-  temperatures, continuous load or drive tuning.
+Resolve HOLD-01 (the untouched A5 holding fault) with CAL-01/SUPPORT-01 as
+prerequisites. Then record welding motion accuracy and qualify tracking under
+ACCURACY-01/SPEED-01. LOAD-01 and FEEDBACK-01 follow the first qualified arm
+welding run.
 
 ### SUPPORT-01 — base, gravity support and physical stopping
 
@@ -316,39 +300,37 @@ Pocket physical acceptance still needs:
 - [ ] Transmitter-off, receiver-power, USB-loss and reconnection tests. Fresh CSV
   cannot identify hold-last RF failsafe; retain sample deadlines and fresh priming.
 
-### WEAVE-01 — flat-ground coordinated weave experiment
+### ACCURACY-01 — measure motion accuracy during welding
 
-Owner: `src/controls/controls/`, `src/simulation/`, operator.
-The [implemented sequence](WELD_MOTION.md) is measured current pose -> derived
-standby -> checked weld start -> explicit weld -> hold, with independent output
-switches. Calibration, motor constraints, CMA-ES and the actual hardware path
-exist; their animation/fake replay does not qualify physical execution.
-The target remains 2 Hz / 12 mm/s. The best checked candidate reaches 1.815288 Hz
-under provisional CAD acceleration bounds, with six equal 68.7549 deg/s weld
-caps and 5 deg/s initial/approach. Temporary A1 limiting is withdrawn. No firmware
-or reactive trip was raised. Chassis gaps are in [the chassis list](CHASSIS_MODEL_COMMS_TODOS.md).
+Owner: `src/controls/controls/hardware/`, operator.
+The [accuracy test procedure](ARM_RIG_TEST.md#weld-motion-accuracy-test) uses the
+weld panel's cached journal and `scripts/analyze_weld_accuracy.py` after the pass.
 
-- [ ] Validate the unit-gain sign/offset map and derived standby at independent
-  physical poses; raw A3 149.39 deg is a calculated 2-degree backoff, not a newly
-  measured initial anchor. Retain the original conflicting CAD pose as evidence.
-- [ ] Run the complete supported arm sequence and save timing, feedback ages,
-  dispatched targets, tracking, stops and attained frequency. Confirm arm-only,
-  chassis-only and combined output gating without switch compensation. Keep
-  physical load/hold acceptance separate from model feasibility.
+- [ ] On the supported fixture, record a bounded arm-only pass and compare each
+  shaft's measured angle against the planned and dispatched targets. Save the
+  error report, gaps, run settings and effective frequency. Repeat with chassis
+  feed only after its wheel mapping is confirmed.
+- [ ] Measure synchronized 3D wire-tip positions in a fixed workpiece frame.
+  Record the tool mounting, wire extension, seam axes and timing reference. Set
+  test tolerances for the intended process and compare against the actual checked
+  weave and feed, including its retiming. Encoder reconstruction supplies a
+  fixed-base estimate. Independent tip data measures the effect of slip, flex
+  and tool alignment on workpiece-relative accuracy.
 
-- [ ] Confirm the flat butt joint and the 10° drag angle against the weld procedure.
-  Keep the gun fixed in the DOF6 clamp. Verify wire extension and cable clearance
-  on the rig. The fixed-mount simulation reaches the full width at 1–3 Hz with
-  a measured peak edge overshoot of 0.32 mm. Agree on physical trial tolerances.
-  Use the [simulation controller and tester guide](../src/controls/README.md).
-  Record the accepted amplitude, feed and tracking tolerance for the intended seam.
-  Physical pose teaching and A6 speed trials remain under CAL-01 and SPEED-01.
+### WELDER-01 — welding machine Modbus API
+
+Owner: [`src/welding_machine/`](../src/welding_machine/TODO.md).
+
+- [ ] Document the real machine's Modbus transport and register map, then build
+  an API for its supported status and control operations. Verify encoding,
+  units, timeouts and fault handling with a simulated endpoint before
+  commissioning.
 
 ### LOAD-01 — weight compensation after the first arm welding run
 
 Owner: `src/controls/controls/controller/`, `src/robot_description/`, operator.
 Deferred by the operator until the arm's initial-pose -> weld-start -> welding
-sequence has been run through under WEAVE-01. Keep this separate from chassis
+sequence has been run through on the supported fixture. Keep this separate from chassis
 participation: disabling one subsystem must not introduce arm compensation.
 
 - [ ] Reconcile the operator estimate: A1 supply 24 V, moving load about 6.5 kg,
@@ -373,13 +355,12 @@ participation: disabling one subsystem must not introduce arm compensation.
 Owner: `src/controls/controls/controller/` (estimation/correction),
 `src/controls/controls/hardware/` (execution and cached sensor interfaces),
 sensor integration and `src/robot_description/` (frames/calibration).
-Requested 2026-11-15; deferred until WEAVE-01's first arm welding run.
+Requested 2026-11-15; deferred until the first qualified arm welding run.
 Coordinate with LOAD-01 and CHASSIS-04; this is not implemented compensation.
 
-- [ ] Record a baseline using timestamped commanded/measured joint positions,
-  velocities, actual dispatched position/speed limits and feedback ages.
-  Measure delay, jitter, quantization and tracking error; reuse cached telemetry,
-  without enabled-state register polling or another motor owner.
+- [ ] Use the ACCURACY-01 baseline to evaluate delay, jitter, quantization and
+  tracking error against timestamped positions, velocities, dispatched limits
+  and feedback ages. Use the existing owner's cached telemetry.
 - [ ] Select and calibrate sensing of the wire tip relative to the weld seam,
   including lateral/height error and any required orientation. Establish camera/
   laser/sensor-to-tool/base transforms, timestamps, latency and valid-data rules.

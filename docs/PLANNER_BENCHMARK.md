@@ -6,8 +6,9 @@ are separate measurements. A successful path can still miss the requested
 **five-second preparation goal**; the report counts these separately. Welding
 duration is not included in that preparation goal.
 
-**Release status: sim and actual motor test pending.** These automated model
-experiments do not replace interactive simulator review or actual motor tests.
+The reported timings come from the checked model and ideal fake shafts.
+The [weld motion accuracy test](ARM_RIG_TEST.md#weld-motion-accuracy-test)
+records tracking during a supported physical pass.
 
 ## November 20 measurements
 

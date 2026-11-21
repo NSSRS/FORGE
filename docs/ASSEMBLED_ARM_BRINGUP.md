@@ -143,7 +143,7 @@ none is completed by the simulation study or the unloaded jogging reports.
    sign/offset map, raw branches and derived standby at additional poses.
    The original A3 CAD pose conflicts with its stop; the controller's 2-degree
    raw backoff is a calculated candidate, not a new physical measurement.
-3. **Qualify the complete arm weld — WEAVE-01, PLAN-01.** Existing planning
+3. **Measure weld motion accuracy — ACCURACY-01, PLAN-01.** Existing planning
    checks D3 closure, sampled collision clearance, raw bounds and speed/acceleration
    through initial, approach and weld stages. Verify the assembly, cables,
    actual tracking and stops. Keep the configured 2 Hz goal; the checked CMA-ES

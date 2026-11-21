@@ -15,6 +15,7 @@ Native Linux is the deployment target. The ROS Python packages use ament_python:
 | teleop | Keyboard/radio command generation; uses motor_control command helpers |
 | visualization | Read-only relay and measured-state MuJoCo display |
 | controls | [Coordinated motion](../src/controls/README.md): shared planning/CMA-ES, simulation controller and real ENCOS/Damiao weld execution |
+| welding_machine | Planned welding machine Modbus API and register definitions |
 | simulation | MuJoCo model integration, previews, rendering, terrain and linkage closure |
 | robot_description | Shared MJCF/meshes and resource lookup, chassis/arm motor inventories and Xacro macros |
 | bringup | Shared YAML/DDS profiles, ROS launch files, four-pane session manager |
@@ -59,7 +60,9 @@ trends and peaks between manual and weld windows. No widget owns a transport.
 `hardware/weld_recording.py` persists cached evidence on a bounded writer thread;
 it does not own a transport or renew motor leases. `hardware/hold_analysis.py`
 provides offline per-attempt/stage timing, torque, temperature and hold summaries;
-`scripts/analyze_weld_hold.py` is its thin launcher.
+`scripts/analyze_weld_hold.py` is its thin launcher. `hardware/weld_accuracy.py`
+compares planned, dispatched and measured positions during a recorded pass.
+`scripts/analyze_weld_accuracy.py` launches it offline.
 
 `scripts/control_weld.py`, `fit_arm_model.py` and `optimize_weld.py` are thin
 entry points. `scripts/render_weld.py` delegates to

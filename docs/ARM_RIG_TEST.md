@@ -331,6 +331,61 @@ saved six-axis disabled diagnostic; hardware rejects this option. Without it,
 offline simulation starts at the configured mapping's simulation pose.
 `--no-preview` disables rendering if the graphics backend is unavailable.
 
+## Weld motion accuracy test
+
+For the first ACCURACY-01 run, use the supported fixture and validated
+arm profile, mapping and matching standby from the
+[weld panel procedure](#weld-panel-with-embedded-model-preview). Run a
+motion-only pass. Use the same reviewed hardware launch command with
+`--single-pass --cycles 4` and a unique `--output` path such as
+`build/arm_tests/accuracy/session.json`. Start with **Arm output** selected.
+For a later combined run, verify the four-wheel mapping before selecting
+**Chassis feed** and use the normal explicit chassis launch flags.
+
+Calculate and inspect the checked path. Start recovery, wait for Ready, and
+start welding motion. Wait for **Pass complete**, then close the panel with the
+fixture supporting the arm. The panel writes `session.jsonl` and the final
+`session.json`. Analyze the journal from the same model checkout:
+
+```bash
+.venv/bin/python scripts/analyze_weld_accuracy.py \
+  build/arm_tests/accuracy/session.jsonl \
+  --output build/arm_tests/accuracy/accuracy.json
+```
+
+Use a fresh session for a repeat or select an existing pass with
+`--run-number N`. The report covers the moving weld interval and lists RMS and
+peak tracking error on A1–A6, measured and planned joint travel, feedback ages,
+and the same-tick difference from dispatched targets. It also reconstructs the
+tool tip with the checked model and fixed base. That estimate depends on the
+saved mapping, rigid geometry and correct tool mounting.
+
+For workpiece-relative accuracy, capture independent synchronized tip positions
+and export `elapsed_s,x_mm,y_mm,z_mm` in increasing time order. Use the
+`weld_started` event as time zero and retain samples over the checked moving
+interval shown as `duration_s`. Register the measurement frame to the **planned**
+starting tip on the fixture, with +X along commanded travel, +Y transverse and
++Z up from the workpiece in the flat-ground test. Retain the measured initial
+offset. Record the source, spatial calibration and synchronization uncertainty
+with the CSV. The comparison uses the checked retimed path and adds the planned
+feed in +X when Chassis feed was selected.
+
+```bash
+.venv/bin/python scripts/analyze_weld_accuracy.py \
+  build/arm_tests/accuracy/session.jsonl \
+  --tip-csv build/arm_tests/accuracy/tip.csv \
+  --output build/arm_tests/accuracy/accuracy-with-tip.json
+```
+
+When process tolerances are defined, add `--peak-joint-deg` for the maximum
+allowed peak nominal error across the six axes and `--peak-tip-mm` for the
+maximum allowed 3D error from independent tip measurements. Supply numeric
+limits in the stated units. Without thresholds the report lists measurements.
+The command returns status 2 for incomplete evidence or a missed threshold and
+preserves the report when an output path is supplied. The moving interval
+requires usable coverage with gaps no larger than 100 ms. Interrupted, faulted,
+stale or dropped data remain visible in the report.
+
 ## Post-preparation hold acceptance
 
 Current acceptance remains open after the Nov 19 loaded trials. The first

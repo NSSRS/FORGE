@@ -2,10 +2,9 @@
 
 Motor control, IMU acquisition, teleoperation, and visualization for the magnetic wall-climbing welding robot.
 
-**Local GUI/planner update (2026-11-20): sim and actual motor test pending.**
-Automated model/fake-shaft checks are separate from interactive simulator review
-and loaded motor acceptance. The current preparation goal is within five seconds;
-see the [planner benchmark](docs/PLANNER_BENCHMARK.md) for reproducible measurements.
+**Next motor tests:** supported holding and [weld motion accuracy](docs/ARM_RIG_TEST.md#weld-motion-accuracy-test).
+The current preparation goal is within five seconds. See the
+[planner benchmark](docs/PLANNER_BENCHMARK.md) for reproducible measurements.
 
 **Current status (2026-11-19):** the operator-deployed gun-load profile uses
 A2/A3 30 Nm and A4-A6 10 Nm reactive torque trips, with matching persisted
@@ -21,11 +20,11 @@ unexplained. A1/A6 match the planned ~1.73 Hz but exceed planned travel. Loaded
 holding, a matched no-EE/1.96 kg EE comparison, thermal acceptance and the current 5 s
 preparation goal remain open. Trial trips are not continuous-load ratings.
 
-**GUI-01 dashboard (2026-11-20):** signed torque, motor/MOS temperatures,
+**Weld dashboard:** signed torque, motor/MOS temperatures,
 cached-data age, trends and peaks are visible beside the model. State, next
 action, timing and pause causes are explicit; diagnostics are expandable.
-The manual arm panel shares a telemetry tab. Operator screen review remains;
-see [the interface guide](docs/WELD_MOTION.md#telemetry-dashboard) and
+The manual arm panel shares a telemetry tab. See the
+[interface guide](docs/WELD_MOTION.md#telemetry-dashboard) and
 [open work](docs/ARM_LAYER_TODOS.md). The requested welding target remains
 **2 Hz / 12 mm/s**; no mode energizes the welder.
 

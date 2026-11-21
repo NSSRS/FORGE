@@ -22,5 +22,5 @@ For the next supported, assembled-arm stage, follow the
 Keep session jog bounds, sampled model intervals and calibrated physical
 limits distinct; coordinated gravity holding remains a separate controller.
 
-[WEAVE-01](../../docs/ARM_LAYER_TODOS.md#weave-01--flat-ground-coordinated-weave-experiment)
-tracks the tester review of the [flat-ground chassis and arm weave](../controls/README.md).
+[ACCURACY-01](../../docs/ARM_LAYER_TODOS.md#accuracy-01--measure-motion-accuracy-during-welding)
+uses the checked model to reconstruct fixed-base wire-tip tracking from encoder logs.

@@ -472,7 +472,7 @@ is separate from normal panel launch. See [deployment and current status](ARM_RI
 journal offline: separate preparation attempts/stages, time to Ready, endpoint
 retreat, speed, torque, motor/MOS temperature, fixed-target error and data gaps.
 An attempt reaching Ready does not mean its later hold/weld passed; inspect its
-segments and fault history. The GUI-01 dashboard presents the same cached
+segments and fault history. The weld dashboard presents the same cached
 telemetry; display-rate trends and peaks complement the full-rate journal.
 
 ## Telemetry dashboard

@@ -112,5 +112,6 @@ See [WELD_MOTION.md](../../../../docs/WELD_MOTION.md) for limits/search/timing,
 [the handoff](../../../../docs/ARM_SESSION_HANDOFF.md) for current evidence, and
 [tests/README.md](../../../../tests/README.md) for native fake-CAN, model and Qt
 verification. The Nov 19 final close verified disable/mode restoration; general
-loaded holding/stopping qualification remains open. GUI-01 owns the queued
-Nm/temperature displays and clearer state/progress/fault presentation.
+loaded holding/stopping qualification remains open. The
+[weld accuracy test](../../../../docs/ARM_RIG_TEST.md#weld-motion-accuracy-test)
+uses cached trajectory records from this owner.
