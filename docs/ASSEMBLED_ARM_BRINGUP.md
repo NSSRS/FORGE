@@ -143,12 +143,16 @@ none is completed by the simulation study or the unloaded jogging reports.
    sign/offset map, raw branches and derived standby at additional poses.
    The original A3 CAD pose conflicts with its stop; the controller's 2-degree
    raw backoff is a calculated candidate, not a new physical measurement.
-3. **Measure weld motion accuracy — ACCURACY-01, PLAN-01.** Existing planning
+3. **Measure weld motion accuracy — ACCURACY-01.** Existing planning
    checks D3 closure, sampled collision clearance, raw bounds and speed/acceleration
    through initial, approach and weld stages. Verify the assembly, cables,
-   actual tracking and stops. Keep the configured 2 Hz goal; the checked CMA-ES
-   candidate is retimed to about 1.815288 Hz under provisional CAD constraints.
-   No physical welding acceptance has been completed.
+   actual tracking and stops. Keep the configured 2 Hz goal; the latest checked
+   run was retimed to 1.730 Hz. The
+   [Nov 23 baseline](measurements/arm-accuracy-speed-review-2026-11-23.json)
+   records joint diagnostics and model-reconstructed tool pose. Acceptance
+   prioritizes end-effector orientation: 0.5 deg target, 1 deg maximum relative
+   to the planned frame. The current peak is 2.633 deg. Independent tool-pose
+   measurements and a separate tip-mm tolerance remain missing.
 4. **Qualify commanded movement and lifecycle — SPEED-01, ROS-02, BASE-06.**
    Manual jitter investigation is deferred. Distinguish manual 5/10 deg/s
    settings, 5 deg/s initial/approach, 68.7549 deg/s weld command caps and
@@ -158,8 +162,8 @@ none is completed by the simulation study or the unloaded jogging reports.
    properties before adding gravity compensation. Add calibrated tool/seam
    sensing, bounded outer correction and an observation-first ESO evaluation.
    Independent participation switches remain output gates without compensation.
-6. **Qualify load and failures — PROTECT-01, BASE-04, BASE-07, DEPLOY-01.**
-   Measure motor protection, persistence, thermal behavior, bus/host timing and
+6. **Qualify load and failures — PROTECT-01, BASE-07, DEPLOY-01.**
+   Measure motor protection, persistence, thermal behavior and
    stop responses on the supported fixture. Preserve production flags until
    their acceptance criteria have attributable physical evidence.
 

@@ -121,7 +121,9 @@ def annotated_frame(result):
         painter.drawText(
             15,
             frame.height() - 13,
-            "Projected through surfaces | Red: blocked | Blue: mesh gap passes",
+            ("Projected through surfaces | Red: collision warning | Blue: mesh gap passes"
+             if result.get("hardware_observation") else
+             "Projected through surfaces | Red: blocked | Blue: mesh gap passes"),
         )
     if result.get("wire_tip_xy") is not None:
         tip = QtCore.QPointF(*result["wire_tip_xy"])
@@ -143,6 +145,7 @@ class PlanPlayback:
             for name in ("home", "approach", "weld")
         }
         self.endpoint = plan.get("endpoint_recovery")
+        self.measured_start = plan.get("measured_start")
         # Include the same minimum stationary checks as preparation_timing.
         # Feedback pacing can still make actual execution longer.
         self.segments = [("home", 0.2, 0.0, False)]
@@ -272,9 +275,15 @@ class PoseRenderer:
         geometry.data.qpos[:] = geometry.seed
         issue = None
         try:
-            if request.get('endpoint_policy') is not None:
+            if request.get('measured_hardware_pose') is True:
+                warnings = geometry.observe(raw, clearance_mm=request['clearance_mm'])
+                issue = '; '.join(warnings) or None
+            elif request.get('endpoint_policy') is not None:
                 geometry.check_endpoint(raw, request['endpoint_policy'])
                 issue = 'A3 inward recovery only: endpoint allowance active; normal motion remains inside saved limits.'
+            elif request.get('recovery_start') is not None:
+                warnings = geometry.check_recovery(raw, request['recovery_start'], clearance_mm=request['clearance_mm'])
+                issue = '; '.join(warnings) or None
             else:
                 geometry.check(raw, clearance_mm=request["clearance_mm"])
         except RawAngleLimitError:
@@ -435,6 +444,7 @@ class PoseRenderer:
             token=request["token"],
             pixels=self.renderer.render().tobytes(),
             issue=issue,
+            hardware_observation=request.get('measured_hardware_pose') is True,
             contacts=contacts,
             isolated=isolated,
             wire_tip_xy=wire_tip_xy,
@@ -598,6 +608,55 @@ def make_preview(mapping, initial, *, simulated, parent=None, backend_factory=No
             else:
                 event.ignore()
 
+    class StatusLabel(QtWidgets.QLabel):
+        """Keep live captions from changing the viewport's allotted space."""
+
+        def __init__(self, text="", lines=1):
+            super().__init__(text)
+            self.lines = lines
+            self.setWordWrap(True)
+            self.setAlignment(QtCore.Qt.AlignLeft | QtCore.Qt.AlignTop)
+            self.setSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Fixed)
+            self.setToolTip(text)
+
+        def sizeHint(self):
+            return QtCore.QSize(0, self.fontMetrics().lineSpacing() * self.lines + 4)
+
+        def minimumSizeHint(self):
+            return self.sizeHint()
+
+        def heightForWidth(self, width):
+            return self.sizeHint().height()
+
+        def setText(self, text):
+            super().setText(text)
+            self.setToolTip(text)
+
+        def paintEvent(self, event):
+            # Keep the warning prefix visible and expose the complete text on
+            # hover. Long contact details must not resize the model every frame.
+            painter = QtGui.QPainter(self)
+            painter.setPen(self.palette().color(self.foregroundRole()))
+            rect = self.contentsRect()
+            text = self.text().replace("\n", " ")
+            layout = QtGui.QTextLayout(text, self.font())
+            layout.beginLayout()
+            for row in range(self.lines):
+                line = layout.createLine()
+                if not line.isValid():
+                    break
+                line.setLineWidth(rect.width())
+                origin = QtCore.QPointF(rect.left(), rect.top() + row * self.fontMetrics().lineSpacing())
+                if row == self.lines - 1:
+                    remaining = text[line.textStart():]
+                    painter.drawText(
+                        origin + QtCore.QPointF(0, self.fontMetrics().ascent()),
+                        self.fontMetrics().elidedText(remaining, QtCore.Qt.ElideRight, rect.width()),
+                    )
+                else:
+                    line.draw(painter, origin)
+            layout.endLayout()
+
     class Preview(QtWidgets.QGroupBox):
         def __init__(self):
             super().__init__("3D model / animation", parent)
@@ -635,11 +694,9 @@ def make_preview(mapping, initial, *, simulated, parent=None, backend_factory=No
             layout.addLayout(row)
             self.picture = ModelViewport()
             layout.addWidget(self.picture, 1)
-            self.caption = QtWidgets.QLabel()
-            self.caption.setWordWrap(True)
+            self.caption = StatusLabel()
             layout.addWidget(self.caption)
-            self.geometry_status = QtWidgets.QLabel("Waiting for a pose.")
-            self.geometry_status.setWordWrap(True)
+            self.geometry_status = StatusLabel("Waiting for a pose.", lines=2)
             layout.addWidget(self.geometry_status)
             row = QtWidgets.QHBoxLayout()
             self.play = QtWidgets.QPushButton("Play preview")
@@ -775,6 +832,7 @@ def make_preview(mapping, initial, *, simulated, parent=None, backend_factory=No
             delta, self.last_tick = min(now - self.last_tick, 0.25), now
             mode = self.mode.currentText()
             endpoint_policy = None
+            recovery_start = None
             travel = 0.0
             if mode == "Current pose":
                 raw, clearance = self.raw, 0.5
@@ -825,6 +883,8 @@ def make_preview(mapping, initial, *, simulated, parent=None, backend_factory=No
                 clearance = 2.0 if stage in ("home", "endpoint_recovery") else 0.5
                 if stage == 'endpoint_recovery':
                     endpoint_policy = self.plan.endpoint['policy']
+                elif stage == 'home':
+                    recovery_start = self.plan.measured_start
                 names = dict(
                     endpoint_recovery="A3 inward backoff (≤1°/s)",
                     home="Recovery to standby",
@@ -858,7 +918,9 @@ def make_preview(mapping, initial, *, simulated, parent=None, backend_factory=No
                         message = (
                             "Model warning: " + issue
                             if issue
-                            else f"Displayed pose passes the {clearance:g} mm model check."
+                            else (f"Measured pose: no model collision within {clearance:g} mm."
+                                  if result.get("hardware_observation") else
+                                  f"Displayed pose passes the {clearance:g} mm model check.")
                         )
                         if result.get("contacts"):
                             message += (
@@ -872,7 +934,11 @@ def make_preview(mapping, initial, *, simulated, parent=None, backend_factory=No
                         )
                 if raw is None:
                     self.picture.clear()
-                    self.geometry_status.setText("No pose/path to display.")
+                    self.geometry_status.setText(
+                        "Current pose unavailable: complete valid A1-A6 feedback required."
+                        if mode == "Current pose" else "No pose/path to display."
+                    )
+                    self.geometry_status.setStyleSheet("color: #64748b;")
                     self.last_request = None
                     return
                 camera = (
@@ -886,7 +952,9 @@ def make_preview(mapping, initial, *, simulated, parent=None, backend_factory=No
                         clearance_mm=clearance,
                         token=self.token,
                         measured_pose=mode == "Current pose" and self.raw is not None,
+                        measured_hardware_pose=not simulated and mode == "Current pose" and self.raw is not None,
                         endpoint_policy=endpoint_policy,
+                        recovery_start=recovery_start,
                         chassis_travel_m=travel,
                         camera=camera,
                     )

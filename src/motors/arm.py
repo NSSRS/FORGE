@@ -90,7 +90,7 @@ def require_torque_capability(motor, capabilities):
 MAGIC = b'\xa5\x5a'
 FAULT_REASONS = {0: 'not recorded', 1: 'host command lease expired', 2: 'CAN feedback expired',
                  3: 'motor did not stay enabled', 4: 'command encoding rejected',
-                 5: 'CAN transmit queue failure', 6: 'motor reported an error',
+                 5: 'CAN transmission failed', 6: 'motor reported an error',
                  7: 'position limit', 8: 'speed limit', 9: 'measured torque limit',
                  10: 'bench duration cutoff', 11: 'temperature limit',
                  12: 'USB receive overflow', 13: 'CAN bus-off/status failure', 14: 'USB disconnected'}

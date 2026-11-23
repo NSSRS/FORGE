@@ -1,6 +1,7 @@
 """Supported weld-motion contracts; fake ports only, never motor hardware."""
 
 import source_paths
+from copy import deepcopy
 import json
 import math
 import tempfile
@@ -853,6 +854,64 @@ class WeldNativeArmTests(unittest.TestCase):
             self.assertEqual(self.lib.fake_parameter_writes(),writes)
             port.stop()
             self.assertIsNone(port.endpoint_policy)
+
+    def test_native_measured_start_bounds_end_after_recovery(self):
+        from motors import arm_position as position, arm_bench as bench
+        from controls.controller.measured_start import MeasuredStart
+
+        with patch.object(position, "time", bench.time), self.port() as port:
+            document = deepcopy(port.mapping.document)
+            document['joints']['1']['raw_branch_deg'][0] = .2
+            port.mapping = CalibrationMap(document)
+            port.hold_all(math.radians(5))
+            raw = np.degrees([port.hold_targets[i] for i in range(6)])
+            start = MeasuredStart(tuple(raw), port.mapping.fingerprint)
+            target = raw.copy(); target[0] = .1
+            with self.assertRaises(ValueError):
+                port.set_targets(target, [5]*6)
+            writes = self.lib.fake_parameter_writes()
+            port.configure_start_recovery(start.document())
+            port.set_targets(target, [5]*6)
+            outward = raw.copy(); outward[0] -= .01
+            with patch.object(self.bus, 'command', wraps=self.bus.command) as command:
+                with self.assertRaisesRegex(ValueError, 'measured-start recovery bounds'):
+                    port.set_targets(outward, [5]*6)
+                with self.assertRaises(ValueError):
+                    port.configure_start_recovery(None)
+                command.assert_not_called()
+            target[0] = .3
+            port.set_targets(target, [5]*6)
+            self.lib.fake_position(0, math.radians(.3))
+            self.lib.fake_speed(0, 0)
+            self.lib.fake_advance(20); port.poll()
+            port.configure_start_recovery(None)
+            target[0] = .1
+            with self.assertRaises(ValueError):
+                port.set_targets(target, [5]*6)
+            self.assertIsNone(port.measured_start)
+            self.assertEqual(self.lib.fake_parameter_writes(), writes)
+
+    def test_native_a6_recovery_cannot_bypass_fixed_cable_bounds(self):
+        from motors import arm_position as position, arm_bench as bench
+        from motors.arm_travel import a6_cable_bounds
+        from controls.controller.measured_start import MeasuredStart
+
+        self.lib.fake_position(5, math.radians(-169.92674639837315))
+        with patch.object(position, 'time', bench.time), self.port() as port:
+            port.hold_all(math.radians(5))
+            raw = np.degrees([port.hold_targets[i] for i in range(6)])
+            port.configure_start_recovery(MeasuredStart(tuple(raw), port.mapping.fingerprint).document())
+            writes = self.lib.fake_parameter_writes()
+            inward = raw.copy(); inward[5] += .1
+            port.set_targets(inward, [5]*6)
+            with patch.object(self.bus, 'command', wraps=self.bus.command) as command:
+                for value in (a6_cable_bounds()[0]-.001, a6_cable_bounds()[1]+.001,
+                              64.16104853467226-360):
+                    outside = raw.copy(); outside[5] = value
+                    with self.assertRaisesRegex(ValueError, 'A6'):
+                        port.set_targets(outside, [5]*6)
+                command.assert_not_called()
+            self.assertEqual(self.lib.fake_parameter_writes(), writes)
 
     def test_native_stream_complete_group_and_pause(self):
         from motors import arm_position as position, arm_bench as bench

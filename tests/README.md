@@ -353,7 +353,7 @@ All tests and GUI rendering are offline; encoder alignment remains a physical te
 of model zero, straight-pose offset fitting, rejection of swapped/invalid captures,
 invalidation of old opposite endpoints and preservation of other axes. Mirror
 tests exercise the three buttons with a fake source and the actual CAD shaft-axis
-reference. `test_arm_cable_limits.py` checks fixed A4 +/-270-degree bounds across
+reference. `test_arm_cable_limits.py` checks fixed A4/A6 +/-270-degree bounds across
 session restarts, rejection of extra revolutions and exact cubic overshoot.
 The native fake-motor group test checks holding at the edge and reversing without
 wrapping or dropping the other holds. These are software/model checks, not physical
@@ -408,7 +408,8 @@ and [Nov 17 archive](../docs/measurements/weld/2026-11-17/README.md).
 
 | Suite | Contract |
 | --- | --- |
-| `test_weld_accuracy.py` | Cached weld tracking RMS/peaks, scene and mapping identity, synchronized workpiece-relative tip data, and incomplete evidence rejection |
+| `test_weld_measured_start.py` | Hardware measured-start acceptance, unchanged simulation limits, collision warnings versus checked moving paths, fixed A6 cable bounds, full-model recovery and strict handoff before approach; recorded Nov 23 start, bounded route search and fake-shaft replay |
+| `test_weld_accuracy.py` | Cached joint diagnostics, full tool-orientation error with separate target/maximum, rotation-frame invariance, scene/mapping identity, synchronized workpiece-relative tip data, and incomplete evidence rejection |
 | `test_weld_hold_analysis.py` | Offline HOLD-01 timing and torque/speed summaries; separate interrupted attempts, reject stale/faulted samples, deduplicate cached feedback, preserve gaps and shutdown uncertainty, and flag changed comparison paths/settings |
 | `test_weld_constraints.py` | Calibration identifiability, output-shaft units, physical/host limits and exact retiming |
 | `test_weld_encoder_branch.py` | Explicit A1 restart-branch selection, unchanged physical interval/A4 winding limits, source fingerprints and raw target continuity |
@@ -416,14 +417,14 @@ and [Nov 17 archive](../docs/measurements/weld/2026-11-17/README.md).
 | `test_weld_preparation.py` | Signed interval acceleration bounds, fast-route A5 lag regression, pacing/stall/timeouts, speed allowances and unchanged motion guards |
 | `test_weld_tracking.py` | Nominal-clock PID with unequal/delayed response, recorded A6 overshoot/two-cycle regressions, tiny-axis correction isolation under full clearance checks, finite-leg braking at variable tick intervals, ordered recovery stops, command derivative limits, anti-windup, fixed endpoint and pause holding, failure guards, full recorded-route geometry, repeated welding, measured Hz and insufficient-motion rejection |
 | `test_weld_preparation_search.py` | Nov 16 <=5 s ideal replay; Nov 17 raised approach with unequal lag and full geometry; Nov 19 long-wrist start at explicit 30 deg/s under 10 s with ideal shafts; final lowering minimum preserves selected staging, earlier timings, geometric cubics and limits, including the recorded loaded start with synthetic lag; independent stopped-leg timing, required lift, acceleration reserve, hardware opt-in and legacy offline-plan rejection |
-| `test_weld_recovery.py` | Bounded route search, start/preload validation, waypoint arrival and cancelled activation |
+| `test_weld_recovery.py` | Bounded depth-first route search and backtracking, start/preload validation, waypoint arrival and cancelled activation |
 | `test_weld_planner_performance.py` | Interval sampling bounds and retiming invariance, exact joined endpoints, contact-mask equivalence against the full model, cache invalidation/copy isolation and optimistic stopped-motion bounds; latency itself belongs in the seeded benchmark |
 | `test_weld_endpoint_recovery.py` | Recorded A3 contact separation, 0.25 deg startup boundary, unchanged other limits, explicit inward-only activation, pause/replan, stale/outward rejection, strict handoff, preview and full optimized model replay; fake-CAN command guards are also in `test_weld_hardware.py` |
 | `test_weld_model.py` | Actual D3/triangle-clearance/inertia checks, complete-route fake-shaft replay and repeated weld boundaries |
-| `test_weld_dashboard.py` | Cached temperatures, signed torque/trip display, age rejection, bounded stage/run peaks, preparation clocks and distinct state/pause causes |
-| `test_weld_panel.py` | Worker ownership, ready hold across focus/heartbeat loss, active-motion cancellation, startup fault reset/R, queued-action rejection, reset failure/close, preview isolation, pause-cause journals and compact layouts with retained first-fault evidence |
+| `test_weld_dashboard.py` | Cached temperatures, signed torque/trip display, age rejection including the missing-feedback sentinel, bounded stage/run peaks, preparation clocks and distinct state/pause causes |
+| `test_weld_panel.py` | Worker ownership, ready hold across focus/heartbeat loss, active-motion cancellation, startup fault reset/R, queued-action rejection, reset failure/close, preview isolation, pause-cause journals, compact layouts with retained first-fault evidence, and stable viewer/plot geometry during live text/frame updates at narrow, desktop and 4K sizes |
 | `test_weld_preview.py` | Saved-start validation, nominal settling intervals, actual MuJoCo rendering and contact diagnostics; out-of-range measured-pose display without clamping or weakening target/command limits; planner exception serialization |
-| `test_weld_recording.py` | Bounded asynchronous JSONL, cached snapshots, overflow and disk errors |
+| `test_weld_recording.py` | Bounded asynchronous JSONL, cached snapshots, overflow and disk errors; automatic report paths, retained interrupted runs and isolation of writers across relaunches |
 | `test_weld_search.py` | CMA-ES mobility semantics, objective constraints and stale-identity rejection |
 
 The default audit uses the measured-bound standby. `--plan-only --cycles 1`
@@ -432,7 +433,8 @@ and optional simulation dependencies; the full suite may take several minutes.
 Search dependencies are in `src/controls/search-requirements.txt`.
 
 Use the [seeded planner benchmark](../docs/PLANNER_BENCHMARK.md) for planning
-latency, random-start success and the separate five-second motion goal. Keep
+latency, random-start success and the historical five-second motion goal
+(retired after the operator accepted 8.22 s on Nov 23). Keep
 timing runs separate from this suite and model-mutating tests.
 
 Post-arrival tests impose six-axis disturbances, verify that target/allowance

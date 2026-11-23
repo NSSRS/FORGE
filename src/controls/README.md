@@ -24,16 +24,23 @@ named explicitly; the motor API boundary uses raw output-shaft radians/rad/s.
 The current flow is measured pose -> verified hold -> optional checked A3
 endpoint retreat -> recovery/staging -> approach/lowering -> Ready -> explicit
 continuous weld -> Pause / Hold. The checked `--cycles` block repeats; add
-`--single-pass` for bounded completion and endpoint hold. Preparation defaults to 5 deg/s; the five-second
-staging comparison requires explicit `--optimize-preparation` on hardware.
+`--single-pass` only for an explicitly requested finite run and endpoint hold.
+Preparation defaults to 5 deg/s; optimized staging requires explicit
+`--optimize-preparation` on hardware.
 The default host PID tracker uses nominal preparation time, bounded velocity lead
 and acceleration-bounded braking inside each finite leg. Welding keeps the tiny
 nominal axis motions while omitting host correction below 0.3 deg peak-to-peak.
 Frequency, measured/planned travel and torque/temperature evidence use cached
 feedback. `--lowering-seconds` stretches only the final raised-approach lowering
-leg. The latest loaded preparation took 12.53 s, above the 5–10 s goal; HOLD-01
-also retains the unresolved untouched A5 hold fault. The next supported motion
-test uses the [accuracy analyzer](../../docs/ARM_RIG_TEST.md#weld-motion-accuracy-test).
+leg. The latest loaded preparation took 8.22 s, within the explicit 10 s trial
+goal, and was accepted by the operator; the earlier five-second goal is retired. HOLD-01 was
+[resolved by operator confirmation on Nov 23](../../docs/ARM_SESSION_HANDOFF.md#hold-01-resolution).
+The next supported motion test uses the
+[accuracy analyzer](../../docs/ARM_RIG_TEST.md#weld-motion-accuracy-test).
+The operator prioritizes end-effector orientation during welding: 0.5 deg target,
+1 deg maximum relative to the planned tool frame; joint errors are diagnostic.
+Use the [archived logs and offline handoff](../../docs/measurements/weld/2026-11-23/README.md)
+to reproduce the current A1/A6 failures without motors.
 Native mode-2 drive gain writes, gravity feedforward, Cartesian outer correction
 and ESO are not installed.
 

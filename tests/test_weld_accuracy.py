@@ -10,7 +10,7 @@ import unittest
 import numpy as np
 
 from controls.controller.weld_plan import JointPath
-from controls.hardware.weld_accuracy import analyze, TipModel
+from controls.hardware.weld_accuracy import analyze, TipModel, orientation_error_deg
 from motors.arm_calibration import CalibrationMap
 from simulation.arm_calibration import scene_fingerprint
 from simulation.paths import MODEL_DIR
@@ -92,6 +92,46 @@ class WeldAccuracyTests(unittest.TestCase):
         self.assertGreater(report["encoder_tip"]["distance_mm"]["rms"], 0)
         self.assertIsNone(report["independent_tip"])
         self.assertTrue(report["passed"])
+
+    def test_orientation_rotation_angle_is_frame_invariant_and_includes_roll(self):
+        # Independent analytic rotations, including the 180-degree singularity.
+        common = np.array([[0, -1, 0], [1, 0, 0], [0, 0, 1]])
+        for angle in (0.0, 0.5, 1.0, -30.0, 180.0):
+            c, s = np.cos(np.radians(angle)), np.sin(np.radians(angle))
+            roll = np.array([[1, 0, 0], [0, c, -s], [0, s, c]])
+            with self.subTest(angle=angle):
+                self.assertAlmostEqual(orientation_error_deg(common, common @ roll), abs(angle))
+                self.assertAlmostEqual(orientation_error_deg(common @ roll, common), abs(angle))
+
+    def test_orientation_target_is_separate_from_maximum_and_joint_error(self):
+        # A1 rotates the complete tool frame by the same angle in the actual model.
+        self.write_journal(error=0.75)
+        report = analyze(self.journal, orientation_target_deg=0.5, max_orientation_deg=1.0)
+        self.assertAlmostEqual(report["encoder_orientation"]["angle_deg"]["peak_abs"], 0.75)
+        self.assertEqual(report["encoder_orientation"]["within_target_percent"], 0.0)
+        self.assertEqual(report["encoder_orientation"]["within_maximum_percent"], 100.0)
+        self.assertFalse(report["orientation_target_met"])
+        self.assertTrue(report["orientation_maximum_met"])
+        self.assertIsNone(report["joint_limit_met"])
+        self.assertTrue(report["passed"])
+        self.write_journal(error=1.2)
+        report = analyze(self.journal, orientation_target_deg=0.5, max_orientation_deg=1.0)
+        self.assertFalse(report["orientation_maximum_met"])
+        self.assertFalse(report["passed"])
+
+    def test_orientation_requires_matching_model_and_complete_evidence(self):
+        self.write_journal(age_ms=80, complete=False)
+        report = analyze(self.journal, orientation_target_deg=0.5, max_orientation_deg=1.0)
+        self.assertTrue(report["orientation_maximum_met"])
+        self.assertFalse(report["passed"])
+        self.plan["scene_fingerprint"] = "different"
+        self.write_journal()
+        report = analyze(self.journal, max_orientation_deg=1.0)
+        self.assertIsNone(report["encoder_orientation"])
+        self.assertFalse(report["orientation_maximum_met"])
+        self.assertFalse(report["passed"])
+        with self.assertRaisesRegex(ValueError, "must not exceed"):
+            analyze(self.journal, orientation_target_deg=2.0, max_orientation_deg=1.0)
 
     def test_measured_tip_includes_feed_and_applies_operator_limit(self):
         self.write_journal()

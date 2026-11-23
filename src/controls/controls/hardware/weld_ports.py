@@ -15,6 +15,7 @@ from controls.controller.weld_plan import finite_vector
 from controls.controller.limits import joint_speed_policy
 from controls.controller.recovery import START_TOLERANCE_DEG
 from controls.controller.endpoint_recovery import A3Retreat, ALLOWANCE_DEG, SPEED_DEG_S
+from controls.controller.measured_start import MeasuredStart
 
 
 def check_hold_start(actual, expected, pose_check):
@@ -58,6 +59,7 @@ class TrajectoryArmPort(ArmGroupHoldPort):
         self.path_speeds = np.radians(np.minimum(self.axis_ceilings, 5.0))
         self.path_active = False
         self.endpoint_policy = None
+        self.measured_start = None
         self.endpoint_last = None
         self.endpoint_minimum = None
         self.endpoint_hold = False
@@ -122,7 +124,10 @@ class TrajectoryArmPort(ArmGroupHoldPort):
         if np.any(speed <= 0) or np.any(speed > self.axis_ceilings + 1e-9):
             raise ValueError("Trajectory speed exceeds supported limit")
         if self.endpoint_policy is None:
-            self.mapping.pose({str(i): float(q) for i, q in enumerate(raw, 1)})
+            if self.measured_start is None:
+                self.mapping.pose({str(i): float(q) for i, q in enumerate(raw, 1)})
+            else:
+                self.measured_start.check_raw(self.mapping, raw)
         else:
             self.endpoint_policy.check_raw(raw, command=True)
             if raw[2] > self.endpoint_last + 1e-9 or np.any(speed > SPEED_DEG_S + 1e-9):
@@ -188,6 +193,20 @@ class TrajectoryArmPort(ArmGroupHoldPort):
         self.path_active = False
         super().stop()
         self.endpoint_policy = None
+        self.measured_start = None
+
+    def configure_start_recovery(self, document):
+        if document is None:
+            if self.measured_start is not None and self.hold_targets:
+                feedback = ArmOwner._feedback(self.cached_positions()).validate(stationary=True)
+                self.mapping.pose(dict(zip('123456', map(float, feedback.raw_deg))))
+                self.mapping.pose({str(i+1): math.degrees(q) for i, q in self.hold_targets.items()})
+            self.measured_start = None
+            return
+        start = MeasuredStart.from_document(document)
+        start.bounds(self.mapping)
+        self.measured_start = start
+        self._event("measured_start_recovery", policy=start.document())
 
     def configure_endpoint(self, document):
         if document is None:
@@ -316,6 +335,9 @@ class ArmOwner:
     def configure_endpoint(self, document):
         self.port.configure_endpoint(document)
 
+    def configure_start_recovery(self, document):
+        self.port.configure_start_recovery(document)
+
     def poll(self):
         self.port.poll()
 
@@ -345,6 +367,10 @@ class SimulatedArm:
 
     offline = True
 
+    def configure_start_recovery(self, document):
+        # Tests may replay an explicitly hardware-scoped plan through fake shafts.
+        self.measured_start = None if document is None else MeasuredStart.from_document(document)
+
     def __init__(self, raw, *, clock=time.monotonic):
         self.clock = clock
         self.q = finite_vector(raw, "simulated initial").copy()
@@ -358,6 +384,7 @@ class SimulatedArm:
         self.closed = False
         self.commands = []
         self.endpoint_policy = None
+        self.measured_start = None
         self.endpoint_last = None
 
     def configure_endpoint(self, document):
@@ -427,6 +454,7 @@ class SimulatedArm:
         self.enabled = False
         self.endpoint_hold = False
         self.endpoint_policy = None
+        self.measured_start = None
 
     def recover(self, report_path):
         if self.enabled:

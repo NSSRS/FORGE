@@ -1,15 +1,15 @@
 # Python motor APIs: open arm work
 
 The [cross-layer registry](../../docs/ARM_LAYER_TODOS.md) is the status authority.
-Owning IDs: **BASE-04, BASE-05, BASE-06, PROTECT-01, HOLD-01, CAL-01, SPEED-01**. Read [current hardware status](../../docs/ARM_SESSION_HANDOFF.md)
+Owning IDs: **BASE-05, BASE-06, PROTECT-01, CAL-01, SPEED-01**. Read [current hardware status](../../docs/ARM_SESSION_HANDOFF.md)
 and [the base contract](../../docs/ARM_BASE_LAYER.md) before continuing.
 
 Both families now expose cached telemetry through existing owners; see
 [MOTOR_TELEMETRY.md](../../docs/MOTOR_TELEMETRY.md). The real weld adapters reuse
 these APIs; no enabled register polling or second owner is added.
 
-Next: support HOLD-01/PROTECT-01 diagnosis of the untouched loaded A5 hold
-fault using the recorded settings, torque and temperature evidence.
+Next: support SPEED-01 tracking qualification using
+cached command/feedback evidence, alongside PROTECT-01 protection verification.
 Physical calibration, stopping, torque decoding and thermal behavior
 remain open; follow the registry rather than repeating completed range setup.
 

@@ -405,6 +405,32 @@ class WeldPanelTests(unittest.TestCase):
         self.assertFalse(arm.enabled or arm.commands)
         self.assertTrue(self.window.arm.isEnabled())
 
+    def test_hardware_planning_uses_measured_start_policy_without_enabling(self):
+        from controls.hardware import weld_ports
+
+        self.assertIsNone(self.window.worker.controller.recovery_check)
+        self.window.close()
+        self.wait(lambda: not self.window.worker.isRunning())
+        initial = list(self.mapping.simulation_pose().values())
+        arm = weld_ports.SimulatedArm(initial)
+        arm.fault = None
+        args = SimpleNamespace(
+            arm=True, chassis=False, execute=True, port='fake-only', mapping_confirmed=False,
+            arm_profile=ROOT / 'src/robot_description/config/arm_rig_a1_a6.json',
+            journal_path=Path(self.evidence.name) / 'hardware-policy.jsonl',
+        )
+        with patch.object(weld_ports, 'ArmOwner', return_value=arm):
+            self.window = weld_app.make_window(args, self.mapping, initial, Settings(cycles=1), ROOT)
+            self.window.show()
+            self.wait(lambda: self.window.worker.controller is not None)
+            self.window.arm.click()
+            self.wait(lambda: self.window.worker.controller.arm_on)
+            self.window.buttons['calculate'].click()
+            self.wait(lambda: self.executor.request is not None)
+        self.assertTrue(self.executor.request['measured_hardware_start'])
+        self.assertIsNotNone(self.window.worker.controller.recovery_check)
+        self.assertFalse(arm.enabled or arm.commands)
+
     def test_close_during_reset_waits_for_same_owner(self):
         c = self.window.worker.controller
         c.fail(RuntimeError("Fault before reset"))
@@ -454,6 +480,7 @@ class WeldPanelTests(unittest.TestCase):
         self.wait(lambda: self.executor.future is not None)
         future = self.executor.future
         request = self.executor.request
+        self.assertFalse(request['measured_hardware_start'])
         QtTest.QTest.keyClick(self.window, QtCore.Qt.Key_Space)
         self.wait(lambda: self.window.worker.pending is None)
         result = simple_plan(chassis=False)
@@ -729,6 +756,59 @@ class WeldPanelTests(unittest.TestCase):
         self.assertFalse(controller.arm.enabled)
         self.assertEqual(controller.chassis.last_feed, 0)
 
+    def test_live_text_and_frames_do_not_resize_viewer_or_telemetry(self):
+        self.window.worker.status.disconnect(self.window.show_status)
+        self.window.timer.stop()
+        preview = self.window.preview
+        preview.timer.stop()
+        frame = QtGui.QImage(640, 400, QtGui.QImage.Format_RGB888)
+        frame.fill(QtGui.QColor("#345678"))
+        captions = (
+            "Last motor feedback — sample age 0.0 s",
+            "Last motor feedback — sample age 0.1 s (historical pose; select/calculate to refresh while disabled)",
+        )
+        geometry = (
+            "Measured pose: no model collision within 0.5 mm.",
+            "Model warning: Arm/environment clearance: ['preview_floor', 'collision_795'], 0.393 mm (convex hull)",
+        )
+        for width, height, display in (
+            (960, 768, (1920, 1080)),
+            (1120, 768, (1920, 1080)),
+            (1366, 768, (1920, 1080)),
+            (2732, 1536, (3840, 2160)),
+        ):
+            with self.subTest(width=width):
+                self.window.apply_work_area(QtCore.QRect(0, 0, *display))
+                self.window.resize(width, height)
+                sizes = []
+                for i in range(12):
+                    self.window.show_status(dict(
+                        state="welding", message="Continuous welding", pending=False,
+                        arm_on=True, chassis_on=False, holding=True, raw_deg=[0] * 6,
+                        captured_at=time.monotonic(), feedback_age_ms=2,
+                        stage_progress=(i % 10) / 10,
+                        stage_elapsed_s=i * .05, stage_nominal_s=.58,
+                        telemetry=[dict(joint=j, enabled=True, age_ms=2 if i % 2 else 82,
+                                        torque_feedback_nm=-12.34 if i % 2 else .01,
+                                        torque_trip_nm=30, rotor_c=40, mos_c=30)
+                                   for j in range(1, 7)],
+                    ))
+                    preview.caption.setText(captions[i % 2])
+                    preview.geometry_status.setText(geometry[i % 2])
+                    preview.picture.set_frame(frame)
+                    for _ in range(4):
+                        self.app.processEvents()
+                    sizes.append((
+                        self.window.size(), self.window.content.sizes(),
+                        preview.picture.geometry(),
+                        [c["torque_plot"].geometry() for c in self.window.telemetry.cards],
+                        [c["temp_plot"].geometry() for c in self.window.telemetry.cards],
+                    ))
+                self.assertTrue(all(size == sizes[0] for size in sizes), sizes)
+        self.assertIn("Model warning", preview.geometry_status.toolTip())
+        self.assertFalse(self.window.worker.controller.arm.enabled)
+        self.assertEqual(self.window.worker.controller.arm.commands, [])
+
     def test_dashboard_states_fit_small_screen_and_retain_first_fault(self):
         self.window.worker.status.disconnect(self.window.show_status)
         self.window.resize(1366, 768)
@@ -794,6 +874,30 @@ class WeldPanelTests(unittest.TestCase):
         c = self.window.worker.controller
         self.assertFalse(c.arm.enabled)
         self.assertEqual(c.arm.commands, [])
+
+    def test_missing_startup_feedback_cannot_render_retained_angles_as_current_pose(self):
+        preview = self.window.preview
+        self.wait(lambda: bool(preview.backend.requests))
+        requests = len(preview.backend.requests)
+        age = 0xffffffff + 14514
+        value = dict(state="fault", message="A5/A6: no valid feedback", pending=False,
+                     arm_on=False, chassis_on=False, raw_deg=[0.] * 6,
+                     feedback_age_ms=age, reset_available=True,
+                     telemetry=[dict(joint=i, age_ms=age if i >= 5 else 14514)
+                                for i in range(1, 7)])
+        self.window.show_status(value)
+        preview.tick()
+        self.assertIsNone(preview.raw)
+        self.assertEqual(len(preview.backend.requests), requests)
+        self.assertIn("unavailable", preview.caption.text())
+        self.assertIn("complete valid A1-A6 feedback required", preview.geometry_status.text())
+        for i in range(6):
+            self.assertEqual(self.window.table.item(i, 1).text(), "—")
+        for i in (4, 5):
+            self.assertIn("Unavailable", self.window.telemetry.cards[i]["title"].text())
+        self.assertFalse(self.window.buttons["calculate"].isEnabled())
+        self.assertFalse(self.window.worker.controller.arm.enabled)
+        self.assertEqual(self.window.worker.controller.arm.commands, [])
 
     def test_preview_failure_does_not_block_pause_or_heartbeat(self):
         with patch.object(

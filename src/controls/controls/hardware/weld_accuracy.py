@@ -170,12 +170,26 @@ class TipModel:
         self.closure = ArmClosure(self.model, self.data, forward=False)
         self.addresses = [int(self.model.joint(name).qposadr[0]) for name in DRIVES]
 
-    def tip_mm(self, raw):
+    def tip_pose(self, raw):
         angles = [self.mapping.model(joint, angle) for joint, angle in enumerate(raw.tolist(), 1)]
         self.data.qpos[self.addresses] = np.radians(angles)
         if not self.closure.apply(self.data):
             raise ValueError("Cannot reconstruct the D3-closed pose")
-        return self.data.site("wire_tip").xpos.copy() * 1000
+        site = self.data.site("wire_tip")
+        return site.xpos.copy() * 1000, site.xmat.copy().reshape(3, 3)
+
+    def tip_mm(self, raw):
+        return self.tip_pose(raw)[0]
+
+
+def orientation_error_deg(reference, measured):
+    """Smallest full 3D rotation from planned to measured tool orientation."""
+    relative = np.asarray(reference).reshape(3, 3).T @ np.asarray(measured).reshape(3, 3)
+    skew = np.array([relative[2, 1] - relative[1, 2],
+                     relative[0, 2] - relative[2, 0],
+                     relative[1, 0] - relative[0, 1]])
+    return float(np.degrees(np.arctan2(np.linalg.norm(skew) / 2,
+                                      (np.trace(relative) - 1) / 2)))
 
 
 def tip_statistics(errors):
@@ -212,13 +226,19 @@ def measured_tip_errors(csv_path, run, path, model, duration, feed_mm_s):
     return dict(coverage=coverage(times, duration), **tip_statistics(errors))
 
 
-def analyze(journal, *, run_number=None, tip_csv=None, peak_joint_deg=None, peak_tip_mm=None):
+def analyze(journal, *, run_number=None, tip_csv=None, peak_joint_deg=None, peak_tip_mm=None,
+            orientation_target_deg=None, max_orientation_deg=None):
     from simulation.arm_calibration import scene_fingerprint
     from simulation.paths import MODEL_DIR
 
-    for label, limit in (("Peak joint limit", peak_joint_deg), ("Peak tip limit", peak_tip_mm)):
+    for label, limit in (("Peak joint limit", peak_joint_deg), ("Peak tip limit", peak_tip_mm),
+                         ("Orientation target", orientation_target_deg),
+                         ("Maximum orientation error", max_orientation_deg)):
         if limit is not None:
             positive(limit, label)
+    if (orientation_target_deg is not None and max_orientation_deg is not None
+            and orientation_target_deg > max_orientation_deg):
+        raise ValueError("Orientation target must not exceed maximum orientation error")
     if peak_tip_mm is not None and not tip_csv:
         raise ValueError("--peak-tip-mm requires independent --tip-csv measurements")
     journal = Path(journal)
@@ -270,19 +290,30 @@ def analyze(journal, *, run_number=None, tip_csv=None, peak_joint_deg=None, peak
             feedback_age_ms=stats([sample.age_ms[axis] for sample in samples]),
         )
 
-    encoder_tip = independent_tip = None
+    encoder_tip = independent_tip = encoder_orientation = None
     model_status = "scene fingerprint differs from the accepted plan"
     identity = scene_fingerprint(MODEL_DIR / "robot.xml")
     if identity == plan.get("scene_fingerprint"):
         model = TipModel(mapping, identity)
-        errors = []
+        errors, angles = [], []
         for sample in samples:
             # The model holds the base fixed, including when chassis feed ran.
             try:
-                errors.append(model.tip_mm(sample.measured_deg) - model.tip_mm(sample.reference_deg))
+                measured_position, measured_orientation = model.tip_pose(sample.measured_deg)
+                reference_position, reference_orientation = model.tip_pose(sample.reference_deg)
+                errors.append(measured_position - reference_position)
+                angles.append(orientation_error_deg(reference_orientation, measured_orientation))
             except ValueError:
                 continue
         encoder_tip = dict(rejected=len(samples) - len(errors), **tip_statistics(errors))
+        encoder_orientation = dict(
+            samples=len(angles), rejected=len(samples) - len(angles), angle_deg=stats(angles),
+            definition="smallest full 3D rotation: planned wire_tip frame to encoder-reconstructed frame",
+            within_target_percent=(100 * sum(angle <= orientation_target_deg for angle in angles) / len(angles)
+                                   if angles and orientation_target_deg is not None else None),
+            within_maximum_percent=(100 * sum(angle <= max_orientation_deg for angle in angles) / len(angles)
+                                    if angles and max_orientation_deg is not None else None),
+        )
         model_status = "encoder-reconstructed, fixed base"
         if encoder_tip["rejected"]:
             issues.append("Some encoder poses could not be reconstructed")
@@ -299,7 +330,14 @@ def analyze(journal, *, run_number=None, tip_csv=None, peak_joint_deg=None, peak
         independent_tip and independent_tip["distance_mm"]
         and independent_tip["distance_mm"]["peak_abs"] <= peak_tip_mm
     )
-    checks = [value for value in (joint_check, tip_check) if value is not None]
+    orientation_peak = (encoder_orientation["angle_deg"]["peak_abs"]
+                        if encoder_orientation and encoder_orientation["angle_deg"] else None)
+    orientation_goal = (None if orientation_target_deg is None else
+                        bool(orientation_peak is not None and orientation_peak <= orientation_target_deg))
+    orientation_check = (None if max_orientation_deg is None else
+                         bool(orientation_peak is not None and orientation_peak <= max_orientation_deg))
+    # The preferred target is reported separately; maximum is the acceptance cap.
+    checks = [value for value in (joint_check, tip_check, orientation_check) if value is not None]
     return dict(
         schema="forge.weld_motion_accuracy", version=1, journal=str(journal.resolve()),
         simulated=session.get("simulated"), run_number=run_number, outcome=run.outcome,
@@ -308,10 +346,13 @@ def analyze(journal, *, run_number=None, tip_csv=None, peak_joint_deg=None, peak
         coverage=gaps, rejected_samples=rejected, dropped_records=dropped, session_closed=closed,
         mapping_fingerprint=mapping.fingerprint, scene_fingerprint=plan.get("scene_fingerprint"),
         joints=joints, encoder_tip_status=model_status, encoder_tip=encoder_tip,
+        encoder_orientation=encoder_orientation,
         independent_tip=independent_tip, tip_csv=str(Path(tip_csv).resolve()) if tip_csv else None,
         issues=issues, hardware_qualified=False,
         peak_joint_limit_deg=peak_joint_deg, peak_tip_limit_mm=peak_tip_mm,
         joint_limit_met=joint_check, independent_tip_limit_met=tip_check,
+        orientation_target_deg=orientation_target_deg, max_orientation_deg=max_orientation_deg,
+        orientation_target_met=orientation_goal, orientation_maximum_met=orientation_check,
         passed=None if not checks else not issues and all(checks),
     )
 
@@ -334,6 +375,15 @@ def print_summary(report):
             print(f"  {label}: 3D RMS {error['rms']:.3f} mm, peak {error['peak_abs']:.3f} mm")
     if report["encoder_tip"] is None:
         print(f"  Tip estimate unavailable: {report['encoder_tip_status']}")
+    orientation = report.get("encoder_orientation")
+    if orientation and orientation["angle_deg"]:
+        error = orientation["angle_deg"]
+        print(f"  Encoder-estimated full tool orientation: RMS {error['rms']:.3f}°, "
+              f"peak {error['peak_abs']:.3f}°")
+        for value, limit, label in (("within_target_percent", "orientation_target_deg", "target"),
+                                    ("within_maximum_percent", "max_orientation_deg", "maximum")):
+            if report[limit] is not None:
+                print(f"    Within {report[limit]:g}° {label}: {orientation[value]:.1f}% of usable ticks")
     for issue in report["issues"]:
         print(f"  Evidence: {issue}")
     if report["passed"] is not None:
@@ -347,12 +397,17 @@ def main(argv=None):
     parser.add_argument("--tip-csv", type=Path, help="Synchronized independent tip measurements")
     parser.add_argument("--peak-joint-deg", type=float, help="Allowed peak nominal tracking error on every axis")
     parser.add_argument("--peak-tip-mm", type=float, help="Allowed measured 3D tip error; requires --tip-csv")
+    parser.add_argument("--orientation-target-deg", type=float,
+                        help="Preferred full tool-orientation error; report coverage separately from maximum")
+    parser.add_argument("--max-orientation-deg", type=float,
+                        help="Maximum encoder-estimated full tool-orientation error allowed for acceptance")
     parser.add_argument("--output", type=Path, help="Save the JSON report to a new file")
     args = parser.parse_args(argv)
     try:
         report = analyze(
             args.journal, run_number=args.run_number, tip_csv=args.tip_csv,
             peak_joint_deg=args.peak_joint_deg, peak_tip_mm=args.peak_tip_mm,
+            orientation_target_deg=args.orientation_target_deg, max_orientation_deg=args.max_orientation_deg,
         )
         if args.output:
             payload = json.dumps(report, indent=2, allow_nan=False)

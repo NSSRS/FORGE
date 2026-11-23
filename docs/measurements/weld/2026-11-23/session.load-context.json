@@ -1,0 +1,13 @@
+{
+  "schema": "forge.weld_load_context",
+  "version": 1,
+  "journal": "session.jsonl",
+  "end_effector_attached": true,
+  "end_effector_mass_kg": 1.96,
+  "mass_basis": "operator reported",
+  "source": "Operator confirmation in this conversation on 2026-11-23",
+  "source_text": "EE mass: 1.96kg",
+  "base_orientation": null,
+  "external_support_contact": null,
+  "hardware_qualified": false
+}

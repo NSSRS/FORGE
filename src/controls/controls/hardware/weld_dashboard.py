@@ -67,6 +67,14 @@ def controller_presentation(controller, now):
     )
 
 
+def feedback_live_expected(value):
+    """Output selection alone does not start motor feedback or holding."""
+    return bool(value.get("holding")) or value.get("state") in (
+        "verifying_hold", "endpoint_recovery", "initial", "approach",
+        "ready", "welding", "complete",
+    )
+
+
 def state_summary(value):
     state = value["state"]
     title, action = STAGES.get(state, (state, ""))
@@ -84,7 +92,7 @@ def state_summary(value):
         severity = "paused"
     hold = value.get("hold_observation") or {}
     age = value.get("feedback_age_ms")
-    if severity == "normal" and value.get("arm_on") and age is not None and age >= 80:
+    if severity == "normal" and value.get("arm_on") and feedback_live_expected(value) and age is not None and age >= 80:
         title, action, severity = title + " · Feedback stale", "Inspect feedback freshness before starting motion.", "warning"
     if severity == "normal" and hold.get("tracking_error_deg") and max(abs(x) for x in hold["tracking_error_deg"]) > hold.get("arrival_tolerance_deg", .25):
         title, severity = title + " · HOLD DRIFT", "warning"

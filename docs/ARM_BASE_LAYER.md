@@ -134,9 +134,9 @@ ages, diagnostics, ENCOS observation limits and offline validation. Measure
 physical host command latency before raising these rates; the CAN rate is unchanged.
 
 Registers (identity, mode, ranges, version/current protection) belong in
-startup/disabled commissioning, not steady-state polling. The five-motor bus
-may be workable at 500 Hz, but must pass BASE-04 measurement before loaded use.
-Splitting to the final topology adds headroom. Do not silently lower refresh
+startup/disabled commissioning, not steady-state polling. BASE-04 was
+[resolved by operator confirmation on Nov 23](ARM_SESSION_HANDOFF.md#plan-01-and-base-04-resolution).
+Retain the final split-bus topology. Do not silently lower refresh
 rates, stretch watchdogs, or enable CAN FD to hide congestion.
 
 ## Python API

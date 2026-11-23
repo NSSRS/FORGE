@@ -3,42 +3,28 @@
 The canonical acceptance criteria are in [ARM_LAYER_TODOS.md](../../docs/ARM_LAYER_TODOS.md).
 Current implementation and reproduction: [WELD_MOTION.md](../../docs/WELD_MOTION.md).
 
-- **HOLD-01:** diagnose the Nov 19 untouched A5 fixed-hold speed fault; the
-  successful second attempt does not resolve it. Qualify 15-second Ready and
-  post-weld holds, stiffness and temperatures with the installed load. Complete
-  matched no-EE / approximately 1.96 kg EE trials with identical path/settings,
-  recording actual speed, time, torque, temperatures and fixed-target error.
-  Qualify the separate A3 endpoint retreat and keep its timing separate. Use
-  measured disabled readbacks before proposing drive tuning; no guessed gains.
-  The expanded trips remain trial settings under PROTECT-01, not continuous
-  torque ratings. See the [physical review](../../docs/measurements/arm-gun-load-review-2026-11-19.json)
-  and [matched-run procedure](../../docs/ARM_RIG_TEST.md#matched-runs-with-and-without-the-end-effector).
-- **ACCURACY-01:** record supported weld passes with the cached journal, then
-  compare planned, dispatched and measured positions and workpiece-relative
-  wire-tip accuracy. See the [operator test](../../docs/ARM_RIG_TEST.md#weld-motion-accuracy-test).
-- **PLAN-01:** reduce remaining worst-case joint-order recovery/staging latency
-  while retaining checked candidates and explicit failure. Extend random-start
-  coverage and qualify the starting region that meets the five-second goal;
-  the broad benchmark does not establish that deadline for arbitrary poses.
+- **ACCURACY-01:** meet end-effector orientation error of 0.5 deg target / 1 deg
+  maximum relative to the planned tool frame during welding. The
+  [recorded baseline](../../docs/measurements/arm-accuracy-speed-review-2026-11-23.json)
+  estimates 1.408 deg RMS / 2.633 deg peak. Joint errors are diagnostic.
+  Add synchronized independent workpiece-relative tool-pose measurements and
+  define the separate tip-mm tolerance.
+  Use the [operator test](../../docs/ARM_RIG_TEST.md#weld-motion-accuracy-test)
+  for matched comparisons after tracking changes; end continuous runs manually.
 - **SPEED-01:** qualify PID/velocity lead under unequal load, reversals and
   saturation using actual timing, error, phase, measured Hz/travel and thermal
-  evidence. Nov 19 A1/A6 frequency matches the ~1.73 Hz plan but travel exceeds
-  it (3.869/2.260 and 1.180/0.427 deg). Retain the accepted tiny A2-A5 nominal
+  evidence. Nov 23 A1/A6 frequency matches the ~1.73 Hz plan but travel exceeds
+  it (3.891/2.261 and 1.333/0.428 deg measured/planned). Prioritize host lead,
+  command shaping and phase lag. Retain the accepted tiny A2-A5 nominal
   paths; synthetic response and geometry tests do not establish physical tuning.
-- **CAL-01 / PLAN-01:** independently qualify the candidate sign/offset mapping,
+  The operator accepted the 8.22 s preparation and retired the five-second goal.
+  Preserve that preparation and existing trips while correcting welding motion.
+  [Full logs, calibration and offline commands](../../docs/measurements/weld/2026-11-23/README.md)
+  support development without motors.
+- **CAL-01:** independently qualify the candidate sign/offset mapping,
   derived standby and complete path against the assembly and stopping margins.
   Qualify supported startup, current-position hold pickup and recovery waypoints;
   resolve the Nov 16 pose/model mismatch and audit remaining collision exclusions.
-- **PLAN-01:** add a visible six-axis encoder-drift check after path calculation
-  and before recovery, including a final check on Start recovery. Compare with
-  the planning-start pose; block the old plan and require recalculation if any
-  joint exceeds the threshold. **2 degrees or 5 degrees: final value undecided.**
-  See the canonical PLAN-01 entry for acceptance behavior.
-- **PLAN-01 / SUPPORT-01:** complete the requested automatic recovery from a
-  settled, gravity-hanging arm on a secured base. Qualify taking the actual load
-  at measured angles, then lifting into compact standby without manual joint
-  placement. Model/check the passive return and swing after torque loss as well
-  as the powered route; rate-limited fake shafts provide no gravity/load evidence.
 - **LOAD-01, after the first arm weld:** identify mass/COM/inertia, reconcile
   model acceleration bounds and add qualified weight/gravity compensation.
 - **FEEDBACK-01, after the first arm weld:** baseline tracking logs, tool/seam

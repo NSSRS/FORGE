@@ -17,7 +17,7 @@ from controls.controller.weld_plan import (
     Settings,
 )
 from controls.controller.limits import motor_constraints
-from motors.arm_travel import a4_cable_bounds, check_a4
+from motors.arm_travel import a4_cable_bounds, a6_cable_bounds, check_cable
 from controls.controller.recovery import RECOVERY_CLEARANCE_MM, START_TOLERANCE_DEG
 from controls.controller.preparation import PreparationClock
 from controls.controller.tracking import PositionTracker
@@ -66,10 +66,13 @@ class WeldController:
         self, arm=None, chassis=None, *, clock=time.monotonic, pose_check=None,
         allow_optimized_preparation=False, continuous_weld=False,
         tracking_settings=None, endpoint_check=None, intent_pause_cause=None,
+        recovery_check=None,
     ):
         self.arm, self.chassis, self.clock = arm, chassis, clock
         self.pose_check = pose_check
         self.endpoint_check = endpoint_check
+        self.recovery_check = recovery_check
+        self.measured_start = None
         self.endpoint_policy = None
         self.endpoint_active = False
         self.endpoint_minimum = None
@@ -81,6 +84,7 @@ class WeldController:
         self.weld_travel_deg = None
         self.weld_correction_mask = None
         self.a4_bounds = a4_cable_bounds()
+        self.a6_bounds = a6_cable_bounds()
         self.arm_on = False
         self.chassis_on = False
         self.arm_holding = False
@@ -108,8 +112,9 @@ class WeldController:
         self.pause_cause = None
         self.intent_pause_cause = intent_pause_cause
 
-    def check_pose(self, raw, *, recovery=False):
-        check_a4(float(raw[3]), self.a4_bounds)
+    def check_pose(self, raw, *, recovery=False, measured=False):
+        check_cable(float(raw[3]), self.a4_bounds, 4)
+        check_cable(float(raw[5]), self.a6_bounds, 6)
         if self.pose_check is None:
             raise ValueError(
                 "A model clearance guard is required before arm activation"
@@ -118,6 +123,9 @@ class WeldController:
             if not recovery or self.endpoint_check is None:
                 raise ValueError("A3 retreat requires its checked inward-only guard")
             self.endpoint_check(raw, self.endpoint_policy)
+        elif recovery and self.measured_start is not None:
+            self.recovery_check(raw, self.measured_start, clearance_mm=RECOVERY_CLEARANCE_MM,
+                                measured=measured)
         else:
             self.pose_check(raw, clearance_mm=RECOVERY_CLEARANCE_MM if recovery else 0.5)
 
@@ -149,8 +157,12 @@ class WeldController:
         """Limit virtual position lead to model-valid targets before shaping."""
         clearance = RECOVERY_CLEARANCE_MM if recovery else 1.8
         def check(raw):
-            check_a4(float(raw[3]), self.a4_bounds)
-            self.pose_check(raw, clearance_mm=clearance)
+            check_cable(float(raw[3]), self.a4_bounds, 4)
+            check_cable(float(raw[5]), self.a6_bounds, 6)
+            if recovery and self.measured_start is not None:
+                self.recovery_check(raw, self.measured_start, clearance_mm=clearance)
+            else:
+                self.pose_check(raw, clearance_mm=clearance)
         # Retain the constrained gain and recover it slowly. Searching again
         # from full gain every tick both chatters at the boundary and consumes
         # the motor owner's feedback-age budget with redundant model checks.
@@ -266,6 +278,16 @@ class WeldController:
             raise ValueError("Invalid chassis feed")
         paths = {}
         preparation = {}
+        measured_start = plan.get("measured_start")
+        if measured_start is not None:
+            from controls.controller.measured_start import MeasuredStart
+            start = MeasuredStart.from_document(measured_start)
+            if (self.recovery_check is None
+                    or not callable(getattr(self.arm, "configure_start_recovery", None))):
+                raise ValueError("Measured hardware start requires its recovery guard and owner")
+            if (start.mapping_fingerprint != plan.get("mapping_fingerprint")
+                    or max(abs(np.asarray(start.raw) - finite_vector(plan["current_raw_deg"], "start"))) > 1e-9):
+                raise ValueError("Measured hardware start does not match the checked plan")
         if self.arm_on:
             settings = Settings(
                 max_speed_deg_s=plan["max_speed_deg_s"],
@@ -303,11 +325,11 @@ class WeldController:
             if self.continuous_weld and paths["weld"].interpolation != "periodic_cubic":
                 raise ValueError("Continuous welding requires a checked periodic weld path")
             for name, path in paths.items():
+                cable_bounds = [(-math.inf, math.inf)] * 6
+                cable_bounds[3], cable_bounds[5] = self.a4_bounds, self.a6_bounds
+                path.check_raw_bounds(cable_bounds)
                 if name == "endpoint_recovery":
                     continue  # Its independent 1 deg/s / 5 deg/s² envelope is checked above.
-                cable_bounds = [(-math.inf, math.inf)] * 6
-                cable_bounds[3] = self.a4_bounds
-                path.check_raw_bounds(cable_bounds)
                 envelope = plan.get("stage_limits", {}).get(name, {})
                 ceilings = finite_vector(
                     envelope.get(
@@ -425,6 +447,7 @@ class WeldController:
             positive(plan["duration_s"], "duration")
         self.plan = plan
         self.paths = paths
+        self.measured_start = measured_start
         self.endpoint_policy = None if plan.get("endpoint_recovery") is None else plan["endpoint_recovery"]["policy"]
         self.endpoint_active = False
         self.preparation = preparation
@@ -456,6 +479,9 @@ class WeldController:
                 + next_step
             )
         self.event("plan_loaded")
+        if plan.get("start_pose_warnings"):
+            self.event("measured_start_warning", warnings=plan["start_pose_warnings"])
+            self.message += " Measured start has model collision warnings; inspect the preview."
         if self.endpoint_policy is not None:
             q = self.endpoint_policy["start_raw_deg"][2]
             self.message = (f"Plan ready: A3 endpoint recovery {q:.4f}° → 149.39° "
@@ -491,14 +517,16 @@ class WeldController:
                 self.refresh_endpoint_start(actual)
                 self.endpoint_active = True
                 self.endpoint_minimum = float(actual[2])
+            if hasattr(self.arm, "configure_start_recovery"):
+                self.arm.configure_start_recovery(self.measured_start)
             if hasattr(self.arm, "configure_endpoint"):
                 self.arm.configure_endpoint(self.endpoint_policy if self.endpoint_active else None)
-            self.check_pose(actual, recovery=True)
+            self.check_pose(actual, recovery=True, measured=True)
             if not self.arm_holding:
                 try:
                     self.arm.hold(
                         self.startup_path().positions[0],
-                        lambda raw: self.check_pose(raw, recovery=True),
+                        lambda raw: self.check_pose(raw, recovery=True, measured=True),
                     )
                     self.arm_holding = True
                 except Exception as exc:
@@ -693,6 +721,7 @@ class WeldController:
         self.recovery_index = 0
         self.hold_deviated = False
         self.endpoint_policy = None
+        self.measured_start = None
         self.endpoint_active = False
         self.endpoint_minimum = None
         self.state = "idle"
@@ -776,7 +805,7 @@ class WeldController:
                 return
             if self.state == "verifying_hold":
                 actual = self.feedback()
-                self.check_pose(actual.raw_deg, recovery=True)
+                self.check_pose(actual.raw_deg, recovery=True, measured=True)
                 if (
                     max(abs(actual.raw_deg - self.startup_path().positions[0]))
                     > START_TOLERANCE_DEG
@@ -836,7 +865,7 @@ class WeldController:
                 measured_velocity_deg_s=actual.velocity_deg_s.tolist(),
                 age_ms=actual.age_ms.tolist(),
             )
-            self.check_pose(actual.raw_deg, recovery=key == "home")
+            self.check_pose(actual.raw_deg, recovery=key == "home", measured=True)
             preparation = self.preparation.get(key)
             if preparation is not None:
                 desired, rate = (
@@ -988,6 +1017,12 @@ class WeldController:
                         if self.tracker is not None:
                             self.tracker.reset(desired)
                         if self.recovery_index == len(self.recovery_stops):
+                            if self.measured_start is not None:
+                                self.pose_check(actual.raw_deg, clearance_mm=RECOVERY_CLEARANCE_MM)
+                                self.pose_check(desired, clearance_mm=RECOVERY_CLEARANCE_MM)
+                                self.arm.configure_start_recovery(None)
+                                self.measured_start = None
+                                self.event("measured_start_recovery_completed")
                             self.state = "approach"
                             self.message = "Standby reached; moving to weld start."
                         else:

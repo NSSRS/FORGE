@@ -223,6 +223,11 @@ class PreviewContracts(unittest.TestCase):
                         for i, q in enumerate(raw, 1)]
             np.testing.assert_allclose(renderer.geometry.data.qpos[renderer.geometry.addresses], expected)
             self.assertEqual(renderer.geometry.mapping.document, original)
+            hardware = renderer.frame(dict(request, measured_hardware_pose=True))
+            self.assertTrue(hardware['hardware_observation'])
+            self.assertNotIn('saved upper limit', hardware['issue'] or '')
+            self.assertIn('mechanical stop', hardware['issue'])
+            np.testing.assert_allclose(renderer.geometry.data.qpos[renderer.geometry.addresses], expected)
             with self.assertRaises(RawAngleLimitError):
                 renderer.geometry.check(raw)
             for measured in (False, None):

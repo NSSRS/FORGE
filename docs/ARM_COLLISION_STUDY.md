@@ -101,7 +101,8 @@ surfaces. Source model files and hardware configuration are never rewritten.
   not established by this kinematic preview. Nominal animation speed is for viewing.
 - Model zero/sign/units are not calibrated hardware coordinates. The ±90-degree
   unloaded jog window, Pocket CW signs and production confirmation flags remain
-  unchanged. CAL-01 and PLAN-01 stay open.
+  unchanged. CAL-01 stays open. PLAN-01 was
+  [resolved by operator confirmation on Nov 23](ARM_SESSION_HANDOFF.md#plan-01-and-base-04-resolution).
 
 Next: inspect the highlighted interfaces, improve collision geometry/filters where
 CAD evidence supports it, evaluate combined poses and paths, then measure hardware

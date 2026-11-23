@@ -65,8 +65,32 @@ A3 endpoint retreat -> checked standby waypoints -> approach -> ready -> explici
 continuous weld -> Pause / Hold. Single-pass mode completes at a fixed endpoint hold.
 Recovery tries a coordinated direct path, then a bounded joint-order graph
 (maximum 64 poses / 192 directed edges). Every edge and the joined interpolant
-are checked. Other colliding starts remain blocked; the only endpoint exception
-is the reviewed A3 policy below.
+are checked. The joint-order search follows a checked order toward the goal,
+backtracking only when blocked; every complete order has the same number of
+stops, so breadth-first expansion adds checks without improving that objective.
+The graph remains bounded to 64 nodes / 192 edges and the joined spline is checked.
+Hardware accepts the fresh measured starting pose independently of
+the saved pose window and authored simulator joint ranges. Simulation remains strict.
+
+`controller/measured_start.py` records that start and mapping identity in the
+plan. Recovery may use only the additional angle extent between the measured
+start and the normal range; it cannot command farther outward. A4/A5/A6 cable
+envelopes and protocol bounds remain enforced. The existing 0.3-degree start
+comparison also applies to feedback at an extended boundary, never to expanding
+command bounds. Before approach, both feedback and targets must pass the normal
+pose checks and the owner removes the temporary recovery allowance.
+
+A6 has a fixed +/-270-degree cable envelope around its preserved raw initial
+reference, +64.161048535 degrees: [-205.838951465, +334.161048535] degrees.
+`arm_a6_cable_limits.json` supplies the same bounds to calibration/planning,
+measured-start recovery, exact path-extrema checks, firmware session setup and
+manual jogging. Neither restart nor feedback tolerance extends this envelope.
+Equivalent angles a full turn away are not interchangeable cable positions.
+
+Self/environment contact at the exact measured start is reported as a warning.
+Every subsequent sampled recovery pose still requires clearance. A warning does
+not authorize motion through contact: if no checked route exists, recovery stays
+blocked. The reviewed A3 separating-contact retreat remains available below.
 
 `controller/endpoint_recovery.py` allows A3 startup up to raw 151.64 deg
 (151.39 + 0.25 deg), then builds an inward-only path to 149.39 deg at <=1 deg/s
@@ -78,9 +102,10 @@ stationary, in-range endpoint. Pause requires a fresh checked plan. Its time is
 reported separately from normal preparation. This is software/model evidence,
 not physical retreat qualification.
 
-Out-of-range measured poses remain visible with a warning for inspection. This
-display never wraps/clamps readings or authorizes motion; the planning status
-states whether a checked retreat or normal path is available.
+The hardware Current pose view uses unwrapped, unclamped encoder coordinates and
+retains collision warnings. Display alone does not authorize motion; planning,
+freshness, stationary preload, and explicit Start recovery are still required.
+The simulator's pose validation is unchanged.
 
 The operator's intended startup is pickup from a settled hanging arm on a secured
 base. Load pickup, passive drop/swing clearance and shutdown remain unqualified.
@@ -307,8 +332,10 @@ cached motor/MOS temperature, enabled/status/torque and
 feedback age. Observation does not poll registers or renew a motion lease.
 
 This implements a fixed-reference hold, not a measured increase in motor stiffness.
-**HOLD-01** owns loaded acceptance and evidence-based drive tuning if needed;
-see [the acceptance procedure](ARM_RIG_TEST.md#post-preparation-hold-acceptance).
+**HOLD-01 was resolved by operator confirmation on Nov 23**, supported by the
+25.19 s loaded Ready hold; see the [closure](ARM_SESSION_HANDOFF.md#hold-01-resolution).
+The [hold-check procedure](ARM_RIG_TEST.md#post-preparation-hold-acceptance)
+remains available for future observations.
 
 ### Execution timing and speed allowance
 
@@ -332,8 +359,8 @@ These are separate hardware and model observations, not a five-second result.
 The subsequent operator journal records 16.14 s to ready against 7.60 s nominal,
 then 12.76 s holding all six fixed targets within 0.177 deg. Later disturbances
 recovered to those same targets; the operator confirmed pushing the arm. This
-different starting pose does not provide a controlled speed comparison, and
-post-weld/loaded holding acceptance remains open.
+different starting pose does not provide a controlled speed comparison.
+These observations predate the Nov 23 HOLD-01 closure above.
 Evidence is in [the Nov 17 review](measurements/arm-preparation-review-2026-11-17.json).
 
 ### Offline CMA-ES weight and branch search
@@ -450,11 +477,14 @@ action. Failed recovery stays faulted; success leaves all motors disabled and
 requires fresh selection, planning and recovery. Queued actions during reset are
 discarded, and close waits for that same owner to finish recovery and cleanup.
 
-The panel defaults to continuous welding. `--cycles` sets the finite checked
-plan/preview block, which repeats until Pause / Hold; `--single-pass` restores
-bounded execution of that block. Continuous execution accepts only the checked
-periodic cubic weld path, whose position, velocity and acceleration close at the
-boundary. Sampling wraps the path phase without a dwell, settling check or new
+The operator's normal run contract is continuous welding until manual
+Pause / Hold, with no cycle-count completion. `--cycles` sets the finite checked
+plan/preview block, which repeats even when the count is 1. Normal launch
+commands must omit `--single-pass`; that flag requests bounded execution and is
+reserved for an explicitly requested finite test. Continuous execution accepts
+only the checked periodic cubic weld path, whose position, velocity and
+acceleration close at the boundary. Sampling wraps the path phase without a
+dwell, settling check or new
 enable between blocks. Selected chassis feed remains continuous. Absolute elapsed
 time and the repeat index remain in the bounded trace and live journal. Pause
 captures a fixed measured arm hold and stops feed; fault, focus, heartbeat,
@@ -490,6 +520,17 @@ never displays a fabricated zero or old enabled state. No torque or temperature
 is synthesized for fake shafts. The manual arm window has the same telemetry
 tab alongside its existing joint table.
 
+Idle and fault snapshots are labeled **Cached**, with their historical sample
+age. Selecting an output does not start a live feedback stream; waiting for a
+checked recovery therefore does not raise a feedback-stale banner by itself.
+Holding or motion still requires the unchanged 80 ms freshness check and shows
+**STALE** for expired data. **Unavailable** means no valid sample exists.
+Fault evidence also includes MCU-maintained bus counters and the last received
+CAN frame, read through the same owner after requesting stop. These diagnostics
+create no CAN traffic or command lease; they describe post-stop state, not
+necessarily the frame that triggered the fault. Reason 5 means CAN transmission
+failed (enqueue or bounded completion), not proof of a full transmit queue.
+
 Each card has 30-second display-rate traces: torque uses the axis color, motor
 temperature is orange and MOS temperature purple. Fresh-only torque peaks are
 shown for the stage and recovery run; hover a card for both temperature peaks.
@@ -497,6 +538,12 @@ A new recovery resets run peaks; a stage transition resets stage peaks.
 The manual panel starts a run when motion/holding becomes active. Histories
 are bounded and independent of motor authorization. The full JSONL remains
 the source for complete owner-rate analysis.
+
+Live readouts reserve consistent widths, and feedback/collision captions use a
+bounded text area, so incoming samples do not resize the viewer or plots. Long
+preview text ends with an ellipsis; hover it to read the complete warning.
+Manual window resizing, splitter adjustment and display scaling still resize
+the views normally.
 
 **Targets & response** keeps raw targets, measured angles, remaining distance,
 frequency and travel together. **Diagnostics & evidence** expands the full

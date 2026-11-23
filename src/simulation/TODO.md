@@ -1,10 +1,10 @@
 # Simulation and planning: cross-layer arm/motor TODOs
 
 Start with [cross-layer registry](../../docs/ARM_LAYER_TODOS.md) and
-[base API contract](../../docs/ARM_BASE_LAYER.md). Relevant stable IDs: **PLAN-01, CAL-01**.
+[base API contract](../../docs/ARM_BASE_LAYER.md). Relevant stable IDs: **CAL-01, LOAD-01, FEEDBACK-01, ACCURACY-01**.
 
 The simulation-only [single-joint collision study](../../docs/ARM_COLLISION_STUDY.md)
-implements candidate range scans and MuJoCo playback for PLAN-01. The weld
+implements candidate range scans and MuJoCo playback. The weld
 planner now checks sampled combined poses and complete paths; its checked-plan
 renderer is in `simulation/weld_animation.py`. Physical clearance, calibrated
 limits and loaded dynamics remain unqualified. Follow LOAD-01 for model mass/

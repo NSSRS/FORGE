@@ -1,0 +1,1125 @@
+{
+  "schema": "forge.weld_accuracy_speed_review",
+  "version": 1,
+  "review_date": "2026-11-23",
+  "source_files": [
+    {
+      "path": "build/weld/sessions/20261123T114316.007261Z-cnyzuo1w/session.jsonl",
+      "sha256": "bf966ad1e51af45f890fd3d9e1a361ec46703c49355b2b378d48cc03c681abf2",
+      "archived_path": "docs/measurements/weld/2026-11-23/session.jsonl"
+    },
+    {
+      "path": "build/weld/sessions/20261123T114316.007261Z-cnyzuo1w/session.json",
+      "sha256": "1e8252bd5d88ec9cd90303cdb4db4f9f34828a83b9930fff41529d95b58612c9",
+      "archived_path": "docs/measurements/weld/2026-11-23/session.json"
+    },
+    {
+      "path": "build/weld/sessions/20261123T114316.007261Z-cnyzuo1w/session.load-context.json",
+      "sha256": "c4dac9449c7b6451655f46a05893325637d6ffb5b4224e115e91526a106ea873",
+      "archived_path": "docs/measurements/weld/2026-11-23/session.load-context.json"
+    },
+    {
+      "path": "build/weld/sessions/20261123T114316.007261Z-cnyzuo1w/accuracy-summary.json",
+      "sha256": "7fa41a5c086dea820e0fe12b73287f2d0861809e8ca7cb93110b070840cfaace",
+      "archived_path": "docs/measurements/weld/2026-11-23/accuracy-summary.json"
+    }
+  ],
+  "load_context": {
+    "schema": "forge.weld_load_context",
+    "version": 1,
+    "journal": "session.jsonl",
+    "end_effector_attached": true,
+    "end_effector_mass_kg": 1.96,
+    "mass_basis": "operator reported",
+    "source": "Operator confirmation in this conversation on 2026-11-23",
+    "source_text": "EE mass: 1.96kg",
+    "base_orientation": null,
+    "external_support_contact": null,
+    "hardware_qualified": false
+  },
+  "accuracy": {
+    "schema": "forge.weld_motion_accuracy",
+    "version": 1,
+    "journal": "/home/forge2/forge2_ws/build/weld/sessions/20261123T114316.007261Z-cnyzuo1w/session.jsonl",
+    "simulated": false,
+    "run_number": 1,
+    "outcome": "pause",
+    "duration_s": 5.951299164000375,
+    "effective_hz": 1.729907219140131,
+    "chassis_feed_selected": false,
+    "nominal_chassis_feed_mm_s": 0.0,
+    "coverage": {
+      "samples": 202,
+      "first_s": 1.3767999917035922e-05,
+      "last_s": 5.951299164000375,
+      "max_gap_ms": 63.70324099952995,
+      "complete": true
+    },
+    "rejected_samples": 0,
+    "dropped_records": 0,
+    "session_closed": true,
+    "mapping_fingerprint": "e19226781bf4e1519414315cc4c3ead50e294eea48134199d96eb95aafab398f",
+    "scene_fingerprint": "b0f6e114fb5cdfb874217138133c76731ef3287895d1de8875cb8f5c8b22e63f",
+    "joints": {
+      "A1": {
+        "tracking_error_deg": {
+          "mean": 0.1560775654137072,
+          "minimum": -2.0483536745260835,
+          "maximum": 2.0982874415580284,
+          "peak_abs": 2.0982874415580284,
+          "rms": 1.137962106764185
+        },
+        "dispatch_error_deg": {
+          "mean": 0.05004287288035203,
+          "minimum": -4.748779677235973,
+          "maximum": 4.058557002114412,
+          "peak_abs": 4.748779677235973,
+          "rms": 2.138530847566445
+        },
+        "measured_travel_deg": 3.8905303927526234,
+        "reference_travel_deg": 2.2606500137042076,
+        "feedback_age_ms": {
+          "mean": 5.816831683168317,
+          "minimum": 2.0,
+          "maximum": 40.0,
+          "peak_abs": 40.0,
+          "rms": 8.092595319790863
+        }
+      },
+      "A2": {
+        "tracking_error_deg": {
+          "mean": -0.007020996510461763,
+          "minimum": -0.04347192622070395,
+          "maximum": 0.04005495254506286,
+          "peak_abs": 0.04347192622070395,
+          "rms": 0.029771247081262074
+        },
+        "dispatch_error_deg": {
+          "mean": -0.009583393310851104,
+          "minimum": -0.11994536123698651,
+          "maximum": 0.07562178362663019,
+          "peak_abs": 0.11994536123698651,
+          "rms": 0.03875004340338869
+        },
+        "measured_travel_deg": 0.021856605344041213,
+        "reference_travel_deg": 0.06167077337090632,
+        "feedback_age_ms": {
+          "mean": 3.6782178217821784,
+          "minimum": 2.0,
+          "maximum": 31.0,
+          "peak_abs": 31.0,
+          "rms": 5.297580243436013
+        }
+      },
+      "A3": {
+        "tracking_error_deg": {
+          "mean": 0.008281651129564553,
+          "minimum": -0.06475271712920971,
+          "maximum": 0.10701573212693916,
+          "peak_abs": 0.10701573212693916,
+          "rms": 0.06101945065534138
+        },
+        "dispatch_error_deg": {
+          "mean": 0.002924594403952812,
+          "minimum": -0.22522603328935986,
+          "maximum": 0.18457022810419232,
+          "peak_abs": 0.22522603328935986,
+          "rms": 0.07990664933793169
+        },
+        "measured_travel_deg": 0.04371321068808243,
+        "reference_travel_deg": 0.1305420374498425,
+        "feedback_age_ms": {
+          "mean": 2.4653465346534653,
+          "minimum": 1.0,
+          "maximum": 22.0,
+          "peak_abs": 22.0,
+          "rms": 3.1747768300767345
+        }
+      },
+      "A4": {
+        "tracking_error_deg": {
+          "mean": -0.013779950283029559,
+          "minimum": -0.12493235597398211,
+          "maximum": 0.19286294314704833,
+          "peak_abs": 0.19286294314704833,
+          "rms": 0.07622611850530725
+        },
+        "dispatch_error_deg": {
+          "mean": -0.01203737118121066,
+          "minimum": -0.1426532571153416,
+          "maximum": 0.18552533423653017,
+          "peak_abs": 0.18552533423653017,
+          "rms": 0.0828896858677852
+        },
+        "measured_travel_deg": 0.21862069495375636,
+        "reference_travel_deg": 0.09917486074394333,
+        "feedback_age_ms": {
+          "mean": 1.6386138613861385,
+          "minimum": 1.0,
+          "maximum": 9.0,
+          "peak_abs": 9.0,
+          "rms": 1.8495383421837788
+        }
+      },
+      "A5": {
+        "tracking_error_deg": {
+          "mean": -0.0160546631300394,
+          "minimum": -0.07787095706783731,
+          "maximum": 0.05616620926766913,
+          "peak_abs": 0.07787095706783731,
+          "rms": 0.040378047744632654
+        },
+        "dispatch_error_deg": {
+          "mean": -0.01318829831945608,
+          "minimum": -0.10048786762800432,
+          "maximum": 0.10917226302658634,
+          "peak_abs": 0.10917226302658634,
+          "rms": 0.04876316123082081
+        },
+        "measured_travel_deg": 0.06556981603212364,
+        "reference_travel_deg": 0.07128031710531246,
+        "feedback_age_ms": {
+          "mean": 0.5891089108910891,
+          "minimum": 0.0,
+          "maximum": 3.0,
+          "peak_abs": 3.0,
+          "rms": 0.9925464799451384
+        }
+      },
+      "A6": {
+        "tracking_error_deg": {
+          "mean": -0.050633309033040856,
+          "minimum": -0.7498689943679224,
+          "maximum": 0.5946042683154786,
+          "peak_abs": 0.7498689943679224,
+          "rms": 0.37855109680885635
+        },
+        "dispatch_error_deg": {
+          "mean": -0.036449678392227965,
+          "minimum": -1.594837250415928,
+          "maximum": 1.3549995871598028,
+          "peak_abs": 1.594837250415928,
+          "rms": 0.720163357485428
+        },
+        "measured_travel_deg": 1.3332529259864927,
+        "reference_travel_deg": 0.4275502164079583,
+        "feedback_age_ms": {
+          "mean": 0.6584158415841584,
+          "minimum": 0.0,
+          "maximum": 2.0,
+          "peak_abs": 2.0,
+          "rms": 1.1410434689440196
+        }
+      }
+    },
+    "encoder_tip_status": "encoder-reconstructed, fixed base",
+    "encoder_tip": {
+      "rejected": 0,
+      "samples": 202,
+      "along_mm": {
+        "mean": 0.057730446077980585,
+        "minimum": -0.1317364943608368,
+        "maximum": 0.334797489710013,
+        "peak_abs": 0.334797489710013,
+        "rms": 0.12051005097192523
+      },
+      "transverse_mm": {
+        "mean": -1.3713575102721685,
+        "minimum": -18.571558863347256,
+        "maximum": 18.00797765313697,
+        "peak_abs": 18.571558863347256,
+        "rms": 10.058380826509875
+      },
+      "height_mm": {
+        "mean": -0.05234248181304914,
+        "minimum": -0.19751775881673983,
+        "maximum": 0.1718011729511526,
+        "peak_abs": 0.19751775881673983,
+        "rms": 0.0884966295963385
+      },
+      "distance_mm": {
+        "mean": 8.685649121983388,
+        "minimum": 0.0584458915885789,
+        "maximum": 18.57477143089204,
+        "peak_abs": 18.57477143089204,
+        "rms": 10.05949199397945
+      }
+    },
+    "independent_tip": null,
+    "tip_csv": null,
+    "issues": [
+      "Pass outcome: pause"
+    ],
+    "hardware_qualified": false,
+    "peak_joint_limit_deg": null,
+    "peak_tip_limit_mm": null,
+    "joint_limit_met": null,
+    "independent_tip_limit_met": null,
+    "passed": null
+  },
+  "speed": {
+    "initial": {
+      "samples": 35,
+      "sample_span_s": 0.6975509459989553,
+      "command_interval_ms": {
+        "mean": 20.51620429408692,
+        "minimum": 20.04435999879206,
+        "maximum": 23.67498599960527,
+        "peak_abs": 23.67498599960527,
+        "rms": 20.542090955593228
+      },
+      "joints": {
+        "A1": {
+          "nominal_error_deg": {
+            "mean": 0.0,
+            "minimum": 0.0,
+            "maximum": 0.0,
+            "peak_abs": 0.0,
+            "rms": 0.0
+          },
+          "same_tick_dispatched_error_deg": {
+            "mean": 0.0,
+            "minimum": 0.0,
+            "maximum": 0.0,
+            "peak_abs": 0.0,
+            "rms": 0.0
+          },
+          "reference_travel_deg": 0.0,
+          "dispatched_travel_deg": 0.0,
+          "measured_travel_deg": 0.0,
+          "measured_velocity_deg_s": {
+            "mean": -0.6296887999618155,
+            "minimum": -0.6296887999618155,
+            "maximum": -0.6296887999618155,
+            "peak_abs": 0.6296887999618155,
+            "rms": 0.6296887999618155
+          }
+        },
+        "A2": {
+          "nominal_error_deg": {
+            "mean": 0.0,
+            "minimum": 0.0,
+            "maximum": 0.0,
+            "peak_abs": 0.0,
+            "rms": 0.0
+          },
+          "same_tick_dispatched_error_deg": {
+            "mean": 0.0,
+            "minimum": 0.0,
+            "maximum": 0.0,
+            "peak_abs": 0.0,
+            "rms": 0.0
+          },
+          "reference_travel_deg": 0.0,
+          "dispatched_travel_deg": 0.0,
+          "measured_travel_deg": 0.0,
+          "measured_velocity_deg_s": {
+            "mean": -0.13993691571522124,
+            "minimum": -0.13993691571522124,
+            "maximum": -0.13993691571522124,
+            "peak_abs": 0.13993691571522124,
+            "rms": 0.13993691571522124
+          }
+        },
+        "A3": {
+          "nominal_error_deg": {
+            "mean": 0.0,
+            "minimum": 0.0,
+            "maximum": 0.0,
+            "peak_abs": 0.0,
+            "rms": 0.0
+          },
+          "same_tick_dispatched_error_deg": {
+            "mean": 0.0,
+            "minimum": 0.0,
+            "maximum": 0.0,
+            "peak_abs": 0.0,
+            "rms": 0.0
+          },
+          "reference_travel_deg": 0.0,
+          "dispatched_travel_deg": 0.0,
+          "measured_travel_deg": 0.0,
+          "measured_velocity_deg_s": {
+            "mean": -0.13993691571522124,
+            "minimum": -0.13993691571522124,
+            "maximum": -0.13993691571522124,
+            "peak_abs": 0.13993691571522124,
+            "rms": 0.13993691571522124
+          }
+        },
+        "A4": {
+          "nominal_error_deg": {
+            "mean": 0.0,
+            "minimum": 0.0,
+            "maximum": 0.0,
+            "peak_abs": 0.0,
+            "rms": 0.0
+          },
+          "same_tick_dispatched_error_deg": {
+            "mean": 0.0,
+            "minimum": 0.0,
+            "maximum": 0.0,
+            "peak_abs": 0.0,
+            "rms": 0.0
+          },
+          "reference_travel_deg": 0.0,
+          "dispatched_travel_deg": 0.0,
+          "measured_travel_deg": 0.0,
+          "measured_velocity_deg_s": {
+            "mean": -0.41975610563230364,
+            "minimum": -0.41975610563230364,
+            "maximum": -0.41975610563230364,
+            "peak_abs": 0.41975610563230364,
+            "rms": 0.41975610563230364
+          }
+        },
+        "A5": {
+          "nominal_error_deg": {
+            "mean": 0.0,
+            "minimum": 0.0,
+            "maximum": 0.0,
+            "peak_abs": 0.0,
+            "rms": 0.0
+          },
+          "same_tick_dispatched_error_deg": {
+            "mean": 0.0,
+            "minimum": 0.0,
+            "maximum": 0.0,
+            "peak_abs": 0.0,
+            "rms": 0.0
+          },
+          "reference_travel_deg": 0.0,
+          "dispatched_travel_deg": 0.0,
+          "measured_travel_deg": 0.0,
+          "measured_velocity_deg_s": {
+            "mean": -0.41975610563230364,
+            "minimum": -0.41975610563230364,
+            "maximum": -0.41975610563230364,
+            "peak_abs": 0.41975610563230364,
+            "rms": 0.41975610563230364
+          }
+        },
+        "A6": {
+          "nominal_error_deg": {
+            "mean": 0.0,
+            "minimum": 0.0,
+            "maximum": 0.0,
+            "peak_abs": 0.0,
+            "rms": 0.0
+          },
+          "same_tick_dispatched_error_deg": {
+            "mean": 0.0,
+            "minimum": 0.0,
+            "maximum": 0.0,
+            "peak_abs": 0.0,
+            "rms": 0.0
+          },
+          "reference_travel_deg": 0.0,
+          "dispatched_travel_deg": 0.0,
+          "measured_travel_deg": 0.0,
+          "measured_velocity_deg_s": {
+            "mean": -0.41975610563230364,
+            "minimum": -0.41975610563230364,
+            "maximum": -0.41975610563230364,
+            "peak_abs": 0.41975610563230364,
+            "rms": 0.41975610563230364
+          }
+        }
+      }
+    },
+    "approach": {
+      "samples": 284,
+      "sample_span_s": 7.2661115680002695,
+      "command_interval_ms": {
+        "mean": 25.675305893993887,
+        "minimum": 20.038909000504646,
+        "maximum": 55.65319000015734,
+        "peak_abs": 55.65319000015734,
+        "rms": 26.52838703909145
+      },
+      "joints": {
+        "A1": {
+          "nominal_error_deg": {
+            "mean": -0.007141838325881082,
+            "minimum": -0.06782317596491794,
+            "maximum": 0.07856684710378659,
+            "peak_abs": 0.07856684710378659,
+            "rms": 0.024602363203812382
+          },
+          "same_tick_dispatched_error_deg": {
+            "mean": 0.0018073207764195598,
+            "minimum": -0.047068248396612944,
+            "maximum": 0.13884077605598577,
+            "peak_abs": 0.13884077605598577,
+            "rms": 0.035728707432626856
+          },
+          "reference_travel_deg": 0.5027000957493328,
+          "dispatched_travel_deg": 0.5026959982087931,
+          "measured_travel_deg": 0.5245585282569607,
+          "measured_velocity_deg_s": {
+            "mean": -0.7006288762788223,
+            "minimum": -5.666543501496019,
+            "maximum": -0.6296887999618155,
+            "peak_abs": 5.666543501496019,
+            "rms": 0.8082947445056106
+          }
+        },
+        "A2": {
+          "nominal_error_deg": {
+            "mean": 0.11653704786590674,
+            "minimum": -1.3686146655287104,
+            "maximum": 1.8383705146063534,
+            "peak_abs": 1.8383705146063534,
+            "rms": 0.8743558525169904
+          },
+          "same_tick_dispatched_error_deg": {
+            "mean": -1.1147897791242294,
+            "minimum": -8.834430826454948,
+            "maximum": 2.7932753874839307,
+            "peak_abs": 8.834430826454948,
+            "rms": 3.3648445032433467
+          },
+          "reference_travel_deg": 16.551472495128962,
+          "dispatched_travel_deg": 16.5497383780161,
+          "measured_travel_deg": 16.043021530092744,
+          "measured_velocity_deg_s": {
+            "mean": 1.2592471529304685,
+            "minimum": -5.176900900276144,
+            "maximum": 13.85173291981258,
+            "peak_abs": 13.85173291981258,
+            "rms": 4.167001132908051
+          }
+        },
+        "A3": {
+          "nominal_error_deg": {
+            "mean": 0.1373686510278305,
+            "minimum": -0.2933507968241429,
+            "maximum": 0.718495733807174,
+            "peak_abs": 0.718495733807174,
+            "rms": 0.26099215987434704
+          },
+          "same_tick_dispatched_error_deg": {
+            "mean": 0.3804990127243298,
+            "minimum": -0.3639704634499026,
+            "maximum": 1.727048702314562,
+            "peak_abs": 1.727048702314562,
+            "rms": 0.6614361136879254
+          },
+          "reference_travel_deg": 3.1700728406092082,
+          "dispatched_travel_deg": 3.1700385121372676,
+          "measured_travel_deg": 3.125549205711195,
+          "measured_velocity_deg_s": {
+            "mean": -0.6000734845200301,
+            "minimum": -4.337388689011537,
+            "maximum": 1.2592683168969108,
+            "peak_abs": 4.337388689011537,
+            "rms": 1.0450619306379876
+          }
+        },
+        "A4": {
+          "nominal_error_deg": {
+            "mean": -0.03491603327904073,
+            "minimum": -0.3352342315824899,
+            "maximum": 0.23741562030005525,
+            "peak_abs": 0.3352342315824899,
+            "rms": 0.09215798909528443
+          },
+          "same_tick_dispatched_error_deg": {
+            "mean": 0.17692388921421004,
+            "minimum": -0.07855177962514404,
+            "maximum": 1.0576356207345725,
+            "peak_abs": 1.0576356207345725,
+            "rms": 0.37143159421785527
+          },
+          "reference_travel_deg": 6.480578386049984,
+          "dispatched_travel_deg": 6.480525562442409,
+          "measured_travel_deg": 6.447807859518775,
+          "measured_velocity_deg_s": {
+            "mean": -1.3568014942477438,
+            "minimum": -13.012220708547972,
+            "maximum": 2.098780528161518,
+            "peak_abs": 13.012220708547972,
+            "rms": 2.7434475527416704
+          }
+        },
+        "A5": {
+          "nominal_error_deg": {
+            "mean": 0.22409367882150608,
+            "minimum": -0.6858169577040165,
+            "maximum": 1.3484209008176662,
+            "peak_abs": 1.3484209008176662,
+            "rms": 0.44335590895600646
+          },
+          "same_tick_dispatched_error_deg": {
+            "mean": -1.1460245883572138,
+            "minimum": -6.130858845076647,
+            "maximum": 1.0530204864468367,
+            "peak_abs": 6.130858845076647,
+            "rms": 2.4710133058972477
+          },
+          "reference_travel_deg": 45.97342282334564,
+          "dispatched_travel_deg": 45.97151466864676,
+          "measured_travel_deg": 46.0744344049117,
+          "measured_velocity_deg_s": {
+            "mean": 4.705920299865694,
+            "minimum": -7.135744512722441,
+            "maximum": 33.16018592981838,
+            "peak_abs": 33.16018592981838,
+            "rms": 11.109431516074505
+          }
+        },
+        "A6": {
+          "nominal_error_deg": {
+            "mean": 0.20469159389925157,
+            "minimum": -0.4569517062919175,
+            "maximum": 1.5520917530717853,
+            "peak_abs": 1.5520917530717853,
+            "rms": 0.4875315690603501
+          },
+          "same_tick_dispatched_error_deg": {
+            "mean": -0.5855689166809527,
+            "minimum": -2.9712691754000033,
+            "maximum": 0.1107991242599553,
+            "peak_abs": 2.9712691754000033,
+            "rms": 1.1160642806894538
+          },
+          "reference_travel_deg": 19.09488614131334,
+          "dispatched_travel_deg": 19.093888966927352,
+          "measured_travel_deg": 19.124857525115864,
+          "measured_velocity_deg_s": {
+            "mean": 2.1608190401928966,
+            "minimum": -4.617207878928619,
+            "maximum": 23.925660888934427,
+            "peak_abs": 23.925660888934427,
+            "rms": 5.467191270686571
+          }
+        }
+      }
+    },
+    "welding": {
+      "samples": 202,
+      "sample_span_s": 5.951285396000458,
+      "command_interval_ms": {
+        "mean": 29.608385054728647,
+        "minimum": 20.045621000463143,
+        "maximum": 63.70324099952995,
+        "peak_abs": 63.70324099952995,
+        "rms": 31.22111944881469
+      },
+      "joints": {
+        "A1": {
+          "nominal_error_deg": {
+            "mean": 0.1560775654137072,
+            "minimum": -2.0483536745260835,
+            "maximum": 2.0982874415580284,
+            "peak_abs": 2.0982874415580284,
+            "rms": 1.137962106764185
+          },
+          "same_tick_dispatched_error_deg": {
+            "mean": 0.05004287288035203,
+            "minimum": -4.748779677235973,
+            "maximum": 4.058557002114412,
+            "peak_abs": 4.748779677235973,
+            "rms": 2.138530847566445
+          },
+          "reference_travel_deg": 2.2606500137042076,
+          "dispatched_travel_deg": 7.692649806804297,
+          "measured_travel_deg": 3.8905303927526234,
+          "measured_velocity_deg_s": {
+            "mean": -0.9163922795571879,
+            "minimum": -24.555240405869522,
+            "maximum": 22.03692233812914,
+            "peak_abs": 24.555240405869522,
+            "rms": 12.270597176782932
+          },
+          "frequency": {
+            "hz": 1.7335818097996525,
+            "peak_to_peak_deg": 3.8905303927526234,
+            "status": "measured",
+            "correlation": 0.9055628963717416
+          },
+          "fundamental_fit_lag_ms_after_first_cycle": 101.15439669193522
+        },
+        "A2": {
+          "nominal_error_deg": {
+            "mean": -0.007020996510461763,
+            "minimum": -0.04347192622070395,
+            "maximum": 0.04005495254506286,
+            "peak_abs": 0.04347192622070395,
+            "rms": 0.029771247081262074
+          },
+          "same_tick_dispatched_error_deg": {
+            "mean": -0.009583393310851104,
+            "minimum": -0.11994536123698651,
+            "maximum": 0.07562178362663019,
+            "peak_abs": 0.11994536123698651,
+            "rms": 0.03875004340338869
+          },
+          "reference_travel_deg": 0.06167077337090632,
+          "dispatched_travel_deg": 0.1955671448636167,
+          "measured_travel_deg": 0.021856605344041213,
+          "measured_velocity_deg_s": {
+            "mean": -0.14270740274410326,
+            "minimum": -0.41975610563230364,
+            "maximum": -0.13993691571522124,
+            "peak_abs": 0.41975610563230364,
+            "rms": 0.14537180825623663
+          },
+          "frequency": {
+            "hz": null,
+            "peak_to_peak_deg": 0.021856605344041213,
+            "status": "insufficient motion"
+          }
+        },
+        "A3": {
+          "nominal_error_deg": {
+            "mean": 0.008281651129564553,
+            "minimum": -0.06475271712920971,
+            "maximum": 0.10701573212693916,
+            "peak_abs": 0.10701573212693916,
+            "rms": 0.06101945065534138
+          },
+          "same_tick_dispatched_error_deg": {
+            "mean": 0.002924594403952812,
+            "minimum": -0.22522603328935986,
+            "maximum": 0.18457022810419232,
+            "peak_abs": 0.22522603328935986,
+            "rms": 0.07990664933793169
+          },
+          "reference_travel_deg": 0.1305420374498425,
+          "dispatched_travel_deg": 0.4097962613935522,
+          "measured_travel_deg": 0.04371321068808243,
+          "measured_velocity_deg_s": {
+            "mean": -0.14963362031630825,
+            "minimum": -0.9793944854664683,
+            "maximum": -0.13993691571522124,
+            "peak_abs": 0.9793944854664683,
+            "rms": 0.16995792260343
+          },
+          "frequency": {
+            "hz": null,
+            "peak_to_peak_deg": 0.04371321068808243,
+            "status": "insufficient motion"
+          }
+        },
+        "A4": {
+          "nominal_error_deg": {
+            "mean": -0.013779950283029559,
+            "minimum": -0.12493235597398211,
+            "maximum": 0.19286294314704833,
+            "peak_abs": 0.19286294314704833,
+            "rms": 0.07622611850530725
+          },
+          "same_tick_dispatched_error_deg": {
+            "mean": -0.01203737118121066,
+            "minimum": -0.1426532571153416,
+            "maximum": 0.18552533423653017,
+            "peak_abs": 0.18552533423653017,
+            "rms": 0.0828896858677852
+          },
+          "reference_travel_deg": 0.09917486074394333,
+          "dispatched_travel_deg": 0.1678246198022464,
+          "measured_travel_deg": 0.21862069495375636,
+          "measured_velocity_deg_s": {
+            "mean": -0.34079154475579737,
+            "minimum": -6.2962323014578345,
+            "maximum": 3.7776956676640125,
+            "peak_abs": 6.2962323014578345,
+            "rms": 1.1521916568878041
+          },
+          "frequency": {
+            "hz": null,
+            "peak_to_peak_deg": 0.21862069495375636,
+            "status": "irregular / collecting"
+          }
+        },
+        "A5": {
+          "nominal_error_deg": {
+            "mean": -0.0160546631300394,
+            "minimum": -0.07787095706783731,
+            "maximum": 0.05616620926766913,
+            "peak_abs": 0.07787095706783731,
+            "rms": 0.040378047744632654
+          },
+          "same_tick_dispatched_error_deg": {
+            "mean": -0.01318829831945608,
+            "minimum": -0.10048786762800432,
+            "maximum": 0.10917226302658634,
+            "peak_abs": 0.10917226302658634,
+            "rms": 0.04876316123082081
+          },
+          "reference_travel_deg": 0.07128031710531246,
+          "dispatched_travel_deg": 0.2201047570958785,
+          "measured_travel_deg": 0.06556981603212364,
+          "measured_velocity_deg_s": {
+            "mean": -0.44469211190749,
+            "minimum": -2.098780528161518,
+            "maximum": 1.2592683168969108,
+            "peak_abs": 2.098780528161518,
+            "rms": 0.5680966120238057
+          },
+          "frequency": {
+            "hz": null,
+            "peak_to_peak_deg": 0.06556981603212364,
+            "status": "insufficient motion"
+          }
+        },
+        "A6": {
+          "nominal_error_deg": {
+            "mean": -0.050633309033040856,
+            "minimum": -0.7498689943679224,
+            "maximum": 0.5946042683154786,
+            "peak_abs": 0.7498689943679224,
+            "rms": 0.37855109680885635
+          },
+          "same_tick_dispatched_error_deg": {
+            "mean": -0.036449678392227965,
+            "minimum": -1.594837250415928,
+            "maximum": 1.3549995871598028,
+            "peak_abs": 1.594837250415928,
+            "rms": 0.720163357485428
+          },
+          "reference_travel_deg": 0.4275502164079583,
+          "dispatched_travel_deg": 2.2033601688409874,
+          "measured_travel_deg": 1.3332529259864927,
+          "measured_velocity_deg_s": {
+            "mean": -0.2701373629557716,
+            "minimum": -16.370269553606402,
+            "maximum": 15.530757342341794,
+            "peak_abs": 16.370269553606402,
+            "rms": 5.068930956584318
+          },
+          "frequency": {
+            "hz": 1.7278980226541654,
+            "peak_to_peak_deg": 1.3332529259864927,
+            "status": "measured",
+            "correlation": 0.8734196992981568
+          },
+          "fundamental_fit_lag_ms_after_first_cycle": 112.25585129628261
+        }
+      },
+      "correction_axes": [
+        [
+          1,
+          6
+        ]
+      ],
+      "frozen_lead_time_s": [
+        0.0755211086444084,
+        0.5188748307490583,
+        0.3334941071871969,
+        0.1642920835483476,
+        0.12795567949403247,
+        0.17109729173658028
+      ]
+    }
+  },
+  "time_to_ready_s": 8.224565104999783,
+  "termination": {
+    "continuous_weld": true,
+    "events": [
+      {
+        "event": "weld_started",
+        "time_s": 9779.691066002,
+        "state": "welding",
+        "continuous": true,
+        "repeat_duration_s": 0.5780656840642938
+      },
+      {
+        "event": "pause",
+        "time_s": 9785.670257681,
+        "state": "paused",
+        "reason": null,
+        "cause": "operator_input",
+        "ready_preserved": false
+      },
+      {
+        "event": "pause",
+        "time_s": 9785.674123375,
+        "state": "paused",
+        "reason": null,
+        "cause": "operator_input",
+        "ready_preserved": false
+      },
+      {
+        "event": "pause",
+        "time_s": 9786.815573425,
+        "state": "paused",
+        "reason": null,
+        "cause": "disable",
+        "ready_preserved": false
+      },
+      {
+        "event": "pause",
+        "time_s": 9794.880752447,
+        "state": "paused",
+        "reason": null,
+        "cause": "close",
+        "ready_preserved": false
+      }
+    ],
+    "fault": null,
+    "disable_acknowledged": true,
+    "mode_restoration_verified": true
+  },
+  "interpretation": {
+    "accuracy_01": "Prioritize end-effector orientation, target 0.5 deg and maximum 1 deg relative to the same-time planned tool frame. Encoder reconstruction gives RMS 1.408 deg / peak 2.633 deg and fails the maximum. Joint errors are diagnostic only. Independent synchronized workpiece-relative tool-pose measurements and a tip-mm tolerance are still missing.",
+    "speed_01": "Prioritize A1/A6 amplitude and phase contributions to end-effector tracking. The operator accepted the 8.22 s preparation under the selected 10 s goal and retired the prior five-second goal.",
+    "command_error": "Same-tick dispatched-position differences include host lead/shaping; use nominal trajectory error for accuracy and the 3-degree tracking guard.",
+    "frequency": "MotionFrequency autocorrelation on feedback-age-adjusted samples; small-travel axes may not support a frequency estimate. effective_hz is the checked plan rate, not a measured result.",
+    "phase": "Fundamental sine/cosine least-squares fit at the checked frequency after the first cycle. Signed lag is approximate and periodic; it does not identify a causal motor delay.",
+    "analyzer_exit_2": "The analyzer reports every pause as an evidence issue. This run ended via explicit operator_input during continuous welding, with complete usable coverage and no fault. Do not add --single-pass to bypass this reporting limitation.",
+    "plan_01": "Resolved by operator confirmation on 2026-11-23.",
+    "base_04": "Resolved by operator confirmation on 2026-11-23."
+  },
+  "hardware_qualified": false,
+  "archive_manifest": "docs/measurements/weld/2026-11-23/manifest.json",
+  "end_effector_accuracy": {
+    "schema": "forge.weld_motion_accuracy",
+    "version": 1,
+    "journal": "/home/forge2/forge2_ws/docs/measurements/weld/2026-11-23/session.jsonl",
+    "simulated": false,
+    "run_number": 1,
+    "outcome": "pause",
+    "duration_s": 5.951299164000375,
+    "effective_hz": 1.729907219140131,
+    "chassis_feed_selected": false,
+    "nominal_chassis_feed_mm_s": 0.0,
+    "coverage": {
+      "samples": 202,
+      "first_s": 1.3767999917035922e-05,
+      "last_s": 5.951299164000375,
+      "max_gap_ms": 63.70324099952995,
+      "complete": true
+    },
+    "rejected_samples": 0,
+    "dropped_records": 0,
+    "session_closed": true,
+    "mapping_fingerprint": "e19226781bf4e1519414315cc4c3ead50e294eea48134199d96eb95aafab398f",
+    "scene_fingerprint": "b0f6e114fb5cdfb874217138133c76731ef3287895d1de8875cb8f5c8b22e63f",
+    "joints": {
+      "A1": {
+        "tracking_error_deg": {
+          "mean": 0.1560775654137072,
+          "minimum": -2.0483536745260835,
+          "maximum": 2.0982874415580284,
+          "peak_abs": 2.0982874415580284,
+          "rms": 1.137962106764185
+        },
+        "dispatch_error_deg": {
+          "mean": 0.05004287288035203,
+          "minimum": -4.748779677235973,
+          "maximum": 4.058557002114412,
+          "peak_abs": 4.748779677235973,
+          "rms": 2.138530847566445
+        },
+        "measured_travel_deg": 3.8905303927526234,
+        "reference_travel_deg": 2.2606500137042076,
+        "feedback_age_ms": {
+          "mean": 5.816831683168317,
+          "minimum": 2.0,
+          "maximum": 40.0,
+          "peak_abs": 40.0,
+          "rms": 8.092595319790863
+        }
+      },
+      "A2": {
+        "tracking_error_deg": {
+          "mean": -0.007020996510461763,
+          "minimum": -0.04347192622070395,
+          "maximum": 0.04005495254506286,
+          "peak_abs": 0.04347192622070395,
+          "rms": 0.029771247081262074
+        },
+        "dispatch_error_deg": {
+          "mean": -0.009583393310851104,
+          "minimum": -0.11994536123698651,
+          "maximum": 0.07562178362663019,
+          "peak_abs": 0.11994536123698651,
+          "rms": 0.03875004340338869
+        },
+        "measured_travel_deg": 0.021856605344041213,
+        "reference_travel_deg": 0.06167077337090632,
+        "feedback_age_ms": {
+          "mean": 3.6782178217821784,
+          "minimum": 2.0,
+          "maximum": 31.0,
+          "peak_abs": 31.0,
+          "rms": 5.297580243436013
+        }
+      },
+      "A3": {
+        "tracking_error_deg": {
+          "mean": 0.008281651129564553,
+          "minimum": -0.06475271712920971,
+          "maximum": 0.10701573212693916,
+          "peak_abs": 0.10701573212693916,
+          "rms": 0.06101945065534138
+        },
+        "dispatch_error_deg": {
+          "mean": 0.002924594403952812,
+          "minimum": -0.22522603328935986,
+          "maximum": 0.18457022810419232,
+          "peak_abs": 0.22522603328935986,
+          "rms": 0.07990664933793169
+        },
+        "measured_travel_deg": 0.04371321068808243,
+        "reference_travel_deg": 0.1305420374498425,
+        "feedback_age_ms": {
+          "mean": 2.4653465346534653,
+          "minimum": 1.0,
+          "maximum": 22.0,
+          "peak_abs": 22.0,
+          "rms": 3.1747768300767345
+        }
+      },
+      "A4": {
+        "tracking_error_deg": {
+          "mean": -0.013779950283029559,
+          "minimum": -0.12493235597398211,
+          "maximum": 0.19286294314704833,
+          "peak_abs": 0.19286294314704833,
+          "rms": 0.07622611850530725
+        },
+        "dispatch_error_deg": {
+          "mean": -0.01203737118121066,
+          "minimum": -0.1426532571153416,
+          "maximum": 0.18552533423653017,
+          "peak_abs": 0.18552533423653017,
+          "rms": 0.0828896858677852
+        },
+        "measured_travel_deg": 0.21862069495375636,
+        "reference_travel_deg": 0.09917486074394333,
+        "feedback_age_ms": {
+          "mean": 1.6386138613861385,
+          "minimum": 1.0,
+          "maximum": 9.0,
+          "peak_abs": 9.0,
+          "rms": 1.8495383421837788
+        }
+      },
+      "A5": {
+        "tracking_error_deg": {
+          "mean": -0.0160546631300394,
+          "minimum": -0.07787095706783731,
+          "maximum": 0.05616620926766913,
+          "peak_abs": 0.07787095706783731,
+          "rms": 0.040378047744632654
+        },
+        "dispatch_error_deg": {
+          "mean": -0.01318829831945608,
+          "minimum": -0.10048786762800432,
+          "maximum": 0.10917226302658634,
+          "peak_abs": 0.10917226302658634,
+          "rms": 0.04876316123082081
+        },
+        "measured_travel_deg": 0.06556981603212364,
+        "reference_travel_deg": 0.07128031710531246,
+        "feedback_age_ms": {
+          "mean": 0.5891089108910891,
+          "minimum": 0.0,
+          "maximum": 3.0,
+          "peak_abs": 3.0,
+          "rms": 0.9925464799451384
+        }
+      },
+      "A6": {
+        "tracking_error_deg": {
+          "mean": -0.050633309033040856,
+          "minimum": -0.7498689943679224,
+          "maximum": 0.5946042683154786,
+          "peak_abs": 0.7498689943679224,
+          "rms": 0.37855109680885635
+        },
+        "dispatch_error_deg": {
+          "mean": -0.036449678392227965,
+          "minimum": -1.594837250415928,
+          "maximum": 1.3549995871598028,
+          "peak_abs": 1.594837250415928,
+          "rms": 0.720163357485428
+        },
+        "measured_travel_deg": 1.3332529259864927,
+        "reference_travel_deg": 0.4275502164079583,
+        "feedback_age_ms": {
+          "mean": 0.6584158415841584,
+          "minimum": 0.0,
+          "maximum": 2.0,
+          "peak_abs": 2.0,
+          "rms": 1.1410434689440196
+        }
+      }
+    },
+    "encoder_tip_status": "encoder-reconstructed, fixed base",
+    "encoder_tip": {
+      "rejected": 0,
+      "samples": 202,
+      "along_mm": {
+        "mean": 0.057730446077980585,
+        "minimum": -0.1317364943608368,
+        "maximum": 0.334797489710013,
+        "peak_abs": 0.334797489710013,
+        "rms": 0.12051005097192523
+      },
+      "transverse_mm": {
+        "mean": -1.3713575102721685,
+        "minimum": -18.571558863347256,
+        "maximum": 18.00797765313697,
+        "peak_abs": 18.571558863347256,
+        "rms": 10.058380826509875
+      },
+      "height_mm": {
+        "mean": -0.05234248181304914,
+        "minimum": -0.19751775881673983,
+        "maximum": 0.1718011729511526,
+        "peak_abs": 0.19751775881673983,
+        "rms": 0.0884966295963385
+      },
+      "distance_mm": {
+        "mean": 8.685649121983388,
+        "minimum": 0.0584458915885789,
+        "maximum": 18.57477143089204,
+        "peak_abs": 18.57477143089204,
+        "rms": 10.05949199397945
+      }
+    },
+    "encoder_orientation": {
+      "samples": 202,
+      "rejected": 0,
+      "angle_deg": {
+        "mean": 1.2221168732150345,
+        "minimum": 0.03368024655460144,
+        "maximum": 2.6326721509316457,
+        "peak_abs": 2.6326721509316457,
+        "rms": 1.408194938443411
+      },
+      "definition": "smallest full 3D rotation: planned wire_tip frame to encoder-reconstructed frame",
+      "within_target_percent": 21.782178217821784,
+      "within_maximum_percent": 40.0990099009901
+    },
+    "independent_tip": null,
+    "tip_csv": null,
+    "issues": [
+      "Pass outcome: pause"
+    ],
+    "hardware_qualified": false,
+    "peak_joint_limit_deg": null,
+    "peak_tip_limit_mm": null,
+    "joint_limit_met": null,
+    "independent_tip_limit_met": null,
+    "orientation_target_deg": 0.5,
+    "max_orientation_deg": 1.0,
+    "orientation_target_met": false,
+    "orientation_maximum_met": false,
+    "passed": false
+  },
+  "operator_acceptance": {
+    "scope": "end-effector full 3D orientation relative to the same-time planned wire_tip frame during welding, without phase alignment",
+    "orientation_target_deg": 0.5,
+    "maximum_orientation_error_deg": 1.0,
+    "joint_errors": "diagnostic only; no per-axis 0.5-degree acceptance limit",
+    "basis": "Operator confirmed end-effector orientation in this conversation on 2026-11-23",
+    "preparation": "8.22 s accepted by operator; previous five-second goal retired",
+    "motor_protection_changed": false,
+    "independent_tip_tolerance_mm": null
+  }
+}

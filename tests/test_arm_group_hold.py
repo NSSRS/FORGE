@@ -32,11 +32,17 @@ class GroupHoldTests(unittest.TestCase):
             request.assert_not_called()
 
     def test_a4_cable_edge_holds_and_operator_can_reverse_without_wrapping(self):
-        from motors.arm_travel import a4_cable_bounds
-        upper = math.radians(a4_cable_bounds()[1])
+        self.check_cable_edge(4)
+
+    def test_a6_cable_edge_holds_and_operator_can_reverse_without_wrapping(self):
+        self.check_cable_edge(6)
+
+    def check_cable_edge(self, joint):
+        from motors.arm_travel import cable_bounds
+        upper = math.radians(cable_bounds(joint)[1])
         with patch.object(pos,'time',bench.time),self.port() as port:
-            self.lib.fake_position(3,upper-.1)
-            port.hold_all();port.select(4);port.arm();port.jog(1,math.radians(5))
+            self.lib.fake_position(joint-1,upper-.1)
+            port.hold_all();port.select(joint);port.arm();port.jog(1,math.radians(5))
             for _ in range(200):self.lib.fake_advance(20);port.poll()
             self.assertLess(port.target,upper)
             self.assertGreater(port.target,upper-.01)

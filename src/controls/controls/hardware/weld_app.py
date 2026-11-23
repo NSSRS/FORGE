@@ -24,8 +24,8 @@ from controls.controller.weld_plan import (
     audit,
 )
 from .weld_control import WeldController
-from .weld_recording import SessionJournal, cached_arm_evidence
-from .weld_dashboard import controller_presentation, state_summary
+from .weld_recording import SessionJournal, cached_arm_evidence, new_session_report
+from .weld_dashboard import controller_presentation, state_summary, feedback_live_expected
 
 
 def read_start_report(path, mapping):
@@ -227,6 +227,7 @@ def make_window(args, mapping, initial, settings, root):
                             schema="forge.weld_motion_journal",
                             version=1,
                             simulated=not args.execute,
+                            measured_hardware_start=bool(args.execute and args.arm),
                             continuous_weld=not getattr(args, "single_pass", False),
                             settings=asdict(settings),
                             tracker=tracker_document,
@@ -293,6 +294,7 @@ def make_window(args, mapping, initial, settings, root):
                     chassis,
                     pose_check=None if geometry is None else geometry.check,
                     endpoint_check=None if geometry is None else geometry.check_endpoint,
+                    recovery_check=(geometry.check_recovery if geometry is not None and args.execute else None),
                     allow_optimized_preparation=settings.optimize_preparation,
                     continuous_weld=not getattr(args, "single_pass", False),
                     tracking_settings=tracker_settings,
@@ -365,6 +367,7 @@ def make_window(args, mapping, initial, settings, root):
                                     settings=asdict(settings),
                                     arm_enabled=c.arm_on,
                                     chassis_enabled=c.chassis_on,
+                                    measured_hardware_start=bool(args.execute and c.arm_on),
                                 )
                                 if getattr(args, "scene_fingerprint", None):
                                     self.request["scene_fingerprint"] = (
@@ -901,11 +904,16 @@ def make_window(args, mapping, initial, settings, root):
                 value.get("telemetry"), captured_at=value["captured_at"],
                 stage=value["state"], run=value.get("run_id"),
                 stale=value["state"] in ("fault", "resetting"),
+                live_expected=feedback_live_expected(value),
             )
             self.next_telemetry_paint = time.monotonic() + .1
 
         def show_status(self, value):
             value = dict(value)
+            if value.get("feedback_age_ms") is not None and value["feedback_age_ms"] >= 0xffffffff:
+                # A retained numeric encoder field is not a measured pose when
+                # any joint lacks valid feedback. Keep raw evidence in the journal.
+                value["raw_deg"] = None
             value.setdefault("captured_at", time.monotonic())
             self.last_status = value
             self.last_state = value["state"]
@@ -1291,7 +1299,10 @@ def main(argv=None):
         type=Path,
         help="reuse a CMA-ES candidate; revalidate fingerprints and the complete route",
     )
-    parser.add_argument("--output", type=Path)
+    parser.add_argument(
+        "--output", type=Path,
+        help="optional new report path; default: build/weld/latest/session.json, with each run retained in build/weld/sessions/",
+    )
     args = parser.parse_args(argv)
     if args.max_speed_deg_s is None:
         args.max_speed_deg_s = 5.0
@@ -1326,10 +1337,10 @@ def main(argv=None):
             args.arm = args.chassis = True
     if args.start_report and args.audit:
         parser.error("--start-report requires simulation or --plan-only")
-    output = args.output or root / "build/weld" / f"weld-{time.time_ns()}.json"
+    output = args.output
     try:
-        if output.exists():
-            raise ValueError("Output already exists; choose a new report path")
+        if output is not None and output.exists():
+            raise ValueError("Output already exists; omit --output to save a new session automatically")
         mapping = CalibrationMap(json.loads(args.mapping.read_text()))
         pose = json.loads(args.initial_pose.read_text())
         if pose.get("mapping_fingerprint", mapping.fingerprint) != mapping.fingerprint:
@@ -1364,6 +1375,9 @@ def main(argv=None):
             lowering_min_s=args.lowering_seconds,
             preparation_planner=args.preparation_planner,
         )
+        if output is None:
+            output = new_session_report(root)
+            print(f"Latest session: {root / 'build/weld/latest'}", flush=True)
         if args.audit:
             result = audit(
                 dict(

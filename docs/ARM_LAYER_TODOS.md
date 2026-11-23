@@ -1,6 +1,6 @@
 # Arm cross-layer TODO registry
 
-Updated 2026-11-22, based on branch `nathan`. This registry contains **open work only**.
+Updated 2026-11-23, based on branch `nathan`. This registry contains **open work only**.
 Read [current status](ARM_SESSION_HANDOFF.md) and [the base contract](ARM_BASE_LAYER.md)
 first. Stable IDs link package responsibilities; update the owning entry when
 work changes, and retire completed tasks instead of appending session history.
@@ -14,10 +14,11 @@ in the guides; full hardware qualification below remains separate.
 
 ## Immediate priorities
 
-Resolve HOLD-01 (the untouched A5 holding fault) with CAL-01/SUPPORT-01 as
-prerequisites. Then record welding motion accuracy and qualify tracking under
-ACCURACY-01/SPEED-01. LOAD-01 and FEEDBACK-01 follow the first qualified arm
-welding run.
+Meet the operator's end-effector orientation criterion during welding
+(0.5 deg target, 1 deg maximum relative to the planned tool frame)
+and qualify improved tracking under ACCURACY-01/SPEED-01,
+with the applicable CAL-01/SUPPORT-01 checks. LOAD-01 and FEEDBACK-01 follow the
+first qualified arm welding run.
 
 ### SUPPORT-01 — base, gravity support and physical stopping
 
@@ -64,8 +65,10 @@ See the [capture procedure](ARM_POSE_TEST.md#current-procedure-initial-positions
   (model = -raw +101.514058 degrees). Confirm it away from straight and qualify
   the 2-degree cable backoff and fresh recovery path; capture alone does not
   qualify or install the mapping for motion.
-- [ ] Qualify the fixed A4 CW/CCW 270-degree cable envelope from its preserved
-  initial anchor, including reversal, power cycling and changed cable routing.
+- [ ] Qualify the fixed A4/A6 CW/CCW 270-degree cable envelopes from their
+  preserved initial anchors, including reversal, power cycling and changed cable
+  routing. A6's operator-confirmed limit is enforced in software; fake-CAN edge
+  tests do not establish physical stopping margins.
 - [ ] Complete encoder-branch coverage and compare normal CAN feedback with
   documented `p_m`/`xout` where supported; do not assume retained multi-turn state.
   The stationary six-axis cycle and one controlled off-power return per joint
@@ -94,23 +97,25 @@ Owner: `src/controls/`, `src/motors/arm_position.py`, `src/teleop/`, firmware/pr
   error, measured Hz/travel and physical smoothness against `--tracker paced`.
   Include unequal load, reversal, saturation, model-limited correction and final
   fixed holding. Synthetic first-order response and model clearance checks do not
-  identify the loaded plant or establish physical jitter improvement. The Nov 19
-  loaded run matches A1/A6 weave frequency but exceeds planned travel
-  (3.869/2.260 deg and 1.180/0.427 deg respectively). Qualify amplitude and phase
+  identify the loaded plant or establish physical jitter improvement. The Nov 23
+  loaded baseline measures A1/A6 at 1.734/1.728 Hz versus the checked 1.730 Hz,
+  but travel is 3.891/2.261 deg and 1.333/0.428 deg measured/planned respectively.
+  Investigate host lead and command shaping using the saved dispatched targets;
+  compare a bounded change at the same load, start and checked path. Qualify amplitude and phase
   without changing the operator-accepted tiny A2–A5 nominal motions; see the
-  [latest physical review](measurements/arm-gun-load-review-2026-11-19.json).
+  [latest physical review](measurements/arm-accuracy-speed-review-2026-11-23.json).
 - [ ] Qualify coordinated preparation after the timeout/reference-braking fixes
   and the explicit raised-approach option. A5 manual operation is reported normal;
   resolve unequal-axis tracking and gun/floor clearance under load without
   inferring a gain defect from the failed nominal path. Software replay does not
   qualify physical recovery.
-  Meet the current five-second physical preparation goal by reducing unnecessary travel
-  and qualifying tracking, not by widening trips or speeding up the renderer.
+  The operator accepted the Nov 23 8.22 s preparation; the former five-second
+  goal is retired. Preserve this accepted behavior while correcting welding
+  tracking. Its approach nominal peak errors were A2 1.838, A5 1.348 and A6 1.552 deg.
   See [current evidence](ARM_SESSION_HANDOFF.md#calibration-and-evidence).
 - [ ] **Broader manual-jog investigation deferred:** investigate moving-only A1/A4/A5/A6 jitter; A2/A3 are smooth
-  and earlier manual holding was reported steady. The Nov 19 untouched loaded
-  A5 hold fault is separately tracked under HOLD-01. The 5 deg/s MCU smoothing
-  trial did not fix it. Its saved report verifies the build and clean exit, but
+  and earlier manual holding was reported steady. The 5 deg/s MCU smoothing
+  trial did not fix travel jitter. Its saved report verifies the build and clean exit, but
   evicted all jittering-joint jog traces; it cannot clear command timing.
   Compare 5 versus 10 deg/s with short saved runs, raw command/feedback timing
   and independent motion observation. Distinguish angle-repeating cogging/torque
@@ -131,21 +136,6 @@ Owner: `src/controls/`, `src/motors/arm_position.py`, `src/teleop/`, firmware/pr
   including A6's earlier overspeed behavior, tracking error, peak speed,
   stopping distance, temperature and current/torque evidence. Qualify each
   increase before documenting it as an operating setting.
-
-### BASE-04 — qualify bus timing
-
-Owner: `src/damiao_firmware/`, `src/motors/arm_telemetry.py`, commissioning.
-Record firmware/topology/bitrate, motor settings, command/feedback rates, sample
-age distribution and maximum gaps under the intended five/six-motor workload.
-Use CAN capture as well as cached counters; correlate retransmissions, FIFO
-loss, bus-off and late ticks. Repeat the final split-bus layout. Investigate
-A1's delayed register replies. Acceptance: explained losses, measured deadlines
-and margin; a configured 500 Hz rate is not proof of achieved physical timing.
-The [dual-family ROS telemetry](MOTOR_TELEMETRY.md) now exposes cached snapshots
-and bus health. Measure real ROS command latency with these readers active;
-fake-owner callback timing does not qualify physical USB/CAN timing. ENCOS
-additionally needs independent CAN freshness verification because bridge PDO
-observation timestamps can reflect retained frames.
 
 ### BASE-05 — typed errors and active configuration readback
 
@@ -190,50 +180,6 @@ operation above rated 12/3.5 Nm remains unqualified. The separate profile needs
 expanded MC02 capability 0x800000 and retains both 80 C trips and all other
 fault/lease behavior. See [the rig procedure](ARM_RIG_TEST.md#expanded-gun-load-profile-a2a3-30-nm-a4-a6-10-nm).
 
-### HOLD-01 — post-preparation joint stiffness and fixed-pose acceptance
-
-Owner: `src/controls/controls/hardware/`, `src/motors/`, operator.
-Qualify fixed-target holding and stiffness across representative supported
-poses, with and without the installed gun. The host already latches settled
-targets and allowances, preserves them through idle/pause, and records cached
-errors. Physical acceptance must explain the untouched A5 failure separately
-from successful intervals; use the current handoff for dated evidence.
-
-- [ ] Diagnose the Nov 19 **untouched A5 fixed-hold motion**: unchanged target,
-  1.51648 rad/s speed trip, preceding approximately 6.2 Nm Ready load and
-  motor-temperature rise 26 -> 46 C. Compare mechanical/load state and drive
-  response with the later successful attempt at the same targets; do not infer
-  external disturbance or weaken the speed guard. Preserve the two attempts
-  separately in [the measurement review](measurements/arm-gun-load-review-2026-11-19.json).
-- [ ] With the installed load supported, verify that target, mode, enable state
-  and speed allowance remain unchanged across prep completion. Record six-axis
-  error, velocity, reported torque, feedback age and pause/fault events.
-  First compare the arm without its end effector against the same preparation
-  and 15-second Ready hold with the operator-estimated 1.96 kg end effector.
-  Match starts, checked routes and settings; retain timing, per-axis speed and
-  torque feedback separately for both conditions. See the
-  [matched-run procedure](ARM_RIG_TEST.md#matched-runs-with-and-without-the-end-effector).
-- [ ] Verify at least 15 seconds of stationary endpoint holding within the
-  existing 0.25-degree arrival tolerance, without visible drop, oscillation,
-  unexpected disable or a target reset to a sagged measurement. Record peak and
-  settled error for every axis; repeat across representative supported poses.
-- [ ] If fixed-target sag persists, stiffen the native mode-2 position/velocity
-  loops through measured per-axis tuning. First read and retain the existing
-  supported KP_APR/KI_APR/KP_ASR/KI_ASR and relevant limits while disabled. Record
-  hardware revision, original/new values, units, restoration and thermal/current
-  response. Do not guess a shared gain multiplier or weaken reactive trips.
-  The current host/firmware gain registers are read-only; any tuning interface
-  needs explicit validation and a rollback path before use.
-- [ ] Qualify fixed-endpoint pause/focus behavior, moving-trajectory pause,
-  explicit disable and faults under the supported load. Never treat active hold
-  as a mechanical brake. Keep SUPPORT-01 and shutdown failures open.
-- [ ] Only after stable holding, measure complete prep-to-ready time against
-  the current five-second goal. The latest successful loaded preparation took
-  12.53 s; qualify the actual start, selected route and measured response.
-  Keep calculation latency separate from physical movement time.
-
-Procedure: [post-preparation hold acceptance](ARM_RIG_TEST.md#post-preparation-hold-acceptance).
-
 ### ROS-02 — production lifecycle and coordinated holding
 
 Owner: ROS arm driver, base API and `src/bringup/launch/arm.launch.py`.
@@ -253,66 +199,28 @@ release-disable contract. Depends on BASE-06/SUPPORT-01. Acceptance requires
 ROS tests and physical evidence for the selected mode; no automatic homing or
 re-enable after a fault/reconnect.
 
-### PLAN-01 — paths, trajectories and input acceptance
-
-Owner: `src/controls/controls/controller/`, `src/simulation/`, `src/teleop/`.
-The weld planner implements speed/acceleration bounds, sampled combined-pose/path
-collision checks, D3 closure and common retiming. Qualify these against the
-physical assembly; explicit jerk policy and atomic target timing remain open. Invalidate plans on stale
-state or faults; do not replay old commands to hide host stalls. Depends on
-CAL-01, ROS-02 and BASE-06. The existing D3-closed single-joint clearance study
-is documented in [ARM_COLLISION_STUDY.md](ARM_COLLISION_STUDY.md); its sampled
-intervals are not independently combinable hardware limits.
-
-- [ ] Reduce the remaining joint-order recovery/staging planning delays and
-  extend random-start coverage. Qualify the work-area starting region that meets
-  the five-second preparation goal; broad starts still exceed it and one Nov 20
-  case exceeded the planning deadline. Preserve checked paths and explicit
-  failures. See the [planner benchmark](PLANNER_BENCHMARK.md).
-- [ ] Add a visible encoder-drift check between **Calculate and check path**
-  and **Start recovery**. Compare fresh feedback from all six joints with the
-  encoder pose used to calculate the accepted path, while waiting and again
-  immediately before starting recovery. If any joint exceeds the threshold,
-  show the joint and angle change, invalidate the plan and require recalculation.
-  Threshold to decide: **2 degrees**, with **5 degrees** as an alternative.
-  Integrate with existing start-pose validation; do not silently loosen its guards.
-- [ ] Qualify recovery from supported rest poses with the installed gun, cables
-  and chassis. The bounded direct/joint-order recovery, pre-enable geometry gate,
-  hold verification and waypoint settling are implemented; audit remaining
-  collision exclusions and establish tracking/stopping margins on the fixture.
-  The reviewed A3 upper-endpoint retreat is implemented with a 0.25 deg startup
-  allowance, separating-contact checks and 1 deg/s / 5 deg/s² caps; its supported
-  physical acceptance remains open. Other contact starts and unsuccessful route
-  searches remain blocked; no general-purpose contact escape is implemented.
-- [ ] Complete automatic startup from the operator's intended settled,
-  gravity-hanging pose on a secured base, without hand-positioning each joint.
-  Validate actual load pickup at the measured pose, clearance through the lift
-  to compact standby, and passive drop/swing clearance after torque loss. The
-  rate-limited fake-motor tests have no gravity or load model and do not complete
-  this acceptance. Depends on SUPPORT-01 and independent mount/tool alignment.
-
-Pocket physical acceptance still needs:
-
-- [ ] Measured right-stick neutral and all four diagonal stop/resume behaviors;
-  confirm the left vertical stick physically returns to neutral.
-- [ ] Live selection isolation, neutral-before-SE priming, release/center/change
-  stops, GUI STOP/close, disable and mode restoration with identity/log evidence.
-- [ ] Transmitter-off, receiver-power, USB-loss and reconnection tests. Fresh CSV
-  cannot identify hold-last RF failsafe; retain sample deadlines and fresh priming.
-
 ### ACCURACY-01 — measure motion accuracy during welding
 
 Owner: `src/controls/controls/hardware/`, operator.
 The [accuracy test procedure](ARM_RIG_TEST.md#weld-motion-accuracy-test) uses the
 weld panel's cached journal and `scripts/analyze_weld_accuracy.py` after the pass.
 
-- [ ] On the supported fixture, record a bounded arm-only pass and compare each
-  shaft's measured angle against the planned and dispatched targets. Save the
-  error report, gaps, run settings and effective frequency. Repeat with chassis
-  feed only after its wheel mapping is confirmed.
-- [ ] Measure synchronized 3D wire-tip positions in a fixed workpiece frame.
+- [ ] Meet **0.5 deg target / 1 deg maximum end-effector orientation error**
+  relative to the planned tool frame during welding, as confirmed by the operator
+  on Nov 23. The [baseline](measurements/arm-accuracy-speed-review-2026-11-23.json)
+  has encoder-reconstructed full-orientation RMS 1.408 deg / peak 2.633 deg.
+  Individual joint errors are diagnostic, not per-axis pass/fail criteria.
+  Use same-time nominal-reference errors; same-tick dispatched errors include
+  host lead/shaping. Compare corrected A1/A6 amplitude and phase under SPEED-01
+  against this baseline with matching load/settings and adequate repeat coverage.
+  End continuous welding with manual Pause / Hold. Repeat with chassis feed only
+  after its wheel mapping is confirmed.
+  [Full archived logs and offline commands](measurements/weld/2026-11-23/README.md)
+  are available without motors. Retain the runtime tracking/arrival guards.
+- [ ] Independently measure synchronized tool orientation and 3D wire-tip
+  positions in a fixed workpiece frame.
   Record the tool mounting, wire extension, seam axes and timing reference. Set
-  test tolerances for the intended process and compare against the actual checked
+  the separate position tolerance in mm and compare against the actual checked
   weave and feed, including its retiming. Encoder reconstruction supplies a
   fixed-base estimate. Independent tip data measures the effect of slip, flex
   and tool alignment on workpiece-relative accuracy.

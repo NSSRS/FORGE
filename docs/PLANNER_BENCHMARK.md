@@ -1,5 +1,10 @@
 # Arm planner benchmark
 
+The five-second target below is the historical Nov 20 benchmark goal. On Nov 23
+the operator accepted 8.22 s physical preparation under the 10 s trial goal;
+five seconds is no longer an active requirement. See the
+[current offline handoff](measurements/weld/2026-11-23/README.md).
+
 The benchmark uses the actual MuJoCo arm geometry and candidate calibration,
 without opening a serial port. Planning latency and preparation motion duration
 are separate measurements. A successful path can still miss the requested

@@ -60,6 +60,12 @@ retreat -> recovery waypoints -> approach/lowering -> Ready -> explicit weld
 until pause (or complete in single-pass mode). The exceptional retreat has its
 own inward-only guard and strict return to normal limits; see the shared
 `controller/endpoint_recovery.py` policy.
+For hardware, `controller/measured_start.py` accepts the observed start outside
+saved pose windows or authored simulator joint ranges. Planning, live recovery
+checks and the native owner share its bounded temporary extent. Start contact
+is a warning; subsequent path samples must pass clearance. A4/A5/A6 cable bounds
+remain fixed. Both actual and commanded endpoints must pass normal checks before
+the owner removes the allowance and enters approach. Simulation stays strict.
 `finish_trajectory()` is called
 only after the controller's measured arrival/settling check. It latches the
 already-dispatched endpoint and speed allowance, clears trajectory intent, and
@@ -89,8 +95,9 @@ captures one measured hold. `--single-pass` opts into finite completion; direct
 welding. `--cycles` controls the checked block and preview, not the continuous
 run length. Session records include the selected run policy.
 
-This fixed-reference hold is not a stiffness-gain setting. Physical sag and drive
-stiffness are tracked under HOLD-01. Ready/complete observations use cached feedback
+This fixed-reference hold is not a stiffness-gain setting. HOLD-01 was
+[resolved by operator confirmation on Nov 23](../../../../docs/ARM_SESSION_HANDOFF.md#hold-01-resolution).
+Ready/complete observations use cached feedback
 and record per-axis error; they issue no extra commands or register reads.
 
 ## Running and verification
@@ -106,12 +113,17 @@ not a deadline. The current loaded trial explicitly uses 30 deg/s, a 10 s goal,
 a 30 mm raised approach and 2.3 s final-lowering minimum; defaults remain unchanged.
 Generated plans/logs stay ignored. Explicitly preserved session reports are
 indexed in [the evidence archive](../../../../docs/measurements/weld/2026-11-17/README.md).
+Normal launches need no `--output`: `build/weld/latest/session.jsonl` exposes the
+live journal and `build/weld/latest/session.json` the final report after close.
+Each run writes to its own directory under `build/weld/sessions/`; the latest
+link changes atomically without redirecting an earlier writer or deleting evidence.
+An explicit `--output` remains available for custom unused report paths.
 
 See [WELD_MOTION.md](../../../../docs/WELD_MOTION.md) for limits/search/timing,
 [ARM_RIG_TEST.md](../../../../docs/ARM_RIG_TEST.md) for operator procedures,
 [the handoff](../../../../docs/ARM_SESSION_HANDOFF.md) for current evidence, and
 [tests/README.md](../../../../tests/README.md) for native fake-CAN, model and Qt
-verification. The Nov 19 final close verified disable/mode restoration; general
-loaded holding/stopping qualification remains open. The
+verification. The Nov 23 final close verified disable/mode restoration;
+fault/power-loss stopping remains separate work under SUPPORT-01. The
 [weld accuracy test](../../../../docs/ARM_RIG_TEST.md#weld-motion-accuracy-test)
 uses cached trajectory records from this owner.

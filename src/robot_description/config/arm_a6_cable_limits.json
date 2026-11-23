@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "joint": 6,
+  "reference_raw_deg": 64.16104853467226,
+  "cw_from_reference_deg": 270.0,
+  "ccw_from_reference_deg": 270.0,
+  "basis": "Operator confirmed A6 travel of +/-270 degrees on 2026-11-23, from the preserved initial reference.",
+  "reference_source": "docs/measurements/arm-reference-2026-11-12.capture.json",
+  "automatic_wrap": false,
+  "reset_reference_on_start": false,
+  "production_qualified": false
+}

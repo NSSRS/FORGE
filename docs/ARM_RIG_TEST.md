@@ -187,8 +187,10 @@ faults, change motor zero or qualify encoder retention across power cycles.
 Both profiles default to 5 deg/s preparation. The panel names the active waypoint
 or weld-start/end goal, reports reference tracking separately, and continues
 reporting fixed-target hold error after arrival. The 3 deg tracking trip and
-0.25 deg stationary arrival threshold remain. Five seconds is a total preparation
-goal, not a timeout or playback speed. Add `--optimize-preparation` to explicitly
+0.25 deg stationary arrival threshold remain. `--prep-seconds` is a total
+preparation goal, not a timeout or playback speed. The operator accepted the
+Nov 23 8.22 s run under its 10 s goal; the earlier five-second goal is retired.
+Add `--optimize-preparation` to explicitly
 enable checked staging on hardware. It can replace the saved standby with a
 shorter intermediate pose, while retaining the full weld target and all path/
 motion checks. Diagnostics show **Route: optimized staging**.
@@ -208,7 +210,7 @@ final wire gap, change mapping, or remove the gun/floor check. Optimization must
 preserve the requested lift; if it cannot find that route, planning fails rather
 than silently choosing the direct joint blend. The panel identifies the lift.
 Preparation time depends on the starting pose and checked route; it can exceed
-the five-second goal, and measured settling can extend it further. This is an alternative for supported operator testing,
+the selected goal, and measured settling can extend it further. This is an alternative for supported operator testing,
 not physical qualification or a guarantee for arbitrary joint lag.
 
 The subsequent Nov 17 disabled/readback check passed and the operator reports
@@ -229,9 +231,26 @@ fault remains visible after an explicit reset. The manual arm panel shares the
 telemetry tab. The status banner names operator, focus and heartbeat pauses;
 calculation time and measured preparation time are separate.
 
-The terminal/panel show a live `.jsonl` journal path. It can be read while the
-owner remains active and records cached data only. A bounded writer reports
-lost records or disk errors. The final JSON also records shutdown results.
+No report argument is needed for normal launches. The latest launch is always
+available at `build/weld/latest/`: `session.jsonl` is the live journal and
+`session.json` is written after close with shutdown results. Each launch gets
+its own retained directory under `build/weld/sessions/`; restarting also preserves
+an interrupted run's journal. The fixed `latest` link changes at launch, while
+each writer keeps its original archive path. The terminal/panel show that archive
+path for unambiguous analysis. An optional `--output` still selects a custom,
+unused report path.
+
+The journal can be read while the owner remains active and records cached data
+only. A bounded writer reports lost records or disk errors.
+
+An **Unavailable** axis has no valid cached feedback. If any axis lacks valid
+feedback, the current-pose view is unavailable too; retained encoder numbers
+must not be interpreted as a measured six-axis pose. A startup disable-acknowledgement
+fault blocks planning and motion. Reset still requires every retained motor's
+disabled, stationary acknowledgement and cannot repair a missing reply by itself.
+**Cached** marks historical idle/fault samples. Output selection alone does not
+start live polling, so waiting for recovery need not show a stale-feedback fault.
+The original 80 ms freshness guard remains active during holding and motion.
 
 Select **Arm output**, then **1 Calculate path**. The embedded
 **Current pose** view displays cached encoder feedback in the model, with sample
@@ -242,11 +261,26 @@ and orange, and marks their nearest surface points in white. It changes only
 the rendered view; the full robot remains in every clearance check.
 Selection/calculation refresh disabled feedback through the same owner when no
 hold exists. Display updates never send CAN requests or renew a command lease.
-The Current pose view can display measured angles outside the saved raw interval,
-with the exact limit excess and any model-clearance warning. It does not wrap or
-clamp the readings, change calibration or authorize movement. An impossible D3 closure still
-withholds the pose image. Blocked actions are saved in the journal, including
+In hardware mode, Current pose accepts measured angles outside the saved pose
+interval and simulator joint ranges, retaining self/environment collision warnings.
+Calculate uses that measured start without changing the saved calibration.
+Recovery can include the extra angle extent needed to return into the normal
+range, but cannot command farther outward. A4/A5/A6 cable envelopes, protocol bounds,
+freshness and start-drift checks remain. All subsequent sampled path poses must
+pass collision checks, and the temporary extent ends before approach/welding.
+A reported starting contact does not permit moving through that contact; an
+unavailable collision-free route remains blocked. Simulation keeps its pose limits.
+There is no new launch flag. Readings are never wrapped or clamped. An impossible
+D3 closure still withholds the pose image. Blocked actions are saved in the journal, including
 the planning-start readings when available, even when no motor was enabled.
+
+A6 remains limited to **+/-270 degrees from its saved initial reference**, raw
+**+64.161048535 degrees**. Its fixed raw interval is
+**[-205.838951465, +334.161048535] degrees**. This applies to manual jogging,
+recovery and welding; restarting never moves the reference. No new launch flag
+or firmware flash is needed. A shorter-looking full-turn alternative is rejected
+if it crosses this interval; for example, the Nov 23 start at -169.927 degrees
+cannot use the -296-degree equivalent of the +64-degree standby.
 
 The reviewed A3 upper endpoint has a **0.25 degree startup measurement allowance**:
 raw readings up to **151.64 degrees** can qualify for a separate inward-only
@@ -254,8 +288,9 @@ retreat to **149.39 degrees**. The same retreat can handle the nearby modeled
 A3 stop contact inside the saved interval. Calculation checks the original
 triangle meshes, rejects ambiguous/deepening contact or overlap deeper than
 0.15 mm, and checks the full retreat before ordinary staging. Other collisions,
-D3 closure, authored model limits, all other raw bounds, A4 cable travel and A1
-encoder branches remain strict. This is a provisional model policy, not a new
+D3 closure, normal target bounds, cable travel and explicit A1 encoder-branch
+selection remain checked. The hardware measured-start policy above is separate
+from this contact-retreat exception. This is a provisional model policy, not a new
 physical travel limit or confirmed encoder-drift diagnosis.
 
 When applicable, the accepted plan and animation explicitly show **A3 inward
@@ -297,13 +332,19 @@ require a fresh calculation and explicit restart. These keys also work when a
 preview control has focus. Queued starts and an enable in progress are cancelled
 even if focus immediately returns. Closing/disable/fault removes arm torque.
 
-Welding now repeats continuously until **Pause / Hold (Space)**, including when
+The required normal operation is continuous welding until the operator clicks
+**Pause / Hold (Space)**, including when
 the launch command contains `--cycles 1`. The cycle count describes the checked
 plan and preview block; the panel repeats its closed path without a dwell or
 motor disable between blocks. Selected chassis feed continues across the boundary.
 Pause stops feed and captures a fixed arm hold. Existing focus, heartbeat and
-fault stops remain active. For an explicitly bounded run, add `--single-pass` to
-execute the planned cycle count once and then hold.
+fault stops remain active. Do not include `--single-pass` in normal launch
+commands: it executes the planned cycle count once and then holds. Use that
+option only when the operator explicitly requests a finite run. Expand the
+panel's diagnostics and confirm **continuous until Pause / Hold**; a
+**one planned pass** label means the
+process was launched in finite mode. Increasing `--cycles` does not correct a
+finite launch; remove `--single-pass` from the next launch command.
 
 After addressing a fault, use **Reset motor fault (R)** in this same panel. It is
 available only for a connected, faulted arm, including a retained startup latch.
@@ -333,31 +374,43 @@ offline simulation starts at the configured mapping's simulation pose.
 
 ## Weld motion accuracy test
 
-For the first ACCURACY-01 run, use the supported fixture and validated
+The Nov 23 operator session provides a joint-diagnostic and encoder-reconstructed
+tool-pose baseline; see the [review](ARM_SESSION_HANDOFF.md#accuracy-01-and-speed-01-review)
+and [complete offline archive](measurements/weld/2026-11-23/README.md).
+The confirmed acceptance priority is end-effector orientation relative to the
+planned tool frame: **0.5 deg target / 1 deg maximum**. Joint errors are diagnostic,
+not per-axis pass/fail criteria. Independent synchronized tool-pose measurements
+and a separate tip-position tolerance in mm remain missing.
+For a repeat or a matched tracking comparison, use the supported fixture and validated
 arm profile, mapping and matching standby from the
-[weld panel procedure](#weld-panel-with-embedded-model-preview). Run a
-motion-only pass. Use the same reviewed hardware launch command with
-`--single-pass --cycles 4` and a unique `--output` path such as
-`build/arm_tests/accuracy/session.json`. Start with **Arm output** selected.
+[weld panel procedure](#weld-panel-with-embedded-model-preview). Perform a
+motion-only test. Use the same reviewed hardware launch command with
+`--cycles 4`, without `--single-pass`. Reports are saved automatically under
+`build/weld/latest/`. Start with **Arm output** selected.
 For a later combined run, verify the four-wheel mapping before selecting
 **Chassis feed** and use the normal explicit chassis launch flags.
 
 Calculate and inspect the checked path. Start recovery, wait for Ready, and
-start welding motion. Wait for **Pass complete**, then close the panel with the
-fixture supporting the arm. The panel writes `session.jsonl` and the final
-`session.json`. Analyze the journal from the same model checkout:
+start welding motion. After the desired observation interval, click
+**Pause / Hold**; the cycle count does not end the run automatically. Then close
+the panel with the fixture supporting the arm. The panel writes `session.jsonl`
+and the final `session.json`. Analyze the journal from the same model checkout:
 
 ```bash
 .venv/bin/python scripts/analyze_weld_accuracy.py \
-  build/arm_tests/accuracy/session.jsonl \
+  build/weld/latest/session.jsonl \
+  --orientation-target-deg 0.5 --max-orientation-deg 1.0 \
   --output build/arm_tests/accuracy/accuracy.json
 ```
 
 Use a fresh session for a repeat or select an existing pass with
 `--run-number N`. The report covers the moving weld interval and lists RMS and
 peak tracking error on A1–A6, measured and planned joint travel, feedback ages,
-and the same-tick difference from dispatched targets. It also reconstructs the
-tool tip with the checked model and fixed base. That estimate depends on the
+and the same-tick difference from dispatched targets. It reconstructs the
+tool position and full 3D orientation with the checked model and fixed base.
+Orientation error is the smallest rotation between measured and same-time planned
+tool frames, including roll, without phase alignment. Target/maximum coverage
+are reported separately; the maximum is used for acceptance. These estimates depend on the
 saved mapping, rigid geometry and correct tool mounting.
 
 For workpiece-relative accuracy, capture independent synchronized tip positions
@@ -372,28 +425,35 @@ feed in +X when Chassis feed was selected.
 
 ```bash
 .venv/bin/python scripts/analyze_weld_accuracy.py \
-  build/arm_tests/accuracy/session.jsonl \
+  build/weld/latest/session.jsonl \
+  --orientation-target-deg 0.5 --max-orientation-deg 1.0 \
   --tip-csv build/arm_tests/accuracy/tip.csv \
   --output build/arm_tests/accuracy/accuracy-with-tip.json
 ```
 
-When process tolerances are defined, add `--peak-joint-deg` for the maximum
-allowed peak nominal error across the six axes and `--peak-tip-mm` for the
-maximum allowed 3D error from independent tip measurements. Supply numeric
-limits in the stated units. Without thresholds the report lists measurements.
+Use `--orientation-target-deg 0.5 --max-orientation-deg 1.0` for the confirmed
+tool-orientation criterion. `--peak-joint-deg` remains an optional diagnostic
+threshold; the operator has not specified a per-axis joint limit. When the
+separate position tolerance is defined, `--peak-tip-mm` checks the maximum 3D
+error from independent tip measurements. Supply numeric limits in the stated
+units. Without thresholds the report lists measurements.
 The command returns status 2 for incomplete evidence or a missed threshold and
 preserves the report when an output path is supplied. The moving interval
 requires usable coverage with gaps no larger than 100 ms. Interrupted, faulted,
 stale or dropped data remain visible in the report.
+The current analyzer also returns 2 for an intentional continuous-run pause.
+Inspect the recorded pause cause and coverage: `operator_input` is the expected
+manual stop, not a motor fault. Do not switch to `--single-pass` to suppress this
+reporting limitation. Without numeric thresholds, `passed` remains null.
 
 ## Post-preparation hold acceptance
 
-Current acceptance remains open after the Nov 19 loaded trials. The first
-attempt had untouched A5 motion during a fixed hold; the second held at Ready
-for 8.69 s and welded for 45.71 s with verified final cleanup. Diagnose the first
-failure separately; see the [physical review](measurements/arm-gun-load-review-2026-11-19.json).
-**HOLD-01** in [the registry](ARM_LAYER_TODOS.md#hold-01--post-preparation-joint-stiffness-and-fixed-pose-acceptance)
-owns stiffness tuning and acceptance. Software tests do not establish the cause.
+**HOLD-01 was resolved by operator confirmation on Nov 23.** The latest 1.96 kg
+EE session recorded 25.19 s of fixed-target Ready holding, A5 maximum error
+0.053 deg, no faults and verified final cleanup. See the
+[closure and historical evidence](ARM_SESSION_HANDOFF.md#hold-01-resolution).
+The following remains a reusable procedure for future hold checks; it is not
+a requirement to repeat the completed issue's acceptance.
 
 1. Use the installed supported fixture, matching reviewed mapping/standby and a
    single motor owner. Retain the original gain/limit readbacks while disabled;
@@ -415,13 +475,14 @@ owns stiffness tuning and acceptance. Software tests do not establish the cause.
    target to a drifted measurement. After the weld, verify the same fixed hold.
    Explicit disable, close and faults remove torque. Qualify these behaviors with
    support carrying any loss of torque; hold is not a mechanical lock.
-5. If drive-loop tuning is required, follow HOLD-01's per-axis readback, bounded
-   adjustment, restoration and thermal/current acceptance. Host speed allowance
-   is not a stiffness gain. No gain preset or gain-write interface is installed
+5. If future drive-loop tuning is required, retain per-axis disabled readbacks
+   and validate bounded adjustments, restoration and thermal/current behavior.
+   Host speed allowance is not a stiffness gain. No gain preset or gain-write interface is installed
    by the current implementation. Stop and diagnose unexpected drop/oscillation before a weld.
 
 After stable holding, separately measure total prep timing. The default hardware
-standby is unchanged and may exceed five seconds. Explicit `--optimize-preparation`
+standby is unchanged. The operator accepted the Nov 23 8.22 s preparation.
+Explicit `--optimize-preparation`
 allows the checked shorter staging route on hardware; review its preview and
 reported duration before recovery. Loaded response and actual timing remain
 physical acceptance work.
@@ -438,9 +499,9 @@ replay and 11.12 s with synthetic lag. A2 approaches the unchanged 3-degree
 tracking trip in the lagging replay; this is not physical speed qualification.
 Match any explicitly selected speed setting across both payload runs.
 
-For HOLD-01, first record the assembled arm with the end effector absent, then
-repeat with the approximately **1.96 kg** end effector installed (operator mass
-estimate, not a measured COM/inertia). The arm itself remains loaded in both
+For LOAD-01 payload characterization, first record the assembled arm with the
+end effector absent, then repeat with the **1.96 kg** end effector installed
+(operator-reported mass, not a measured COM/inertia). The arm itself remains loaded in both
 conditions. Keep the full gun collision envelope in the model for both runs.
 
 Use the same reviewed mapping/standby, verified encoder branch, controller,
@@ -588,8 +649,7 @@ The following remains the deployment procedure for a board/rig needing setup:
      --a1-encoder-turns 0 --tracker pid \
      --max-speed-deg-s 30 --prep-seconds 10 \
      --optimize-preparation --approach-lift-mm 30 \
-     --lowering-seconds 2.3 --cycles 1 \
-     --output "build/arm_tests/hold-01-20261119/with-ee/session-load-30-10-$(date +%Y%m%d-%H%M%S).json"
+     --lowering-seconds 2.3 --cycles 1
    ```
 
    This preserves the 30 deg/s preparation cap, 10-second goal and 2.3-second
@@ -597,6 +657,10 @@ The following remains the deployment procedure for a board/rig needing setup:
    review the preview against the physical pose, then explicitly start recovery.
    At Ready, record a 15-second untouched hold before separately starting welding.
    `--cycles 1` sets the checked preview block; welding repeats until paused.
+   Keep `--single-pass` out of this command. Confirm that the panel says
+   **continuous until Pause / Hold** before starting welding.
+   Reports are saved automatically at `build/weld/latest/`, with earlier runs
+   retained under `build/weld/sessions/`.
 
 5. The existing owner's cached journal records signed torque, MOS temperature
    and motor temperature on all six axes during preparation, holding and welding.

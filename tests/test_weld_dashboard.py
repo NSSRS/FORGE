@@ -75,6 +75,47 @@ class DashboardTests(unittest.TestCase):
         self.assertIn("6.00", card["peaks"].text())
         panel.close()
 
+    def test_missing_feedback_sentinel_is_unavailable_not_billions_of_milliseconds(self):
+        app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+        panel = TelemetryPanel()
+        try:
+            for age in (0xffffffff, 0xffffffff + 14514):
+                with self.subTest(age=age):
+                    readings = panel.update_samples([sample(age_ms=age)], stage="fault")
+                    self.assertIsNone(readings[0]["age_ms"])
+                    self.assertFalse(readings[0]["fresh"])
+                    self.assertIn("Unavailable", panel.cards[0]["title"].text())
+                    self.assertEqual(panel.cards[0]["torque"].text(), "— Nm")
+                    self.assertEqual(panel.history.run_peaks[0], {})
+        finally:
+            panel.close()
+
+    def test_idle_and_fault_snapshots_are_cached_but_active_expired_feedback_is_stale(self):
+        app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+        panel = TelemetryPanel()
+        try:
+            for live, fault, label in ((False, False, "Cached"), (True, True, "Cached"),
+                                       (True, False, "STALE")):
+                with self.subTest(live=live, fault=fault):
+                    rows = panel.update_samples([sample(age_ms=500)], live_expected=live, stale=fault)
+                    self.assertIn(label, panel.cards[0]["title"].text())
+                    self.assertFalse(rows[0]["fresh"])
+                    self.assertEqual(panel.cards[0]["torque"].text(), "— Nm")
+                    self.assertEqual(panel.history.run_peaks[0], {})
+        finally:
+            panel.close()
+
+    def test_selected_output_waiting_for_recovery_is_not_an_active_feedback_fault(self):
+        for state in ("idle", "planned"):
+            value = dict(state=state, arm_on=True, holding=False, feedback_age_ms=30000)
+            title, action, severity = state_summary(value)
+            self.assertNotIn("Feedback stale", title)
+            self.assertEqual(severity, "normal")
+            # A retained hold must still be monitored while planning a new path.
+            title, action, severity = state_summary(dict(value, holding=True))
+            self.assertIn("Feedback stale", title)
+            self.assertEqual(severity, "warning")
+
     def test_preparation_clock_freezes_at_first_pause_or_ready_and_new_run_resets(self):
         c = SimpleNamespace(events=[dict(event="recovery_requested", time_s=5, state="verifying_hold")],
                             state="approach", ACTIVE=("approach",), paths={}, trace=deque(),

@@ -138,8 +138,8 @@ checks both diagnostic namespaces, stale-state suppression and command callback
 latency. `test_ros_chassis.py` covers full and explicitly omitted-wheel profiles.
 See [test commands](../tests/README.md#motor-telemetry-for-both-families).
 
-The 25/50 Hz rates and 2 Hz diagnostics are software defaults, not measured
-physical acceptance. Real command latency, CAN/bridge freshness, bus load,
-fault response and loaded stopping remain commissioning work under BASE-04,
-BASE-07, PROTECT-01 and SUPPORT-01. Production ROS lifecycle and coordinated
-holding remain ROS-02.
+The 25/50 Hz rates and 2 Hz diagnostics are software defaults. BASE-04 was
+[resolved by operator confirmation on Nov 23](ARM_SESSION_HANDOFF.md#plan-01-and-base-04-resolution).
+ENCOS-specific freshness remains in COMMS-01; fault response, protection and
+loaded stopping remain under BASE-07, PROTECT-01 and SUPPORT-01. Production
+ROS lifecycle and coordinated holding remain ROS-02.

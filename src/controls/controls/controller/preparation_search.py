@@ -121,7 +121,7 @@ def apply_lowering_minimum(plan, settings):
     )
 
 
-def optimize_preparation(plan, geometry, settings):
+def optimize_preparation(plan, geometry, settings, *, recovery_geometry=None):
     """Compare current pose and three staging poses to the requested standby.
 
     A staging pose is a raw-coordinate interpolation toward the same weld start,
@@ -131,6 +131,7 @@ def optimize_preparation(plan, geometry, settings):
     """
     from .weld_plan import approach_path, raised_approach_path, APPROACH_LOWERING_SECONDS
 
+    recovery_geometry = geometry if recovery_geometry is None else recovery_geometry
     best = deepcopy(plan)
     start = np.asarray(plan["current_raw_deg"])
     end = np.asarray(plan["weld"]["raw_deg"][0])
@@ -173,10 +174,12 @@ def optimize_preparation(plan, geometry, settings):
                 candidates.append(row)
                 continue
         try:
-            home, recovery = recovery_path(geometry, start, staging, settings)
+            if recovery_geometry is not geometry:
+                geometry.check(staging)
+            home, recovery = recovery_path(recovery_geometry, start, staging, settings)
             approach, route = approach_path(geometry, staging, end, settings)
             dynamics = dynamics_constraints(
-                geometry,
+                recovery_geometry,
                 np.vstack(
                     [
                         p.positions[np.linspace(0, len(p.positions) - 1, 5, dtype=int)]

@@ -1,10 +1,32 @@
 """Append cached session evidence off the motor-owner thread."""
 
 from copy import deepcopy
+from datetime import datetime, timezone
 import json
 from pathlib import Path
 import queue
+import tempfile
 import threading
+
+
+def new_session_report(root):
+    """Keep each run's evidence and atomically point a fixed folder at the latest.
+
+    Writers use the returned archive path, never the moving latest link, so a
+    later launch cannot redirect an existing session's journal or final report.
+    """
+    directory = Path(root) / "build" / "weld"
+    sessions = directory / "sessions"
+    sessions.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ-")
+    session = Path(tempfile.mkdtemp(prefix=stamp, dir=sessions))
+    link = directory / f".latest-{session.name}"
+    try:
+        link.symlink_to(Path("sessions") / session.name, target_is_directory=True)
+        link.replace(directory / "latest")
+    finally:
+        link.unlink(missing_ok=True)
+    return session / "session.json"
 
 
 class SessionJournal:
@@ -75,4 +97,5 @@ def cached_arm_evidence(arm):
         error=report.get("error"),
         fault_snapshot=report.get("fault_snapshot"),
         failure_states=report.get("failure_states"),
+        bus_diagnostics_after_stop=report.get("bus_diagnostics_after_stop"),
     )

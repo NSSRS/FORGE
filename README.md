@@ -2,23 +2,32 @@
 
 Motor control, IMU acquisition, teleoperation, and visualization for the magnetic wall-climbing welding robot.
 
-**Next motor tests:** supported holding and [weld motion accuracy](docs/ARM_RIG_TEST.md#weld-motion-accuracy-test).
-The current preparation goal is within five seconds. See the
-[planner benchmark](docs/PLANNER_BENCHMARK.md) for reproducible measurements.
+**Next motor tests:** [weld motion accuracy](docs/ARM_RIG_TEST.md#weld-motion-accuracy-test) and coordinated tracking.
+The [Nov 23 review](docs/ARM_SESSION_HANDOFF.md#accuracy-01-and-speed-01-review)
+provides the first joint-accuracy baseline: prioritize A1/A6 amplitude and phase.
+PLAN-01 and BASE-04 are resolved by operator confirmation.
+The operator accepted **8.22 s preparation** and prioritizes **end-effector
+orientation: 0.5 deg target, 1 deg maximum** relative to the planned tool frame.
+The recorded model estimate peaks at **2.633 deg**; joint errors are diagnostic.
+The earlier five-second goal is retired.
+The [offline handoff](docs/measurements/weld/2026-11-23/README.md) includes full
+logs, calibration, the accepted plan, current failures and commands without motors.
 
-**Current status (2026-11-19):** the operator-deployed gun-load profile uses
+**Current status (2026-11-23):** the operator-deployed gun-load profile uses
 A2/A3 30 Nm and A4-A6 10 Nm reactive torque trips, with matching persisted
 feedback ranges. Standard profiles and drive gains are unchanged. A3 has a
 bounded startup retreat; preparation has independent leg timing and an optional
 final-lowering minimum. Torque and both temperatures are recorded from cached
 feedback. See [current implementation and commands](docs/ARM_SESSION_HANDOFF.md).
 
-The latest loaded session's second attempt reached Ready in **12.53 s**, held
-for **8.69 s**, welded for **45.71 s**, and verified final disable/mode restoration.
-Its first attempt had an **untouched A5 speed fault during fixed holding**, still
-unexplained. A1/A6 match the planned ~1.73 Hz but exceed planned travel. Loaded
-holding, a matched no-EE/1.96 kg EE comparison, thermal acceptance and the current 5 s
-preparation goal remain open. Trial trips are not continuous-load ratings.
+**HOLD-01 is resolved by operator confirmation on Nov 23.** The latest session
+with the operator-confirmed **1.96 kg EE** reached Ready in **8.22 s**, held fixed
+targets for **25.19 s**, and verified final disable/mode restoration with no
+recorded fault. A5's maximum hold error was **0.053 deg**. See the
+[closure and historical evidence](docs/ARM_SESSION_HANDOFF.md#hold-01-resolution).
+A1/A6 travel accuracy, matched payload characterization and thermal acceptance
+remain separate work. Trial trips are not
+continuous-load ratings.
 
 **Weld dashboard:** signed torque, motor/MOS temperatures,
 cached-data age, trends and peaks are visible beside the model. State, next
@@ -42,7 +51,8 @@ The [assembled-arm handoff](docs/ASSEMBLED_ARM_BRINGUP.md) records the control
 changes, encoder/startup behavior, model constraints and next steps for physical
 calibration and gravity holding. Default jog adapters disable torque on release;
 explicit selected/group hold and weld modes retain position until supported
-disable or a fault. Loaded stop/hold qualification remains open.
+disable or a fault. Manual holding modes and fault/power-loss stopping still
+require their separate physical qualification.
 
 ENCOS motors are the **chassis** actuators. The six Damiao motors are **arm**
 actuators controlled by a DM-MC02 over USB. See [Damiao arm implementation and

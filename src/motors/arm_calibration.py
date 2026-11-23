@@ -14,7 +14,7 @@ import time
 
 from .arm_capture import _write
 from .arm_group_hold import ArmGroupHoldPort, SimulatedGroupHoldPort
-from .arm_travel import a4_cable_bounds
+from .arm_travel import a4_cable_bounds, a6_cable_bounds
 
 DRIVES = ('b2_arm_d1', 'b3_arm_d2', 'b4_arm_d3', 'b5_arm_d4', 'b6_arm_d5', 'b7_arm_d6')
 
@@ -72,11 +72,14 @@ class CalibrationMap:
                 raise ValueError(f'A{key}: unexpected model joint')
         self.fingerprint = digest(self.document)
         self.a4_bounds = a4_cable_bounds()
+        self.a6_bounds = a6_cable_bounds()
 
     def raw_limits(self, joint):
         lo, hi = self.joints[str(joint)]['raw_branch_deg']
         if int(joint) == 4:
             lo, hi = max(lo, self.a4_bounds[0]), min(hi, self.a4_bounds[1])
+        if int(joint) == 6:
+            lo, hi = max(lo, self.a6_bounds[0]), min(hi, self.a6_bounds[1])
         if lo >= hi:
             raise ValueError(f'A{joint}: empty travel envelope')
         return lo, hi

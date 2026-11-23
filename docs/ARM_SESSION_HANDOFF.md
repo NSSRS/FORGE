@@ -1,15 +1,71 @@
 # Arm session handoff
 
-Updated 2026-11-20 for `NSSRS/FORGE`, branch `nathan`.
+Updated 2026-11-23 for `NSSRS/FORGE`, branch `nathan`.
 Open work belongs in [ARM_LAYER_TODOS.md](ARM_LAYER_TODOS.md) and package TODOs;
 operator commands belong in [ARM_RIG_TEST.md](ARM_RIG_TEST.md).
 
 ## Current status and next session
 
-**Next motor tests:** HOLD-01 and ACCURACY-01. The current preparation target is
-**within five seconds**, separate from planning latency. Report any start that
-exceeds the goal under the retained motion and clearance constraints.
-See the [planner experiments](PLANNER_BENCHMARK.md).
+**HOLD-01 is resolved** by operator confirmation on Nov 23; see the
+[closure record](#hold-01-resolution).
+**PLAN-01 and BASE-04 are resolved** by operator confirmation on Nov 23; see
+[their closure](#plan-01-and-base-04-resolution).
+**Current development:** ACCURACY-01 and SPEED-01. The operator accepted
+**8.22 s preparation** and retired the previous five-second goal. Accuracy now
+prioritizes **end-effector orientation: 0.5 deg target / 1 deg maximum** relative
+to the planned tool frame. Joint errors are diagnostic; position error remains
+separate in mm. Use the [complete offline archive](measurements/weld/2026-11-23/README.md)
+for logs, calibration, the accepted plan, issues and commands without motors.
+
+The Nov 23 19:05 launch (`build/weld/sessions/20261123T110514.433378Z-tu8yc8s8/`)
+failed the startup stationary-disable check: A1-A4 had valid feedback, but
+A5/A6 retained `stopping=1` and feedback age `UINT32_MAX`. Two explicit recovery
+attempts also failed at A5's disable acknowledgement; no plan or motion target
+was recorded. The historical missing-acknowledgement cause was not established;
+the operator has since closed BASE-04.
+The UI now labels this sentinel as unavailable and suppresses the current-pose
+render instead of showing billions of milliseconds or validating retained angles.
+The subsequent 19:09 launch (`20261123T110914.651777Z-0avafxc0`) received valid
+six-axis feedback and entered recovery/approach, then latched A1/CAN1 reason 5
+(transmission failure) with feedback only 1 ms old. This was not a stale-feedback
+trip. The historical physical cause was not established; this incident is no
+longer an open BASE-04 blocker. Idle/fault cards now
+say Cached, selection alone no longer triggers a live-feedback warning, and
+new fault records retain cached MCU bus diagnostics after stop. Reason 5's label
+now covers both enqueue and completion failure instead of asserting queue failure.
+No firmware timing/guards changed and the agent did not operate hardware.
+
+Hardware now accepts fresh measured starting coordinates outside saved pose
+windows or simulator joint ranges. A session-local recovery allowance includes
+only that observed extra extent; A4/A5/A6 cable bounds and motor protections remain.
+Starting self/environment contact remains visible as a warning; subsequent path
+samples must still pass collision checks. Normal bounds resume before approach
+and welding. Simulation remains strict. This is offline implementation evidence,
+not physical qualification; use the existing launch command and inspect the
+[current-pose/recovery procedure](ARM_RIG_TEST.md#weld-panel-with-embedded-model-preview).
+
+Offline verification: all eleven measured-start tests passed, including the
+recorded Nov 23 start through Ready on fake shafts. The publication check passed
+257/258 weld tests; 191 motor/cable/calibration/keyboard/GUI tests and all ten
+accuracy-analyzer tests also passed.
+The sole weld failure,
+`test_tiny_joint_corrections_cannot_throttle_a6_clearance_projection`, also fails
+with the pre-change `2dd6caa` planner/controller/port sources: its masked target
+has 1.538 mm floor clearance against the required 1.8 mm. That existing tracking
+fixture discrepancy remains unresolved; clearance thresholds are unchanged.
+No hardware was accessed.
+
+The Nov 23 `hold-01-20261123-181305` session took 292.48 s to plan, including
+218.70 s for the original recovery search. It paused on A2 tracking error
++3.003 degrees before reaching A6's movement leg; final disable and mode
+restoration are reported verified. A6 began at raw -169.927 degrees and the
+plan retained the +63.621-degree weld target. The operator confirmed A6's fixed
++/-270-degree travel limit. It is now enforced independently of model start
+allowances, using the preserved +64.161-degree reference. A -296-degree target
+would violate that cable limit, so no shorter wrapped turn is substituted.
+Depth-first search reduced an offline replay to 77.39 s (same route,
+9 versus 56 checked edges for the selected recovery). This is calculation
+latency, not physical motion time; physical A2 tracking remains unresolved.
 
 The Nov 20 paired 14-start comparison reduced median planning from **73.10 to
 24.80 s**. The complete random corpus produced 47/48 plans, with one 180 s
@@ -21,7 +77,7 @@ physical five-second qualification. Process workers improved batch throughput;
 threads were slower. The GUI keeps one persistent isolated planner process.
 Bounded caches, geometric sampling and optimistic staging pruning reduce its
 work. Recovery stops resolve to exact validated knots to prevent endpoint
-roundoff faults. Hard joint-order searches remain open under PLAN-01.
+roundoff faults. This benchmark predates the operator's Nov 23 PLAN-01 closure.
 Release regressions passed **223 weld tests plus 30 shared arm/GUI/model tests**;
 no motor hardware was operated.
 
@@ -34,15 +90,101 @@ Offline verification passed 166 controller/Qt/cached-data/shared-panel tests;
 state renders were checked at 1366×768. No hardware was operated.
 See the [interface guide](WELD_MOTION.md#telemetry-dashboard).
 
-The fixed-reference hold target and speed-allowance defects were corrected.
-HOLD-01 remains open for the separate physical acceptance below; it does not
-mean those software fixes are missing.
+## ACCURACY-01 and SPEED-01 review
 
-**Next hardware acceptance: HOLD-01.** Explain the untouched A5 holding motion
-before qualifying loaded holding. Keep the existing speed/tracking/temperature
-trips; a later successful attempt does not clear the first failure.
+The latest operator-supplied session is
+`build/weld/sessions/20261123T114316.007261Z-cnyzuo1w/session.jsonl`, with the
+operator-confirmed 1.96 kg EE. The offline
+[accuracy/speed review](measurements/arm-accuracy-speed-review-2026-11-23.json)
+retains source hashes, all six axes and the existing analyzer's report.
 
-The latest completed physical session is
+The arm-only weld interval contains **202 usable command ticks over 5.95 s**,
+with a maximum gap of **63.7 ms**, no rejected samples and no dropped records.
+The checked rate is **1.730 Hz** (retimed from the requested 2 Hz). Cached
+encoder autocorrelation estimates **A1 1.734 Hz / A6 1.728 Hz**.
+
+| Axis | Nominal error RMS / peak | Planned / measured peak-to-peak travel |
+| --- | --- | --- |
+| A1 | 1.138 / 2.098 deg | 2.261 / 3.891 deg |
+| A6 | 0.379 / 0.750 deg | 0.428 / 1.333 deg |
+
+A2-A5 nominal peak errors are **0.043 / 0.107 / 0.193 / 0.078 deg**. Their small
+excursions do not establish a reliable oscillation frequency. Fixed-base encoder
+reconstruction gives tip error **10.059 mm RMS / 18.575 mm peak**, predominantly
+transverse. This is model-dependent; independent tip measurements are absent.
+
+The operator confirmed that acceptance is based on end-effector orientation,
+not separate 0.5-degree joint limits. Encoder reconstruction of the full tool
+frame gives **1.408 deg RMS / 2.633 deg peak**; **21.8%** of usable ticks are
+within the 0.5-degree target and **40.1%** within the 1-degree maximum. This
+baseline exceeds the maximum. The estimate includes all three orientation
+components and compares against the same-time planned frame without phase
+alignment. Independent tool-pose measurements and a separate tip-mm tolerance
+remain missing. See the [orientation report](measurements/weld/2026-11-23/accuracy-end-effector.json).
+
+ACCURACY-01 has both joint diagnostics and a model-based end-effector baseline.
+Measure synchronized tool pose in the workpiece frame and apply the confirmed
+orientation criteria to corrected motion. SPEED-01
+should first investigate A1/A6 host lead and command shaping: dispatched travel
+was **7.693 / 2.203 deg**, while actual travel was 1.72 / 3.12 times nominal.
+Approximate fundamental fits after the first cycle show **101 / 112 ms** phase
+lag. These observations identify a tuning target, not a proven motor/drive defect.
+Compare a bounded change against this baseline at the same load, start and plan;
+retain nominal geometry and existing protection thresholds.
+
+Recovery request to Ready was **8.22 s**, meeting the selected 10 s trial goal
+and accepted by the operator; the earlier five-second goal is retired. During approach,
+A2/A5/A6 maximum nominal errors were **1.838 / 1.348 / 1.552 deg**. The larger
+8.834 / 6.131 / 2.971 deg values in the hold analyzer compare feedback with
+lead-adjusted dispatched targets; they are not the nominal tracking-guard error.
+
+The run ended via **operator_input Pause / Hold**, with no fault and verified
+disable/mode restoration. The accuracy analyzer currently labels every pause
+as an evidence issue and exits 2; here that is a reporting limitation, not a
+failed motion or a missing journal. Keep continuous welding and manual pause.
+The original unthresholded report has `passed: null`. The new orientation report
+uses the confirmed 0.5-degree target / 1-degree maximum and fails the maximum;
+this result is separate from the analyzer's manual-pause reporting limitation.
+
+## PLAN-01 and BASE-04 resolution
+
+**Resolved on 2026-11-23 by operator confirmation:** "Plan 1 is resolved.
+Base 4 resolved". Both IDs are removed from active registries and package TODOs.
+Historical benchmarks and fault evidence are retained; closure does not invent
+an implementation change or a newly measured physical cause. Do not reopen
+these tasks from historical planning/CAN records. Current work is ACCURACY-01
+and SPEED-01 as described above.
+
+## HOLD-01 resolution
+
+**Resolved on 2026-11-23 by operator confirmation:** "not an issue anymore,
+mark it as resolved". This closes HOLD-01 and the historical untouched A5
+fixed-hold fault. It is removed from the open-work registry and package TODOs;
+do not carry that incident forward as an unresolved blocker.
+
+Supporting physical evidence is the operator's session
+`build/weld/sessions/20261123T114316.007261Z-cnyzuo1w/session.jsonl`, analyzed in
+the adjacent `hold-summary.json`. The operator confirmed **EE mass: 1.96 kg**;
+`session.load-context.json` records that confirmation separately from the raw journal.
+
+- Recovery request to Ready: **8.22 s**.
+- Fresh six-axis Ready evidence: **25.19 s**, with unchanged targets and speed
+  allowances. Maximum error across all axes: **0.175 deg**, within 0.25 deg.
+- A5 maximum hold error: **0.053 deg**; mean reported torque **-1.16 Nm**,
+  peak absolute torque **1.24 Nm**; motor temperature **28 -> 29 C**.
+- No recorded faults or dropped journal records. Final disable acknowledgement
+  and original-mode restoration both passed.
+
+The fixed-reference target and speed-allowance software defects were corrected
+earlier. The historical physical fault's root cause was not established; its
+original evidence remains unchanged. Closure records the operator's acceptance
+and this run's observations, without changing production flags or thermal ratings.
+ACCURACY-01/SPEED-01 own the remaining motion-tracking work; LOAD-01/PROTECT-01
+retain the separate payload and thermal/protection work.
+
+### Historical November 19 evidence
+
+The earlier completed physical session is
 `session-load-30-10-20261119-190025.json`, reviewed in
 [the Nov 19 gun-load record](measurements/arm-gun-load-review-2026-11-19.json).
 The operator reports that it ran well and separately confirms the first
@@ -67,8 +209,9 @@ attempt was **untouched**. Record the attempts separately:
   Amplitude remains open. Final disable and original-mode restoration both
   passed; CAN health reports no TX failures or bus-off. The JSONL has no dropped
   records; the bounded embedded motor-sample list dropped 6000 earlier rows,
-  so analysis uses the full JSONL. The requested 15-second Ready hold and
-  5–10 second physical preparation goal remain unmet.
+  so analysis uses the full JSONL. That run did not reach the requested
+  15-second Ready hold or 5–10 second physical preparation goal. The Nov 23
+  session above subsequently recorded 25.19 s of holding and 8.22 s to Ready.
 
 ## Deployed profile and completed work — November 19
 
@@ -112,7 +255,8 @@ Today's implementation:
 - **Final lowering:** `--lowering-seconds 2.3` stretches only the final lowering
   leg after staging selection. The recorded A2 3.048-degree lag pause motivated
   this change; subsequent loaded runs reached Ready. Gains and tracking trips
-  remain unchanged. The latest 12.53 s arrival still exceeds the 5–10 s goal.
+  remain unchanged. The Nov 19 12.53 s arrival exceeded the 5–10 s trial goal;
+  the Nov 23 session reached Ready in 8.22 s, which the operator accepted.
 - **Load commissioning:** fixed, disabled-only TMAX write/readback/save helpers
   and matching host/MC02 capabilities; setup locks motion until MCU restart and
   never retries uncertain writes/saves. The operator performed deployment.
@@ -124,6 +268,9 @@ Today's implementation:
 The current launch uses PID tracking, explicit 30 deg/s preparation, a 10 s goal,
 optimized staging, a 30 mm raised approach and 2.3 s final lowering. Default
 preparation remains 5 deg/s. Use the [current commands](ARM_RIG_TEST.md#expanded-gun-load-profile-a2a3-30-nm-a4-a6-10-nm).
+Report paths are automatic: omit `--output` and use `build/weld/latest/` for the
+latest launch's live `session.jsonl` and final `session.json` after close.
+Every launch is retained under `build/weld/sessions/`, including incomplete journals.
 
 ## Today's earlier observations
 
@@ -147,8 +294,12 @@ The loaded runs are not a qualified constant-load or thermal endurance test.
 
 - Flow: measured pose -> stationary hold verification -> optional A3 retreat ->
   checked recovery/staging -> raised approach/lowering -> Ready -> explicit
-  continuous welding -> Pause / Hold. `--cycles` sizes the checked preview block;
-  `--single-pass` opts into finite completion. No mode energizes the welder.
+  continuous welding -> manual Pause / Hold. The operator requires no automatic
+  stop after one or two swings. `--cycles` sizes only the checked preview block,
+  including at 1. Normal launch commands must omit `--single-pass`; use it only
+  for an explicitly requested finite run. The panel must show **continuous until
+  Pause / Hold**. Existing fault/focus/heartbeat stops remain. No mode energizes
+  the welder.
 - One owner per transport. Native mode 2 / USB type 4 uses raw output-shaft SI
   units; the planner/panel use explicitly named degree vectors. One feedback
   batch and one target batch per moving tick; idle monitoring refreshes fixed
@@ -174,6 +325,9 @@ The loaded runs are not a qualified constant-load or thermal endurance test.
 
 | Evidence | Interpretation |
 | --- | --- |
+| [Nov 23 full offline archive](measurements/weld/2026-11-23/README.md) | Original JSON/JSONL, mapping/standby/profile/plan, checksums, end-effector orientation criteria and offline reproduction commands |
+| [Nov 23 accuracy/speed review](measurements/arm-accuracy-speed-review-2026-11-23.json) | Tool orientation exceeds the confirmed 1-degree maximum; A1/A6 amplitude/phase need work; independent tool-pose data and tip-mm tolerance remain missing |
+| [Nov 23 HOLD-01 resolution](#hold-01-resolution) | Operator closure; 1.96 kg EE, 25.19 s fixed Ready hold, A5 maximum error 0.053 deg, no faults and verified final shutdown |
 | [Nov 19 gun-load review](measurements/arm-gun-load-review-2026-11-19.json) | Operator-deployed expanded ranges; untouched A5 hold fault, successful second attempt, torque/temperature/tracking statistics and verified final shutdown |
 | [Nov 12 reference capture](measurements/arm-reference-2026-11-12.capture.json) | Eight recorded anchors; deployed firmware `d61f6d16`, capabilities `0xFFF8F` |
 | [Nov 12 shutdown summary](measurements/arm-reference-2026-11-12.session-summary.json) | Capture succeeded, cleanup did not: A2 reported -0.168498 rad/s; stationary-disable/mode restoration unconfirmed |
@@ -197,6 +351,9 @@ initial A3 target overlaps its stop and is not an automatic hardware target.
 
 A4 cable travel is fixed at +/-270 deg from raw +173.183435236 deg, giving
 [-96.816564764, +443.183435236] deg. Startup must not rebase or wrap this interval.
+A6 uses +/-270 deg from raw +64.161048535 deg, giving
+[-205.838951465, +334.161048535] deg. Startup, measured recovery and manual jogging
+retain this fixed envelope; its physical qualification remains open.
 The complete A5 candidate uses `model_deg = -raw_deg + 101.514057878`, with raw
 command bounds [-96.607604972, +114.836287037] deg. It is separate from the default
 mapping. Use the matching reviewed mapping and standby together; their fingerprints
@@ -236,9 +393,9 @@ Shared planning belongs in `controller/`; hardware and simulation are siblings.
 Normal host changes need no flash. The operator performs hardware work; do not
 open a second owner or interrupt a powered owner while its load depends on torque.
 
-Hardware acceptance remains HOLD-01 with the required CAL-01/SUPPORT-01 checks,
-then ACCURACY-01/SPEED-01. Use the [weld motion accuracy procedure](ARM_RIG_TEST.md#weld-motion-accuracy-test)
-for the next bounded pass. LOAD-01 and FEEDBACK-01 follow the first qualified
+Next hardware work is ACCURACY-01/SPEED-01 with the applicable CAL-01/SUPPORT-01
+checks. Use the [weld motion accuracy procedure](ARM_RIG_TEST.md#weld-motion-accuracy-test)
+and end welding with manual Pause / Hold. LOAD-01 and FEEDBACK-01 follow the first qualified
 arm welding run. Reproduction checks are in [tests/README.md](../tests/README.md).
 
 ## Publication validation — November 19

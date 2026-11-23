@@ -5,7 +5,6 @@ Start with [cross-layer registry](../../docs/ARM_LAYER_TODOS.md) and
 
 Cached telemetry for both Damiao and ENCOS is implemented; see
 [ROS topics, ages and diagnostics](../../docs/MOTOR_TELEMETRY.md).
-Physical timing/freshness qualification remains under BASE-04.
 Current ROS MIT mode is not validated by the position-velocity bench.
 
 Update the central entries with implementation/test evidence; do not duplicate

@@ -357,7 +357,8 @@ def make_window(port,mode,*,speed_deg_s=45,recovery_report_path=None,teach=None,
                 self.invoke(refresh);self.next_display=time.monotonic()+.1
             self.telemetry.update_samples(self.last_telemetry,captured_at=self.telemetry_at,
                 stage='moving' if port.moving else 'holding' if getattr(port,'holding',False) else 'idle',
-                run=self.telemetry_run,stale=self.keys.failed or self.keys.recovering)
+                run=self.telemetry_run,stale=self.keys.failed or self.keys.recovering,
+                live_expected=active)
         def key_name(self,event):
             return {QtCore.Qt.Key_Left:'left',QtCore.Qt.Key_Right:'right',QtCore.Qt.Key_Up:'up',QtCore.Qt.Key_Down:'down',QtCore.Qt.Key_Escape:'stop',QtCore.Qt.Key_C:'c'}.get(event.key(),event.text().lower())
         def start_motion(self, key):

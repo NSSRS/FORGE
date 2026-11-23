@@ -279,7 +279,7 @@ class ArmPositionPort:
         state=self._enabled_sample(i) if continuing_hold else self._stop_session()[i]
         if direction:
             angle_rad=state.position+direction*speed_rad_s*JOG_LEAD_S
-            if self.motors[i]['unit'] == 'A4':
+            if self.motors[i]['unit'] in ('A4', 'A6'):
                 angle_rad=max(lo+.001,min(hi-.001,angle_rad))
             if not lo < angle_rad < hi:
                 raise ValueError("Manual target exceeds protocol position range")
@@ -328,7 +328,7 @@ class ArmPositionPort:
         if sample.status != 1 or not sample.enable_confirmed:
             raise RuntimeError('Joint lost enabled confirmation')
         lo, hi = self._limits(slot)
-        if self.motors[slot]['unit'] == 'A4' and not lo <= sample.position <= hi:
+        if self.motors[slot]['unit'] in ('A4', 'A6') and not lo <= sample.position <= hi:
             raise RuntimeError(f'A{slot+1}: measured position exceeds configured travel envelope')
         return sample
 
@@ -343,7 +343,7 @@ class ArmPositionPort:
             self.lead_limited = room < advance
             self.target += self.jog_direction * min(advance, max(0., room))
             self.last_ramp_at = now
-        if self.motors[self.selected-1]['unit'] == 'A4':
+        if self.motors[self.selected-1]['unit'] in ('A4', 'A6'):
             lo,hi = self._limits(self.selected-1)
             bounded = max(lo+.001,min(hi-.001,self.target))
             self.lead_limited = self.lead_limited or bounded != self.target
@@ -437,6 +437,21 @@ class ArmPositionPort:
                 self.report['failure_states'][slot]=asdict(self.bus.state(slot))
             except Exception as exc:
                 problems.append(f'A{slot+1} state: {exc}')
+        # Snapshot MCU-maintained diagnostics after requesting stop, through this
+        # same owner. These USB reads send no CAN traffic and renew no leases.
+        # Counters and last RX are post-stop evidence, not the triggering frame.
+        self.report['bus_diagnostics_after_stop']={}
+        for channel in sorted({self.motors[i]['bus'] for i in self.slots}):
+            diagnostic=self.report['bus_diagnostics_after_stop'][str(channel)]={}
+            for available, name, read in (
+                    (self.bus.capabilities & 4096, 'health', self.bus.bus_health),
+                    (self.bus.capabilities & 2048, 'last_rx', self.bus.can_rx_trace)):
+                if available:
+                    try:
+                        diagnostic[name]=read(channel)
+                    except Exception as exc:
+                        diagnostic[name+'_error']=str(exc)
+                        problems.append(f'CAN{channel} {name}: {exc}')
         if problems:
             self.report['failure_capture_errors']=problems
             self.report['error']+='; diagnostics incomplete: '+'; '.join(problems)
@@ -581,7 +596,7 @@ class ArmPositionPort:
             raise RuntimeError('Release motion before recovery')
         if report_path is None:
             raise ValueError('Recovery requires a report path to preserve fault evidence')
-        fields=('error','error_original','fault_snapshot','fault_summary','failure_states',
+        fields=('error','error_original','fault_snapshot','fault_summary','failure_states','bus_diagnostics_after_stop',
                 'failure_capture_errors','start_rejection','stop_error')
         attempt=dict(at_monotonic_s=time.monotonic(),success=False,
                      failure_before={k:deepcopy(self.report[k]) for k in fields if k in self.report})

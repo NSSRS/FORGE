@@ -209,12 +209,12 @@ now on the left stick. Arm execution remains opt-in.
 
 The real hardware adapter and firmware path exist. All six `arm.cw_raw_signs`
 were recorded as -1 from the operator's keyboard Up=CCW observations on
-2026-11-09; the unknown-sign startup block is removed. Resolve the reported
-right-stick neutral reading using the dashboard. The operator reported working
-Pocket motor control after restarting the ER12 on 2026-11-09; full stop/failsafe
-acceptance remains pending. Do not
-infer Pocket stop/failsafe acceptance from these direction observations or
-from the simulator. See [remaining acceptance items](ARM_LAYER_TODOS.md#plan-01--paths-trajectories-and-input-acceptance).
+2026-11-09; the unknown-sign startup block is removed. The operator reported
+working Pocket motor control after restarting the ER12 on 2026-11-09.
+PLAN-01 was [resolved by operator confirmation on Nov 23](ARM_SESSION_HANDOFF.md#plan-01-and-base-04-resolution).
+The historical direction observations and simulator tests remain separate
+evidence from physical fault behavior; remaining system fault-injection work
+is under [BASE-07](ARM_LAYER_TODOS.md#base-07--physical-fault-injection-acceptance).
 
 For the same secured, unloaded six-motor bench (A1 on CAN1, A2..A6 on CAN2), the
 existing keyboard window can determine raw rotation signs with a narrower
@@ -325,7 +325,7 @@ values, all six selections, all four right-stick directions and SE release.
 The operator measured the radio inputs; automated tests do not establish
 physical motor behavior or RF-loss handling.
 
-This advances PLAN-01 manual input; ROS-02, CAL-01, BASE-06, PROTECT-01 and
+PLAN-01 is closed; ROS-02, CAL-01, BASE-06, PROTECT-01 and
 SUPPORT-01 remain open in [the registry](ARM_LAYER_TODOS.md).
 
 Initial dashboard validation: 60 Damiao/native-backed/keyboard tests, 23 Pocket policy

@@ -33,6 +33,35 @@ class Obstacle:
 
 
 class RecoveryPlannerTests(unittest.TestCase):
+    def test_joint_order_search_follows_a_clear_route_before_expanding_alternatives(self):
+        class OrderedOnly:
+            def check(self, raw, **kwargs):
+                pass
+
+            def validate_path(self, path, **kwargs):
+                # Reject simultaneous travel, but permit individually stopped
+                # axes and the fully joined route. All geometry checks still run.
+                moving = (abs(np.diff(path.positions, axis=0)) > 1e-9).sum(axis=1)
+                if np.any(moving > 1):
+                    raise ValueError('simultaneous movement blocked')
+
+        path, result = recovery_path(OrderedOnly(), [0]*6, [1]*6, Settings())
+        self.assertEqual(result['joint_order'], [1, 2, 3, 4, 5, 6])
+        self.assertEqual(result['checked_edges'], 7)
+        np.testing.assert_array_equal(path.positions[-1], [1]*6)
+
+    def test_joint_order_search_backtracks_from_a_checked_dead_end(self):
+        class DeadEnd(Obstacle):
+            def check(self, raw, **kwargs):
+                a, b, c = raw[:3]
+                if (0.2 < b < 0.8 and c < 0.8) or (0.2 < c < 0.8 and a > 0.2):
+                    raise ValueError('wrong order blocks remaining joints')
+
+        path, result = recovery_path(DeadEnd(), [0]*6, [1, 1, 1, 0, 0, 0], Settings())
+        self.assertEqual(result['joint_order'], [3, 1, 2])
+        self.assertLessEqual(result['checked_edges'], 13)
+        DeadEnd().validate_path(path)
+
     def test_route_order_depends_on_obstacle_and_joined_path_is_clear(self):
         start, goal = np.zeros(6), np.array([1, 1, 0, 0, 0, 0])
         for reverse in (False, True):

@@ -154,6 +154,26 @@ class EndpointControlTests(unittest.TestCase):
             with self.assertRaises(ValueError):self.control.load_plan(p)
             self.assertFalse(self.arm.enabled)
 
+    def test_measured_start_policy_expires_after_the_separate_a3_retreat(self):
+        from controls.controller.measured_start import MeasuredStart
+
+        self.plan['mapping_fingerprint'] = self.mapping.fingerprint
+        self.plan['measured_start'] = MeasuredStart(tuple(START), self.mapping.fingerprint).document()
+        self.control.recovery_check = lambda raw, document, **kwargs: self.control.pose_check(raw)
+        self.control.load_plan(self.plan)
+        self.control.go_initial()
+        for _ in range(1000):
+            self.tick()
+            if self.control.state in ('ready', 'fault', 'paused'):
+                break
+        self.assertEqual(self.control.state, 'ready', self.control.message)
+        self.assertFalse(self.control.endpoint_active)
+        self.assertIsNone(self.control.measured_start)
+        self.assertIsNone(self.arm.measured_start)
+        events = [row['event'] for row in self.control.events]
+        self.assertLess(events.index('endpoint_recovery_completed'),
+                        events.index('measured_start_recovery_completed'))
+
     def test_preview_includes_backoff_and_settling_before_home(self):
         play=PlanPlayback(self.plan)
         self.assertEqual(play.sample(0)[0],'endpoint_recovery')

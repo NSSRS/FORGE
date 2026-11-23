@@ -1,6 +1,8 @@
 """Crash-readable evidence without acquiring hardware or blocking the owner."""
 
 import source_paths
+from contextlib import redirect_stderr, redirect_stdout
+import io
 import json
 from pathlib import Path
 import tempfile
@@ -11,7 +13,69 @@ from unittest.mock import Mock, patch
 import threading
 import numpy as np
 
-from controls.hardware.weld_recording import SessionJournal, cached_arm_evidence
+from controls.hardware.weld_recording import (
+    SessionJournal, cached_arm_evidence, new_session_report,
+)
+
+
+class SessionOutputTests(unittest.TestCase):
+    def test_relaunch_preserves_report_and_live_journal_in_separate_sessions(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            latest = root / "build/weld/latest"
+            first = new_session_report(root)
+            journal = SessionJournal(first.with_suffix(".jsonl"))
+            try:
+                self.assertEqual((latest / "session.jsonl").resolve(), journal.path)
+                journal.record(dict(run=1))
+                second = new_session_report(root)
+                self.assertNotEqual(first, second)
+                journal.record(dict(run=1, after_next_launch=True))
+                # Finishing the old run must not write into the latest run.
+                first.write_text('{"run": 1}')
+                second.write_text('{"run": 2}')
+            finally:
+                journal.close()
+            self.assertEqual(json.loads(first.read_text()), dict(run=1))
+            self.assertEqual(json.loads((latest / "session.json").read_text()), dict(run=2))
+            self.assertEqual(len(journal.path.read_text().splitlines()), 2)
+            self.assertFalse(second.with_suffix(".jsonl").exists())
+
+    def test_relaunch_preserves_journal_from_crashed_run_without_final_report(self):
+        with tempfile.TemporaryDirectory() as directory:
+            first = new_session_report(Path(directory))
+            first.with_suffix(".jsonl").write_text('{"unfinished": true}\n')
+            second = new_session_report(Path(directory))
+            self.assertNotEqual(first, second)
+            self.assertFalse(first.exists())
+            self.assertEqual(first.with_suffix(".jsonl").read_text(), '{"unfinished": true}\n')
+
+    def test_cli_can_run_twice_without_output_argument(self):
+        from controls.hardware import weld_app
+
+        with tempfile.TemporaryDirectory() as directory, \
+                patch.object(weld_app, "new_session_report", side_effect=lambda root: new_session_report(Path(directory))), \
+                patch.object(weld_app, "audit", return_value=dict(initial_issues=[], speed_report=dict(within_limits=True))), \
+                redirect_stdout(io.StringIO()):
+            self.assertEqual(weld_app.main(["--audit"]), 0)
+            self.assertEqual(weld_app.main(["--audit"]), 0)
+            root = Path(directory) / "build/weld"
+            self.assertEqual(len(list((root / "sessions").glob("*/session.json"))), 2)
+            self.assertEqual(json.loads((root / "latest/session.json").read_text())["initial_issues"], [])
+
+    def test_explicit_output_keeps_existing_evidence_protected(self):
+        from controls.hardware import weld_app
+
+        with tempfile.TemporaryDirectory() as directory, \
+                patch.object(weld_app, "new_session_report") as allocate, \
+                patch.object(weld_app, "audit", return_value=dict(initial_issues=[], speed_report=dict(within_limits=True))), \
+                redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+            path = Path(directory) / "custom.json"
+            self.assertEqual(weld_app.main(["--audit", "--output", str(path)]), 0)
+            original = path.read_bytes()
+            self.assertEqual(weld_app.main(["--audit", "--output", str(path)]), 2)
+            self.assertEqual(path.read_bytes(), original)
+            allocate.assert_not_called()
 
 
 class RecordingTests(unittest.TestCase):
@@ -68,9 +132,11 @@ class RecordingTests(unittest.TestCase):
         bus = Mock()
         port = SimpleNamespace(bus=bus, holding=True, path_active=True,
             hold_targets={0: 1.}, path_speeds=np.full(6, .1),
-            report=dict(motion_summary={'1': dict(last_sample=dict(enabled=True, status=1))}))
+            report=dict(motion_summary={'1': dict(last_sample=dict(enabled=True, status=1))},
+                        bus_diagnostics_after_stop={'1': {'health': {'tx_failed': 1}}}))
         result = cached_arm_evidence(SimpleNamespace(port=port))
         self.assertEqual(result['last_samples']['1']['status'], 1)
+        self.assertEqual(result['bus_diagnostics_after_stop']['1']['health']['tx_failed'], 1)
         self.assertEqual(bus.mock_calls, [])
 
 

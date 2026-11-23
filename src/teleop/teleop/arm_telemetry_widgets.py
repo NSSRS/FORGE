@@ -48,7 +48,9 @@ class TelemetryHistory:
         for axis in range(6):
             row = dict(by_joint.get(axis + 1, {}))
             age = row.get("age_ms")
-            age = age + max(0, now - captured_at) * 1000 if finite(age) and age >= 0 else None
+            # UINT32_MAX means the MCU has no valid feedback. Cached display
+            # snapshots may already have added host elapsed time to that value.
+            age = age + max(0, now - captured_at) * 1000 if finite(age) and 0 <= age < 0xffffffff else None
             fresh = not stale and age is not None and age < 80
             row.update(age_ms=age, fresh=fresh)
             values = {key: row.get(key) if fresh and finite(row.get(key)) else None for key in FIELDS}
@@ -108,6 +110,22 @@ class Sparkline(QtWidgets.QWidget):
                 previous = at, point
 
 
+class ReadingLabel(QtWidgets.QLabel):
+    """Reserve a stable width for changing digits, signs and sample states."""
+
+    def __init__(self, text, width_sample):
+        super().__init__(text)
+        self.width_sample = width_sample
+
+    def sizeHint(self):
+        size = super().sizeHint()
+        size.setWidth(self.fontMetrics().horizontalAdvance(self.width_sample) + 2 * self.margin())
+        return size
+
+    def minimumSizeHint(self):
+        return self.sizeHint()
+
+
 class TelemetryPanel(QtWidgets.QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -116,6 +134,10 @@ class TelemetryPanel(QtWidgets.QWidget):
         layout = QtWidgets.QGridLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(8)
+        for column in range(3):
+            layout.setColumnStretch(column, 1)
+        for row in range(2):
+            layout.setRowStretch(row, 1)
         for axis, color in enumerate(AXIS_COLORS):
             card = QtWidgets.QFrame()
             card.setObjectName("telemetryCard")
@@ -123,10 +145,10 @@ class TelemetryPanel(QtWidgets.QWidget):
             box = QtWidgets.QVBoxLayout(card)
             box.setContentsMargins(9, 5, 9, 5)
             box.setSpacing(2)
-            title = QtWidgets.QLabel(f"A{axis+1}  ·  Unavailable")
+            title = ReadingLabel(f"A{axis+1}  ·  Unavailable", "A6  ·  Disabled · 9999 ms")
             title.setStyleSheet(f"color: {color}; font-weight: 600")
             box.addWidget(title)
-            torque = QtWidgets.QLabel("— Nm")
+            torque = ReadingLabel("— Nm", "-54.00 Nm")
             torque.setStyleSheet("font-size: 20px; font-weight: 600; color: #172b46")
             box.addWidget(torque)
             load = QtWidgets.QProgressBar()
@@ -137,11 +159,11 @@ class TelemetryPanel(QtWidgets.QWidget):
             box.addWidget(load)
             torque_plot = Sparkline((FIELDS[0],), (color,))
             box.addWidget(torque_plot)
-            temperatures = QtWidgets.QLabel("Motor — °C  ·  MOS — °C")
+            temperatures = ReadingLabel("Motor — °C  ·  MOS — °C", "Motor 80 °C  ·  MOS 80 °C")
             box.addWidget(temperatures)
             temp_plot = Sparkline(FIELDS[1:], ("#c66b12", "#5265b0"))
             box.addWidget(temp_plot)
-            peaks = QtWidgets.QLabel("Peak |Nm| · stage — / run —")
+            peaks = ReadingLabel("Peak |Nm| · stage — / run —", "Peak |Nm| · stage 54.00 / run 54.00")
             peaks.setStyleSheet("color: #526176; font-size: 11px")
             box.addWidget(peaks)
             layout.addWidget(card, axis // 3, axis % 3)
@@ -159,7 +181,7 @@ class TelemetryPanel(QtWidgets.QWidget):
             for name in ("torque_plot", "temp_plot"):
                 card[name].setFixedHeight(max(round(18 * scale), text_height + 6))
 
-    def update_samples(self, rows, *, captured_at=None, stage="idle", run=None, stale=False):
+    def update_samples(self, rows, *, captured_at=None, stage="idle", run=None, stale=False, live_expected=True):
         now = time.monotonic()
         captured_at = now if captured_at is None else captured_at
         readings = self.history.update(rows, now=now, captured_at=captured_at, stage=stage, run=run, stale=stale)
@@ -167,7 +189,15 @@ class TelemetryPanel(QtWidgets.QWidget):
             age = row["age_ms"]
             state = ("Enabled" if row.get("enabled") is True else "Disabled" if row.get("enabled") is False else "State unknown") if row["fresh"] else "STALE"
             label = "Unavailable" if age is None else f"{state} · {age:.0f} ms"
+            if age is not None and not row["fresh"] and (stale or not live_expected):
+                label = f"Cached · {age / 1000:.1f} s"
             card["title"].setText(f"A{axis+1}  ·  {label}")
+            card["title"].setToolTip(
+                "No valid feedback sample is available." if age is None else
+                "Age of the displayed cached sample. Idle or fault snapshots are historical; "
+                "they do not establish the motor's current enabled state. "
+                "Motion requires feedback within 80 ms."
+            )
             torque, trip = row[FIELDS[0]], row.get("torque_trip_nm")
             card["torque"].setText("— Nm" if torque is None else f"{torque:+.2f} Nm")
             ratio = abs(torque) / trip * 100 if torque is not None and finite(trip) and trip > 0 else None

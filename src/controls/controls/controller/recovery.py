@@ -1,7 +1,5 @@
 """Bounded, collision-checked startup routes. No motor transport or angle wrapping."""
 
-from collections import deque
-
 import numpy as np
 
 
@@ -33,7 +31,7 @@ def recovery_path(geometry, start, goal, settings):
 
     axes = [i for i in range(6) if abs(goal[i] - start[i]) > 1e-9]
     complete = (1 << len(axes)) - 1
-    queue, parents = deque([0]), {0: None}
+    parents = {0: None}
     checked = 1
 
     def pose(mask):
@@ -43,8 +41,14 @@ def recovery_path(geometry, start, goal, settings):
                 raw[axis] = goal[axis]
         return raw
 
-    while queue and complete not in parents:
-        mask = queue.popleft()
+    def search(mask):
+        nonlocal checked
+        if mask == complete:
+            return True
+        # Every complete route moves each changed axis once. Breadth-first
+        # search checks most of the 64-node lattice before reaching any goal,
+        # without improving the number of stops. Follow a checked order to its
+        # goal first, then backtrack through the same bounded graph if blocked.
         for bit in range(len(axes)):
             following = mask | (1 << bit)
             if following == mask or following in parents:
@@ -56,7 +60,11 @@ def recovery_path(geometry, start, goal, settings):
             except ValueError:
                 continue
             parents[following] = (mask, edge)
-            queue.append(following)
+            if search(following):
+                return True
+        return False
+
+    search(0)
 
     if complete not in parents or complete == 0:
         raise ValueError(

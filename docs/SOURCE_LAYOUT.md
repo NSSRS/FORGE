@@ -52,8 +52,11 @@ inward-only backoff. It is a separate preparation stage; normal mapping and
 travel limits remain strict. `simulation.arm_calibration.ExplicitStops` supplies
 triangle contact depth for the separating-contact check. The controller, native
 owner, preview and journal share the explicit retreat policy.
+`controller/measured_start.py` owns the hardware-only observed starting pose and
+temporary recovery extent. It preserves saved calibration, cable bounds and
+subsequent path collision checks, and expires before approach/welding.
 `hardware/weld_ports.py` explicitly latches settled endpoint holds without
-changing position, mode or speed allowance. Drive-gain tuning remains HOLD-01.
+changing position, mode or speed allowance. Native drive-gain writes are not implemented.
 `hardware/weld_dashboard.py` derives read-only state/progress presentation.
 `teleop/arm_telemetry_widgets.py` shares cached torque/temperature cards, bounded
 trends and peaks between manual and weld windows. No widget owns a transport.
@@ -198,7 +201,8 @@ generated. Rebuild the affected ROS package after changing an installed asset.
 | Guided raw bounds and initial-position capture from cached group feedback | [src/motors/arm_capture.py](../src/motors/arm_capture.py), `record_arm_positions.py --capture-file`, exercised by [tests/test_arm_capture.py](../tests/test_arm_capture.py) |
 | Portable eight-position recording launcher | [scripts/record_arm_positions.sh](../scripts/record_arm_positions.sh) |
 | Historical saved-report jitter analysis (no hardware access) | [src/motors/arm_jitter_report.py](../src/motors/arm_jitter_report.py), [scripts/analyze_arm_jitter.py](../scripts/analyze_arm_jitter.py) |
-| HOLD-01 payload comparison from cached journals (no hardware access) | [src/controls/controls/hardware/hold_analysis.py](../src/controls/controls/hardware/hold_analysis.py), [scripts/analyze_weld_hold.py](../scripts/analyze_weld_hold.py) |
+| Offline hold/payload comparison from cached journals (no hardware access) | [src/controls/controls/hardware/hold_analysis.py](../src/controls/controls/hardware/hold_analysis.py), [scripts/analyze_weld_hold.py](../scripts/analyze_weld_hold.py) |
+| Archived loaded weld session, end-effector orientation criteria and offline development commands | [Nov 23 offline handoff](measurements/weld/2026-11-23/README.md), [accuracy analyzer](../src/controls/controls/hardware/weld_accuracy.py) |
 | Recorded raw references and original sample evidence | [2026-11-12 reference JSON](../src/robot_description/config/arm_reference_positions_2026-11-12.json), [capture evidence](measurements/arm-reference-2026-11-12.capture.json); observation only, not runtime limits |
 | Optional 2 ms jog target slew with immediate release/hold | [src/damiao_firmware/src/arm.c](../src/damiao_firmware/src/arm.c), [tests/damiao_smooth_jog_test.c](../tests/damiao_smooth_jog_test.c), [tests/test_arm_smooth_jog.py](../tests/test_arm_smooth_jog.py) |
 | A2–A6 selection, motor IDs/routes and fixture test envelope | [src/robot_description/config/arm_rig_a2_a6.json](../src/robot_description/config/arm_rig_a2_a6.json) |
@@ -250,7 +254,8 @@ Independent measured-pose comparison: `scripts/mirror_arm.py` →
 `visualization.arm_pose_mirror` (GUI, view-only mapping experiments, snapshots),
 `motors.arm_observation` (exclusive disabled observation with explicit feedback
 refresh), `motors.arm_endpoint` (separate cable-end and straight-pose evidence,
-candidate A5 bounds/offset), `motors.arm_travel` (fixed A4 cable envelope),
+candidate A5 bounds/offset), `motors.arm_travel` (fixed A4/A6 cable envelopes from
+`arm_cable_limits.json` and `arm_a6_cable_limits.json`),
 and `simulation.arm_mirror_scene` (direct six-drive kinematic
 rendering and independent straight-shaft reference).
 It does not import welding IK or execution policy. Observation files stay under

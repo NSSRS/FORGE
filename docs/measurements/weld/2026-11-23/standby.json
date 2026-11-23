@@ -1,0 +1,36 @@
+{
+  "joint_angles_rad": {
+    "b2_arm_d1": 0.0,
+    "b3_arm_d2": 0.0954715337420781,
+    "b4_arm_d3": -0.39553272770914594,
+    "b5_arm_d4": 0.0,
+    "b6_arm_d5": 1.0471975511965976,
+    "b7_arm_d6": 0.0
+  },
+  "raw_output_shaft_deg": [
+    -174.69159564640077,
+    -61.357358006883345,
+    149.39,
+    173.1834352361486,
+    41.51405787753105,
+    64.16104853467226
+  ],
+  "description": "Compact standby model pose with A5 raw target recomputed from the operator-recorded straight-pose candidate.",
+  "mapping_fingerprint": "e19226781bf4e1519414315cc4c3ead50e294eea48134199d96eb95aafab398f",
+  "derivation": {
+    "source_model_pose": "src/robot_description/config/arm_standby_compact.json",
+    "source_observation": "build/arm_mirror/a5-capture-1794824963125893820/observation.json",
+    "original_raw_output_shaft_deg": [
+      -174.69159564640077,
+      -61.357358006883345,
+      149.39,
+      173.1834352361486,
+      -62.017926825144414,
+      64.16104853467226
+    ],
+    "model_angles_unchanged": true,
+    "physical_pose_measured": false
+  },
+  "hardware_qualified": false,
+  "production_qualified": false
+}

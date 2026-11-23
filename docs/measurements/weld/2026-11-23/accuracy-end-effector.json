@@ -1,0 +1,238 @@
+{
+  "schema": "forge.weld_motion_accuracy",
+  "version": 1,
+  "journal": "/home/forge2/forge2_ws/docs/measurements/weld/2026-11-23/session.jsonl",
+  "simulated": false,
+  "run_number": 1,
+  "outcome": "pause",
+  "duration_s": 5.951299164000375,
+  "effective_hz": 1.729907219140131,
+  "chassis_feed_selected": false,
+  "nominal_chassis_feed_mm_s": 0.0,
+  "coverage": {
+    "samples": 202,
+    "first_s": 1.3767999917035922e-05,
+    "last_s": 5.951299164000375,
+    "max_gap_ms": 63.70324099952995,
+    "complete": true
+  },
+  "rejected_samples": 0,
+  "dropped_records": 0,
+  "session_closed": true,
+  "mapping_fingerprint": "e19226781bf4e1519414315cc4c3ead50e294eea48134199d96eb95aafab398f",
+  "scene_fingerprint": "b0f6e114fb5cdfb874217138133c76731ef3287895d1de8875cb8f5c8b22e63f",
+  "joints": {
+    "A1": {
+      "tracking_error_deg": {
+        "mean": 0.1560775654137072,
+        "minimum": -2.0483536745260835,
+        "maximum": 2.0982874415580284,
+        "peak_abs": 2.0982874415580284,
+        "rms": 1.137962106764185
+      },
+      "dispatch_error_deg": {
+        "mean": 0.05004287288035203,
+        "minimum": -4.748779677235973,
+        "maximum": 4.058557002114412,
+        "peak_abs": 4.748779677235973,
+        "rms": 2.138530847566445
+      },
+      "measured_travel_deg": 3.8905303927526234,
+      "reference_travel_deg": 2.2606500137042076,
+      "feedback_age_ms": {
+        "mean": 5.816831683168317,
+        "minimum": 2.0,
+        "maximum": 40.0,
+        "peak_abs": 40.0,
+        "rms": 8.092595319790863
+      }
+    },
+    "A2": {
+      "tracking_error_deg": {
+        "mean": -0.007020996510461763,
+        "minimum": -0.04347192622070395,
+        "maximum": 0.04005495254506286,
+        "peak_abs": 0.04347192622070395,
+        "rms": 0.029771247081262074
+      },
+      "dispatch_error_deg": {
+        "mean": -0.009583393310851104,
+        "minimum": -0.11994536123698651,
+        "maximum": 0.07562178362663019,
+        "peak_abs": 0.11994536123698651,
+        "rms": 0.03875004340338869
+      },
+      "measured_travel_deg": 0.021856605344041213,
+      "reference_travel_deg": 0.06167077337090632,
+      "feedback_age_ms": {
+        "mean": 3.6782178217821784,
+        "minimum": 2.0,
+        "maximum": 31.0,
+        "peak_abs": 31.0,
+        "rms": 5.297580243436013
+      }
+    },
+    "A3": {
+      "tracking_error_deg": {
+        "mean": 0.008281651129564553,
+        "minimum": -0.06475271712920971,
+        "maximum": 0.10701573212693916,
+        "peak_abs": 0.10701573212693916,
+        "rms": 0.06101945065534138
+      },
+      "dispatch_error_deg": {
+        "mean": 0.002924594403952812,
+        "minimum": -0.22522603328935986,
+        "maximum": 0.18457022810419232,
+        "peak_abs": 0.22522603328935986,
+        "rms": 0.07990664933793169
+      },
+      "measured_travel_deg": 0.04371321068808243,
+      "reference_travel_deg": 0.1305420374498425,
+      "feedback_age_ms": {
+        "mean": 2.4653465346534653,
+        "minimum": 1.0,
+        "maximum": 22.0,
+        "peak_abs": 22.0,
+        "rms": 3.1747768300767345
+      }
+    },
+    "A4": {
+      "tracking_error_deg": {
+        "mean": -0.013779950283029559,
+        "minimum": -0.12493235597398211,
+        "maximum": 0.19286294314704833,
+        "peak_abs": 0.19286294314704833,
+        "rms": 0.07622611850530725
+      },
+      "dispatch_error_deg": {
+        "mean": -0.01203737118121066,
+        "minimum": -0.1426532571153416,
+        "maximum": 0.18552533423653017,
+        "peak_abs": 0.18552533423653017,
+        "rms": 0.0828896858677852
+      },
+      "measured_travel_deg": 0.21862069495375636,
+      "reference_travel_deg": 0.09917486074394333,
+      "feedback_age_ms": {
+        "mean": 1.6386138613861385,
+        "minimum": 1.0,
+        "maximum": 9.0,
+        "peak_abs": 9.0,
+        "rms": 1.8495383421837788
+      }
+    },
+    "A5": {
+      "tracking_error_deg": {
+        "mean": -0.0160546631300394,
+        "minimum": -0.07787095706783731,
+        "maximum": 0.05616620926766913,
+        "peak_abs": 0.07787095706783731,
+        "rms": 0.040378047744632654
+      },
+      "dispatch_error_deg": {
+        "mean": -0.01318829831945608,
+        "minimum": -0.10048786762800432,
+        "maximum": 0.10917226302658634,
+        "peak_abs": 0.10917226302658634,
+        "rms": 0.04876316123082081
+      },
+      "measured_travel_deg": 0.06556981603212364,
+      "reference_travel_deg": 0.07128031710531246,
+      "feedback_age_ms": {
+        "mean": 0.5891089108910891,
+        "minimum": 0.0,
+        "maximum": 3.0,
+        "peak_abs": 3.0,
+        "rms": 0.9925464799451384
+      }
+    },
+    "A6": {
+      "tracking_error_deg": {
+        "mean": -0.050633309033040856,
+        "minimum": -0.7498689943679224,
+        "maximum": 0.5946042683154786,
+        "peak_abs": 0.7498689943679224,
+        "rms": 0.37855109680885635
+      },
+      "dispatch_error_deg": {
+        "mean": -0.036449678392227965,
+        "minimum": -1.594837250415928,
+        "maximum": 1.3549995871598028,
+        "peak_abs": 1.594837250415928,
+        "rms": 0.720163357485428
+      },
+      "measured_travel_deg": 1.3332529259864927,
+      "reference_travel_deg": 0.4275502164079583,
+      "feedback_age_ms": {
+        "mean": 0.6584158415841584,
+        "minimum": 0.0,
+        "maximum": 2.0,
+        "peak_abs": 2.0,
+        "rms": 1.1410434689440196
+      }
+    }
+  },
+  "encoder_tip_status": "encoder-reconstructed, fixed base",
+  "encoder_tip": {
+    "rejected": 0,
+    "samples": 202,
+    "along_mm": {
+      "mean": 0.057730446077980585,
+      "minimum": -0.1317364943608368,
+      "maximum": 0.334797489710013,
+      "peak_abs": 0.334797489710013,
+      "rms": 0.12051005097192523
+    },
+    "transverse_mm": {
+      "mean": -1.3713575102721685,
+      "minimum": -18.571558863347256,
+      "maximum": 18.00797765313697,
+      "peak_abs": 18.571558863347256,
+      "rms": 10.058380826509875
+    },
+    "height_mm": {
+      "mean": -0.05234248181304914,
+      "minimum": -0.19751775881673983,
+      "maximum": 0.1718011729511526,
+      "peak_abs": 0.19751775881673983,
+      "rms": 0.0884966295963385
+    },
+    "distance_mm": {
+      "mean": 8.685649121983388,
+      "minimum": 0.0584458915885789,
+      "maximum": 18.57477143089204,
+      "peak_abs": 18.57477143089204,
+      "rms": 10.05949199397945
+    }
+  },
+  "encoder_orientation": {
+    "samples": 202,
+    "rejected": 0,
+    "angle_deg": {
+      "mean": 1.2221168732150345,
+      "minimum": 0.03368024655460144,
+      "maximum": 2.6326721509316457,
+      "peak_abs": 2.6326721509316457,
+      "rms": 1.408194938443411
+    },
+    "definition": "smallest full 3D rotation: planned wire_tip frame to encoder-reconstructed frame",
+    "within_target_percent": 21.782178217821784,
+    "within_maximum_percent": 40.0990099009901
+  },
+  "independent_tip": null,
+  "tip_csv": null,
+  "issues": [
+    "Pass outcome: pause"
+  ],
+  "hardware_qualified": false,
+  "peak_joint_limit_deg": null,
+  "peak_tip_limit_mm": null,
+  "joint_limit_met": null,
+  "independent_tip_limit_met": null,
+  "orientation_target_deg": 0.5,
+  "max_orientation_deg": 1.0,
+  "orientation_target_met": false,
+  "orientation_maximum_met": false,
+  "passed": false
+}

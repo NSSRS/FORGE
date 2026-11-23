@@ -49,31 +49,49 @@ Capture UI results persist, with readiness reasons and explicit Next selection.
 
 Coordinated tracking/jitter work resumed under SPEED-01 by operator request on
 Nov 17; broader manual-jog investigation remains deferred. A2/A3 move smoothly by operator
-report; A1/A4/A5/A6 were reported to jitter during travel while manual holds stayed steady;
-the later untouched loaded A5 hold fault is separate and remains open. The 5 deg/s smoothing
-trial did not fix it. Holding-mode jogging now defaults to 10 deg/s by explicit
-operator request; non-holding/teaching remains 5 deg/s. All six measured-speed
-trips remain 1.5 rad/s. Current protection, loaded holding and physical stopping
+report; A1/A4/A5/A6 were reported to jitter during travel while manual holds stayed steady.
+The 5 deg/s smoothing trial did not fix travel jitter. The separate A5 fixed-hold
+fault (HOLD-01) was resolved by operator confirmation on Nov 23. Holding-mode
+jogging now defaults to 10 deg/s by explicit operator request;
+non-holding/teaching remains 5 deg/s. All six measured-speed
+trips remain 1.5 rad/s. Current protection, thermal endurance and physical stopping
 remain unqualified. Do not increase reactive trips or claim jitter resolved.
 The operator confirmed the earlier A1 undervoltage issue was fixed.
 
-## Current welding implementation (2026-11-19)
+## Current welding implementation (2026-11-23)
 
-HOLD-01 and ACCURACY-01 track the next supported motor tests. The accuracy
-analyzer reads the existing session journal and optional independent tip
-measurements without acquiring a transport. The current preparation goal is within five seconds,
-separate from calculation latency; see `docs/PLANNER_BENCHMARK.md`. Preserve guards
-and report starts that cannot meet the goal. Planner caches reuse unchanged scene
+ACCURACY-01 and SPEED-01 track the remaining weld-motion accuracy work. The
+operator prioritizes end-effector orientation relative to the planned tool frame:
+0.5 deg target, 1.0 deg maximum during welding, without phase alignment. Individual
+joint errors are diagnostic, not per-axis acceptance limits. Position error is
+reported separately in mm. This is an acceptance criterion, not
+a change to the 3-degree runtime trip or 0.25-degree arrival tolerance. The
+operator accepted 8.22 s preparation under the 10 s trial goal and retired the
+earlier five-second goal. Calculation latency remains separate. The accuracy
+analyzer reads saved journals and optional independent tip measurements without
+acquiring a transport. Planner caches reuse unchanged scene
 and weave inputs only; recovery is checked from each fresh measured start.
+
+PLAN-01 and BASE-04 were resolved by operator confirmation on Nov 23. Do not
+carry their historical planning delays or CAN incidents forward as open tasks.
+The Nov 23 accuracy/speed review records an existing physical baseline: A1/A6
+measured travel 3.891/1.333 deg versus planned 2.261/0.428 deg; measured frequency
+1.734/1.728 Hz versus checked 1.730 Hz. Prioritize amplitude/phase tracking under
+SPEED-01. Encoder-reconstructed full tool orientation has 1.408 deg RMS /
+2.633 deg peak error, exceeding the 1-degree maximum. Independent
+workpiece-relative tool-pose measurements and a tip-mm tolerance remain
+missing. Complete logs, calibration, accepted plan, issues and offline commands
+are tracked in `docs/measurements/weld/2026-11-23/README.md`. See
+`docs/measurements/arm-accuracy-speed-review-2026-11-23.json`.
 
 Use `docs/ARM_SESSION_HANDOFF.md` for current evidence and `docs/WELD_MOTION.md`
 for architecture. Shared planning belongs in `src/controls/controls/controller/`;
 `hardware/` and `simulation/` are siblings. Torque and both temperatures,
 trends/peaks and cached ages are visible in the
 weld/manual panels. State/progress/fault/pause causes are distinct; diagnostics
-are expandable. The fixed-reference holding software is corrected; HOLD-01
-tracks the separate unresolved physical fault and remains the next hardware
-acceptance priority.
+are expandable. The fixed-reference holding software is corrected. HOLD-01 is
+resolved by operator confirmation; do not carry the historical A5 hold fault
+forward as an open blocker. See `docs/ARM_SESSION_HANDOFF.md#hold-01-resolution`.
 
 The operator deployed MC02 `f78f6b0d`, capabilities `0x1FFFF8F`, and verified the
 explicit `arm_rig_gun_a2_a6_load.json` profile: A2/A3 trips 30 Nm with TMAX 40;
@@ -89,10 +107,13 @@ profiles retain original ranges and must fail mismatched readback.
 The Nov 19 review records two attempts: first, untouched A5 movement during a
 fixed Ready hold and a 1.51648 rad/s speed trip; second, Ready in 12.53 s,
 8.69 s fixed hold, 45.71 s welding and verified final disable/mode restoration.
-The first fault is unresolved. A1/A6 match ~1.73 Hz but exceed planned travel.
-Do not mark HOLD-01 passed or infer thermal/continuous-load qualification.
-The requested 15-second Ready comparison and 5–10 second physical preparation
-remain unfinished. The gun was attached during the earlier 12.0137 Nm A2 fault
+Those incidents remain historical evidence. On Nov 23 the operator confirmed
+the A5 holding issue no longer exists and closed HOLD-01. The latest session,
+with the operator-confirmed 1.96 kg EE, reached Ready in 8.22 s and held fixed
+targets for 25.19 s; A5's maximum error was 0.053 deg, with no recorded fault
+and verified final disable/mode restoration. A1/A6 travel accuracy and
+thermal/continuous-load qualification remain separate work.
+The gun was attached during the earlier 12.0137 Nm A2 fault
 although its raw journal is under `no-ee/`; preserve the load-context correction.
 
 The default host PID tracker follows nominal preparation time with bounded lead,
@@ -105,9 +126,11 @@ plan and explicit Start welding action. Fault/disable/close remove torque.
 Reset motor fault (R) saves evidence through the same owner and verifies disabled,
 stationary feedback; success stays disabled with selections off and plan invalid.
 
-Welding repeats until Pause / Hold by default; `--cycles` sets the checked preview
-block and `--single-pass` opts into finite completion. Preserve focus/heartbeat
-stops and periodic cubic checks. Moving ticks use one cached feedback batch and
+The operator requires welding to repeat until manual Pause / Hold, without a
+cycle-count stop. `--cycles` sets only the checked preview block, even at 1.
+Never include `--single-pass` in a normal launch command; use it only when the
+operator explicitly requests a finite run. Preserve focus/heartbeat stops and
+periodic cubic checks. Moving ticks use one cached feedback batch and
 one target batch. Weld host lead/PID is omitted below 0.3 deg planned axis travel;
 nominal targets remain unchanged. Measured Hz/travel uses cached feedback.
 
@@ -119,7 +142,15 @@ and path geometry. The CLI accepts explicit settings up to 100 deg/s, bounded by
 latency (~40 s in the offline comparison) is distinct from physical motion time.
 A duration goal never overrides guards or truncates motion.
 
-A3 alone permits up to 0.25 deg startup excess above 151.39 deg, with a separate
+Hardware accepts fresh measured starting poses independently of saved pose
+windows and simulator joint ranges. The plan records a session-local recovery
+extent only as far as that measured start; no outward extension, wrapping or
+saved calibration change is allowed. A4/A5/A6 cable envelopes and motor protections
+remain. Starting contact is a visible warning; subsequent path samples still
+require collision clearance. The allowance ends before approach/welding.
+Simulation retains strict pose limits. Physical qualification remains open.
+
+The special A3 contact retreat permits up to 0.25 deg startup excess above 151.39 deg, with a separate
 checked inward retreat to 149.39 deg at <=1 deg/s and <=5 deg/s². It requires
 shallow separating contact at the reviewed stop pair and strict normal handoff;
 other cable/branch/collision checks remain. Raw readings are never wrapped or
@@ -175,7 +206,10 @@ data without another owner or enabled-state register polling.
   their documented acceptance criteria are measured.
 - A4 cable travel is fixed at CW/CCW 270 degrees each from the preserved initial
   raw angle +173.183435236 degrees (`arm_cable_limits.json`). Never rebase that
-  allowance at startup or wrap equivalent orientations across its bounds. A5's
+  allowance at startup or wrap equivalent orientations across its bounds. A6 also
+  has fixed CW/CCW 270-degree travel from raw +64.161048535 degrees
+  (`arm_a6_cable_limits.json`), confirmed Nov 23; measured-start recovery cannot
+  extend it. Manual, planned and native command bounds all retain this limit. A5's
   Nov 16 cable-constrained CW/CCW ends and independent straight pose are recorded
   in `docs/measurements/arm-a5-alignment-2026-11-16.json`; ends do not define model
   zero. The saved complete candidate is separate from the default mapping and

@@ -1,0 +1,91 @@
+{
+  "schema": "forge.archived_weld_session",
+  "version": 1,
+  "session_id": "20261123T114316.007261Z-cnyzuo1w",
+  "archived_date": "2026-11-23",
+  "purpose": "Operator-requested offline control development and accuracy review. Raw session files are unchanged.",
+  "files": [
+    {
+      "path": "session.jsonl",
+      "source_path": "build/weld/sessions/20261123T114316.007261Z-cnyzuo1w/session.jsonl",
+      "bytes": 19836054,
+      "sha256": "bf966ad1e51af45f890fd3d9e1a361ec46703c49355b2b378d48cc03c681abf2",
+      "preservation": "byte-for-byte copy"
+    },
+    {
+      "path": "session.json",
+      "source_path": "build/weld/sessions/20261123T114316.007261Z-cnyzuo1w/session.json",
+      "bytes": 10745271,
+      "sha256": "1e8252bd5d88ec9cd90303cdb4db4f9f34828a83b9930fff41529d95b58612c9",
+      "preservation": "byte-for-byte copy"
+    },
+    {
+      "path": "session.load-context.json",
+      "source_path": "build/weld/sessions/20261123T114316.007261Z-cnyzuo1w/session.load-context.json",
+      "bytes": 393,
+      "sha256": "c4dac9449c7b6451655f46a05893325637d6ffb5b4224e115e91526a106ea873",
+      "preservation": "byte-for-byte copy"
+    },
+    {
+      "path": "hold-summary.json",
+      "source_path": "build/weld/sessions/20261123T114316.007261Z-cnyzuo1w/hold-summary.json",
+      "bytes": 103287,
+      "sha256": "ee6c66d5c02a7283e7965240f0a9108f682486e673021b5053472ec6281f7ffd",
+      "preservation": "byte-for-byte copy"
+    },
+    {
+      "path": "accuracy-summary.json",
+      "source_path": "build/weld/sessions/20261123T114316.007261Z-cnyzuo1w/accuracy-summary.json",
+      "bytes": 6606,
+      "sha256": "7fa41a5c086dea820e0fe12b73287f2d0861809e8ca7cb93110b070840cfaace",
+      "preservation": "byte-for-byte copy"
+    },
+    {
+      "path": "mapping.json",
+      "source_path": "build/arm_tests/hold-01-20261119/mapping.json",
+      "bytes": 3666,
+      "sha256": "3b5d7a65c313971101e94698de7878b49c5251070909fe1eb7cc0d0a43542f8a",
+      "preservation": "byte-for-byte copy"
+    },
+    {
+      "path": "standby.json",
+      "source_path": "build/arm_tests/hold-01-20261119/standby.json",
+      "bytes": 1120,
+      "sha256": "59f6b7ed9fdb6639dcfcb94b6942f3ff8dafe7567f180c73f6caaaac669d1ef5",
+      "preservation": "byte-for-byte copy"
+    },
+    {
+      "path": "arm-profile.json",
+      "source_path": "src/robot_description/config/arm_rig_gun_a2_a6_load.json",
+      "bytes": 5035,
+      "sha256": "b0e048f5ee1a10d3cc4920d32909f1c352a9a10581d9c4fab1535d4b591b313c",
+      "preservation": "byte-for-byte copy"
+    },
+    {
+      "path": "accepted-plan.json",
+      "source_path": "build/weld/sessions/20261123T114316.007261Z-cnyzuo1w/session.json#accepted_plan",
+      "bytes": 127460,
+      "sha256": "ed3a342c95bfac63343c65b865ae15f8ec3c663565cd6d75e3472ba139258c9f",
+      "preservation": "accepted_plan object extracted without changing field values"
+    },
+    {
+      "path": "accuracy-end-effector.json",
+      "source_path": "scripts/analyze_weld_accuracy.py on the archived session.jsonl",
+      "bytes": 7195,
+      "sha256": "b769cf9b8d6fc24a90dd61a48b40cd214bfd44467a2122a2d7aa0e3e1ad08d8f",
+      "preservation": "derived report with confirmed orientation target and maximum"
+    }
+  ],
+  "mapping_fingerprint": "e19226781bf4e1519414315cc4c3ead50e294eea48134199d96eb95aafab398f",
+  "scene_fingerprint": "b0f6e114fb5cdfb874217138133c76731ef3287895d1de8875cb8f5c8b22e63f",
+  "acceptance": {
+    "scope": "end-effector full 3D orientation relative to the same-time planned wire_tip frame during welding, without phase alignment",
+    "orientation_target_deg": 0.5,
+    "maximum_orientation_error_deg": 1.0,
+    "joint_errors": "diagnostic only; no per-axis 0.5-degree acceptance limit",
+    "basis": "Operator confirmed end-effector orientation in this conversation on 2026-11-23",
+    "preparation": "8.22 s accepted by operator; previous five-second goal retired",
+    "motor_protection_changed": false,
+    "independent_tip_tolerance_mm": null
+  }
+}

@@ -20,7 +20,7 @@ from .limits import (
     dynamics_constraints,
     trajectory_feasibility,
 )
-from .recovery import recovery_path
+from .recovery import recovery_path, START_TOLERANCE_DEG
 
 APPROACH_LOWERING_SECONDS = 2.0
 
@@ -334,6 +334,18 @@ class WeldGeometry:
     def check(self, raw, *, clearance_mm=None):
         return self._check(raw, clearance_mm=clearance_mm)
 
+    def observe(self, raw, *, clearance_mm=2.0):
+        """Inspect actual encoder coordinates without rejecting a model pose range."""
+        return self._check(raw, clearance_mm=clearance_mm, observation=True)
+
+    def check_recovery(self, raw, document, *, clearance_mm=None, measured=False):
+        from .measured_start import MeasuredStart
+
+        start = MeasuredStart.from_document(document)
+        start.check_raw(self.mapping, raw, measured=measured)
+        return self._check(raw, clearance_mm=clearance_mm, measured_start=start,
+                           measured=measured)
+
     def check_endpoint(self, raw, policy):
         from .endpoint_recovery import A3Retreat, STOP_PAIR, MAX_OVERLAP_MM
 
@@ -353,7 +365,8 @@ class WeldGeometry:
                 raise ValueError("A3 inward motion does not separate the modeled stop contact")
         return distance
 
-    def _check(self, raw, *, clearance_mm=None, endpoint=None):
+    def _check(self, raw, *, clearance_mm=None, endpoint=None, measured_start=None,
+               observation=False, measured=False):
         self.contact_report = []
         clearance = (
             self.clearance
@@ -366,7 +379,11 @@ class WeldGeometry:
                 "Requested clearance exceeds the configured contact envelope"
             )
         raw = finite_vector(raw, "raw pose")
-        if endpoint is None:
+        if observation or measured_start is not None:
+            angles = {str(i): self.mapping.joints[str(i)]['model_per_raw'] * q
+                      + self.mapping.joints[str(i)]['model_intercept_deg']
+                      for i, q in enumerate(raw, 1)}
+        elif endpoint is None:
             angles = self.mapping.pose({str(i): float(q) for i, q in enumerate(raw, 1)})
         else:
             endpoint.check_raw(raw)
@@ -378,11 +395,18 @@ class WeldGeometry:
         for i, name in enumerate(DRIVES):
             jid = self.model.joint(name).id
             q = math.radians(angles[str(i + 1)])
+            low, high = self.model.jnt_range[jid]
+            if measured_start is not None:
+                row = self.mapping.joints[str(i + 1)]
+                observed = math.radians(row['model_per_raw'] * measured_start.raw[i]
+                                        + row['model_intercept_deg'])
+                tolerance = math.radians(START_TOLERANCE_DEG) if measured else 0
+                low = min(low, observed - tolerance if observed < low else observed)
+                high = max(high, observed + tolerance if observed > high else observed)
+            epsilon = 1e-12 if measured_start is not None else 0
             if (
-                self.model.jnt_limited[jid]
-                and not self.model.jnt_range[jid, 0]
-                <= q
-                <= self.model.jnt_range[jid, 1]
+                not observation and self.model.jnt_limited[jid]
+                and not low - epsilon <= q <= high + epsilon
             ):
                 raise ValueError(f"A{i+1}: authored model joint limit")
             self.data.qpos[self.addresses[i]] = q
@@ -392,6 +416,11 @@ class WeldGeometry:
         # solve. Inertia/bias evaluation explicitly calls mj_forward itself.
         self.mj.mj_collision(self.model, self.data)
         self.contact_report = self.inspect_contacts(clearance * 1000)
+        warnings = []
+        # The measured knot is evidence of the existing pose. Every subsequent
+        # recovery sample still checks clearance, including near-start samples.
+        observed_knot = (measured_start is not None
+                         and np.max(abs(raw - measured_start.raw)) <= 1e-9)
         for contact in self.contact_report:
             if contact["blocked"]:
                 detail = (
@@ -400,15 +429,20 @@ class WeldGeometry:
                     and contact["distance_mm"] < 0
                     else f"{contact['distance_mm']:.3f} mm ({contact['basis']})"
                 )
-                raise ValueError(
-                    f"Arm/environment clearance: {contact['geom_names']}, {detail}"
-                )
+                message = f"Arm/environment clearance: {contact['geom_names']}, {detail}"
+                if not (observation or observed_knot):
+                    raise ValueError(message)
+                warnings.append(message)
         from .endpoint_recovery import STOP_PAIR
         for stop in self.stops.measure():
             if endpoint is not None and tuple(stop['geom_names']) == STOP_PAIR:
                 continue
             if stop['distance_mm'] < 0.1:
-                raise ValueError(f"Adjacent mechanical stop: {stop}")
+                message = f"Adjacent mechanical stop: {stop}"
+                if not (observation or observed_knot):
+                    raise ValueError(message)
+                warnings.append(message)
+        return warnings if observation or measured_start is not None else None
 
     def solve(
         self, target, *, free_yaw=False, preference=None, weights=None, fixed_yaw=0.0
@@ -506,10 +540,12 @@ class WeldGeometry:
         self.check(raw)
         return raw
 
-    def validate_path(self, path, *, clearance_mm=None):
+    def validate_path(self, path, *, clearance_mm=None, raw_bounds=None, pose_check=None):
         from .path_sampling import geometry_times
 
-        path.check_raw_bounds([self.mapping.raw_limits(i) for i in range(1, 7)])
+        path.check_raw_bounds([self.mapping.raw_limits(i) for i in range(1, 7)]
+                              if raw_bounds is None else raw_bounds)
+        check = self.check if pose_check is None else pose_check
         times = geometry_times(path)
         positions = path.curve(times)
         # Reject blocked endpoints/interiors before an expensive full scan.
@@ -518,14 +554,14 @@ class WeldGeometry:
             saved_qpos, saved_branch = self.data.qpos.copy(), self.closure.last.copy()
             try:
                 for index in np.linspace(0, len(times) - 1, 17, dtype=int):
-                    self.check(positions[index], clearance_mm=clearance_mm)
+                    check(positions[index], clearance_mm=clearance_mm)
             finally:
                 # Coarse rejection must not choose the starting D3 branch for
                 # the authoritative ordered traversal that follows.
                 self.data.qpos[:] = saved_qpos
                 self.closure.last = saved_branch
         for raw in positions:
-            self.check(raw, clearance_mm=clearance_mm)
+            check(raw, clearance_mm=clearance_mm)
 
 
 def smooth_level(phase):
@@ -942,10 +978,24 @@ def build_plan(request):
     geometry = WeldGeometry(mapping, scene_identity=fingerprint)
     phase("model_initialization")
     from .endpoint_recovery import prepare_retreat, A3Retreat
-    endpoint = prepare_retreat(geometry, current, settings)
+    from .measured_start import MeasuredStart, RecoveryGeometry
+    hardware_start = request.get("measured_hardware_start", False)
+    if type(hardware_start) is not bool:
+        raise ValueError("Measured hardware start switch must be boolean")
+    start = MeasuredStart(tuple(current), mapping.fingerprint) if hardware_start else None
+    start_warnings = geometry.observe(current) if hardware_start else []
+    recovery_geometry = geometry if start is None else RecoveryGeometry(geometry, start)
+    try:
+        endpoint = prepare_retreat(geometry, current, settings)
+    except ValueError:
+        if start is None:
+            raise
+        # Retain the reviewed A3 retreat when applicable. Otherwise let the
+        # recovery path decide feasibility from the actual measured pose.
+        endpoint = None
     recovered = current if endpoint is None else A3Retreat.from_document(endpoint['policy']).goal
     geometry.check(initial)
-    home, recovery = recovery_path(geometry, recovered, initial, settings)
+    home, recovery = recovery_path(recovery_geometry, recovered, initial, settings)
     phase("requested_recovery")
     root = Path(__file__).resolve().parents[4]
     from .planning_cache import cached_weave
@@ -962,7 +1012,7 @@ def build_plan(request):
     one = JointPath(weld.times[:201], weld.positions[:201], weld.interpolation)
     geometry.validate_path(one)
     transition_dynamics = dynamics_constraints(
-        geometry,
+        recovery_geometry,
         np.vstack(
             [
                 home.positions[np.linspace(0, len(home.positions) - 1, 5, dtype=int)],
@@ -1035,12 +1085,15 @@ def build_plan(request):
         hardware_qualified=False,
         world_tracking="nominal counterpart assumed even when its output is OFF; no switch compensation",
     )
+    if start is not None:
+        plan["measured_start"] = start.document()
+        plan["start_pose_warnings"] = start_warnings
     phase("limits_and_timing")
 
     if settings.optimize_preparation:
         from .preparation_search import optimize_preparation
 
-        plan = optimize_preparation(plan, geometry, settings)
+        plan = optimize_preparation(plan, geometry, settings, recovery_geometry=recovery_geometry)
     phase("preparation_search")
     if settings.lowering_min_s:
         from .preparation_search import apply_lowering_minimum

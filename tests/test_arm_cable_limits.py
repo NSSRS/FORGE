@@ -1,4 +1,4 @@
-"""Fixed A4 winding range, exact spline extrema, and restart invariance."""
+"""Fixed A4/A6 winding ranges, exact spline extrema, and restart invariance."""
 import source_paths
 from copy import deepcopy
 import json
@@ -12,7 +12,7 @@ import numpy as np
 from motors.arm import CAP_MANUAL_TRAVEL
 from motors.arm_bench import BenchSession
 from motors.arm_calibration import CalibrationMap
-from motors.arm_travel import a4_cable_bounds, check_a4
+from motors.arm_travel import a4_cable_bounds, a6_cable_bounds, check_a4, check_cable
 from controls.controller.weld_plan import JointPath
 from test_weld_hardware import simple_plan, Clock
 from controls.hardware.weld_control import WeldController
@@ -22,6 +22,56 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class CableLimitTests(unittest.TestCase):
+    def test_a6_fixed_reference_applies_to_mapping_and_never_wraps(self):
+        bounds = a6_cable_bounds(); center = sum(bounds)/2
+        capture = json.loads((ROOT/'docs/measurements/arm-reference-2026-11-12.capture.json').read_text())
+        self.assertEqual(center, capture['joints']['6']['reference']['raw_deg'])
+        self.assertEqual(bounds[1]-bounds[0], 540.)
+        document = json.loads((ROOT/'src/robot_description/config/arm_calibration_measured.json').read_text())
+        document['joints']['6']['raw_branch_deg'] = [-720, 720]
+        mapping = CalibrationMap(document)
+        self.assertEqual(mapping.raw_limits(6), bounds)
+        for angle in (bounds[0], bounds[1], -169.92674639837315):
+            check_cable(angle, bounds, 6)
+            mapping.model(6, angle)
+        for angle in (bounds[0]-.001, bounds[1]+.001, center-360, center+360):
+            with self.assertRaisesRegex(ValueError, 'A6'):
+                mapping.model(6, angle)
+            with self.assertRaisesRegex(ValueError, 'A6'):
+                check_cable(angle, bounds, 6)
+
+    def test_a6_firmware_bounds_are_fixed_for_every_startup(self):
+        motors = json.loads((ROOT/'src/robot_description/config/arm_rig_a1_a6.json').read_text())['motors']
+        expected = tuple(map(math.radians, a6_cable_bounds()))
+        for origin in (-2.97, 0., 3.):
+            session = BenchSession(SimpleNamespace(capabilities=CAP_MANUAL_TRAVEL), motors, {}, {}, slots=(5,))
+            with patch.object(session, 'probe_disabled', return_value={5: SimpleNamespace(position=origin)}), patch.object(session, 'prepare_motion'):
+                session.prepare(manual_travel=True)
+            self.assertEqual(session.bounds[5], expected)
+        for origin in (expected[0]-.001, expected[1]+.001):
+            with patch.object(session, 'probe_disabled', return_value={5: SimpleNamespace(position=origin)}), patch.object(session, 'prepare_motion') as prepare:
+                with self.assertRaisesRegex(RuntimeError, 'A6.*fixed cable'):
+                    session.prepare(manual_travel=True)
+                prepare.assert_not_called()
+
+    def test_a6_cubic_overshoot_and_feedback_are_checked_without_a_model(self):
+        bounds = a6_cable_bounds(); center = sum(bounds)/2
+        q = np.zeros((5, 6)); q[:, 5] = center + np.array([0, 269, 269, 0, 0])
+        path = JointPath([0, 1, 2, 3, 4], q, 'periodic_cubic')
+        self.assertLess(q[:, 5].max(), bounds[1])
+        self.assertGreater(path.position_bounds()[1][5], bounds[1])
+        clock = Clock(); arm = SimulatedArm(np.zeros(6), clock=clock)
+        control = WeldController(arm, clock=clock, pose_check=lambda *a, **k: None)
+        control.select(True, False)
+        plan = simple_plan(chassis=False); plan['weld'] = path.document()
+        with self.assertRaisesRegex(ValueError, 'A6'):
+            control.load_plan(plan)
+        self.assertFalse(arm.enabled)
+        for angle in (bounds[0]-.001, bounds[1]+.001):
+            raw = np.zeros(6); raw[5] = angle
+            with self.assertRaisesRegex(ValueError, 'A6'):
+                control.check_pose(raw, recovery=True, measured=True)
+
     def test_fixed_reference_allows_270_each_way_but_no_extra_revolution(self):
         bounds = a4_cable_bounds();center = sum(bounds)/2
         self.assertAlmostEqual(center, 173.1834352361486)

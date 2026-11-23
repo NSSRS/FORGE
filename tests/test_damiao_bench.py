@@ -1043,6 +1043,33 @@ class RoutedRoundTrip(unittest.TestCase):
             reset.assert_not_called()
         self.assertEqual([self.lib.fake_commands(i) for i in range(6)],[0]*6)
 
+    def test_idle_cached_feedback_is_refreshed_before_reuse_without_enabling_or_reset(self):
+        p=plan();session=self.session(p['motors'])
+        session.prepare();session.cleanup()
+        self.lib.fake_advance(10000)
+        self.assertTrue(all(self.bus.state(i).age_ms >= 10000 for i in range(6)))
+        with patch.object(self.bus,'reset_fault',wraps=self.bus.reset_fault) as reset:
+            self.assertEqual(len(bench.preflight(self.bus,p['motors'])),6)
+            reset.assert_not_called()
+        self.assertTrue(all(bench.stationary_disabled(s) for s in session.stop().values()))
+        self.assertEqual([self.lib.fake_commands(i) for i in range(6)],[0]*6)
+        self.assertEqual([self.lib.fake_status(i) for i in range(6)],[0]*6)
+
+    def test_missing_a5_a6_disable_replies_reproduce_startup_failure_before_register_reads(self):
+        p=plan();session=self.session(p['motors'])
+        session.prepare();session.cleanup()
+        self.lib.fake_missing(4);self.lib.fake_missing(5)
+        with patch.object(self.bus,'read_register',wraps=self.bus.read_register) as read, \
+             patch.object(self.bus,'reset_fault',wraps=self.bus.reset_fault) as reset:
+            with self.assertRaises(bench.DisableAcknowledgementTimeout) as caught:
+                bench.preflight(self.bus,p['motors'])
+            self.assertTrue(all(bench.stationary_disabled(caught.exception.states[i]) for i in range(4)))
+            for i in (4,5):
+                self.assertEqual(caught.exception.states[i].age_ms,0xffffffff)
+                self.assertTrue(caught.exception.states[i].stopping)
+            read.assert_not_called();reset.assert_not_called()
+        self.assertEqual([self.lib.fake_commands(i) for i in range(6)],[0]*6)
+
     def latch_recovery_fault(self, *, full=False):
         p = plan()
         slots = list(range(6)) if full else list(range(1, 6))
@@ -1581,7 +1608,13 @@ class RoutedRoundTrip(unittest.TestCase):
                     kinds=[c.args[0] for c in request.call_args_list]
                 self.assertEqual(kinds[0],4)  # Original rejection reproduced.
                 self.assertLess(kinds.index(6),kinds.index(19))  # Stop before diagnostics.
-                self.assertTrue(set(kinds)<= {4,6,7,19})  # No reset, enable, probe or parameter writes.
+                self.assertTrue(set(kinds)<= {4,6,7,19,21,23})  # Only cached diagnostics after stop.
+                for kind in (21,23):
+                    self.assertEqual(kinds.count(kind),1)  # This subset uses only CAN2.
+                    self.assertLess(kinds.index(19),kinds.index(kind))
+                diagnostics=port.report['bus_diagnostics_after_stop']['2']
+                self.assertIn('tx_failed',diagnostics['health'])
+                self.assertIn('data',diagnostics['last_rx'])
                 self.assertEqual(kinds.count(4),1)
                 fault=port.report['fault_snapshot']
                 self.assertEqual((fault['reason'],fault['slot']),(9,1))
