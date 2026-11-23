@@ -228,10 +228,12 @@ weld panel's cached journal and `scripts/analyze_weld_accuracy.py` after the pas
 
 Owner: [`src/welding_machine/`](../src/welding_machine/TODO.md).
 
-- [ ] Document the real machine's Modbus transport and register map, then build
-  an API for its supported status and control operations. Verify encoding,
-  units, timeouts and fault handling with a simulated endpoint before
-  commissioning.
+- [ ] Confirm the welder model, connector, transport settings and register map.
+  Verify a documented status point on the machine using the
+  [read-only RTU/TCP probe](../src/welding_machine/README.md).
+- [ ] Add machine-specific status decoding and supported commands after the
+  map is confirmed. Verify encoding, readback and fault handling with a
+  simulated endpoint before hardware commissioning.
 
 ### LOAD-01 — weight compensation after the first arm welding run
 

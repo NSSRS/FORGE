@@ -1,6 +1,10 @@
 # Welding machine open work
 
-- **WELDER-01 — Modbus API.** Confirm the machine model, transport, register map,
-  units and supported operations. Implement the machine client here and verify
-  status reads and command handling with a simulated Modbus device before
-  commissioning. See the [cross-layer TODO](../../docs/ARM_LAYER_TODOS.md#welder-01--welding-machine-modbus-api).
+- **WELDER-01:** obtain the exact machine model, firmware, connector pinout,
+  transport settings, unit ID and register-map revision. Use the
+  [bring-up procedure](README.md) to verify a documented status point against
+  the machine panel and record the observed raw and scaled values.
+- Add named status fields and machine commands once the map establishes their
+  units, word order, permitted values and readback. Verify command handling
+  against a simulated endpoint before separate physical commissioning of
+  arc enable, stop, interlocks and communication loss.

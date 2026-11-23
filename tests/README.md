@@ -452,3 +452,15 @@ The [exported animation](../docs/WELD_MOTION.md#render-the-actual-optimized-plan
 checks model/mapping/constraint identity, continuity and derivative limits before
 rendering. Preview and fake-shaft replay do not establish physical tracking,
 loaded holding, stopping or five-second hardware preparation.
+
+## Welding machine Modbus
+
+From the repository root, install the optional welder dependency and run the
+loopback TCP and POSIX pseudo-terminal RTU checks.
+
+```bash
+.venv/bin/python -m pip install -e '.[welder]'
+PYTHONPATH=tests .venv/bin/python -m unittest test_welding_machine -v
+```
+
+See the [welder bring-up procedure](../src/welding_machine/README.md).

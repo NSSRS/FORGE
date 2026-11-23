@@ -15,7 +15,7 @@ Native Linux is the deployment target. The ROS Python packages use ament_python:
 | teleop | Keyboard/radio command generation; uses motor_control command helpers |
 | visualization | Read-only relay and measured-state MuJoCo display |
 | controls | [Coordinated motion](../src/controls/README.md): shared planning/CMA-ES, simulation controller and real ENCOS/Damiao weld execution |
-| welding_machine | Planned welding machine Modbus API and register definitions |
+| welding_machine | [Read-only welder Modbus RTU/TCP and connection guide](../src/welding_machine/README.md) |
 | simulation | MuJoCo model integration, previews, rendering, terrain and linkage closure |
 | robot_description | Shared MJCF/meshes and resource lookup, chassis/arm motor inventories and Xacro macros |
 | bringup | Shared YAML/DDS profiles, ROS launch files, four-pane session manager |

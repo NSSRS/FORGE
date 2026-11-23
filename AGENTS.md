@@ -14,6 +14,10 @@ for open work; remove completed tasks instead of appending incident histories.
 Operator procedures belong in `docs/ARM_RIG_TEST.md`; architecture and ownership
 are in `docs/ARM_BASE_LAYER.md` and `docs/SOURCE_LAYOUT.md`.
 
+Welder communication is separate from arm motion. The read-only RTU/TCP
+probe and wiring choices are in `src/welding_machine/README.md`. Use the
+machine manual for its pinout, link settings, unit ID and register map.
+
 Calibration evidence (2026-11-13): all six motors are connected. The Nov 12 eight
 reference readings remain in the dated reference JSON; the Nov 13 stationary
 cycle and all six off-power return observations are recorded in
@@ -58,26 +62,22 @@ trips remain 1.5 rad/s. Current protection, thermal endurance and physical stopp
 remain unqualified. Do not increase reactive trips or claim jitter resolved.
 The operator confirmed the earlier A1 undervoltage issue was fixed.
 
-## Current welding implementation (2026-11-23)
+## Current welding implementation (2026-11-24)
 
-ACCURACY-01 and SPEED-01 track the remaining weld-motion accuracy work. The
-operator prioritizes end-effector orientation relative to the planned tool frame:
-0.5 deg target, 1.0 deg maximum during welding, without phase alignment. Individual
-joint errors are diagnostic, not per-axis acceptance limits. Position error is
-reported separately in mm. This is an acceptance criterion, not
-a change to the 3-degree runtime trip or 0.25-degree arrival tolerance. The
-operator accepted 8.22 s preparation under the 10 s trial goal and retired the
-earlier five-second goal. Calculation latency remains separate. The accuracy
-analyzer reads saved journals and optional independent tip measurements without
-acquiring a transport. Planner caches reuse unchanged scene
-and weave inputs only; recovery is checked from each fresh measured start.
+ACCURACY-01 and SPEED-01 prioritize wire-tip position and stroke. Continuous
+arm-only tip reporting allows one fixed lag. The separate same-time tool
+orientation target is 0.5 deg with a 1.0 deg maximum. Runtime limits remain
+3 degrees for tracking and 0.25 degree for arrival. The operator accepted
+8.22 s preparation under the 10 s trial goal and retired the five-second goal.
+Calculation latency remains separate. The accuracy analyzer reads saved data
+without a transport. Planner caches reuse unchanged scene and weave inputs. Recovery is checked from each fresh measured start.
 
 PLAN-01 and BASE-04 were resolved by operator confirmation on Nov 23. Do not
 carry their historical planning delays or CAN incidents forward as open tasks.
 The Nov 23 accuracy/speed review records an existing physical baseline: A1/A6
 measured travel 3.891/1.333 deg versus planned 2.261/0.428 deg; measured frequency
-1.734/1.728 Hz versus checked 1.730 Hz. Prioritize amplitude/phase tracking under
-SPEED-01. Encoder-reconstructed full tool orientation has 1.408 deg RMS /
+1.734/1.728 Hz versus checked 1.730 Hz. Prioritize overswing under SPEED-01.
+Phase remains diagnostic for the arm-only position comparison. Encoder-reconstructed full tool orientation has 1.408 deg RMS /
 2.633 deg peak error, exceeding the 1-degree maximum. Independent
 workpiece-relative tool-pose measurements and a tip-mm tolerance remain
 missing. Complete logs, calibration, accepted plan, issues and offline commands

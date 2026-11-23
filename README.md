@@ -193,6 +193,7 @@ src/
   damiao_firmware/ DM-MC02 arm firmware, USB protocol and watchdogs
   robot_description/ Shared MJCF/meshes, chassis/arm inventories and motor Xacro macros
   controls/       Shared planners, simulation control and real ENCOS/Damiao weld execution
+  welding_machine/ Read-only Modbus RTU/TCP commissioning probe
   simulation/     MuJoCo previews, CAD integration, terrain and rendering
   motors/         Python motor API, simulator and native commissioning
   motor_control/  ROS motor driver, chassis mixing and ROS commissioning
@@ -210,6 +211,13 @@ docs/             Architecture, setup and commissioning documentation
 Each ROS package has an inner Python module of the same name; its outer
 directory contains `package.xml`, setuptools metadata, and resources.
 Build output, installed packages, and logs are generated locally and untracked.
+
+## Welding machine Modbus
+
+The standalone read-only probe supports direct Modbus RTU and Modbus TCP.
+The [connection and bring-up guide](src/welding_machine/README.md) covers
+the supplied source archive, USB/RS-485 wiring, Ethernet and the vendor ACRN
+relay. Obtain the machine-specific pinout and register map before connecting.
 
 ## IMU sensor
 

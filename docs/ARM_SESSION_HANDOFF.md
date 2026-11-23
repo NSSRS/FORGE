@@ -18,6 +18,13 @@ for same-time tool orientation as a secondary criterion. See the
 [matched A1 trial](ARM_RIG_TEST.md#weld-motion-accuracy-test) and the
 [complete offline archive](measurements/weld/2026-11-23/README.md).
 
+The fixed-lag report on the hardware journal finds 101.8 ms lag, 4.58 mm
+RMS / 11.09 mm peak residual tip-position error and a 34.56 mm reconstructed
+stroke for the 20 mm plan. The A1 shaper-only command replay reduced dispatched
+A1 travel from 7.69 to 3.83 deg, with zero A1 rate or acceleration limit hits.
+Use the matched operator dry passes to measure the physical tip response. The
+64-candidate offline search reached 1.739 Hz and failed strict 2 Hz timing.
+
 The Nov 23 19:05 launch (`build/weld/sessions/20261123T110514.433378Z-tu8yc8s8/`)
 failed the startup stationary-disable check: A1-A4 had valid feedback, but
 A5/A6 retained `stopping=1` and feedback age `UINT32_MAX`. Two explicit recovery
