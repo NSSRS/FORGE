@@ -460,6 +460,8 @@ class WeldController:
                 self.weld_correction_mask = (
                     high - low >= self.tracker.settings.minimum_weld_travel_deg
                 )
+                if self.tracker.settings.weld_a1_shaper_only:
+                    self.weld_correction_mask[0] = False
         self.state = "planned"
         self.last_accepted_plan = plan
         self.hold_deviated = False

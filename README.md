@@ -6,9 +6,10 @@ Motor control, IMU acquisition, teleoperation, and visualization for the magneti
 The [Nov 23 review](docs/ARM_SESSION_HANDOFF.md#accuracy-01-and-speed-01-review)
 provides the first joint-accuracy baseline: prioritize A1/A6 amplitude and phase.
 PLAN-01 and BASE-04 are resolved by operator confirmation.
-The operator accepted **8.22 s preparation** and prioritizes **end-effector
-orientation: 0.5 deg target, 1 deg maximum** relative to the planned tool frame.
-The recorded model estimate peaks at **2.633 deg**; joint errors are diagnostic.
+The operator accepted **8.22 s preparation**. Current tracking work prioritizes
+**wire-tip position and stroke**, with one fixed lag allowed in the arm-only
+position report. Same-time tool orientation remains a secondary criterion
+with a **0.5 deg target and 1 deg maximum**.
 The earlier five-second goal is retired.
 The [offline handoff](docs/measurements/weld/2026-11-23/README.md) includes full
 logs, calibration, the accepted plan, current failures and commands without motors.

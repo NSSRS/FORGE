@@ -11,11 +11,12 @@ operator commands belong in [ARM_RIG_TEST.md](ARM_RIG_TEST.md).
 **PLAN-01 and BASE-04 are resolved** by operator confirmation on Nov 23; see
 [their closure](#plan-01-and-base-04-resolution).
 **Current development:** ACCURACY-01 and SPEED-01. The operator accepted
-**8.22 s preparation** and retired the previous five-second goal. Accuracy now
-prioritizes **end-effector orientation: 0.5 deg target / 1 deg maximum** relative
-to the planned tool frame. Joint errors are diagnostic; position error remains
-separate in mm. Use the [complete offline archive](measurements/weld/2026-11-23/README.md)
-for logs, calibration, the accepted plan, issues and commands without motors.
+**8.22 s preparation** and retired the previous five-second goal. Current
+comparisons prioritize **wire-tip position and stroke** with one fixed lag
+allowed for arm-only position scoring. Retain **0.5 deg target / 1 deg maximum**
+for same-time tool orientation as a secondary criterion. See the
+[matched A1 trial](ARM_RIG_TEST.md#weld-motion-accuracy-test) and the
+[complete offline archive](measurements/weld/2026-11-23/README.md).
 
 The Nov 23 19:05 launch (`build/weld/sessions/20261123T110514.433378Z-tu8yc8s8/`)
 failed the startup stationary-disable check: A1-A4 had valid feedback, but

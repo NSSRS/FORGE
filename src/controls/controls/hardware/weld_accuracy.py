@@ -199,9 +199,8 @@ def tip_statistics(errors):
                 distance_mm=stats(np.linalg.norm(points, axis=1)))
 
 
-def measured_tip_errors(csv_path, run, path, model, duration, feed_mm_s):
-    origin = model.tip_mm(path.positions[0])
-    times, errors = [], []
+def read_tip_csv(csv_path, duration):
+    times, positions = [], []
     with csv_path.open(encoding="utf-8-sig", newline="") as stream:
         reader = csv.DictReader(stream)
         fields = ["elapsed_s", "x_mm", "y_mm", "z_mm"]
@@ -218,16 +217,70 @@ def measured_tip_errors(csv_path, run, path, model, duration, feed_mm_s):
                     raise ValueError
             except (ValueError, TypeError):
                 raise ValueError(f"Invalid synchronized tip data at CSV line {reader.line_num}") from None
-            phase = elapsed % path.duration if run.continuous else elapsed
-            reference = model.tip_mm(path.sample(phase)[0]) - origin
-            reference[0] += feed_mm_s * elapsed
             times.append(elapsed)
-            errors.append(np.asarray(position) - reference)
+            positions.append(position)
+    return times, np.asarray(positions, dtype=float).reshape(-1, 3)
+
+
+def measured_tip_errors(times, positions, run, path, model, duration, feed_mm_s):
+    origin = model.tip_mm(path.positions[0])
+    errors = []
+    for elapsed, position in zip(times, positions):
+        phase = elapsed % path.duration if run.continuous else elapsed
+        reference = model.tip_mm(path.sample(phase)[0]) - origin
+        reference[0] += feed_mm_s * elapsed
+        errors.append(position - reference)
     return dict(coverage=coverage(times, duration), **tip_statistics(errors))
 
 
+def tip_lag_report(path, model, period, times, positions, same_time, source):
+    from scipy.optimize import minimize_scalar
+
+    if not finite(period) or not 0 < period <= path.duration + 1e-9:
+        return dict(status="a valid weave period is required")
+    if times[-1] - times[0] < period:
+        return dict(status="at least one weave period of tip samples is required")
+
+    # Evaluate the accepted periodic path in the same workpiece frame as the
+    # CSV. One time shift applies to all three axes, with no spatial fit.
+    times = np.asarray(times)
+    origin = model.tip_mm(path.positions[0])
+    grid = np.linspace(0, path.duration, max(2049, len(path.times)))
+    planned = np.array([model.tip_mm(path.sample(t)[0]) - origin for t in grid])
+    planned_low, planned_high = float(planned[:, 1].min()), float(planned[:, 1].max())
+    if planned_high - planned_low <= 1e-6:
+        return dict(status="the planned tip has no transverse stroke")
+
+    def errors(lag):
+        phase = (times - lag) % path.duration
+        shifted = np.column_stack([np.interp(phase, grid, axis) for axis in planned.T])
+        return positions - shifted
+
+    def objective(lag):
+        return float(np.mean(np.sum(errors(lag) ** 2, axis=1)))
+
+    # A weave can have dwell and multiple local minima. Find a coarse minimum
+    # over one fundamental period and refine inside the neighboring interval.
+    candidates = np.linspace(-period / 2, period / 2, 129)
+    best = int(np.argmin([objective(lag) for lag in candidates]))
+    bounds = candidates[max(0, best - 1)], candidates[min(len(candidates) - 1, best + 1)]
+    refined = minimize_scalar(objective, bounds=bounds, method="bounded")
+    lag = min((candidates[best], refined.x), key=objective)
+    measured_low, measured_high = float(positions[:, 1].min()), float(positions[:, 1].max())
+    return dict(
+        status="available", source=source, lag_ms=float(1000 * lag),
+        same_time_error=same_time, aligned_error=tip_statistics(errors(lag)),
+        stroke=dict(
+            planned_width_mm=planned_high - planned_low,
+            measured_width_mm=measured_high - measured_low,
+            lower_edge_outward_error_mm=planned_low - measured_low,
+            upper_edge_outward_error_mm=measured_high - planned_high,
+        ),
+    )
+
+
 def analyze(journal, *, run_number=None, tip_csv=None, peak_joint_deg=None, peak_tip_mm=None,
-            orientation_target_deg=None, max_orientation_deg=None):
+            orientation_target_deg=None, max_orientation_deg=None, fit_tip_lag=False):
     from simulation.arm_calibration import scene_fingerprint
     from simulation.paths import MODEL_DIR
 
@@ -291,11 +344,15 @@ def analyze(journal, *, run_number=None, tip_csv=None, peak_joint_deg=None, peak
         )
 
     encoder_tip = independent_tip = encoder_orientation = None
+    lag_report = dict(status="a continuous arm-only run is required")
+    lag_eligible = fit_tip_lag and run.continuous and not chassis_selected
     model_status = "scene fingerprint differs from the accepted plan"
+    if lag_eligible:
+        lag_report = dict(status=model_status)
     identity = scene_fingerprint(MODEL_DIR / "robot.xml")
     if identity == plan.get("scene_fingerprint"):
         model = TipModel(mapping, identity)
-        errors, angles = [], []
+        errors, angles, encoder_positions = [], [], []
         for sample in samples:
             # The model holds the base fixed, including when chassis feed ran.
             try:
@@ -303,6 +360,8 @@ def analyze(journal, *, run_number=None, tip_csv=None, peak_joint_deg=None, peak
                 reference_position, reference_orientation = model.tip_pose(sample.reference_deg)
                 errors.append(measured_position - reference_position)
                 angles.append(orientation_error_deg(reference_orientation, measured_orientation))
+                if lag_eligible and not tip_csv:
+                    encoder_positions.append(measured_position)
             except ValueError:
                 continue
         encoder_tip = dict(rejected=len(samples) - len(errors), **tip_statistics(errors))
@@ -318,9 +377,34 @@ def analyze(journal, *, run_number=None, tip_csv=None, peak_joint_deg=None, peak
         if encoder_tip["rejected"]:
             issues.append("Some encoder poses could not be reconstructed")
         if tip_csv:
-            independent_tip = measured_tip_errors(Path(tip_csv), run, path, model, duration, feed_mm_s)
+            tip_times, tip_positions = read_tip_csv(Path(tip_csv), duration)
+            independent_tip = measured_tip_errors(
+                tip_times, tip_positions, run, path, model, duration, feed_mm_s,
+            )
             if not independent_tip["coverage"]["complete"]:
                 issues.append("Independent tip data has gaps over 100 ms or insufficient samples")
+        if lag_eligible:
+            lag_report = dict(status="complete, fault-free tip and journal coverage is required")
+            source = ("independent" if tip_csv else "encoder_reconstructed")
+            if tip_csv:
+                trace_complete = independent_tip["coverage"]["complete"]
+                same_time = independent_tip
+            else:
+                trace_complete = not encoder_tip["rejected"]
+                same_time = encoder_tip
+            if (
+                trace_complete and gaps["complete"] and closed
+                and not any((partial, dropped, fault, rejected))
+                and run.outcome in ("complete", "pause")
+            ):
+                if not tip_csv:
+                    tip_times = times
+                    tip_positions = np.asarray(encoder_positions) - model.tip_mm(path.positions[0])
+                hz = plan.get("effective_hz")
+                lag_report = tip_lag_report(
+                    path, model, 1 / hz if finite(hz) and hz > 0 else None,
+                    tip_times, tip_positions, same_time, source,
+                )
     elif tip_csv:
         raise ValueError("Independent tip analysis requires the exact model used to plan the pass")
 
@@ -338,7 +422,7 @@ def analyze(journal, *, run_number=None, tip_csv=None, peak_joint_deg=None, peak
                          bool(orientation_peak is not None and orientation_peak <= max_orientation_deg))
     # The preferred target is reported separately; maximum is the acceptance cap.
     checks = [value for value in (joint_check, tip_check, orientation_check) if value is not None]
-    return dict(
+    report = dict(
         schema="forge.weld_motion_accuracy", version=1, journal=str(journal.resolve()),
         simulated=session.get("simulated"), run_number=run_number, outcome=run.outcome,
         duration_s=duration, effective_hz=plan.get("effective_hz"),
@@ -355,6 +439,9 @@ def analyze(journal, *, run_number=None, tip_csv=None, peak_joint_deg=None, peak
         orientation_target_met=orientation_goal, orientation_maximum_met=orientation_check,
         passed=None if not checks else not issues and all(checks),
     )
+    if fit_tip_lag:
+        report["tip_lag"] = lag_report
+    return report
 
 
 def print_summary(report):
@@ -375,6 +462,20 @@ def print_summary(report):
             print(f"  {label}: 3D RMS {error['rms']:.3f} mm, peak {error['peak_abs']:.3f} mm")
     if report["encoder_tip"] is None:
         print(f"  Tip estimate unavailable: {report['encoder_tip_status']}")
+    lag = report.get("tip_lag")
+    if lag and lag["status"] == "available":
+        error = lag["aligned_error"]["distance_mm"]
+        stroke = lag["stroke"]
+        source_label = ("independent measurements" if lag["source"] == "independent" else "encoder estimate")
+        print(f"  Tip with one fixed lag ({source_label}): {lag['lag_ms']:+.1f} ms, "
+              f"3D RMS {error['rms']:.3f} mm, peak {error['peak_abs']:.3f} mm")
+        print(f"    Transverse stroke: {stroke['measured_width_mm']:.3f} mm measured, "
+              f"{stroke['planned_width_mm']:.3f} mm planned")
+        print(f"    Edge errors (positive is overshoot): "
+              f"lower {stroke['lower_edge_outward_error_mm']:+.3f} mm, "
+              f"upper {stroke['upper_edge_outward_error_mm']:+.3f} mm")
+    elif lag:
+        print(f"  Tip lag unavailable: {lag['status']}")
     orientation = report.get("encoder_orientation")
     if orientation and orientation["angle_deg"]:
         error = orientation["angle_deg"]
@@ -395,6 +496,8 @@ def main(argv=None):
     parser.add_argument("journal", type=Path, help="The completed weld session .jsonl")
     parser.add_argument("--run-number", type=int, help="One-based weld start in a multi-run journal")
     parser.add_argument("--tip-csv", type=Path, help="Synchronized independent tip measurements")
+    parser.add_argument("--fit-tip-lag", action="store_true",
+                        help="Report one fixed wire-tip lag and stroke errors for a continuous arm-only run")
     parser.add_argument("--peak-joint-deg", type=float, help="Allowed peak nominal tracking error on every axis")
     parser.add_argument("--peak-tip-mm", type=float, help="Allowed measured 3D tip error; requires --tip-csv")
     parser.add_argument("--orientation-target-deg", type=float,
@@ -408,6 +511,7 @@ def main(argv=None):
             args.journal, run_number=args.run_number, tip_csv=args.tip_csv,
             peak_joint_deg=args.peak_joint_deg, peak_tip_mm=args.peak_tip_mm,
             orientation_target_deg=args.orientation_target_deg, max_orientation_deg=args.max_orientation_deg,
+            fit_tip_lag=args.fit_tip_lag,
         )
         if args.output:
             payload = json.dumps(report, indent=2, allow_nan=False)

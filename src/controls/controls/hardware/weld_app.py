@@ -53,7 +53,11 @@ def make_window(args, mapping, initial, settings, root):
     from .weld_ports import ArmOwner, SimulatedArm, ChassisOwner
     from teleop.arm_telemetry_widgets import TelemetryPanel, AXIS_COLORS
 
-    tracker_settings = TrackingSettings() if getattr(args, "tracker", "pid") == "pid" else None
+    a1_trial = getattr(args, "weld_a1_shaper_only", False)
+    tracker_settings = (
+        TrackingSettings(weld_a1_shaper_only=a1_trial)
+        if getattr(args, "tracker", "pid") == "pid" else None
+    )
     tracker_document = None if tracker_settings is None else tracker_settings.document()
 
     class OwnerThread(QtCore.QThread):
@@ -741,6 +745,8 @@ def make_window(args, mapping, initial, settings, root):
             detail_body = QtWidgets.QWidget()
             detail_layout = QtWidgets.QVBoxLayout(detail_body)
             self.controller_label = QtWidgets.QLabel("Tracker: PID + velocity feedforward" if tracker_settings is not None else "Tracker: feedback-paced")
+            if a1_trial:
+                self.controller_label.setText("Tracker: PID with A1 weld correction off")
             self.weld_run_label = QtWidgets.QLabel(f"Welding: one planned pass ({settings.cycles} cycles), then hold." if getattr(args, "single_pass", False) else "Welding: continuous until Pause / Hold.")
             self.preparation_route_label = QtWidgets.QLabel("Route: " + ("optimized staging" if settings.optimize_preparation else "saved standby") + f" · request {settings.max_speed_deg_s:g}°/s · lift {settings.approach_lift_m*1000:g} mm · final lowering minimum {settings.lowering_min_s:g} s")
             self.tracking_label = QtWidgets.QLabel()
@@ -1245,6 +1251,10 @@ def main(argv=None):
         help="PID position tracking with bounded velocity feedforward (default), or legacy feedback-paced preparation",
     )
     parser.add_argument(
+        "--weld-a1-shaper-only", action="store_true",
+        help="Arm-only PID trial: omit A1 host correction during welding and retain command shaping",
+    )
+    parser.add_argument(
         "--single-pass", action="store_true",
         help="stop and hold after the planned --cycles; by default welding repeats until Pause / Hold",
     )
@@ -1319,6 +1329,10 @@ def main(argv=None):
         )
     if args.optimize_preparation and args.audit:
         parser.error("--optimize-preparation requires planning; it is unavailable with --audit")
+    if args.weld_a1_shaper_only and (
+        args.tracker != "pid" or not args.arm or args.chassis or args.plan_only or args.audit
+    ):
+        parser.error("--weld-a1-shaper-only requires a live panel with --arm alone and --tracker pid")
     if args.execute:
         if not (args.arm or args.chassis):
             parser.error("Select --arm and/or --chassis explicitly for hardware")

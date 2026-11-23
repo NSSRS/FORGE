@@ -39,7 +39,10 @@ class WeldAccuracyTests(unittest.TestCase):
             weld=self.path.document(), duration_s=self.path.duration, feed_m_s=0.012, effective_hz=3.125,
         )
 
-    def write_journal(self, *, error=0.0, age_ms=12, complete=True, dropped=0, second=False):
+    def write_journal(
+        self, *, error=0.0, age_ms=12, complete=True, dropped=0, second=False,
+        continuous=False, lag_s=0.0, elapsed_times=(0.02, 0.08, 0.14, 0.20, 0.26, 0.31),
+    ):
         rows = [
             dict(kind="session", schema="forge.weld_motion_journal", version=1,
                  mapping=self.mapping.document, simulated=True),
@@ -47,11 +50,13 @@ class WeldAccuracyTests(unittest.TestCase):
         ]
         for started in [100.0, 200.0] if second else [100.0]:
             rows.append(dict(kind="sample", events=[
-                dict(event="weld_started", continuous=False, time_s=started),
+                dict(event="weld_started", continuous=continuous, time_s=started),
             ]))
-            for index, elapsed in enumerate((0.02, 0.08, 0.14, 0.20, 0.26, 0.31)):
-                nominal = self.path.sample(elapsed)[0]
+            for index, elapsed in enumerate(elapsed_times):
+                nominal = self.path.sample(elapsed % self.path.duration if continuous else elapsed)[0]
                 actual = nominal + [error, 0, 0, 0, 0, 0]
+                if lag_s:
+                    actual = self.path.sample((elapsed - lag_s) % self.path.duration)[0]
                 command = nominal + [0.05, 0, 0, 0, 0, 0]
                 entry = dict(
                     kind="sample",
@@ -70,16 +75,17 @@ class WeldAccuracyTests(unittest.TestCase):
         rows.append(dict(kind="session_end", dropped_records=dropped, fault=None))
         self.journal.write_text("".join(json.dumps(row) + "\n" for row in rows))
 
-    def write_tip(self, *, deviation_mm=0.0, end_s=0.32, feed_mm_s=12.0):
+    def write_tip(self, *, deviation_mm=0.0, height_mm=0.0, end_s=0.32, feed_mm_s=12.0, lag_s=0.0):
         model = TipModel(self.mapping, self.identity)
         origin = model.tip_mm(self.path.positions[0])
         csv_path = self.directory / "tip.csv"
         with csv_path.open("w", newline="") as stream:
             writer = csv.writer(stream)
             writer.writerow(["elapsed_s", "x_mm", "y_mm", "z_mm"])
-            for elapsed in np.linspace(0.0, end_s, 9):
-                tip = model.tip_mm(self.path.sample(elapsed)[0]) - origin
-                tip += [feed_mm_s * elapsed, deviation_mm, 0]
+            for elapsed in np.linspace(0.0, end_s, max(2, round(end_s / 0.04) + 1)):
+                phase = (elapsed - lag_s) % self.path.duration if lag_s else elapsed
+                tip = model.tip_mm(self.path.sample(phase)[0]) - origin
+                tip += [feed_mm_s * elapsed, deviation_mm, height_mm]
                 writer.writerow([elapsed, *tip])
         return csv_path
 
@@ -153,6 +159,49 @@ class WeldAccuracyTests(unittest.TestCase):
         self.assertEqual(report["nominal_chassis_feed_mm_s"], 0.0)
         self.assertAlmostEqual(report["independent_tip"]["distance_mm"]["peak_abs"], 0.0)
         self.assertTrue(report["passed"])
+
+    def test_fixed_lag_aligns_tip_and_retains_same_time_orientation(self):
+        self.plan["chassis_enabled"] = False
+        self.write_journal(continuous=True, complete=False, lag_s=0.04,
+                           elapsed_times=np.arange(0.02, 0.97, 0.02))
+        report = analyze(self.journal, max_orientation_deg=1.0)
+        aligned = analyze(self.journal, max_orientation_deg=1.0, fit_tip_lag=True)
+        self.assertNotIn("tip_lag", report)
+        self.assertEqual(aligned["encoder_orientation"], report["encoder_orientation"])
+        self.assertEqual(aligned["passed"], report["passed"])
+        lag = aligned["tip_lag"]
+        self.assertEqual(lag["source"], "encoder_reconstructed")
+        self.assertAlmostEqual(lag["lag_ms"], 40.0, delta=0.05)
+        self.assertLess(lag["aligned_error"]["distance_mm"]["peak_abs"], 0.001)
+        self.assertAlmostEqual(
+            lag["stroke"]["planned_width_mm"], lag["stroke"]["measured_width_mm"], places=3,
+        )
+
+    def test_fixed_lag_uses_independent_tip_and_retains_spatial_offset(self):
+        self.plan["chassis_enabled"] = False
+        self.write_journal(continuous=True, complete=False, lag_s=0.04,
+                           elapsed_times=np.arange(0.02, 0.97, 0.02))
+        csv_path = self.write_tip(end_s=0.96, feed_mm_s=0, lag_s=0.08, height_mm=0.5)
+        lag = analyze(self.journal, tip_csv=csv_path, fit_tip_lag=True)["tip_lag"]
+        self.assertEqual(lag["source"], "independent")
+        self.assertAlmostEqual(lag["lag_ms"], 80.0, delta=0.05)
+        self.assertAlmostEqual(lag["aligned_error"]["distance_mm"]["rms"], 0.5, places=3)
+        csv_path = self.write_tip(end_s=0.96, feed_mm_s=0, lag_s=0.08, deviation_mm=0.5)
+        lag = analyze(self.journal, tip_csv=csv_path, fit_tip_lag=True)["tip_lag"]
+        self.assertAlmostEqual(lag["stroke"]["upper_edge_outward_error_mm"], 0.5, delta=0.02)
+        self.assertAlmostEqual(lag["stroke"]["lower_edge_outward_error_mm"], -0.5, delta=0.02)
+        csv_path = self.write_tip(end_s=0.15, feed_mm_s=0)
+        lag = analyze(self.journal, tip_csv=csv_path, fit_tip_lag=True)["tip_lag"]
+        self.assertIn("coverage", lag["status"])
+
+    def test_fixed_lag_is_unavailable_for_chassis_or_finite_runs(self):
+        self.write_journal(continuous=True)
+        lag = analyze(self.journal, fit_tip_lag=True)["tip_lag"]
+        self.assertIn("arm-only", lag["status"])
+        self.plan["chassis_enabled"] = False
+        self.write_journal()
+        lag = analyze(self.journal, fit_tip_lag=True)["tip_lag"]
+        self.assertIn("continuous", lag["status"])
 
     def test_missing_stale_dropped_or_interrupted_data_cannot_pass(self):
         self.write_journal(age_ms=80, complete=False, dropped=1)

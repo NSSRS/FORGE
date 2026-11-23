@@ -35,15 +35,21 @@ class LaggedArm(SimulatedArm):
 
 
 class TrackingTests(unittest.TestCase):
-    def controller(self, pid=True, plant=LaggedArm):
+    def controller(self, pid=True, plant=LaggedArm, *, a1_trial=None):
         clock = Clock()
         arm = plant([0] * 6, clock=clock)
         control = WeldController(
             arm, FakeChassis(), clock=clock, pose_check=lambda *a, **k: None,
-            continuous_weld=True, tracking_settings=TrackingSettings() if pid else None,
+            continuous_weld=True,
+            tracking_settings=TrackingSettings(weld_a1_shaper_only=bool(a1_trial)) if pid else None,
         )
-        control.select(True, True)
-        control.load_plan(preparation_plan())
+        plan = preparation_plan()
+        if a1_trial is not None:
+            plan["chassis_enabled"] = False
+            plan["weld"]["raw_deg"][1][0] += 0.10
+            plan["weld"]["raw_deg"][1][5] += 0.10
+        control.select(True, plan["chassis_enabled"])
+        control.load_plan(plan)
         control.go_initial()
         return clock, arm, control
 
@@ -103,6 +109,38 @@ class TrackingTests(unittest.TestCase):
         self.assertTrue(arm.enabled)
         np.testing.assert_array_equal(arm.target, target)
         self.assertEqual(control.chassis.last_feed, 0)
+
+    def test_a1_shaper_only_retains_preparation_and_delayed_weld_guards(self):
+        class Delayed(LaggedArm):
+            delayed = True
+
+        preparation = []
+        for trial in (False, True):
+            with self.subTest(trial=trial):
+                clock, arm, control = self.controller(plant=Delayed, a1_trial=trial)
+                self.addCleanup(control.close)
+                self.run_to_ready(clock, control)
+                preparation.append([row["command_raw_deg"] for row in control.trace])
+                control.start_weld()
+                for _ in range(150):
+                    clock.advance()
+                    control.tick()
+                self.assertEqual(control.state, "welding", control.message)
+                weld = [row for row in control.trace if row["stage"] == "welding"]
+                self.assertTrue(weld)
+                corrections = np.array([row["tracker"]["target_correction_deg"] for row in weld])
+                self.assertEqual(control.weld_correction_mask[0], not trial)
+                self.assertTrue(control.weld_correction_mask[5])
+                if trial:
+                    np.testing.assert_array_equal(corrections[:, 0], 0)
+                    commands = np.array([row["command_raw_deg"] for row in weld])
+                    reference = np.array([row["requested_raw_deg"] for row in weld])
+                    self.assertGreater(np.max(abs(commands[:, 0] - reference[:, 0])), 0)
+                else:
+                    self.assertGreater(np.max(abs(corrections[:, 0])), 0)
+                self.assertEqual(control.tracking_deg, 3.0)
+                self.assertEqual(control.arrival_deg, 0.25)
+        np.testing.assert_array_equal(preparation[0], preparation[1])
 
     def test_mismatched_response_adapts_or_retains_tracking_stop(self):
         # The controller's initial estimates must not have to match the plant.

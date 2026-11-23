@@ -3,19 +3,19 @@
 The canonical acceptance criteria are in [ARM_LAYER_TODOS.md](../../docs/ARM_LAYER_TODOS.md).
 Current implementation and reproduction: [WELD_MOTION.md](../../docs/WELD_MOTION.md).
 
-- **ACCURACY-01:** meet end-effector orientation error of 0.5 deg target / 1 deg
-  maximum relative to the planned tool frame during welding. The
-  [recorded baseline](../../docs/measurements/arm-accuracy-speed-review-2026-11-23.json)
-  estimates 1.408 deg RMS / 2.633 deg peak. Joint errors are diagnostic.
-  Add synchronized independent workpiece-relative tool-pose measurements and
-  define the separate tip-mm tolerance.
-  Use the [operator test](../../docs/ARM_RIG_TEST.md#weld-motion-accuracy-test)
-  for matched comparisons after tracking changes; end continuous runs manually.
+- **ACCURACY-01:** prioritize 3D wire-tip position and both transverse stroke
+  edges. For continuous arm-only passes, report one fixed lag and the remaining
+  spatial error. Use the 1.730 Hz, 20 mm matched A1 shaper-only trial and
+  synchronized independent tip measurements before setting a position
+  tolerance. Retain the 0.5 deg target and 1 deg maximum for same-time
+  orientation as a secondary criterion. See the
+  [operator test](../../docs/ARM_RIG_TEST.md#weld-motion-accuracy-test).
 - **SPEED-01:** qualify PID/velocity lead under unequal load, reversals and
   saturation using actual timing, error, phase, measured Hz/travel and thermal
   evidence. Nov 23 A1/A6 frequency matches the ~1.73 Hz plan but travel exceeds
-  it (3.891/2.261 and 1.333/0.428 deg measured/planned). Prioritize host lead,
-  command shaping and phase lag. Retain the accepted tiny A2-A5 nominal
+  it (3.891/2.261 and 1.333/0.428 deg measured/planned). Compare A1 host
+  correction and command shaping to reduce overswing. Keep phase lag as a
+  diagnostic. Retain the accepted tiny A2-A5 nominal
   paths; synthetic response and geometry tests do not establish physical tuning.
   The operator accepted the 8.22 s preparation and retired the five-second goal.
   Preserve that preparation and existing trips while correcting welding motion.

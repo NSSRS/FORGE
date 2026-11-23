@@ -14,11 +14,11 @@ in the guides; full hardware qualification below remains separate.
 
 ## Immediate priorities
 
-Meet the operator's end-effector orientation criterion during welding
-(0.5 deg target, 1 deg maximum relative to the planned tool frame)
-and qualify improved tracking under ACCURACY-01/SPEED-01,
-with the applicable CAL-01/SUPPORT-01 checks. LOAD-01 and FEEDBACK-01 follow the
-first qualified arm welding run.
+Prioritize wire-tip position and transverse stroke under ACCURACY-01/SPEED-01.
+Allow one fixed lag for arm-only tip scoring and retain the same-time 1 deg
+tool-orientation maximum as a secondary criterion. Apply the relevant
+CAL-01/SUPPORT-01 checks. LOAD-01 and FEEDBACK-01 follow the first qualified
+arm welding run.
 
 ### SUPPORT-01 — base, gravity support and physical stopping
 
@@ -205,18 +205,17 @@ Owner: `src/controls/controls/hardware/`, operator.
 The [accuracy test procedure](ARM_RIG_TEST.md#weld-motion-accuracy-test) uses the
 weld panel's cached journal and `scripts/analyze_weld_accuracy.py` after the pass.
 
-- [ ] Meet **0.5 deg target / 1 deg maximum end-effector orientation error**
-  relative to the planned tool frame during welding, as confirmed by the operator
-  on Nov 23. The [baseline](measurements/arm-accuracy-speed-review-2026-11-23.json)
-  has encoder-reconstructed full-orientation RMS 1.408 deg / peak 2.633 deg.
-  Individual joint errors are diagnostic, not per-axis pass/fail criteria.
-  Use same-time nominal-reference errors; same-tick dispatched errors include
-  host lead/shaping. Compare corrected A1/A6 amplitude and phase under SPEED-01
-  against this baseline with matching load/settings and adequate repeat coverage.
-  End continuous welding with manual Pause / Hold. Repeat with chassis feed only
-  after its wheel mapping is confirmed.
-  [Full archived logs and offline commands](measurements/weld/2026-11-23/README.md)
-  are available without motors. Retain the runtime tracking/arrival guards.
+- [ ] Reduce 3D tip error and both transverse edge errors. Allow one fixed lag
+  for continuous arm-only position scoring and report the same-time result as
+  well. Compare the standard tracker with the A1 shaper-only trial at 1.730 Hz,
+  20 mm stroke and the same 1.96 kg payload, route and settings. Collect
+  independent tip data before selecting a position tolerance in mm.
+- [ ] Retain **0.5 deg target / 1 deg maximum same-time tool-orientation error**
+  relative to the planned tool frame. The [Nov 23 baseline](measurements/arm-accuracy-speed-review-2026-11-23.json)
+  has reconstructed full-orientation RMS 1.408 deg / peak 2.633 deg. Use
+  joint tracking and dispatch errors to diagnose the response. End continuous
+  welding with manual Pause / Hold. Repeat with chassis feed after wheel
+  mapping is confirmed. Retain the runtime tracking and arrival guards.
 - [ ] Independently measure synchronized tool orientation and 3D wire-tip
   positions in a fixed workpiece frame.
   Record the tool mounting, wire extension, seam axes and timing reference. Set

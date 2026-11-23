@@ -28,8 +28,11 @@ class TrackingSettings:
     # The provisional lag model was identified above 0.15 deg position error.
     # Sub-0.3 deg peak-to-peak weld motions cannot support that model reliably.
     minimum_weld_travel_deg: float = 0.3
+    weld_a1_shaper_only: bool = False
 
     def __post_init__(self):
+        if type(self.weld_a1_shaper_only) is not bool:
+            raise ValueError("The A1 weld trial switch must be a boolean")
         lead = finite_vector(self.lead_time_s, "tracking lead times")
         if np.any(lead < 0) or np.any(lead > 1):
             raise ValueError("Tracking lead times must be between 0 and 1 second")

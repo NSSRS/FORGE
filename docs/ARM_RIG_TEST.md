@@ -377,16 +377,23 @@ offline simulation starts at the configured mapping's simulation pose.
 The Nov 23 operator session provides a joint-diagnostic and encoder-reconstructed
 tool-pose baseline; see the [review](ARM_SESSION_HANDOFF.md#accuracy-01-and-speed-01-review)
 and [complete offline archive](measurements/weld/2026-11-23/README.md).
-The confirmed acceptance priority is end-effector orientation relative to the
-planned tool frame: **0.5 deg target / 1 deg maximum**. Joint errors are diagnostic,
-not per-axis pass/fail criteria. Independent synchronized tool-pose measurements
-and a separate tip-position tolerance in mm remain missing.
+Prioritize wire-tip position and stroke in the workpiece frame. On a continuous
+arm-only pass, allow one fixed time shift for position scoring. Keep same-time
+tool orientation as a separate secondary criterion with a **0.5 deg target**
+and **1 deg maximum**. Collect independent synchronized measurements before
+setting the tip-position tolerance in mm. Use joint errors as diagnostics.
 For a repeat or a matched tracking comparison, use the supported fixture and validated
 arm profile, mapping and matching standby from the
 [weld panel procedure](#weld-panel-with-embedded-model-preview). Perform a
 motion-only test. Use the same reviewed hardware launch command with
 `--cycles 4`, without `--single-pass`. Reports are saved automatically under
 `build/weld/latest/`. Start with **Arm output** selected.
+For the A1 comparison, run two arm-only passes at the archived 1.730 Hz and
+20 mm stroke with the same 1.96 kg payload, checked path and settings. Use
+`--cycles 1` as in the archived run. Use the standard PID tracker for the
+first pass and add `--weld-a1-shaper-only` to the arm-only launch for the
+second. The trial retains command shaping and disables
+the additive A1 correction during welding. Save both session paths.
 For a later combined run, verify the four-wheel mapping before selecting
 **Chassis feed** and use the normal explicit chassis launch flags.
 
@@ -399,7 +406,7 @@ and the final `session.json`. Analyze the journal from the same model checkout:
 ```bash
 .venv/bin/python scripts/analyze_weld_accuracy.py \
   build/weld/latest/session.jsonl \
-  --orientation-target-deg 0.5 --max-orientation-deg 1.0 \
+  --fit-tip-lag --orientation-target-deg 0.5 --max-orientation-deg 1.0 \
   --output build/arm_tests/accuracy/accuracy.json
 ```
 
@@ -426,7 +433,7 @@ feed in +X when Chassis feed was selected.
 ```bash
 .venv/bin/python scripts/analyze_weld_accuracy.py \
   build/weld/latest/session.jsonl \
-  --orientation-target-deg 0.5 --max-orientation-deg 1.0 \
+  --fit-tip-lag --orientation-target-deg 0.5 --max-orientation-deg 1.0 \
   --tip-csv build/arm_tests/accuracy/tip.csv \
   --output build/arm_tests/accuracy/accuracy-with-tip.json
 ```
@@ -434,9 +441,13 @@ feed in +X when Chassis feed was selected.
 Use `--orientation-target-deg 0.5 --max-orientation-deg 1.0` for the confirmed
 tool-orientation criterion. `--peak-joint-deg` remains an optional diagnostic
 threshold; the operator has not specified a per-axis joint limit. When the
-separate position tolerance is defined, `--peak-tip-mm` checks the maximum 3D
-error from independent tip measurements. Supply numeric limits in the stated
-units. Without thresholds the report lists measurements.
+separate position tolerance is defined, `--peak-tip-mm` checks the same-time
+maximum 3D error from independent tip measurements. The optional
+`--fit-tip-lag` report uses the independent tip CSV when supplied and otherwise
+uses the encoder estimate. It summarizes the lag-adjusted 3D error and measured
+stroke width, with positive edge error for overshoot and negative for shortfall.
+The original same-time metrics and acceptance thresholds still apply. For the
+matched A1 comparison, compare the adjusted error and both edge errors.
 The command returns status 2 for incomplete evidence or a missed threshold and
 preserves the report when an output path is supplied. The moving interval
 requires usable coverage with gaps no larger than 100 ms. Interrupted, faulted,
