@@ -5,11 +5,12 @@
 
 ec_slavet ec_slave[2];
 ec_groupt ec_group[1];
+int ec_slavecount = 1;
 static encos_bridge_outputs_t output;
 static encos_bridge_inputs_t input;
 static float position[6], velocity[6];
 static atomic_int bad_wkc, no_feedback, motor_error, controls, zeros, clears;
-static int bad_layout, split_bus;
+static int bad_layout, split_bus, fourth_present;
 static atomic_int slot_controls[6], slot_frames[6];
 int fake_slot_frames(int slot) { return atomic_load(&slot_frames[slot]); }
 int fake_slot_controls(int slot) { return atomic_load(&slot_controls[slot]); }
@@ -27,6 +28,8 @@ int fake_clears(void) { return atomic_load(&clears); }
 int ec_init(const char *name)
 {
     split_bus = strcmp(name, "forge-test-can2") == 0;
+    fourth_present = strcmp(name, "forge-test-four") == 0;
+    split_bus |= fourth_present;
     for (int i = 0; i < 6; ++i) {
         atomic_store(&slot_controls[i], 0);
         atomic_store(&slot_frames[i], 0);
@@ -74,7 +77,7 @@ int ec_receive_processdata(int timeout)
         if (!f->dlc) continue; /* Empty passage: no CAN data frame to emulate. */
         atomic_fetch_add(&slot_frames[i], 1);
         if (split_bus && !((i < 3 && (f->id == 1 || f->id == 2)) ||
-                           (i >= 3 && f->id == 3))) continue;
+                           (i >= 3 && (f->id == 3 || (fourth_present && f->id == 4))))) continue;
         /* Model a bridge keeping only the latest reply for a CAN ID. A
          * trailing query can replace a control reply for that same motor. */
         if (split_bus)

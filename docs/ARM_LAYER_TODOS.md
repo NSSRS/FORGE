@@ -1,6 +1,6 @@
 # Arm cross-layer TODO registry
 
-Updated 2026-11-23, based on branch `nathan`. This registry contains **open work only**.
+Updated 2026-11-24, based on branch `nathan`. This registry contains **open work only**.
 Read [current status](ARM_SESSION_HANDOFF.md) and [the base contract](ARM_BASE_LAYER.md)
 first. Stable IDs link package responsibilities; update the owning entry when
 work changes, and retire completed tasks instead of appending session history.
@@ -14,7 +14,10 @@ in the guides; full hardware qualification below remains separate.
 
 ## Immediate priorities
 
-Prioritize wire-tip position and transverse stroke under ACCURACY-01/SPEED-01.
+The operator selected v7 and deferred further weld tuning; ILC remains later
+future work. ENCOS identification/four-motor testing is complete, with remaining
+mapping and qualification in the [chassis registry](CHASSIS_MODEL_COMMS_TODOS.md).
+When arm accuracy work resumes, prioritize wire-tip position and transverse stroke under ACCURACY-01/SPEED-01.
 Allow one fixed lag for arm-only tip scoring and retain the same-time 1 deg
 tool-orientation maximum as a secondary criterion. Apply the relevant
 CAL-01/SUPPORT-01 checks. LOAD-01 and FEEDBACK-01 follow the first qualified
@@ -32,14 +35,10 @@ Owner: operator/mechanical integration, `src/bringup/`.
   default jogger disables torque at release; explicit group/weld modes hold
   position. Qualify both behaviors. MC02 disable is not a brake; the production
   coordinated ROS lifecycle remains under ROS-02.
-- [ ] Resolve the 2026-11-12 capture session's stationary-disable/mode-restoration
-  failure: A2 still reported -0.168498 rad/s after disabling. Preserve the saved
-  [shutdown evidence](measurements/arm-reference-2026-11-12.session-summary.json)
-  and verify shutdown on a supported fixture before treating cleanup as qualified.
-  Qualify supported shutdown after powered recovery, including the A5 movement
-  retained in the [Nov 17 evidence](measurements/arm-preparation-review-2026-11-17.json).
-  The Nov 19 final loaded-session disable and mode restoration passed; qualify
-  repeatability, stationary load support and fault/power-loss behavior separately.
+- [ ] Qualify repeatable supported shutdown and fault/power-loss behavior.
+  V7 and other recent runs verified disable/mode restoration; the earlier
+  [failed shutdown](measurements/arm-reference-2026-11-12.session-summary.json)
+  remains historical evidence, not a request to repeat completed captures.
 
 ### CAL-01 — motor-position initialization and physical calibration
 
@@ -92,26 +91,27 @@ See the [capture procedure](ARM_POSE_TEST.md#current-procedure-initial-positions
 
 Owner: `src/controls/`, `src/motors/arm_position.py`, `src/teleop/`, firmware/profile commissioning.
 
-- [ ] Qualify the Nov 17 bounded host PID/velocity-lead tracker in
-  `src/controls/controls/controller/tracking.py`. Compare actual recovery time,
-  error, measured Hz/travel and physical smoothness against `--tracker paced`.
-  Include unequal load, reversal, saturation, model-limited correction and final
-  fixed holding. Synthetic first-order response and model clearance checks do not
-  identify the loaded plant or establish physical jitter improvement. The Nov 23
-  loaded baseline measures A1/A6 at 1.734/1.728 Hz versus the checked 1.730 Hz,
-  but travel is 3.891/2.261 deg and 1.333/0.428 deg measured/planned respectively.
-  Investigate host lead and command shaping using the saved dispatched targets;
-  compare a bounded change at the same load, start and checked path. Qualify amplitude and phase
-  without changing the operator-accepted tiny A2–A5 nominal motions; see the
-  [latest physical review](measurements/arm-accuracy-speed-review-2026-11-23.json).
+- [ ] Further weld tuning is deferred by the operator. Preserve the restored
+  v7 response baseline, its exact profile
+  and the 561-command recorded regression. Future acceptance still needs
+  startup accuracy (1.095 deg whole-pass peak), repeatable 20 mm stroke
+  (v7 sampled range 15.723-19.611 mm), unequal-load/reversal behavior and thermal
+  evidence. Preserve the improved 3.19 ms fitted phase lag and 2.168 mm
+  same-time tip RMS. Follow the
+  [v7 baseline scheme](measurements/arm-weld-v7-baseline-2026-11-24.json)
+  for future controlled comparisons; v8 startup did not meet its prediction.
+  Keep tiny A2-A5 motions, nominal geometry and all command/guard limits.
+  A static response fit is not physical qualification.
 - [ ] Qualify coordinated preparation after the timeout/reference-braking fixes
-  and the explicit raised-approach option. A5 manual operation is reported normal;
+  and the explicit raised-approach option. Include the Nov 24 PID common-clock
+  and correction-envelope braking fix, recorded A3 guard regression and
+  variable-period/delayed-shaft cases. A5 manual operation is reported normal;
   resolve unequal-axis tracking and gun/floor clearance under load without
   inferring a gain defect from the failed nominal path. Software replay does not
   qualify physical recovery.
-  The operator accepted the Nov 23 8.22 s preparation; the former five-second
-  goal is retired. Preserve this accepted behavior while correcting welding
-  tracking. Its approach nominal peak errors were A2 1.838, A5 1.348 and A6 1.552 deg.
+  The operator accepted the Nov 23 8.22 s preparation; v7 reached Ready in
+  7.428 s. Preserve those completed results and the 10 s goal; qualify changed
+  starts/loads rather than reopening the retired five-second goal.
   See [current evidence](ARM_SESSION_HANDOFF.md#calibration-and-evidence).
 - [ ] **Broader manual-jog investigation deferred:** investigate moving-only A1/A4/A5/A6 jitter; A2/A3 are smooth
   and earlier manual holding was reported steady. The 5 deg/s MCU smoothing
@@ -127,9 +127,9 @@ Owner: `src/controls/`, `src/motors/arm_position.py`, `src/teleop/`, firmware/pr
   Separately correlate A4's reported 2.4542 rad/s hold sample with encoder
   displacement before calling it physical overspeed or a reading error.
   Preserve trips and leases. See the [retained findings](ARM_SESSION_HANDOFF.md#current-status-and-next-session).
-- [ ] Test the 5 deg/s baseline and opt-in 7.5/10 deg/s trials on the supported
-  fixture. Compare A6 tracking, host sample timing and release travel with A4/A5.
-  Record the accepted speed for each joint and direction.
+- [ ] Qualify the existing 10 deg/s holding-jog setting and 5 deg/s teaching
+  setting across joints/directions, including A6 tracking and release travel.
+  These are selected settings, not pending speed-setting implementation.
 - [ ] Review UI/adapter/profile/MCU caps and motor ACC/DEC/MAX_SPD/loop readback
   together. Preserve command/feedback deadlines and explicit fault recovery.
 - [ ] Measure requested versus actual motion in both directions on each joint,
@@ -207,12 +207,12 @@ weld panel's cached journal and `scripts/analyze_weld_accuracy.py` after the pas
 
 - [ ] Reduce 3D tip error and both transverse edge errors. Allow one fixed lag
   for continuous arm-only position scoring and report the same-time result as
-  well. Compare the standard tracker with the A1 shaper-only trial at 1.730 Hz,
-  20 mm stroke and the same 1.96 kg payload, route and settings. Collect
+  well. Build on the recorded v7/v8 comparison at 1.730 Hz and 20 mm stroke;
+  preserve the same 1.96 kg payload, route and settings for follow-ups. Collect
   independent tip data before selecting a position tolerance in mm.
 - [ ] Retain **0.5 deg target / 1 deg maximum same-time tool-orientation error**
-  relative to the planned tool frame. The [Nov 23 baseline](measurements/arm-accuracy-speed-review-2026-11-23.json)
-  has reconstructed full-orientation RMS 1.408 deg / peak 2.633 deg. Use
+  relative to the planned tool frame. The [v7 baseline](measurements/arm-weld-v7-baseline-2026-11-24.json)
+  has 0.759 deg matched-cycle peak and 1.095 deg whole-pass startup peak. Use
   joint tracking and dispatch errors to diagnose the response. End continuous
   welding with manual Pause / Hold. Repeat with chassis feed after wheel
   mapping is confirmed. Retain the runtime tracking and arrival guards.
@@ -313,6 +313,25 @@ it is not validation of FORGE's mode-2 interface.
 [ESO measurement-noise analysis](https://arxiv.org/abs/2004.01483) documents the
 trade-off between fast estimation and noise amplification. Applying these
 methods to FORGE is an engineering proposal requiring the checks above.
+
+### ILC-01 — iterative learning for repeated welding (later future work)
+
+Owner: `src/controls/controls/controller/`, operator.
+Explicitly deferred by the operator on Nov 24. First qualify corrected command
+sampling/timing and the loaded ACCURACY-01/SPEED-01 tracking baseline.
+
+- [ ] Identify repeatable cycle error separately from noise, timing variation
+  and non-repeating load disturbances. Fit against the planned cycle phase;
+  retain same-time orientation acceptance and independent tip measurements.
+- [ ] Evaluate filtered, bounded ILC offline before any applied learning.
+  Check convergence with delay, uncertainty and saturation, and verify all
+  resulting command speed/acceleration, mechanical and cable limits.
+- [ ] Key learned compensation to path, frequency, mapping, payload and setup;
+  discard or revalidate it when those change. Define explicit enable, reset,
+  interruption and rollback behavior before an operator trial.
+
+No ILC is active in the current controller. It must not compensate for a known
+command-generation defect or replace live tracking/fault protection.
 
 ### DEPLOY-01 — fixture, configuration and evidence
 

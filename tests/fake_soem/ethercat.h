@@ -7,6 +7,7 @@
 #define EC_STATE_SAFE_OP 4
 #define EC_STATE_OPERATIONAL 8
 #define EC_TIMEOUTSTATE 2000
+#define EC_TIMEOUTRET 2000
 typedef struct {
     uint8_t CoEdetails;
     uint16_t state, Obits, Ibits;
@@ -16,6 +17,7 @@ typedef struct {
 typedef struct { int outputsWKC, inputsWKC; } ec_groupt;
 extern ec_slavet ec_slave[2];
 extern ec_groupt ec_group[1];
+extern int ec_slavecount;
 int ec_init(const char *name);
 int ec_config_init(int unused);
 int ec_config_map(void *map);

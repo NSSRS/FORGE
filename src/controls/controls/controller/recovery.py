@@ -1,10 +1,11 @@
-"""Bounded, collision-checked startup routes. No motor transport or angle wrapping."""
+"""Bounded startup routes under the shared pose policy; no transport or wrapping."""
 
 import numpy as np
 
 
 RECOVERY_CLEARANCE_MM = 2.0
-START_TOLERANCE_DEG = 0.3
+# Operator-selected planning, preload and hold-activation tolerance.
+START_TOLERANCE_DEG = 0.5
 
 
 def recovery_path(geometry, start, goal, settings):
@@ -12,7 +13,7 @@ def recovery_path(geometry, start, goal, settings):
 
     Nodes mix the measured start and standby coordinates: at most 64 poses and
     192 directed edges. No fixed wrist-first assumption, unbounded search, or
-    escape from an already colliding pose. Every edge and the joined spline are
+    changes to the selected spatial policy. Every edge and the joined spline are
     checked; failure leaves the operator responsible for supported repositioning.
     """
     from .weld_plan import JointPath, finite_vector, move_path, speed_report

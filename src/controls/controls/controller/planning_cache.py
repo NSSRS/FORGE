@@ -47,6 +47,7 @@ def cached_weave(geometry, settings, root, scene_identity):
     from .limits import motor_constraints
     from .weld_plan import JointPath, solve_weave
     key = digest(dict(scene=scene_identity, mapping=geometry.mapping.document,
+                      enforce_spatial_clearance=geometry.enforce_spatial_clearance,
                       settings=asdict(settings),
                       constraints=motor_constraints(root, settings.max_speed_deg_s,
                                                     profile=settings.limit_profile)))

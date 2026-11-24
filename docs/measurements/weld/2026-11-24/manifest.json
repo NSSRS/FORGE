@@ -1,0 +1,64 @@
+{
+  "date": "2026-11-24",
+  "scope": "Operator-selected V7 baseline and completed ENCOS four-motor bench test",
+  "raw_sources_unchanged": true,
+  "agent_operated_hardware": false,
+  "files": {
+    "v7-session.jsonl.gz": {
+      "source": "build/weld/sessions/20261124T101206.334308Z-lz462pcc/session.jsonl",
+      "source_bytes": 11421249,
+      "source_sha256": "3709db21c2f6277f0ebc7ad5cbe22104bb2ca7d67b30ca7e484376f9a2f7ae6b",
+      "archive_bytes": 1120443,
+      "archive_sha256": "62afaa35ba7129bad5093a041aec016fe8ed389ca26ac6aeb0a86ce2d79b936b",
+      "encoding": "gzip"
+    },
+    "v7-session.json.gz": {
+      "source": "build/weld/sessions/20261124T101206.334308Z-lz462pcc/session.json",
+      "source_bytes": 8297575,
+      "source_sha256": "d20841ba9131cb875e95663282c3c7eeb886fc836930c386a765d602845d4b1b",
+      "archive_bytes": 753116,
+      "archive_sha256": "3b9ee6791edf71730d812f664e097e0c293e3bc1157ca84f5a42dfa82392c772",
+      "encoding": "gzip"
+    },
+    "encos-four-motor.json.gz": {
+      "source": "build/encos/sessions/20261124T110254.496409Z.json",
+      "source_bytes": 261767,
+      "source_sha256": "1a970294998cc5b5beeaddd914e6dacdc58d27728101aa738db07a491c6f8999",
+      "archive_bytes": 22822,
+      "archive_sha256": "9ff7f9ed08dcda4995db7429bf23b89805555d5cad18f0466b4bd6e15e5206b5",
+      "encoding": "gzip"
+    },
+    "mapping.json": {
+      "source": "build/arm_tests/hold-01-20261119/mapping.json",
+      "source_bytes": 3666,
+      "source_sha256": "3b5d7a65c313971101e94698de7878b49c5251070909fe1eb7cc0d0a43542f8a",
+      "archive_bytes": 3666,
+      "archive_sha256": "3b5d7a65c313971101e94698de7878b49c5251070909fe1eb7cc0d0a43542f8a",
+      "encoding": "identity"
+    },
+    "standby.json": {
+      "source": "build/arm_tests/hold-01-20261119/standby.json",
+      "source_bytes": 1120,
+      "source_sha256": "59f6b7ed9fdb6639dcfcb94b6942f3ff8dafe7567f180c73f6caaaac669d1ef5",
+      "archive_bytes": 1120,
+      "archive_sha256": "59f6b7ed9fdb6639dcfcb94b6942f3ff8dafe7567f180c73f6caaaac669d1ef5",
+      "encoding": "identity"
+    },
+    "arm-profile.json": {
+      "source": "src/robot_description/config/arm_rig_gun_a2_a6_load.json",
+      "source_bytes": 5035,
+      "source_sha256": "b0e048f5ee1a10d3cc4920d32909f1c352a9a10581d9c4fab1535d4b591b313c",
+      "archive_bytes": 5035,
+      "archive_sha256": "b0e048f5ee1a10d3cc4920d32909f1c352a9a10581d9c4fab1535d4b591b313c",
+      "encoding": "identity"
+    },
+    "v7-response-profile.json": {
+      "source": "src/controls/config/weld_response_gun_20261124.json",
+      "source_bytes": 1434,
+      "source_sha256": "0129789f453a8a1c1cd7e444f0328301889ca1b8bc6cbd18b5d9e458b5676e69",
+      "archive_bytes": 1434,
+      "archive_sha256": "0129789f453a8a1c1cd7e444f0328301889ca1b8bc6cbd18b5d9e458b5676e69",
+      "encoding": "identity"
+    }
+  }
+}

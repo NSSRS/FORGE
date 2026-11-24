@@ -96,12 +96,16 @@ class MeasuredStartGeometryTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 self.geometry.observe(raw)
 
-    def test_feedback_keeps_existing_start_tolerance_without_expanding_commands(self):
+    def test_feedback_keeps_start_tolerance_without_expanding_commands(self):
         observed = self.start.copy(); observed[5] += .05
         self.geometry.check_recovery(observed, self.policy.document(), measured=True)
         with self.assertRaises(ValueError):
             self.geometry.check_recovery(observed, self.policy.document())
-        observed[5] = self.start[5] + .31
+        observed[5] = self.start[5] + .4
+        self.geometry.check_recovery(observed, self.policy.document(), measured=True)
+        with self.assertRaises(ValueError):
+            self.geometry.check_recovery(observed, self.policy.document())
+        observed[5] = self.start[5] + .51
         with self.assertRaises(ValueError):
             self.geometry.check_recovery(observed, self.policy.document(), measured=True)
 
@@ -130,8 +134,9 @@ class MeasuredStartGeometryTests(unittest.TestCase):
         self.assertEqual(plan['measured_start'], self.policy.document())
         self.assertFalse(plan['hardware_qualified'])
         clock = Clock(); arm = SimulatedArm(self.start, clock=clock)
-        control = WeldController(arm, clock=clock, pose_check=self.geometry.check,
-                                 recovery_check=self.geometry.check_recovery,
+        runtime_geometry = WeldGeometry(self.mapping, enforce_spatial_clearance=False)
+        control = WeldController(arm, clock=clock, pose_check=runtime_geometry.check,
+                                 recovery_check=runtime_geometry.check_recovery,
                                  tracking_settings=TrackingSettings())
         control.select(True, False)
         control.load_plan(plan)
@@ -195,7 +200,7 @@ class MeasuredStartControlTests(unittest.TestCase):
 
     def test_changed_start_and_forged_policy_never_enable(self):
         _, arm, control, plan = self.make_controller()
-        arm.q[0] += .4
+        arm.q[0] += .6
         with self.assertRaisesRegex(ValueError, 'Start position changed'):
             control.go_initial()
         self.assertFalse(arm.enabled)
@@ -223,7 +228,7 @@ class RecordedStartTests(unittest.TestCase):
         self.assertGreater(plan['weld']['raw_deg'][0][5], 63)
         # The equivalent -296-degree target would cross the fixed cable end.
         self.assertLess(plan['weld']['raw_deg'][0][5]-360, mapping.a6_bounds[0])
-        geometry = WeldGeometry(mapping)
+        geometry = WeldGeometry(mapping, enforce_spatial_clearance=False)
         clock = Clock(); arm = SimulatedArm(fixture['current_raw_deg'], clock=clock)
         control = WeldController(arm, clock=clock, pose_check=geometry.check,
                                  recovery_check=geometry.check_recovery,

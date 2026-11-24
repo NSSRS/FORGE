@@ -28,25 +28,26 @@ command-source arbitration remain future work.
 
 ## Current bench
 
-`src/bringup/config/chassis_bench.yaml` configures IDs 1/2 on CAN1
-(slots 0/1) and ID 3 on CAN2 (slot 3). Motor 4 is explicitly absent. Four-wheel
-mixing is retained; only the three present motors are opened and commanded.
-Forward wheel signs are `[-1,-1,+1,+1]` in the configured wheel order.
+The operator's Nov 24 four-motor motion/stop test passed. Use
+`src/bringup/config/chassis_four_motor_bench.yaml`: IDs 1/2 on CAN1 (slots 0/1),
+IDs 3/4 on CAN2 (slots 3/4), with no omission. See the
+[physical record](measurements/encos-four-motor-physical-review-2026-11-24.json).
+The configured forward signs remain `[-1,-1,+1,+1]`; explicit physical wheel
+locations/signs/gearing are not yet recorded.
 
-| Setting | Current bench value |
-|---|---|
-| Forward/reverse request | +/-0.08 m/s |
-| Left/right yaw request | +/-0.28 rad/s |
-| Per-motor ceiling | 20 output-shaft RPM |
-| Provisional phase-current ceiling | 2 A per motor |
-| Chassis command lease | 0.15 s |
-| Native velocity slew | 60 RPM/s |
-| Native command lease | 0.25 s |
+| Setting | Four-motor bench | Retained three-motor default |
+| --- | ---: | ---: |
+| Forward/reverse request | +/-0.02 m/s | +/-0.08 m/s |
+| Left/right yaw request | +/-0.07 rad/s | +/-0.28 rad/s |
+| Command ceiling | 5 RPM | 20 RPM |
+| Phase-current ceiling | 2 A per motor | 2 A per motor |
+| Chassis/native lease | 0.15 / 0.25 s | 0.15 / 0.25 s |
+| Native velocity slew | 60 RPM/s | 60 RPM/s |
 
-The complete four-motor `chassis.yaml` is a different profile: 0.02 m/s,
-0.07 rad/s and a 30 RPM ceiling. Use the same selected profile for teleop and
-driver. Combined forward/turn requests are scaled together to fit the motor
-ceiling. Physical wheel assignments and signs still need commissioning.
+`chassis_bench.yaml` retains motor-4 omission. The example `chassis.yaml` routes
+IDs 1/2/3 to CAN1 and 4 to CAN2, so it is not this split-bus rig profile.
+Use the same selected profile for driver, teleop and viewer. Combined requests
+are scaled together to the command ceiling. Loaded qualification is separate.
 
 ## Build and run
 
@@ -58,8 +59,9 @@ colcon --log-base logs/colcon build --base-paths src \
 ```
 
 For the current four-pane bench workflow, see [motor visualization](MOTOR_MIRROR.md):
-`./scripts/run_motor_test.sh --simulate` runs without motor hardware;
-`./scripts/run_motor_test.sh` starts the configured hardware session.
+`./scripts/run_motor_test.sh --four-motors --simulate` runs with fake motors;
+`./scripts/run_motor_test.sh --four-motors` starts this hardware session.
+Without `--four-motors`, the retained three-motor profile is selected.
 For separate driver and teleop terminals, use the commands in
 [differential bench testing](DIFFERENTIAL_DRIVE.md#three-motor-differential-bench-motor-4-absent).
 Radio input replaces the keyboard process; never run both publishers together.

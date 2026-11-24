@@ -109,7 +109,9 @@ class WeldPanelTests(unittest.TestCase):
         end = time.monotonic() + seconds
         while not predicate() and time.monotonic() < end:
             QtTest.QTest.qWait(10)
-        self.assertTrue(predicate(), self.window.state_label.text())
+        controller = self.window.worker.controller
+        detail = controller.message if controller is not None else "Owner not ready"
+        self.assertTrue(predicate(), f"{self.window.state_label.text()}: {detail}")
 
     def test_ready_display_uses_weld_goal_and_reports_hold_drift(self):
         value = dict(
@@ -429,7 +431,58 @@ class WeldPanelTests(unittest.TestCase):
             self.wait(lambda: self.executor.request is not None)
         self.assertTrue(self.executor.request['measured_hardware_start'])
         self.assertIsNotNone(self.window.worker.controller.recovery_check)
+        weld_app.WeldGeometry.assert_called_with(self.mapping, enforce_spatial_clearance=False)
+        self.wait(lambda: bool(self.window.preview.backend.requests))
+        self.assertEqual(self.window.preview.backend.requests[-1]['spatial_clearance_policy'], 'advisory')
+        self.window.preview.mode.setCurrentText('Standby target')
+        self.wait(lambda: self.window.preview.backend.requests[-1]['measured_pose'] is False)
+        self.assertEqual(self.window.preview.backend.requests[-1]['spatial_clearance_policy'], 'advisory')
         self.assertFalse(arm.enabled or arm.commands)
+
+    def test_hardware_recalculation_selects_short_a1_branch_after_raw_turn_change(self):
+        from controls.hardware import weld_ports
+
+        self.window.close()
+        self.wait(lambda: not self.window.worker.isRunning())
+        fixture = json.loads((ROOT / 'tests/fixtures/weld_a1_reset_20261124.json').read_text())
+        mapping = CalibrationMap(fixture['mapping'])
+        raw = list(fixture['current_raw_deg']); raw[0] += 360
+        arm = weld_ports.SimulatedArm(raw); arm.fault = None
+        args = SimpleNamespace(
+            arm=True, chassis=False, execute=True, port='fake-only', mapping_confirmed=False,
+            arm_profile=ROOT / 'src/robot_description/config/arm_rig_gun_a2_a6_load.json',
+            journal_path=Path(self.evidence.name) / 'branch-reset.jsonl',
+        )
+        with patch.object(weld_ports, 'ArmOwner', return_value=arm):
+            self.window = weld_app.make_window(args, mapping, fixture['initial_raw_deg'],
+                                               Settings(cycles=1), ROOT)
+            self.window.show()
+            self.wait(lambda: self.window.worker.controller is not None)
+            self.window.arm.click()
+            self.wait(lambda: self.window.worker.controller.arm_on)
+            self.window.buttons['calculate'].click()
+            self.wait(lambda: self.executor.request is not None)
+            self.assertEqual(self.executor.request['mapping'], mapping.document)
+            self.window.buttons['pause'].click()
+            self.wait(lambda: self.window.worker.pending is None)
+            arm.q[:] = fixture['current_raw_deg']; arm.target = arm.q.copy()
+            self.executor.request = None
+            self.window.buttons['calculate'].click()
+            self.wait(lambda: self.executor.request is not None)
+        request = self.executor.request
+        self.assertEqual(request['current_raw_deg'], fixture['current_raw_deg'])
+        self.assertAlmostEqual(request['initial_raw_deg'][0], -174.69159564640077)
+        self.assertAlmostEqual(request['initial_raw_deg'][0] - arm.q[0], 6.81937015036744)
+        selected = CalibrationMap(request['mapping'])
+        self.assertEqual(arm.mapping.fingerprint, selected.fingerprint)
+        self.assertEqual(weld_app.WeldGeometry.return_value.mapping.fingerprint, selected.fingerprint)
+        self.assertIs(self.window.worker.controller.pose_check, weld_app.WeldGeometry.return_value.check)
+        self.wait(lambda: self.window.preview.mapping_document == selected.document)
+        self.assertFalse(arm.enabled or arm.commands)
+        event = next(e for e in self.window.worker.controller.events
+                     if e['event'] == 'a1_recovery_branch_selected')
+        self.assertEqual(event['direction'], 'CCW')
+        self.assertEqual(event['relative_turns'], -1)
 
     def test_close_during_reset_waits_for_same_owner(self):
         c = self.window.worker.controller
@@ -525,6 +578,7 @@ class WeldPanelTests(unittest.TestCase):
         self.assertFalse(self.window.planning_progress.isVisible())
         self.assertIn("No accepted path", self.window.timing_label.text())
         self.assertTrue(self.window.buttons["calculate"].isEnabled())
+
         def blocked_events():
             records = [json.loads(line) for line in self.journal_path.read_text().split('\n')[:-1]]
             return [event for row in records for event in row.get('events', [])
@@ -956,6 +1010,48 @@ class WeldPanelTests(unittest.TestCase):
         self.assertTrue(
             self.window.worker.isRunning()
         )  # Evidence exists before shutdown.
+
+    def test_periodic_response_profile_reaches_worker_planner_and_journal(self):
+        from controls.controller.weld_response import WeldResponse
+        from controls.controller.weld_plan import JointPath
+        from test_weld_response import PROFILE, FIXTURE
+        from copy import deepcopy
+
+        self.window.close()
+        self.wait(lambda: not self.window.worker.isRunning())
+        self.window.close()
+        plan = deepcopy(FIXTURE['plan'])
+        mapping = CalibrationMap(plan['mapping'])
+        args = SimpleNamespace(
+            arm=True, chassis=False, execute=False, mapping_confirmed=False,
+            weld_response_document=deepcopy(PROFILE),
+            start_raw_deg=plan['current_raw_deg'],
+            journal_path=Path(self.evidence.name) / 'response.jsonl',
+        )
+        self.window = weld_app.make_window(args, mapping, plan['current_raw_deg'],
+                                           Settings(cycles=1), ROOT)
+        self.window.show()
+        self.wait(lambda: self.window.worker.controller is not None)
+        self.assertIn('periodic response', self.window.controller_label.text())
+        self.window.arm.click()
+        self.wait(lambda: self.window.worker.controller.arm_on)
+        self.window.buttons['calculate'].click()
+        self.wait(lambda: self.executor.request is not None)
+        self.assertEqual(self.executor.request['weld_response_profile'], PROFILE)
+        response = WeldResponse(PROFILE, JointPath.from_document(plan['weld']), plan)
+        plan['weld_response'] = response.check_geometry(lambda *a, **k: None)
+        plan['weld_entry'] = response.entry.document()
+        plan['request_fingerprint'] = digest(self.executor.request)
+        self.executor.future.set_result(plan)
+        self.wait(lambda: self.window.worker.controller.state == 'planned')
+        self.assertFalse(self.window.worker.controller.arm.enabled)
+        self.window.close()
+        self.wait(lambda: not self.window.worker.isRunning())
+        rows = [json.loads(line) for line in args.journal_path.read_text().splitlines()]
+        self.assertEqual(rows[0]['tracker']['version'], 7)
+        self.assertEqual(rows[0]['tracker']['weld_response_profile'], PROFILE)
+        accepted = next(row['plan'] for row in rows if row['kind'] == 'accepted_plan')
+        self.assertEqual(accepted['weld_response'], plan['weld_response'])
 
 
 if __name__ == "__main__":

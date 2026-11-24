@@ -71,13 +71,20 @@ int main(int argc, char **argv)
 {
     uint16_t motor_ids[ENCOS_MAX_CONTROLLED_MOTORS] = {0};
     size_t motor_count = 0;
-    const bool discover = argc == 2;
-    if (!discover && (argc != 4 || strcmp(argv[2], "--motor-ids") != 0 ||
-                      !encos_parse_motor_ids(argv[3], motor_ids, &motor_count))) {
-        fprintf(stderr, "Usage: sudo %s ETHERNET_INTERFACE [--motor-ids ID[,ID...]]\n", argv[0]);
-        fprintf(stderr, "Use one to four explicit CAN IDs when more than one motor is powered.\n");
-        return 2;
+    uint8_t slot = 0;
+    bool bus_seen = false, ids_seen = false;
+    if (argc < 2) goto usage;
+    for (int arg = 2; arg < argc; arg += 2) {
+        if (arg + 1 >= argc) goto usage;
+        if (!strcmp(argv[arg], "--can-bus") && !bus_seen) {
+            if (!encos_parse_can_bus(argv[arg + 1], &slot)) goto usage;
+            bus_seen = true;
+        } else if (!strcmp(argv[arg], "--motor-ids") && !ids_seen) {
+            if (!encos_parse_motor_ids(argv[arg + 1], motor_ids, &motor_count)) goto usage;
+            ids_seen = true;
+        } else goto usage;
     }
+    const bool discover = !ids_seen;
     signal(SIGINT, encos_request_stop);
     signal(SIGTERM, encos_request_stop);
 
@@ -87,14 +94,16 @@ int main(int argc, char **argv)
         return 1;
     }
     encos_bridge_outputs_t *outputs = (encos_bridge_outputs_t *)ec_slave[1].outputs;
-    printf("Bridge operational: OUT=86 IN=92 WKC=%d. Query-only mode.\n", expected_wkc);
+    printf("Bridge operational: OUT=86 IN=92 WKC=%d. Query-only mode; CAN%u, PDO slot %u.\n", expected_wkc, slot / 3 + 1, slot);
 
     if (discover) {
-        if (!encos_discover_motor(expected_wkc, &motor_ids[0])) {
+        printf("Discovery requires exactly one isolated powered motor on the selected bus.\n");
+        if (!encos_discover_motor_at_slot(expected_wkc, slot, &motor_ids[0])) {
             fprintf(stderr, "No valid motor-ID reply within 1 second.\n");
             goto fail;
         }
         motor_count = 1;
+        printf("Discovered motor CAN ID: %u.\n", motor_ids[0]);
     }
     printf("Configured motor count: %zu\n", motor_count);
     int result = 0;
@@ -104,7 +113,7 @@ int main(int argc, char **argv)
         version_result_t version = {.motor_id = motor_id};
         timeout_result_t timeout = {.motor_id = motor_id};
         brake_result_t brake = {.motor_id = motor_id};
-        if (!encos_query_position(expected_wkc, &position)) {
+        if (!encos_query_position_at_slot(expected_wkc, slot, &position)) {
             fprintf(stderr, "Motor %u: no valid position reply.\n", motor_id);
             result = 1;
             continue;
@@ -116,7 +125,7 @@ int main(int argc, char **argv)
             continue;
         }
         encos_can_frame_t request = encos_make_query_request(motor_id, 30);
-        if (!encos_query_reply(expected_wkc, &request, match_version, &version)) {
+        if (!encos_query_reply_at_slot(expected_wkc, slot, &request, match_version, &version)) {
             fprintf(stderr, "Motor %u: no valid version reply.\n", motor_id);
             result = 1;
             continue;
@@ -128,7 +137,7 @@ int main(int argc, char **argv)
             continue;
         }
         request = encos_make_query_request(motor_id, 31);
-        if (!encos_query_reply(expected_wkc, &request, match_timeout, &timeout)) {
+        if (!encos_query_reply_at_slot(expected_wkc, slot, &request, match_timeout, &timeout)) {
             fprintf(stderr, "Motor %u: no valid timeout reply.\n", motor_id);
             result = 1;
             continue;
@@ -140,7 +149,7 @@ int main(int argc, char **argv)
             continue;
         }
         request = encos_make_query_request(motor_id, 37);
-        const bool brake_known = encos_query_reply(expected_wkc, &request, match_brake_status, &brake) &&
+        const bool brake_known = encos_query_reply_at_slot(expected_wkc, slot, &request, match_brake_status, &brake) &&
                                  brake.error == 0;
         printf("Motor %u: position %.6f deg; HW %u.%u.%u; SW %u.%u.%u; CAN timeout %u ms; brake %s.\n",
                motor_id, position.position_deg, version.version.hardware[0], version.version.hardware[1],
@@ -148,7 +157,17 @@ int main(int argc, char **argv)
                version.version.software[2], timeout.timeout_ms,
                brake_known ? (brake.released ? "released" : "engaged") : "unknown");
     }
-    memset(outputs, 0, sizeof(*outputs)); encos_exchange(expected_wkc); ec_close(); return result;
+    memset(outputs, 0, sizeof(*outputs));
+    encos_exchange(expected_wkc);
+    ec_close();
+    return result;
 fail:
-    memset(outputs, 0, sizeof(*outputs)); encos_exchange(expected_wkc); ec_close(); return 1;
+    memset(outputs, 0, sizeof(*outputs));
+    encos_exchange(expected_wkc);
+    ec_close();
+    return 1;
+usage:
+    fprintf(stderr, "Usage: sudo %s ETHERNET_INTERFACE [--can-bus 1|2] [--motor-ids ID[,ID...]]\n", argv[0]);
+    fprintf(stderr, "Discovery requires one isolated motor. Use explicit IDs when several are powered.\n");
+    return 2;
 }

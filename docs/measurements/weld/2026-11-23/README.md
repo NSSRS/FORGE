@@ -1,5 +1,9 @@
 # Offline control-development handoff — November 23, 2026
 
+Historical baseline: the operator subsequently selected [v7 on Nov 24](../2026-11-24/README.md).
+The findings and verification below describe the Nov 23 state; current operation
+and remaining work are in [the session handoff](../../../ARM_SESSION_HANDOFF.md).
+
 This archive is the operator-requested copy of session
 `20261123T114316.007261Z-cnyzuo1w`, with the **1.96 kg end effector** installed.
 It contains the complete original [JSONL journal](session.jsonl), final

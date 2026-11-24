@@ -1,0 +1,415 @@
+{
+  "date": "2026-11-24",
+  "scope": "First operator-run v7 periodic response trial, compared with v6 over common complete cycles 3-18.",
+  "hardware_qualified": false,
+  "agent_operated_hardware": false,
+  "control_settings_changed_during_review": false,
+  "detailed_report": "build/arm_tests/weld-response-20261124/physical-v7-20261124T101206/matched-window.json",
+  "formal_analyzer_report": "build/arm_tests/weld-response-20261124/physical-v7-20261124T101206/accuracy.json",
+  "transient_report": "build/arm_tests/weld-response-20261124/physical-v7-20261124T101206/transients.json",
+  "cycle_repeatability_report": "build/arm_tests/weld-response-20261124/physical-v7-20261124T101206/cycle-repeatability.json",
+  "window": {
+    "first_cycle": 3,
+    "last_cycle": 18,
+    "count": 16
+  },
+  "nominal_path_max_coordinate_difference_deg": 6.963810434967854e-07,
+  "nominal_path_max_knot_time_difference_s": 4.856104851569398e-08,
+  "response_verified": {
+    "sent_ticks": 561,
+    "policy": "bounded_periodic_response",
+    "geometry_checked": true,
+    "startup_duration_s": 0.5780648651814682,
+    "startup_samples": 23,
+    "a2_a5_max_command_minus_reference_deg": 0.0,
+    "limited_samples": 0,
+    "projected_samples": 0,
+    "residual": {
+      "A1": {
+        "peak_abs_deg": 0.12864745661939309,
+        "at_cap_samples": 0
+      },
+      "A6": {
+        "peak_abs_deg": 0.047585444973175225,
+        "at_cap_samples": 0
+      }
+    },
+    "online_learning": false
+  },
+  "runs": {
+    "v6_a1_shaper_only": {
+      "source": "build/weld/sessions/20261124T094738.392812Z-uzorvwep/session.jsonl",
+      "sha256": "26957e90685b307f2ebb2e1b009617a97a41fc918dd7bf450ac8060ac2397b46",
+      "tracker_version": 6,
+      "samples": 353,
+      "all_sent_samples": 405,
+      "closed": true,
+      "final_fault": null,
+      "dropped_records": 0,
+      "disable_acknowledged": true,
+      "mode_restoration_verified": true,
+      "preparation_s": 7.3598461330002465,
+      "welding_s": 10.584052875999987,
+      "effective_hz": 1.7299098150383365,
+      "tick_interval_ms": {
+        "median": 24.161238499800675,
+        "p95": 40.86775819996546,
+        "maximum": 57.849087001159205
+      },
+      "joints": {
+        "A1": {
+          "planned_travel_deg": 2.2606549751341447,
+          "command_travel_deg": 2.260653410154333,
+          "measured_travel_deg": 2.0545209023398456,
+          "tracking_error_deg": {
+            "mean": -0.006614649053743904,
+            "minimum": -1.9169487231135918,
+            "maximum": 1.935278234949351,
+            "peak_abs": 1.935278234949351,
+            "rms": 1.1439055916022067
+          }
+        },
+        "A6": {
+          "planned_travel_deg": 0.4275512153715084,
+          "command_travel_deg": 1.667104156236313,
+          "measured_travel_deg": 0.9398340297937509,
+          "tracking_error_deg": {
+            "mean": -0.017279876405334123,
+            "minimum": -0.5541030132700229,
+            "maximum": 0.5134753853937468,
+            "peak_abs": 0.5541030132700229,
+            "rms": 0.34435851509609916
+          }
+        }
+      },
+      "tip_window_envelope": {
+        "planned_width_mm": 20.000089004198998,
+        "measured_width_mm": 18.22623004845266,
+        "lower_edge_outward_error_mm": -1.2903427281357072,
+        "upper_edge_outward_error_mm": -0.48351622761062885
+      },
+      "tip_cycle_stroke_mm": {
+        "minimum": 13.388036728140188,
+        "median": 15.891757581582938,
+        "maximum": 16.671886734479376,
+        "mean": 15.43222308432198,
+        "stddev": 1.0112856034400968
+      },
+      "sampled_nominal_cycle_stroke_mm": {
+        "minimum": 19.999999493142518,
+        "median": 20.000011595506102,
+        "maximum": 20.00004151412361
+      },
+      "tip_lag_ms": 168.73823814141755,
+      "tip_same_time_3d_mm": {
+        "mean": 9.344082970229334,
+        "minimum": 0.7377644783941727,
+        "maximum": 17.122224438870155,
+        "peak_abs": 17.122224438870155,
+        "rms": 10.121614237576898
+      },
+      "tip_after_fixed_lag_3d_mm": {
+        "mean": 2.3358400243895594,
+        "minimum": 0.06687422563962671,
+        "maximum": 5.16615796845731,
+        "peak_abs": 5.16615796845731,
+        "rms": 2.6292655228949102
+      },
+      "orientation_same_time_deg": {
+        "mean": 1.2639405695935886,
+        "minimum": 0.09653071706453488,
+        "maximum": 2.341732904845675,
+        "peak_abs": 2.341732904845675,
+        "rms": 1.3653950843304898
+      }
+    },
+    "v7_response": {
+      "source": "build/arm_tests/weld-response-20261124/physical-v7-20261124T101206/session.jsonl",
+      "sha256": "3709db21c2f6277f0ebc7ad5cbe22104bb2ca7d67b30ca7e484376f9a2f7ae6b",
+      "tracker_version": 7,
+      "samples": 316,
+      "all_sent_samples": 561,
+      "closed": true,
+      "final_fault": null,
+      "dropped_records": 0,
+      "disable_acknowledged": true,
+      "mode_restoration_verified": true,
+      "preparation_s": 7.427872207999826,
+      "welding_s": 15.95893131000048,
+      "effective_hz": 1.729909669715139,
+      "tick_interval_ms": {
+        "median": 27.38663499985705,
+        "p95": 44.71874219962047,
+        "maximum": 74.73937599934288
+      },
+      "joints": {
+        "A1": {
+          "planned_travel_deg": 2.2606550348100996,
+          "command_travel_deg": 3.1563359268795637,
+          "measured_travel_deg": 2.251284991949575,
+          "tracking_error_deg": {
+            "mean": 0.0010619340980101942,
+            "minimum": -0.5839368902737192,
+            "maximum": 0.7404394032172092,
+            "peak_abs": 0.7404394032172092,
+            "rms": 0.24614033174610092
+          }
+        },
+        "A6": {
+          "planned_travel_deg": 0.42755065738376885,
+          "command_travel_deg": 0.5963391497859405,
+          "measured_travel_deg": 0.8086943977295107,
+          "tracking_error_deg": {
+            "mean": -0.007206605770431173,
+            "minimum": -0.2766846436728798,
+            "maximum": 0.2465739356904706,
+            "peak_abs": 0.2766846436728798,
+            "rms": 0.1254015182671612
+          }
+        }
+      },
+      "tip_window_envelope": {
+        "planned_width_mm": 20.000089004197402,
+        "measured_width_mm": 20.05004120387665,
+        "lower_edge_outward_error_mm": 0.09520860966561884,
+        "upper_edge_outward_error_mm": -0.04525640998637215
+      },
+      "tip_cycle_stroke_mm": {
+        "minimum": 15.723315424717432,
+        "median": 18.3502150603315,
+        "maximum": 19.6108776090554,
+        "mean": 18.086148210339974,
+        "stddev": 0.9255248576637923
+      },
+      "sampled_nominal_cycle_stroke_mm": {
+        "minimum": 19.999999493035865,
+        "median": 19.99999967219858,
+        "maximum": 20.000047200302237
+      },
+      "tip_lag_ms": 3.189411078887974,
+      "tip_same_time_3d_mm": {
+        "mean": 1.8521328674919333,
+        "minimum": 0.06807138252653232,
+        "maximum": 6.523043312985551,
+        "peak_abs": 6.523043312985551,
+        "rms": 2.1675352834177524
+      },
+      "tip_after_fixed_lag_3d_mm": {
+        "mean": 1.8539008424261736,
+        "minimum": 0.07888468419207433,
+        "maximum": 6.024519188309455,
+        "peak_abs": 6.024519188309455,
+        "rms": 2.156683632546897
+      },
+      "orientation_same_time_deg": {
+        "mean": 0.2543746734103915,
+        "minimum": 0.01915388528666333,
+        "maximum": 0.7585440701885234,
+        "peak_abs": 0.7585440701885234,
+        "rms": 0.29530526506155214
+      }
+    }
+  },
+  "whole_v7_pass": {
+    "rejected_samples": 0,
+    "issues": [
+      "Pass outcome: pause"
+    ],
+    "passed": false,
+    "orientation_maximum_met": false,
+    "orientation": {
+      "samples": 561,
+      "rejected": 0,
+      "angle_deg": {
+        "mean": 0.25590978230101186,
+        "minimum": 0.019153885285711533,
+        "maximum": 1.0947876663486789,
+        "peak_abs": 1.0947876663486789,
+        "rms": 0.30409905382163516
+      },
+      "definition": "smallest full 3D rotation: planned wire_tip frame to encoder-reconstructed frame",
+      "within_target_percent": 90.9090909090909,
+      "within_maximum_percent": 99.64349376114082
+    },
+    "tip": {
+      "rejected": 0,
+      "samples": 561,
+      "along_mm": {
+        "mean": -0.06272476982949811,
+        "minimum": -0.3405360660073029,
+        "maximum": 0.08820116110541676,
+        "peak_abs": 0.3405360660073029,
+        "rms": 0.0875413118148493
+      },
+      "transverse_mm": {
+        "mean": 0.09126082415972649,
+        "minimum": -6.522686574915259,
+        "maximum": 7.591991899759659,
+        "peak_abs": 7.591991899759659,
+        "rms": 2.2074958631171953
+      },
+      "height_mm": {
+        "mean": 0.05759467343123831,
+        "minimum": -0.11109115564048033,
+        "maximum": 0.7875476632925731,
+        "peak_abs": 0.7875476632925731,
+        "rms": 0.14622945042449237
+      },
+      "distance_mm": {
+        "mean": 1.8573593837296278,
+        "minimum": 0.06807138249684395,
+        "maximum": 7.602144061247215,
+        "peak_abs": 7.602144061247215,
+        "rms": 2.214065156928595
+      }
+    },
+    "windows": {
+      "whole_pass": {
+        "samples": 561,
+        "orientation_deg": {
+          "mean": 0.2559097824959078,
+          "minimum": 0.019153885288591046,
+          "maximum": 1.0947876663488791,
+          "peak_abs": 1.0947876663488791,
+          "rms": 0.30409905390684594
+        },
+        "tip_distance_mm": {
+          "mean": 1.8573593844229024,
+          "minimum": 0.0680713825249817,
+          "maximum": 7.602144061255224,
+          "peak_abs": 7.602144061255224,
+          "rms": 2.2140651572676693
+        },
+        "within_0_5_deg_percent": 90.9090909090909,
+        "within_1_deg_percent": 99.64349376114082
+      },
+      "startup": {
+        "samples": 23,
+        "orientation_deg": {
+          "mean": 0.3302651489672094,
+          "minimum": 0.0733689132314553,
+          "maximum": 1.0947876663488791,
+          "peak_abs": 1.0947876663488791,
+          "rms": 0.4888846445158822
+        },
+        "tip_distance_mm": {
+          "mean": 2.3063573521628835,
+          "minimum": 0.40456030726848724,
+          "maximum": 7.602144061255224,
+          "peak_abs": 7.602144061255224,
+          "rms": 3.5936058293517297
+        },
+        "within_0_5_deg_percent": 73.91304347826086,
+        "within_1_deg_percent": 91.30434782608695
+      },
+      "post_startup": {
+        "samples": 538,
+        "orientation_deg": {
+          "mean": 0.2527310214757592,
+          "minimum": 0.019153885288591046,
+          "maximum": 0.7589682940969145,
+          "peak_abs": 0.7589682940969145,
+          "rms": 0.2936185570936526
+        },
+        "tip_distance_mm": {
+          "mean": 1.8381643040176614,
+          "minimum": 0.0680713825249817,
+          "maximum": 6.523043312985548,
+          "peak_abs": 6.523043312985548,
+          "rms": 2.1353143950567675
+        },
+        "within_0_5_deg_percent": 91.635687732342,
+        "within_1_deg_percent": 100.0
+      },
+      "after_two_seconds": {
+        "samples": 483,
+        "orientation_deg": {
+          "mean": 0.25052565992364634,
+          "minimum": 0.019153885288591046,
+          "maximum": 0.7585440701885724,
+          "peak_abs": 0.7585440701885724,
+          "rms": 0.28921098575454657
+        },
+        "tip_distance_mm": {
+          "mean": 1.8259951186890886,
+          "minimum": 0.0680713825249817,
+          "maximum": 6.523043312985548,
+          "peak_abs": 6.523043312985548,
+          "rms": 2.114979514954366
+        },
+        "within_0_5_deg_percent": 92.7536231884058,
+        "within_1_deg_percent": 100.0
+      }
+    },
+    "over_1_deg": [
+      {
+        "elapsed_s": 0.4423121239997272,
+        "cycle": 1,
+        "orientation_deg": 1.075940003242817,
+        "tip_error_mm": 7.5863689295407735,
+        "joint_error_deg": [
+          -0.8558522860990649,
+          0.10018688241129325,
+          0.14170426269296854,
+          0.03519954392504587,
+          -0.09625015449951135,
+          0.29484674845691217
+        ],
+        "tick_interval_ms": 24.132880998877226,
+        "feedback_age_ms": [
+          6.0,
+          4.0,
+          4.0,
+          2.0,
+          2.0,
+          2.0
+        ],
+        "blend": 0.9118231184597844
+      },
+      {
+        "elapsed_s": 0.47283813200010627,
+        "cycle": 1,
+        "orientation_deg": 1.0947876663488791,
+        "tip_error_mm": 7.602144061255224,
+        "joint_error_deg": [
+          -0.857649710795954,
+          0.09783426415023655,
+          0.13675869482973724,
+          0.03510955224308532,
+          -0.0935798856190786,
+          0.3172362998211682
+        ],
+        "tick_interval_ms": 30.52600800037908,
+        "feedback_age_ms": [
+          4.0,
+          4.0,
+          3.0,
+          2.0,
+          0.0,
+          0.0
+        ],
+        "blend": 0.9549523941765842
+      }
+    ],
+    "coverage": {
+      "samples": 561,
+      "first_s": 1.2665999747696333e-05,
+      "last_s": 15.923353944001065,
+      "max_gap_ms": 74.73937599934288,
+      "complete": true
+    }
+  },
+  "conclusion": "V7 substantially reduces fitted tip lag and same-time position/orientation error. After startup, all recorded orientation samples are below 1 degree. Whole-pass orientation still fails at two startup samples (0.442/0.473 s, peak 1.095 degrees). The 20.050 mm window envelope does not establish 20 mm on every cycle: matched-cycle sampled stroke has median 18.350 mm and range 15.723-19.611 mm versus 20 mm planned. Full accuracy and repeatability remain unqualified.",
+  "next_work": "Improve the finite startup transition and quantify cycle-to-cycle stroke/shape variation, including A6 response and actual dispatch cadence. Preserve the now-small steady phase error, all guard limits and independent tip validation requirements. Keep ILC deferred.",
+  "limitations": [
+    "Encoder-reconstructed tool pose with fixed base; no independent tip measurement and no specified tip-mm tolerance.",
+    "Sequential trials have different preparation starts and control policies; this comparison does not isolate inertia or any single physical mechanism.",
+    "Whole-window envelope combines extremes from different cycles. Per-cycle values are sampled extrema and may miss between-sample peaks.",
+    "The 3.19 ms value is a fitted periodic position lag, not measured transport latency; it is shorter than the 27.39 ms median tick interval.",
+    "Same-time orientation includes all 23 startup samples. No phase alignment is used for orientation acceptance.",
+    "Formal analyzer retains manual-pause outcome and the 1-degree startup failure; interior diagnostics do not override acceptance.",
+    "No controller, profile, firmware, guard or motor owner was changed during this review."
+  ],
+  "follow_up_decision": "Operator selected this v7 baseline after the v8 comparison; further tuning is deferred.",
+  "current_baseline": "docs/measurements/arm-weld-v7-baseline-2026-11-24.json"
+}

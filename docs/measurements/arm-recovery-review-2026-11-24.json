@@ -1,0 +1,232 @@
+{
+  "schema": "forge.arm_recovery_review",
+  "version": 1,
+  "date": "2026-11-24",
+  "repository_commit": "b9fc689",
+  "operator_report": "planner wanted to spin whole circle. motion triggered motion guard",
+  "physical_branch_verification": null,
+  "findings": [
+    "The supplied branch-0 launch and positive A1 readings produced a 349.711-degree planned return on the first attempt.",
+    "All four staging candidates were rejected by the selected branch or collisions, leaving the saved standby and six single-axis recovery stops.",
+    "The first physical attempt paused on the 12-degree command-correction bound about 1.30 seconds after hold verification; it did not complete the planned rotation.",
+    "Explicit branch +1 is an offline comparison requiring physical orientation and restart-history verification before use. It selects the current pose as staging, avoiding the saved-standby detour.",
+    "The planner now rejects out-of-branch A1 starts with a return above 180 degrees before constructing the model; it never changes the selected branch."
+  ],
+  "comparisons": [
+    {
+      "name": "first",
+      "source_journal": "build/weld/sessions/20261124T073321.472729Z-yag1ucdf/session.jsonl",
+      "source_snapshot": "build/arm_tests/recovery-review-20261124/first-source-snapshot.jsonl",
+      "source_snapshot_sha256": "a288540853b381343e31f25b981dd42ee918f20a550f6f2d90977c50dff781a6",
+      "accepted_plan_snapshot": "build/arm_tests/recovery-review-20261124/first-original-plan.json",
+      "accepted_plan_sha256": "e541d17bb38b2dce28e9901766a17b79fe401f95c2dfc4618af0c3bb03ca0029",
+      "candidate_plan": "build/arm_tests/recovery-review-20261124/first-branch1-before.json",
+      "candidate_plan_sha256": "c9ee6c96f65b627594119849fa275ac30a61ae83c636a6b9d457a07557175865",
+      "start_raw_deg": [
+        175.01944472656137,
+        -134.38741433534256,
+        79.54831726293042,
+        184.46166215972707,
+        13.212536496526106,
+        112.399286868644
+      ],
+      "recorded_branch0": {
+        "nominal_preparation_s": 51.51765058728179,
+        "calculation_s": 62.691105311,
+        "axis_travel_deg": [
+          349.71104037296215,
+          111.02366924102006,
+          92.0416295427748,
+          11.727862411906813,
+          48.06945284964949,
+          48.77790906238603
+        ],
+        "joint_space_path_length_deg": 629.6723423259908,
+        "recovery_route": "checked joint-order recovery",
+        "recovery_joint_order": [
+          2,
+          1,
+          3,
+          4,
+          5,
+          6
+        ],
+        "recovery_stops": 6,
+        "home_duration_s": 44.63893653444312,
+        "approach_duration_s": 5.278714052838671,
+        "staging_raw_deg": [
+          -174.69159564640077,
+          -61.357358006883345,
+          149.39,
+          173.1834352361486,
+          41.51405787753105,
+          64.16104853467226
+        ]
+      },
+      "explicit_branch1_offline": {
+        "nominal_preparation_s": 6.993940375552841,
+        "calculation_s": 16.944552318000206,
+        "axis_travel_deg": [
+          10.288959627037855,
+          47.59445458446915,
+          49.7220870069596,
+          11.094039203871318,
+          20.072164099094785,
+          48.77790906238595
+        ],
+        "joint_space_path_length_deg": 91.55951618851068,
+        "recovery_route": "direct checked recovery",
+        "recovery_joint_order": null,
+        "recovery_stops": 1,
+        "home_duration_s": 0.5,
+        "approach_duration_s": 5.89394037555284,
+        "staging_raw_deg": [
+          175.01944472656137,
+          -134.38741433534256,
+          79.54831726293042,
+          184.46166215972707,
+          13.212536496526106,
+          112.399286868644
+        ]
+      },
+      "candidate_cache_state": "cold process"
+    },
+    {
+      "name": "latest",
+      "source_journal": "build/weld/sessions/20261124T073547.810682Z-4c1f4iaz/session.jsonl",
+      "source_snapshot": "build/arm_tests/recovery-review-20261124/latest-source-snapshot.jsonl",
+      "source_snapshot_sha256": "e5896bea7ee9acacdf7f1064def044bf780240db6bd2fa520aa24d66a3cc7d33",
+      "accepted_plan_snapshot": "build/arm_tests/recovery-review-20261124/latest-original-plan.json",
+      "accepted_plan_sha256": "0c4579cdf7cf47813e73ef52e569ea6e15583794aa07e240cdf27b35c9ec471b",
+      "candidate_plan": "build/arm_tests/recovery-review-20261124/latest-branch1-before.json",
+      "candidate_plan_sha256": "e092595e83f58db201c580e8e2da82296feb5a68d29c08256812f3450077f1cc",
+      "start_raw_deg": [
+        165.0089555544506,
+        -133.7972313495401,
+        81.7558890441919,
+        181.72953185020862,
+        9.365719314461565,
+        59.898955851070944
+      ],
+      "recorded_branch0": {
+        "nominal_preparation_s": 49.54827817624027,
+        "calculation_s": 48.94755566799995,
+        "axis_travel_deg": [
+          339.70055120085135,
+          110.43348625521745,
+          89.83405776160464,
+          8.995732102388303,
+          51.91627003171414,
+          4.801763412015532
+        ],
+        "joint_space_path_length_deg": 574.0026396090283,
+        "recovery_route": "checked joint-order recovery",
+        "recovery_joint_order": [
+          2,
+          1,
+          3,
+          4,
+          5,
+          6
+        ],
+        "recovery_stops": 6,
+        "home_duration_s": 42.66956412340079,
+        "approach_duration_s": 5.278714052839474,
+        "staging_raw_deg": [
+          -174.69159564640077,
+          -61.357358006883345,
+          149.39,
+          173.1834352361486,
+          41.51405787753105,
+          64.16104853467226
+        ]
+      },
+      "explicit_branch1_offline": {
+        "nominal_preparation_s": 6.919666433390926,
+        "calculation_s": 9.598803848999978,
+        "axis_travel_deg": [
+          20.29944879914862,
+          47.00427159851306,
+          47.51451522569812,
+          8.361908894263053,
+          23.91898128131485,
+          3.99883487098397
+        ],
+        "joint_space_path_length_deg": 76.79014296264748,
+        "recovery_route": "direct checked recovery",
+        "recovery_joint_order": null,
+        "recovery_stops": 1,
+        "home_duration_s": 0.5,
+        "approach_duration_s": 5.819666433390926,
+        "staging_raw_deg": [
+          165.0089555544506,
+          -133.7972313495401,
+          81.7558890441919,
+          181.72953185020862,
+          9.365719314461565,
+          59.898955851070944
+        ]
+      },
+      "candidate_cache_state": "same process; scene and weave reused"
+    }
+  ],
+  "validation": {
+    "command": "OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 QT_QPA_PLATFORM=offscreen MUJOCO_GL=egl PYTHONPATH=tests .venv/bin/python -m unittest test_weld_encoder_branch test_weld_recovery test_weld_measured_start -v",
+    "tests_passed": 32,
+    "tests_failed": 0,
+    "full_model_checks": "Both conditional +1 paths validated with unfiltered arm contacts; fake shafts reached Ready.",
+    "fake_shaft_replays": [
+      {
+        "start": "first",
+        "plant": "SimulatedArm",
+        "state": "ready",
+        "time_s": 7.119999999999936,
+        "message": "Weld start reached; all six motors holding. Press Start welding motion.",
+        "tracking_trip_deg": 3.0,
+        "arrival_deg": 0.25
+      },
+      {
+        "start": "first",
+        "plant": "PositionLoopArm",
+        "state": "paused",
+        "time_s": 1.8600000000000012,
+        "message": "Tracking error A3: +3.104 deg; paused both components; inspect and replan.",
+        "tracking_trip_deg": 3.0,
+        "arrival_deg": 0.25
+      },
+      {
+        "start": "latest",
+        "plant": "SimulatedArm",
+        "state": "ready",
+        "time_s": 7.039999999999938,
+        "message": "Weld start reached; all six motors holding. Press Start welding motion.",
+        "tracking_trip_deg": 3.0,
+        "arrival_deg": 0.25
+      },
+      {
+        "start": "latest",
+        "plant": "PositionLoopArm",
+        "state": "paused",
+        "time_s": 1.8400000000000012,
+        "message": "Tracking error A3: +3.003 deg; paused both components; inspect and replan.",
+        "tracking_trip_deg": 3.0,
+        "arrival_deg": 0.25
+      }
+    ],
+    "limitation": "The unrelated generic first-order PositionLoopArm (A2/A3 gain 1.3/s) still triggers A3 tracking pauses on both fast candidate paths. It is not an identified model of this rig; nominal and ideal-shaft times do not qualify physical tracking."
+  },
+  "unchanged": {
+    "preparation_speed_cap_deg_s": 30,
+    "preparation_acceleration_cap_deg_s2": 30,
+    "approach_lift_mm": 30,
+    "lowering_minimum_s": 2.3,
+    "tracking_trip_deg": 3,
+    "arrival_tolerance_deg": 0.25,
+    "measured_speed_trip_rad_s": 1.5,
+    "automatic_angle_wrapping": false,
+    "automatic_branch_selection": false
+  },
+  "hardware_accessed": false,
+  "hardware_qualified": false,
+  "production_qualified": false
+}

@@ -252,13 +252,17 @@ def move_path(start, goal, settings):
 
 
 class WeldGeometry:
-    def __init__(self, mapping, *, clearance_mm=0.5, arm_contacts_only=True, scene_identity=None):
+    def __init__(self, mapping, *, clearance_mm=0.5, arm_contacts_only=True,
+                 scene_identity=None, enforce_spatial_clearance=True):
         import mujoco as mj
         from controls.simulation.weave_xy_z import SEAM_XY, WIRE_GAP
         from simulation.arm_calibration import ExplicitStops
         from simulation.arm_sweep import descendant_bodies
         from simulation.arm_closure import ArmClosure
 
+        if type(enforce_spatial_clearance) is not bool:
+            raise ValueError("Spatial clearance enforcement must be boolean")
+        self.enforce_spatial_clearance = enforce_spatial_clearance
         self.mj, self.mapping = mj, mapping
         if scene_identity is None:
             from simulation.arm_calibration import scene_fingerprint
@@ -328,7 +332,8 @@ class WeldGeometry:
                     measured["nearest_points"], axis=0
                 ).tolist()
         for row in candidates.values():
-            row["blocked"] = row["distance_mm"] < clearance_mm
+            row["warning"] = row["distance_mm"] < clearance_mm
+            row["blocked"] = row["warning"] and self.enforce_spatial_clearance
         return list(candidates.values())
 
     def check(self, raw, *, clearance_mm=None):
@@ -417,12 +422,13 @@ class WeldGeometry:
         self.mj.mj_collision(self.model, self.data)
         self.contact_report = self.inspect_contacts(clearance * 1000)
         warnings = []
-        # The measured knot is evidence of the existing pose. Every subsequent
-        # recovery sample still checks clearance, including near-start samples.
+        # Hardware model space is advisory throughout motion, including tracker
+        # corrections. Simulation still enforces it after the observed knot.
+        # Explicit mechanical stops below remain independent of this policy.
         observed_knot = (measured_start is not None
                          and np.max(abs(raw - measured_start.raw)) <= 1e-9)
         for contact in self.contact_report:
-            if contact["blocked"]:
+            if contact.get("warning", contact["blocked"]):
                 detail = (
                     "triangle mesh intersection"
                     if contact["basis"] == "triangle mesh"
@@ -430,8 +436,10 @@ class WeldGeometry:
                     else f"{contact['distance_mm']:.3f} mm ({contact['basis']})"
                 )
                 message = f"Arm/environment clearance: {contact['geom_names']}, {detail}"
-                if not (observation or observed_knot):
+                if self.enforce_spatial_clearance and not (observation or observed_knot):
                     raise ValueError(message)
+                if not self.enforce_spatial_clearance:
+                    message += " (advisory; does not block hardware motion)"
                 warnings.append(message)
         from .endpoint_recovery import STOP_PAIR
         for stop in self.stops.measure():
@@ -442,7 +450,7 @@ class WeldGeometry:
                 if not (observation or observed_knot):
                     raise ValueError(message)
                 warnings.append(message)
-        return warnings if observation or measured_start is not None else None
+        return warnings if observation or measured_start is not None or not self.enforce_spatial_clearance else None
 
     def solve(
         self, target, *, free_yaw=False, preference=None, weights=None, fixed_yaw=0.0
@@ -974,14 +982,19 @@ def build_plan(request):
     mapping = CalibrationMap(request["mapping"])
     current = finite_vector(request["current_raw_deg"], "current")
     initial = finite_vector(request["initial_raw_deg"], "initial")
-    phase("input_and_fingerprints")
-    geometry = WeldGeometry(mapping, scene_identity=fingerprint)
-    phase("model_initialization")
-    from .endpoint_recovery import prepare_retreat, A3Retreat
-    from .measured_start import MeasuredStart, RecoveryGeometry
     hardware_start = request.get("measured_hardware_start", False)
     if type(hardware_start) is not bool:
         raise ValueError("Measured hardware start switch must be boolean")
+    if hardware_start:
+        from .calibration import check_a1_recovery_branch
+
+        check_a1_recovery_branch(mapping, current, initial)
+    phase("input_and_fingerprints")
+    geometry = WeldGeometry(mapping, scene_identity=fingerprint,
+                            enforce_spatial_clearance=not hardware_start)
+    phase("model_initialization")
+    from .endpoint_recovery import prepare_retreat, A3Retreat
+    from .measured_start import MeasuredStart, RecoveryGeometry
     start = MeasuredStart(tuple(current), mapping.fingerprint) if hardware_start else None
     start_warnings = geometry.observe(current) if hardware_start else []
     recovery_geometry = geometry if start is None else RecoveryGeometry(geometry, start)
@@ -1042,7 +1055,9 @@ def build_plan(request):
         version=1,
         request_fingerprint=digest(request),
         mapping_fingerprint=mapping.fingerprint,
+        mapping=mapping.document,
         scene_fingerprint=fingerprint,
+        spatial_clearance_policy="advisory" if hardware_start else "enforced",
         current_raw_deg=recovered.tolist(),
         initial_raw_deg=initial.tolist(),
         home=home.document(),
@@ -1127,6 +1142,16 @@ def build_plan(request):
         ),
     )
     phase("final_checks")
+    if request.get("weld_response_profile") is not None:
+        from .weld_response import WeldResponse
+
+        if not plan["arm_enabled"] or plan["chassis_enabled"]:
+            raise ValueError("The provisional weld response requires arm output alone")
+        response = WeldResponse(request["weld_response_profile"],
+                                JointPath.from_document(plan["weld"]), plan)
+        plan["weld_response"] = response.check_geometry(geometry.check)
+        plan["weld_entry"] = response.entry.document()
+        phase("weld_response_check")
     plan["planning_timing_s"] = dict(timings, total=time.perf_counter() - started)
     plan["planning_reuse"] = dict(weave=weave_reused, recovery=False, approach=False)
     return plan

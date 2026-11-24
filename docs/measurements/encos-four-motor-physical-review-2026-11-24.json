@@ -1,0 +1,220 @@
+{
+  "date": "2026-11-24",
+  "task": "ENCOS motor-4 identification and four-motor split-bus motion test",
+  "agent_operated_hardware": false,
+  "hardware_qualified": false,
+  "source_report": "build/encos/sessions/20261124T110254.496409Z.json",
+  "source_sha256": "1a970294998cc5b5beeaddd914e6dacdc58d27728101aa738db07a491c6f8999",
+  "operator_command": "sudo .venv/bin/python scripts/test_encos_motors.py --four-motors --execute",
+  "source_report_simulated": false,
+  "result": "passed",
+  "error": null,
+  "owner_closed": true,
+  "routing": [
+    {
+      "can_id": 1,
+      "can_bus": 1,
+      "pdo_slot": 0
+    },
+    {
+      "can_id": 2,
+      "can_bus": 1,
+      "pdo_slot": 1
+    },
+    {
+      "can_id": 3,
+      "can_bus": 2,
+      "pdo_slot": 3
+    },
+    {
+      "can_id": 4,
+      "can_bus": 2,
+      "pdo_slot": 4
+    }
+  ],
+  "command_settings": {
+    "target_rpm": 5.0,
+    "command_seconds": 1.0,
+    "phase_current_ceiling_a": 2.0,
+    "bidirectional": true
+  },
+  "stop_criterion_rpm_exclusive": 0.5,
+  "stages": [
+    {
+      "target_rpm": 5.0,
+      "below_half_rpm": true,
+      "travel_deg": {
+        "1": 30.311203002929688,
+        "2": 30.28387451171875,
+        "3": 30.309173583984375,
+        "4": 30.306800842285156
+      }
+    },
+    {
+      "target_rpm": -5.0,
+      "below_half_rpm": true,
+      "travel_deg": {
+        "1": -30.621932983398438,
+        "2": -30.5672607421875,
+        "3": -30.613388061523438,
+        "4": -30.614517211914062
+      }
+    }
+  ],
+  "sample_count": 115,
+  "transport": {
+    "exchanges": 532,
+    "failed_exchanges": 0,
+    "observed_wkc_expected_pairs": [
+      [
+        3,
+        3
+      ]
+    ],
+    "max_cycle_gap_s": 0.010124025999175501,
+    "observed_fault_codes": [
+      0
+    ],
+    "timestamp_basis": "host_pdo_observation",
+    "can_freshness_verified": false
+  },
+  "per_motor": {
+    "1": {
+      "positive_travel_deg": 30.311203002929688,
+      "negative_travel_deg": -30.621932983398438,
+      "initial_position_deg": -159.30548095703125,
+      "final_position_deg": -159.6163787841797,
+      "net_position_change_deg": -0.3108978271484375,
+      "observed_velocity_range_rpm": [
+        -5.375118732452393,
+        5.427493095397949
+      ],
+      "observed_current_range_a": [
+        -0.09000000357627869,
+        0.23000000417232513
+      ],
+      "observed_temperature_range_c": [
+        23.0,
+        23.5
+      ],
+      "final_velocity_rpm": -0.25400495529174805,
+      "observed_error_codes": [
+        0
+      ]
+    },
+    "2": {
+      "positive_travel_deg": 30.28387451171875,
+      "negative_travel_deg": -30.5672607421875,
+      "initial_position_deg": 63.11504364013672,
+      "final_position_deg": 62.831382751464844,
+      "net_position_change_deg": -0.283660888671875,
+      "observed_velocity_range_rpm": [
+        -5.349807262420654,
+        5.423308372497559
+      ],
+      "observed_current_range_a": [
+        -0.14000000059604645,
+        0.4099999964237213
+      ],
+      "observed_temperature_range_c": [
+        24.0,
+        24.5
+      ],
+      "final_velocity_rpm": -0.2084832787513733,
+      "observed_error_codes": [
+        0
+      ]
+    },
+    "3": {
+      "positive_travel_deg": 30.309173583984375,
+      "negative_travel_deg": -30.613388061523438,
+      "initial_position_deg": 110.79107666015625,
+      "final_position_deg": 110.48707580566406,
+      "net_position_change_deg": -0.3040008544921875,
+      "observed_velocity_range_rpm": [
+        -5.735759735107422,
+        5.839398384094238
+      ],
+      "observed_current_range_a": [
+        -0.10000000149011612,
+        0.4099999964237213
+      ],
+      "observed_temperature_range_c": [
+        25.5,
+        25.5
+      ],
+      "final_velocity_rpm": -0.16666868329048157,
+      "observed_error_codes": [
+        0
+      ]
+    },
+    "4": {
+      "positive_travel_deg": 30.306800842285156,
+      "negative_travel_deg": -30.614517211914062,
+      "initial_position_deg": -100.15570068359375,
+      "final_position_deg": -100.46305847167969,
+      "net_position_change_deg": -0.3073577880859375,
+      "observed_velocity_range_rpm": [
+        -5.5011725425720215,
+        5.367961883544922
+      ],
+      "observed_current_range_a": [
+        -0.05000000074505806,
+        0.2800000011920929
+      ],
+      "observed_temperature_range_c": [
+        27.0,
+        27.5
+      ],
+      "final_velocity_rpm": -0.31107231974601746,
+      "observed_error_codes": [
+        0
+      ]
+    }
+  },
+  "identification": {
+    "initial_discovery_source": "Operator-pasted output of encos_query enp86s0 --can-bus 2",
+    "initial_discovered_can_id": 1,
+    "hardware_version": "1.0.1",
+    "software_version": "1.0.0",
+    "can_timeout_ms": 500,
+    "brake": null,
+    "current_motor_4_can_id": 4,
+    "current_id_evidence": "All-four physical report contains ID 4 signed motion and stop feedback.",
+    "assignment_transcript": null,
+    "separate_power_cycle_readback_transcript": null,
+    "separate_motor4_only_report": null,
+    "physical_wheel": null,
+    "positive_rpm_physical_direction": null,
+    "forward_protocol_sign": null
+  },
+  "operator_visual_check": {
+    "command": "bash scripts/run_motor_test.sh --four-motors",
+    "reported_observation": "visual inspections look fine",
+    "per_key_observations": null,
+    "driver_runtime_log": null,
+    "terminator_message": "is not in registered window list",
+    "message_source": "/usr/lib/python3/dist-packages/terminatorlib/terminator.py:deregister_window / deregister_launcher_window",
+    "assessment": "Window deregistration diagnostic, not emitted by the motor driver. Exact UI trigger and session lifecycle are not established by the pasted line."
+  },
+  "completed_scope": [
+    "Motor 4 is present and responds under CAN ID 4 in the configured CAN2 slot.",
+    "All four motors provide signed movement in both commanded directions and satisfy both below-0.5-RPM stop checks.",
+    "Physical report has no recorded fault, motor error or failed EtherCAT exchange, and records owner close.",
+    "Operator reports normal visual behavior after the four-motor pane/viewer launch."
+  ],
+  "interpretation": [
+    "Initial velocity/current/temperature nulls precede control acknowledgements; those fields populate during the motion test.",
+    "Five RPM is the command ceiling; observed velocity peaks are separately recorded and are not constrained to exactly five RPM.",
+    "Final feedback meets the configured below-0.5-RPM criterion, not a measured exact-zero or mechanical-brake qualification.",
+    "The roughly 0.28-0.31-degree net displacement is from velocity commands and stop transients; this is not a position-return accuracy test.",
+    "This result supersedes pending identification/four-motor test items in the earlier preparation record without requiring a repeat of those checks."
+  ],
+  "remaining_scope": [
+    "Explicit wheel-to-ID physical locations, forward protocol signs and external gearing.",
+    "Independent per-motor CAN freshness and host/link-loss behavior.",
+    "Loaded traction, stopping, current and thermal qualification."
+  ],
+  "archived_source": "docs/measurements/weld/2026-11-24/encos-four-motor.json.gz",
+  "archive_manifest": "docs/measurements/weld/2026-11-24/manifest.json"
+}

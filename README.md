@@ -1,70 +1,35 @@
 # FORGE robot controls and simulation
 
-Motor control, IMU acquisition, teleoperation, and visualization for the magnetic wall-climbing welding robot.
+Motor control, sensing, teleoperation and visualization for the magnetic
+wall-climbing welding robot. Native Ubuntu 24.04 is the deployment target.
+ENCOS drives the chassis; six Damiao motors drive the arm through DM-MC02.
 
-**Next motor tests:** [weld motion accuracy](docs/ARM_RIG_TEST.md#weld-motion-accuracy-test) and coordinated tracking.
-The [Nov 23 review](docs/ARM_SESSION_HANDOFF.md#accuracy-01-and-speed-01-review)
-provides the first joint-accuracy baseline: prioritize A1/A6 amplitude and phase.
-PLAN-01 and BASE-04 are resolved by operator confirmation.
-The operator accepted **8.22 s preparation**. Current tracking work prioritizes
-**wire-tip position and stroke**, with one fixed lag allowed in the arm-only
-position report. Same-time tool orientation remains a secondary criterion
-with a **0.5 deg target and 1 deg maximum**.
-The earlier five-second goal is retired.
-The [offline handoff](docs/measurements/weld/2026-11-23/README.md) includes full
-logs, calibration, the accepted plan, current failures and commands without motors.
+## Current status — November 24
 
-**Current status (2026-11-23):** the operator-deployed gun-load profile uses
-A2/A3 30 Nm and A4-A6 10 Nm reactive torque trips, with matching persisted
-feedback ranges. Standard profiles and drive gains are unchanged. A3 has a
-bounded startup retreat; preparation has independent leg timing and an optional
-final-lowering minimum. Torque and both temperatures are recorded from cached
-feedback. See [current implementation and commands](docs/ARM_SESSION_HANDOFF.md).
+- **Welding:** the operator selected **v7**, with exact sampled commands and
+  bounded A1/A6 response compensation. Matched-cycle tip RMS is 2.168 mm and
+  orientation peak 0.759 deg; startup still peaks at 1.095 deg. Further tuning
+  and ILC are deferred. Preserve the [baseline and reusable scheme](docs/measurements/arm-weld-v7-baseline-2026-11-24.json).
+- **ENCOS:** all four motors passed the 5 RPM signed-motion/stop test on
+  slots 0/1/3/4; the operator reported normal viewer/keyboard behavior. Use
+  `bash scripts/run_motor_test.sh --four-motors`. IDs 1/2 are on CAN1 and 3/4
+  on CAN2. [Results and setup](docs/CAN2_BENCH.md) distinguish this successful
+  bench run from pending physical wheel mapping and load/host-loss qualification.
+- **Arm setup:** the gun-load firmware/ranges are deployed; routine runs need
+  no setup or flash. Use the explicit matching profile. HOLD-01, PLAN-01 and
+  BASE-04 are closed; do not reopen their historical incidents.
 
-**HOLD-01 is resolved by operator confirmation on Nov 23.** The latest session
-with the operator-confirmed **1.96 kg EE** reached Ready in **8.22 s**, held fixed
-targets for **25.19 s**, and verified final disable/mode restoration with no
-recorded fault. A5's maximum hold error was **0.053 deg**. See the
-[closure and historical evidence](docs/ARM_SESSION_HANDOFF.md#hold-01-resolution).
-A1/A6 travel accuracy, matched payload characterization and thermal acceptance
-remain separate work. Trial trips are not
-continuous-load ratings.
+Read [the current handoff](docs/ARM_SESSION_HANDOFF.md), then the
+[V7 operator command](docs/ARM_RIG_TEST.md#weld-motion-accuracy-test).
+Open work lives in the [arm registry](docs/ARM_LAYER_TODOS.md) and
+[chassis registry](docs/CHASSIS_MODEL_COMMS_TODOS.md). Original V7/motor source
+logs and checksums are in the [Nov 24 archive](docs/measurements/weld/2026-11-24/README.md).
+Unknown calibration stays null and production qualification stays false.
 
-**Weld dashboard:** signed torque, motor/MOS temperatures,
-cached-data age, trends and peaks are visible beside the model. State, next
-action, timing and pause causes are explicit; diagnostics are expandable.
-The manual arm panel shares a telemetry tab. See the
-[interface guide](docs/WELD_MOTION.md#telemetry-dashboard) and
-[open work](docs/ARM_LAYER_TODOS.md). The requested welding target remains
-**2 Hz / 12 mm/s**; no mode energizes the welder.
-
-All six motors are connected. The dated reference/calibration evidence remains
-provisional; the latest verified close does not qualify every loaded stop or
-clear earlier failures. Start with the [arm handoff](docs/ARM_SESSION_HANDOFF.md)
-and [operator procedures](docs/ARM_RIG_TEST.md).
-
-Pocket combined controls use **left stick for chassis** and **right stick
-for the selected arm motor**: left/up=CW, right/down=CCW, with **SE held**.
-SB selects motors 1/2/3; SC selects 4/5/6. All right-stick diagonals stop motion
-without breaking an existing SE prime. See [mapping capture and launch](docs/POCKET_ARM_CONTROL.md).
-
-The [assembled-arm handoff](docs/ASSEMBLED_ARM_BRINGUP.md) records the control
-changes, encoder/startup behavior, model constraints and next steps for physical
-calibration and gravity holding. Default jog adapters disable torque on release;
-explicit selected/group hold and weld modes retain position until supported
-disable or a fault. Manual holding modes and fault/power-loss stopping still
-require their separate physical qualification.
-
-ENCOS motors are the **chassis** actuators. The six Damiao motors are **arm**
-actuators controlled by a DM-MC02 over USB. See [Damiao arm implementation and
-commissioning](docs/DAMIAO_ARM.md) for firmware builds, the separate host/ROS
-interface, motor descriptions, manufacturer manuals and outstanding hardware mapping.
-
-- **[`nathan`](https://github.com/NSSRS/FORGE/tree/nathan)**: Damiao arm firmware, descriptions, host interface, and [current arm commissioning](docs/ARM_SESSION_HANDOFF.md) and desktop joint jogging; calibration and loaded-arm validation pending. Also includes the integrated Onshape chassis/arm MJCF, static posing and full MuJoCo simulation under `src/simulation/`.
-- **`main`**: ENCOS C11 driver/utilities, Python motor API, and ROS 2 motor, IMU, teleoperation, visualization, and bringup packages.
-- **[`physics-analysis`](https://github.com/NSSRS/FORGE/tree/physics-analysis)**:
-  thermal/magnetic adhesion and suspension/wheel/terrain simulators, preserved
-  from the former `main` at `324d21e`.
+Pocket combined control uses **left stick for chassis**, **right stick for the
+selected arm motor**, SB/SC selection and held SE. See [Pocket controls](docs/POCKET_ARM_CONTROL.md).
+The combined launcher still defaults to the retained three-motor profile;
+select the four-motor profile explicitly as described below.
 
 ## Arm base-layer APIs and cross-layer work
 
@@ -142,8 +107,8 @@ Write application logic in Python; the **C11** shared library owns the SOEM
 EtherCAT loop. This is C, not C++. The first interface supports one bridge and
 1-4 unique motor IDs, with independent commands for each motor. By default, configuration
 entries 1-3 use CAN1; the fourth uses CAN2. Explicit `motor_slots` can override
-this routing. The current [three-motor chassis bench](docs/CAN2_BENCH.md) uses
-IDs 1/2 on CAN1 and ID 3 on CAN2:
+this routing. The current [four-motor chassis bench](docs/CAN2_BENCH.md) uses
+IDs 1/2 on CAN1 and IDs 3/4 on CAN2:
 
 | API | Meaning |
 |---|---|
@@ -246,6 +211,14 @@ Use [the full-system bench guide](docs/FULL_SYSTEM_TEST.md) to launch the IMU,
 camera, calibrated Pocket controller and three-motor driver together.
 `bash scripts/run_system_test.sh` starts the **actual three-motor bench**, asking
 for sudo when needed, with the saved IMU/ESP32 ports and Pocket left stick.
+For the four-motor configuration, close the standalone motor session, then use:
+
+```bash
+bash scripts/run_system_test.sh \
+  config:=/home/forge2/forge2_ws/src/bringup/config/chassis_four_motor_bench.yaml
+```
+
+This combined four-motor/sensor run remains to be physically validated.
 Use `bash scripts/run_system_test.sh simulate:=true` for simulated motors.
 The camera window shows RGB at a requested 30 FPS with received-FPS and CPU/RAM
 diagnostics. Camera-only wrappers use shared-memory DDS for smooth local video;
@@ -276,8 +249,9 @@ the combined motor launch retains its existing transport settings.
 [Mirror measured motor movement in MuJoCo](docs/MOTOR_MIRROR.md) using the
 full robot in `src/robot_description/mujoco/` and a read-only `/joint_states`
 relay. Run `scripts/setup_motor_viewer.sh` once for its environment. Only wheel
-feedback is displayed, and arm joints remain at their saved pose. The current
-three-motor profile marks motor 4 absent and preserves its model for later.
+feedback is displayed, and arm joints remain at their saved pose. The explicit
+four-motor profile displays all four; the retained three-motor profile marks
+motor 4 absent.
 
 ## Existing bench utilities
 
@@ -295,7 +269,8 @@ The new library compiles on Ubuntu 24.04. Protocol vectors, Python simulation,
 and native-thread tests with a fake SOEM bridge cover independent motion,
 validation, command expiry, feedback/transport faults, and cleanup.
 The native Python path and temporary ROS 2 commissioning path have completed
-bounded tests with three secured, unloaded physical motors. This does not
+bounded tests with three secured, unloaded physical motors. The Nov 24 native
+commissioning run also passed with all four on the split bus. This does not
 validate loaded robot motion, traction, braking, or host-loss behavior.
 
 Every active motor needs an explicit command refresh within 250 ms. The C worker

@@ -1,13 +1,15 @@
 # ENCOS motor software workspace
 
-Current development: `main` now contains controls only. The physics simulators
-are on `physics-analysis`. The new C11 shared driver and Python per-motor position
-and velocity API are documented in [PYTHON_CONTROL.md](PYTHON_CONTROL.md). Its
-100 Hz loop is separate from the older bench CLI below. MotorBus supports
-1-4 motors, with contiguous slots 0-3 by default or explicit `motor_slots`
-for split-bus layouts. The legacy CLI tools have more limited routing, described below.
+Current development is on `nathan`, with the shared C11 driver and Python
+position/velocity API in [PYTHON_CONTROL.md](PYTHON_CONTROL.md). MotorBus uses
+a 100 Hz owner loop, separate from the older bench CLI. It supports 1-4 motors,
+with contiguous slots 0-3 by default or explicit `motor_slots`.
 
-Ubuntu 24.04 on the Intel NUC. Hardware route: dedicated Ethernet → ENCOS EtherCAT-CAN bridge → classic CAN motors. Begin with one bridge and one motor on CAN1.
+The operator-confirmed Nov 24 bench uses four IDs in slots 0/1/3/4: IDs 1/2 on
+CAN1, IDs 3/4 on CAN2. Use [CAN2_BENCH.md](CAN2_BENCH.md) for current commands.
+Query and isolated ID-assignment utilities accept `--can-bus 1|2`; normal
+successful reuse does not require resetting IDs. Native Ubuntu 24.04 on the
+NUC uses dedicated `enp86s0` -> EtherCAT IN -> ENCOS bridge -> CAN motors.
 
 ## Layout
 
@@ -46,8 +48,8 @@ ROS output is `build/ros2/` and `install/ros2/`. Do not source old installations
 For an existing editable Python installation, rerun `python -m pip install -e .`
 with that environment's interpreter. For source-tree API use, set `PYTHONPATH=src`.
 
-Obsolete `build/encos_query`, `build/ros2-before-rename`, and
-`install/ros2-before-rename` outputs were removed from the development workspace.
+Use the current output paths above. Older build folders, when present, are
+historical artifacts and may contain a reusable pinned SOEM checkout.
 The ignored source backup remains `tmp/before-package-reorganization.tar.gz`.
 If a local `config/bench-equipment.md` exists, move it to
 `docs/bench-equipment.md`; both paths remain ignored to protect local records.
@@ -87,10 +89,11 @@ For multiple motors on CAN1, use known, unique CAN IDs and avoid broadcast disco
 sudo ./build/encos_driver/encos_query enp86s0 --motor-ids 1,2,3
 ```
 
-`encos_query` sends every request through slot 0/CAN1, even with several IDs.
-It cannot query the current bench motor 3 on CAN2. For that layout use the
-[chassis driver](DIFFERENTIAL_DRIVE.md#three-motor-differential-bench-motor-4-absent)
-without starting a command publisher; startup remains query-only.
+`encos_query` defaults to slot 0/CAN1; add `--can-bus 2` for slot 3/CAN2.
+Every ID in one invocation must be on the selected bus. Discovery requires a
+single isolated powered motor. Query/assignment CLIs share the native driver's
+interface lock. See the [motor-4 procedure](CAN2_BENCH.md#motor-4-identification-and-four-motor-test)
+for CAN2 identification, isolated assignment and four-motor testing.
 
 ### Assigning duplicate CAN IDs
 
@@ -104,6 +107,8 @@ sudo ./build/encos_driver/encos_assign_id enp86s0 1 2 --execute
 sudo ./build/encos_driver/encos_query enp86s0
 ```
 
+Both discovery and assignment accept `--can-bus 2`; assignment verifies that
+isolated discovery matches OLD_ID before sending the configuration frame.
 Repeat with one isolated motor at a time. Do not use `encos_assign_id` while duplicate IDs share the powered CAN bus.
 
 The bounded motion utility accepts the same explicit ID list. It commands each listed motor through PDO slots 0–3 with a target 1 ms loop, monitors type-2 feedback for every motor, and stops all outputs if any motor exceeds a safety limit. Slot 3 routes to CAN2, but this legacy utility sends initial position queries

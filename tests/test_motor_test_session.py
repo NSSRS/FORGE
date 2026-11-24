@@ -15,6 +15,25 @@ from run_motor_test import command, layout
 
 
 class LauncherTests(unittest.TestCase):
+    def test_four_motor_profile_reaches_driver_keyboard_and_child_panes(self):
+        import yaml
+        name = 'chassis_four_motor_bench.yaml'
+        for role in ('driver', 'keyboard'):
+            self.assertIn(name, command(role, False, 44, four_motors=True)[-1])
+            self.assertNotIn(name, command(role, False, 44)[-1])
+        self.assertIn(name, command('viewer', False, 44, four_motors=True)[-1])
+        for simulate in (True, False):
+            panes = layout(simulate, 44, four_motors=True)
+            for role in ('driver', 'keyboard', 'relay', 'viewer'):
+                self.assertIn('--four-motors', panes[role]['command'])
+        profile = yaml.safe_load((ROOT/'src/bringup/config'/name).read_text())
+        config = profile['motor_driver']['ros__parameters']
+        self.assertEqual(config['bench_omit_motor_id'], 0)
+        self.assertEqual(config['motor_ids'], [1, 2, 3, 4])
+        self.assertEqual(config['motor_slots'], [0, 1, 3, 4])
+        self.assertEqual(config['max_velocity_rpm'], 5)
+        self.assertEqual(config['max_current_a'], 2)
+
     def test_hardware_panes_attach_without_sudo_or_root_viewer(self):
         panes = layout(False, 44, Path('/tmp/example-session'))
         for role in ('driver', 'keyboard', 'relay'):

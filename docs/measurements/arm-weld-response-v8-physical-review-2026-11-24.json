@@ -1,0 +1,819 @@
+{
+  "date": "2026-11-24",
+  "scope": "First physical v8 trial versus v7 on common complete cycles 3-18; full startup retained in orientation scoring.",
+  "hardware_qualified": false,
+  "agent_operated_hardware": false,
+  "control_settings_changed_during_review": false,
+  "source_journal": "build/weld/sessions/20261124T103437.719504Z-3pm2du87/session.jsonl",
+  "source_report": "build/weld/sessions/20261124T103437.719504Z-3pm2du87/session.json",
+  "source_report_sha256": "658818492eb0644a571d1d0f46ba60de8833fe10fd68fdf2c7326f67b043f49d",
+  "window": {
+    "first_cycle": 3,
+    "last_cycle": 18,
+    "count": 16
+  },
+  "nominal_path_max_coordinate_difference_deg": 7.204062271171097e-07,
+  "nominal_path_max_knot_time_difference_s": 2.3093829637499397e-07,
+  "artifacts": {
+    "formal_accuracy": "build/arm_tests/weld-response-v8-20261124/physical-v8-20261124T103437/accuracy.json",
+    "matched_window": "build/arm_tests/weld-response-v8-20261124/physical-v8-20261124T103437/matched-window.json",
+    "transients": "build/arm_tests/weld-response-v8-20261124/physical-v8-20261124T103437/transients.json",
+    "command_model_audit": "build/arm_tests/weld-response-v8-20261124/physical-v8-20261124T103437/command-model-audit.json"
+  },
+  "runs": {
+    "v7_response_previous": {
+      "source": "build/weld/sessions/20261124T101206.334308Z-lz462pcc/session.jsonl",
+      "sha256": "3709db21c2f6277f0ebc7ad5cbe22104bb2ca7d67b30ca7e484376f9a2f7ae6b",
+      "tracker_version": 7,
+      "samples": 316,
+      "all_sent_samples": 561,
+      "rejected_samples": 0,
+      "closed": true,
+      "dropped_records": 0,
+      "final_fault": null,
+      "disable_acknowledged": true,
+      "mode_restoration_verified": true,
+      "preparation_s": 7.427872207999826,
+      "nominal_preparation_s": 5.089419167878484,
+      "welding_s": 15.95893131000048,
+      "effective_hz": 1.729909669715139,
+      "tick_interval_ms": {
+        "median": 27.38663499985705,
+        "p95": 44.71874219962047,
+        "maximum": 74.73937599934288
+      },
+      "joints": {
+        "A1": {
+          "planned_travel_deg": 2.2606550348100996,
+          "command_travel_deg": 3.1563359268795637,
+          "measured_travel_deg": 2.251284991949575,
+          "tracking_error_deg": {
+            "mean": 0.0010619340980101942,
+            "minimum": -0.5839368902737192,
+            "maximum": 0.7404394032172092,
+            "peak_abs": 0.7404394032172092,
+            "rms": 0.24614033174610092
+          }
+        },
+        "A6": {
+          "planned_travel_deg": 0.42755065738376885,
+          "command_travel_deg": 0.5963391497859405,
+          "measured_travel_deg": 0.8086943977295107,
+          "tracking_error_deg": {
+            "mean": -0.007206605770431173,
+            "minimum": -0.2766846436728798,
+            "maximum": 0.2465739356904706,
+            "peak_abs": 0.2766846436728798,
+            "rms": 0.1254015182671612
+          }
+        }
+      },
+      "tip_lag_ms": 3.189411078887974,
+      "tip_window_envelope": {
+        "planned_width_mm": 20.000089004197402,
+        "measured_width_mm": 20.05004120387665,
+        "lower_edge_outward_error_mm": 0.09520860966561884,
+        "upper_edge_outward_error_mm": -0.04525640998637215
+      },
+      "tip_cycle_stroke": {
+        "status": "available",
+        "basis": "Sampled extrema per complete cycle; between-sample peaks are not measured.",
+        "planned_width_mm": 20.000089004197402,
+        "count": 16,
+        "width_mm": {
+          "mean": 18.08614821033977,
+          "minimum": 15.723315424717208,
+          "maximum": 19.61087760905496,
+          "peak_abs": 19.61087760905496,
+          "rms": 18.109813730365367
+        },
+        "median_width_mm": 18.35021506033156
+      },
+      "tip_same_time_3d_mm": {
+        "mean": 1.8521328674919333,
+        "minimum": 0.06807138252653232,
+        "maximum": 6.523043312985551,
+        "peak_abs": 6.523043312985551,
+        "rms": 2.1675352834177524
+      },
+      "tip_after_fixed_lag_3d_mm": {
+        "mean": 1.8539008424261736,
+        "minimum": 0.07888468419207433,
+        "maximum": 6.024519188309455,
+        "peak_abs": 6.024519188309455,
+        "rms": 2.156683632546897
+      },
+      "orientation_same_time_deg": {
+        "mean": 0.2543746734103915,
+        "minimum": 0.01915388528666333,
+        "maximum": 0.7585440701885234,
+        "peak_abs": 0.7585440701885234,
+        "rms": 0.29530526506155214
+      }
+    },
+    "v8_response": {
+      "source": "build/arm_tests/weld-response-v8-20261124/physical-v8-20261124T103437/session.jsonl",
+      "sha256": "844481f2bac6385aa407ad9c02b0f307073f631af03f18fdb5d705b39f6a2dc1",
+      "tracker_version": 8,
+      "samples": 303,
+      "all_sent_samples": 381,
+      "rejected_samples": 1,
+      "closed": true,
+      "dropped_records": 0,
+      "final_fault": null,
+      "disable_acknowledged": true,
+      "mode_restoration_verified": true,
+      "preparation_s": 8.45947072600029,
+      "nominal_preparation_s": 5.037149684494345,
+      "welding_s": 11.826676860999214,
+      "effective_hz": 1.7299089786123643,
+      "tick_interval_ms": {
+        "median": 28.472625000176777,
+        "p95": 48.58094195151352,
+        "maximum": 65.06479999916337
+      },
+      "joints": {
+        "A1": {
+          "planned_travel_deg": 2.2606549959106133,
+          "command_travel_deg": 3.3099735103781143,
+          "measured_travel_deg": 2.4261378347018763,
+          "tracking_error_deg": {
+            "mean": -0.006414450874547992,
+            "minimum": -0.6040336757234002,
+            "maximum": 0.5254121452638572,
+            "peak_abs": 0.6040336757234002,
+            "rms": 0.22995436402338554
+          }
+        },
+        "A6": {
+          "planned_travel_deg": 0.427551021038596,
+          "command_travel_deg": 0.4084969850263107,
+          "measured_travel_deg": 0.7868377923854695,
+          "tracking_error_deg": {
+            "mean": -0.0012978277632326625,
+            "minimum": -0.26902453783291946,
+            "maximum": 0.2920337796432264,
+            "peak_abs": 0.2920337796432264,
+            "rms": 0.12107361512683266
+          }
+        }
+      },
+      "tip_lag_ms": 1.4502671911797498,
+      "tip_window_envelope": {
+        "planned_width_mm": 20.000089004196944,
+        "measured_width_mm": 21.50694701783189,
+        "lower_edge_outward_error_mm": 0.40922265575527383,
+        "upper_edge_outward_error_mm": 1.097635357879673
+      },
+      "tip_cycle_stroke": {
+        "status": "available",
+        "basis": "Sampled extrema per complete cycle; between-sample peaks are not measured.",
+        "planned_width_mm": 20.000089004196944,
+        "count": 16,
+        "width_mm": {
+          "mean": 19.276592666388886,
+          "minimum": 18.253599688268757,
+          "maximum": 21.50694701783189,
+          "peak_abs": 21.50694701783189,
+          "rms": 19.292922288890157
+        },
+        "median_width_mm": 18.83728714243592
+      },
+      "tip_same_time_3d_mm": {
+        "mean": 1.662328695600185,
+        "minimum": 0.0418176458702463,
+        "maximum": 5.3662406908041955,
+        "peak_abs": 5.3662406908041955,
+        "rms": 2.030655286767269
+      },
+      "tip_after_fixed_lag_3d_mm": {
+        "mean": 1.6685609364526808,
+        "minimum": 0.05795724467092344,
+        "maximum": 5.298597495717559,
+        "peak_abs": 5.298597495717559,
+        "rms": 2.026888491925035
+      },
+      "orientation_same_time_deg": {
+        "mean": 0.24643724769989758,
+        "minimum": 0.015222829095628795,
+        "maximum": 0.722697916190384,
+        "peak_abs": 0.722697916190384,
+        "rms": 0.2927224137321954
+      }
+    }
+  },
+  "response_verified": {
+    "tracker_version": 8,
+    "profile_version": 2,
+    "startup_policy": "finite_response_inverse",
+    "geometry_checked": true,
+    "sent_ticks": 381,
+    "command_reconstruction_max_error_deg": 0.0,
+    "reference_reconstruction_max_error_deg": 0.0,
+    "a2_a5_max_command_minus_reference_deg": 0.0,
+    "limited_samples": 0,
+    "projected_samples": 0,
+    "residual": {
+      "A1": {
+        "peak_abs_deg": 0.1,
+        "at_cap_samples": 4
+      },
+      "A6": {
+        "peak_abs_deg": 0.05,
+        "at_cap_samples": 2
+      }
+    },
+    "residual_cap_events": [
+      {
+        "axis": 1,
+        "elapsed_s": 0.5140933269995003,
+        "residual_deg": -0.1,
+        "blend": 0.9953535104746116
+      },
+      {
+        "axis": 1,
+        "elapsed_s": 0.61672528499912,
+        "residual_deg": -0.1,
+        "blend": 1.0
+      },
+      {
+        "axis": 1,
+        "elapsed_s": 0.6368270829989342,
+        "residual_deg": -0.1,
+        "blend": 1.0
+      },
+      {
+        "axis": 1,
+        "elapsed_s": 0.805757514999641,
+        "residual_deg": 0.1,
+        "blend": 1.0
+      },
+      {
+        "axis": 6,
+        "elapsed_s": 0.61672528499912,
+        "residual_deg": 0.05,
+        "blend": 1.0
+      },
+      {
+        "axis": 6,
+        "elapsed_s": 0.6368270829989342,
+        "residual_deg": 0.05,
+        "blend": 1.0
+      }
+    ],
+    "online_learning": false
+  },
+  "whole_v8_pass": {
+    "issues": [
+      "Pass outcome: pause",
+      "Weld trace has rejected samples or gaps over 100 ms"
+    ],
+    "passed": false,
+    "orientation_maximum_met": false,
+    "orientation_target_met": false,
+    "coverage": {
+      "samples": 381,
+      "first_s": 4.361299943411723e-05,
+      "last_s": 11.735025177998978,
+      "max_gap_ms": 66.6584430000512,
+      "complete": true
+    },
+    "rejected_samples": 1,
+    "encoder_orientation": {
+      "samples": 381,
+      "rejected": 0,
+      "angle_deg": {
+        "mean": 0.25961650603444697,
+        "minimum": 0.015222829090907244,
+        "maximum": 1.1301999461962333,
+        "peak_abs": 1.1301999461962333,
+        "rms": 0.32150249952316556
+      },
+      "definition": "smallest full 3D rotation: planned wire_tip frame to encoder-reconstructed frame",
+      "within_target_percent": 88.71391076115485,
+      "within_maximum_percent": 99.4750656167979
+    },
+    "encoder_tip": {
+      "rejected": 0,
+      "samples": 381,
+      "along_mm": {
+        "mean": -0.02542888143561095,
+        "minimum": -0.16535078544330872,
+        "maximum": 0.15516851700311918,
+        "peak_abs": 0.16535078544330872,
+        "rms": 0.07497102250837018
+      },
+      "transverse_mm": {
+        "mean": -0.03319116173241426,
+        "minimum": -7.829494381339238,
+        "maximum": 6.140529463189186,
+        "peak_abs": 7.829494381339238,
+        "rms": 2.1517033266779326
+      },
+      "height_mm": {
+        "mean": 0.00043747684295095964,
+        "minimum": -0.19717816110148556,
+        "maximum": 0.36526900006882146,
+        "peak_abs": 0.36526900006882146,
+        "rms": 0.10873505492767041
+      },
+      "distance_mm": {
+        "mean": 1.713965779267199,
+        "minimum": 0.04181764587526594,
+        "maximum": 7.829878401339279,
+        "peak_abs": 7.829878401339279,
+        "rms": 2.1557530406850773
+      }
+    },
+    "tip_lag": {
+      "status": "complete, fault-free tip and journal coverage is required"
+    },
+    "windows": {
+      "whole_pass": {
+        "samples": 381,
+        "orientation_deg": {
+          "mean": 0.259616506111553,
+          "minimum": 0.015222829097910739,
+          "maximum": 1.130199946297984,
+          "peak_abs": 1.130199946297984,
+          "rms": 0.32150249953084187
+        },
+        "tip_distance_mm": {
+          "mean": 1.713965778869646,
+          "minimum": 0.04181764586791762,
+          "maximum": 7.829878401164766,
+          "peak_abs": 7.829878401164766,
+          "rms": 2.155753040520941
+        },
+        "within_0_5_deg_percent": 88.71391076115486,
+        "within_1_deg_percent": 99.47506561679789
+      },
+      "startup": {
+        "samples": 18,
+        "orientation_deg": {
+          "mean": 0.3592923316984232,
+          "minimum": 0.04659907923184698,
+          "maximum": 1.130199946297984,
+          "peak_abs": 1.130199946297984,
+          "rms": 0.5034651559085638
+        },
+        "tip_distance_mm": {
+          "mean": 2.0766297204316775,
+          "minimum": 0.20151345391294484,
+          "maximum": 7.829878401164766,
+          "peak_abs": 7.829878401164766,
+          "rms": 3.0761560961521726
+        },
+        "within_0_5_deg_percent": 66.66666666666666,
+        "within_1_deg_percent": 94.44444444444444
+      },
+      "post_startup": {
+        "samples": 363,
+        "orientation_deg": {
+          "mean": 0.25467390318989,
+          "minimum": 0.015222829097910739,
+          "maximum": 1.0847793126414187,
+          "peak_abs": 1.0847793126414187,
+          "rms": 0.3097099000610824
+        },
+        "tip_distance_mm": {
+          "mean": 1.6959824429244212,
+          "minimum": 0.04181764586791762,
+          "maximum": 6.147878874128453,
+          "peak_abs": 6.147878874128453,
+          "rms": 2.0996399156858114
+        },
+        "within_0_5_deg_percent": 89.80716253443526,
+        "within_1_deg_percent": 99.72451790633609
+      },
+      "after_two_seconds": {
+        "samples": 319,
+        "orientation_deg": {
+          "mean": 0.23870391325797963,
+          "minimum": 0.015222829097910739,
+          "maximum": 0.722697916190449,
+          "peak_abs": 0.722697916190449,
+          "rms": 0.2837492444186722
+        },
+        "tip_distance_mm": {
+          "mean": 1.6141641825216717,
+          "minimum": 0.04181764586791762,
+          "maximum": 5.366240690804277,
+          "peak_abs": 5.366240690804277,
+          "rms": 1.9715719198582946
+        },
+        "within_0_5_deg_percent": 92.47648902821317,
+        "within_1_deg_percent": 100.0
+      }
+    },
+    "over_1_deg": [
+      {
+        "elapsed_s": 0.5140933269995003,
+        "cycle": 1,
+        "orientation_deg": 1.130199946297984,
+        "tip_error_mm": 7.829878401164766,
+        "joint_error_deg": [
+          0.8845608303549852,
+          0.00024975614441302696,
+          -0.021010364230903633,
+          -0.0338607661870185,
+          0.03428702098420189,
+          -0.33239696859790513
+        ],
+        "tick_interval_ms": 43.01068799941277,
+        "feedback_age_ms": [
+          6.0,
+          4.0,
+          4.0,
+          2.0,
+          2.0,
+          2.0
+        ],
+        "blend": 0.9953535104746116
+      },
+      {
+        "elapsed_s": 0.61672528499912,
+        "cycle": 2,
+        "orientation_deg": 1.0847793126414187,
+        "tip_error_mm": 6.117844691813507,
+        "joint_error_deg": [
+          0.6998899843472657,
+          0.038742818943845236,
+          0.059286823513843956,
+          -0.09360370409689267,
+          -0.008518807802744277,
+          -0.44070359790369196
+        ],
+        "tick_interval_ms": 24.190803998862975,
+        "feedback_age_ms": [
+          4.0,
+          3.0,
+          2.0,
+          1.0,
+          0.0,
+          0.0
+        ],
+        "blend": 1.0
+      }
+    ],
+    "complete_periodic_cycles": {
+      "first_cycle": 2,
+      "last_cycle": 20,
+      "count": 19,
+      "median_mm": 19.006100411817542,
+      "minimum_mm": 18.2535996882687,
+      "maximum_mm": 21.70339453919567
+    }
+  },
+  "action_blocked_events": [
+    {
+      "event": "action_blocked",
+      "time_s": 12561.243893827,
+      "state": "ready",
+      "action": "weld",
+      "error": "Wait for all six joints to become stationary",
+      "planning_start_raw_deg": [
+        -173.88290124867126,
+        -101.66752972017989,
+        128.72644426820926,
+        173.751761616607,
+        21.780435074416822,
+        60.729506854144496
+      ]
+    }
+  ],
+  "command_model_audit": {
+    "source": "build/weld/sessions/20261124T103437.719504Z-3pm2du87/session.json",
+    "scope": "Frozen profile driven by actual recorded commands and cadence; no model refit, correction, or hardware access.",
+    "command_reconstruction_max_error_deg": 0.0,
+    "reference_reconstruction_max_error_deg": 0.0,
+    "ticks": 381,
+    "models": {
+      "nominal_rest": {
+        "windows": {
+          "startup": {
+            "a1_prediction_minus_measured_deg": {
+              "mean": 0.05112463898517521,
+              "minimum": -0.44376346116780496,
+              "maximum": 0.48215005044031045,
+              "peak_abs": 0.48215005044031045,
+              "rms": 0.2431522002614113
+            },
+            "a6_prediction_minus_measured_deg": {
+              "mean": -0.002587803792521647,
+              "minimum": -0.30353385515687137,
+              "maximum": 0.2956644212623303,
+              "peak_abs": 0.30353385515687137,
+              "rms": 0.1628003547481575
+            },
+            "hybrid_orientation_deg": {
+              "mean": 0.128569920928742,
+              "minimum": 0.022182059634468152,
+              "maximum": 0.7143573561296757,
+              "peak_abs": 0.7143573561296757,
+              "rms": 0.2075605690438852
+            }
+          },
+          "first_two_cycles": {
+            "a1_prediction_minus_measured_deg": {
+              "mean": -0.016852848604879494,
+              "minimum": -0.44376346116780496,
+              "maximum": 0.48215005044031045,
+              "peak_abs": 0.48215005044031045,
+              "rms": 0.24342729249045816
+            },
+            "a6_prediction_minus_measured_deg": {
+              "mean": 0.03175662593996344,
+              "minimum": -0.30353385515687137,
+              "maximum": 0.3700787205084666,
+              "peak_abs": 0.3700787205084666,
+              "rms": 0.18240019727354695
+            },
+            "hybrid_orientation_deg": {
+              "mean": 0.18607095243361504,
+              "minimum": 0.022182059634468152,
+              "maximum": 0.7143573561296757,
+              "peak_abs": 0.7143573561296757,
+              "rms": 0.252858459862341
+            }
+          },
+          "post_two_cycles": {
+            "a1_prediction_minus_measured_deg": {
+              "mean": 0.0025822010516188365,
+              "minimum": -0.284913080822804,
+              "maximum": 0.2493215551736796,
+              "peak_abs": 0.284913080822804,
+              "rms": 0.09063819576064513
+            },
+            "a6_prediction_minus_measured_deg": {
+              "mean": 0.0031402693355752336,
+              "minimum": -0.26150098391521936,
+              "maximum": 0.2517891669316299,
+              "peak_abs": 0.26150098391521936,
+              "rms": 0.10469392786749995
+            },
+            "hybrid_orientation_deg": {
+              "mean": 0.20633594667402272,
+              "minimum": 0.011309595836396324,
+              "maximum": 0.559398386575276,
+              "peak_abs": 0.559398386575276,
+              "rms": 0.24363736771069217
+            }
+          },
+          "after_eight_seconds": {
+            "a1_prediction_minus_measured_deg": {
+              "mean": 0.0037771973105949304,
+              "minimum": -0.1878593109683493,
+              "maximum": 0.1641203758561005,
+              "peak_abs": 0.1878593109683493,
+              "rms": 0.07202011256516909
+            },
+            "a6_prediction_minus_measured_deg": {
+              "mean": 0.0020304941277344444,
+              "minimum": -0.22822348144258342,
+              "maximum": 0.1762656016100621,
+              "peak_abs": 0.22822348144258342,
+              "rms": 0.10283290748675494
+            },
+            "hybrid_orientation_deg": {
+              "mean": 0.2000377509845667,
+              "minimum": 0.011942244460405274,
+              "maximum": 0.559398386575276,
+              "peak_abs": 0.559398386575276,
+              "rms": 0.24127383108082562
+            }
+          }
+        },
+        "at_failures": [
+          {
+            "elapsed_s": 0.5140933269995003,
+            "a1_a6_prediction_minus_measured_deg": [
+              -0.2756404081905828,
+              0.19657106081228193
+            ],
+            "a1_a6_predicted_minus_reference_deg": [
+              0.6089204221644025,
+              -0.1358259077856232
+            ],
+            "a1_a6_measured_minus_reference_deg": [
+              0.8845608303549852,
+              -0.33239696859790513
+            ],
+            "hybrid_orientation_deg": 0.7143573561296757
+          },
+          {
+            "elapsed_s": 0.61672528499912,
+            "a1_a6_prediction_minus_measured_deg": [
+              -0.3812309191746124,
+              0.3700787205084666
+            ],
+            "a1_a6_predicted_minus_reference_deg": [
+              0.3186590651726533,
+              -0.07062487739522538
+            ],
+            "a1_a6_measured_minus_reference_deg": [
+              0.6998899843472657,
+              -0.44070359790369196
+            ],
+            "hybrid_orientation_deg": 0.41980367705293725
+          }
+        ]
+      },
+      "measured_initial": {
+        "windows": {
+          "startup": {
+            "a1_prediction_minus_measured_deg": {
+              "mean": 0.0364939470488363,
+              "minimum": -0.442768522832921,
+              "maximum": 0.48046902446071726,
+              "peak_abs": 0.48046902446071726,
+              "rms": 0.24095793222021353
+            },
+            "a6_prediction_minus_measured_deg": {
+              "mean": -0.015581624917798662,
+              "minimum": -0.28738567909127255,
+              "maximum": 0.3078383256515522,
+              "peak_abs": 0.3078383256515522,
+              "rms": 0.16398230101459305
+            },
+            "hybrid_orientation_deg": {
+              "mean": 0.13847480670937065,
+              "minimum": 0.030676316012281213,
+              "maximum": 0.7037306802887261,
+              "peak_abs": 0.7037306802887261,
+              "rms": 0.2088188464112336
+            }
+          },
+          "first_two_cycles": {
+            "a1_prediction_minus_measured_deg": {
+              "mean": -0.024085269892203262,
+              "minimum": -0.442768522832921,
+              "maximum": 0.48046902446071726,
+              "peak_abs": 0.48046902446071726,
+              "rms": 0.24223004032566986
+            },
+            "a6_prediction_minus_measured_deg": {
+              "mean": 0.02475734269749393,
+              "minimum": -0.28738567909127255,
+              "maximum": 0.37728166669827345,
+              "peak_abs": 0.37728166669827345,
+              "rms": 0.18490783410268055
+            },
+            "hybrid_orientation_deg": {
+              "mean": 0.19043552853023168,
+              "minimum": 0.030676316012281213,
+              "maximum": 0.7037306802887261,
+              "peak_abs": 0.7037306802887261,
+              "rms": 0.2524472883706082
+            }
+          },
+          "post_two_cycles": {
+            "a1_prediction_minus_measured_deg": {
+              "mean": 0.0025822189075212086,
+              "minimum": -0.28491308090471534,
+              "maximum": 0.24932155588177807,
+              "peak_abs": 0.28491308090471534,
+              "rms": 0.09063815511179535
+            },
+            "a6_prediction_minus_measured_deg": {
+              "mean": 0.0031730368644732805,
+              "minimum": -0.2614550721699871,
+              "maximum": 0.25190631443791744,
+              "peak_abs": 0.2614550721699871,
+              "rms": 0.10463396846179701
+            },
+            "hybrid_orientation_deg": {
+              "mean": 0.2063127257968842,
+              "minimum": 0.011309595814654268,
+              "maximum": 0.5593983865753375,
+              "peak_abs": 0.5593983865753375,
+              "rms": 0.24362661668936852
+            }
+          },
+          "after_eight_seconds": {
+            "a1_prediction_minus_measured_deg": {
+              "mean": 0.0037771973105949304,
+              "minimum": -0.1878593109683493,
+              "maximum": 0.1641203758561005,
+              "peak_abs": 0.1878593109683493,
+              "rms": 0.07202011256516909
+            },
+            "a6_prediction_minus_measured_deg": {
+              "mean": 0.002030494127355946,
+              "minimum": -0.22822348144251237,
+              "maximum": 0.17626560161016158,
+              "peak_abs": 0.22822348144251237,
+              "rms": 0.10283290748800389
+            },
+            "hybrid_orientation_deg": {
+              "mean": 0.2000377509844442,
+              "minimum": 0.011942244460406665,
+              "maximum": 0.5593983865753375,
+              "peak_abs": 0.5593983865753375,
+              "rms": 0.24127383108055234
+            }
+          }
+        },
+        "at_failures": [
+          {
+            "elapsed_s": 0.5140933269995003,
+            "a1_a6_prediction_minus_measured_deg": [
+              -0.27435269455835964,
+              0.21305286667433165
+            ],
+            "a1_a6_predicted_minus_reference_deg": [
+              0.6102081357966256,
+              -0.11934410192357348
+            ],
+            "a1_a6_measured_minus_reference_deg": [
+              0.8845608303549852,
+              -0.33239696859790513
+            ],
+            "hybrid_orientation_deg": 0.7037306802887261
+          },
+          {
+            "elapsed_s": 0.61672528499912,
+            "a1_a6_prediction_minus_measured_deg": [
+              -0.38055165426578696,
+              0.37728166669827345
+            ],
+            "a1_a6_predicted_minus_reference_deg": [
+              0.3193383300814787,
+              -0.0634219312054185
+            ],
+            "a1_a6_measured_minus_reference_deg": [
+              0.6998899843472657,
+              -0.44070359790369196
+            ],
+            "hybrid_orientation_deg": 0.41454247454497223
+          }
+        ]
+      }
+    },
+    "residual_cap_events": [
+      {
+        "axis": 1,
+        "elapsed_s": 0.5140933269995003,
+        "residual_deg": -0.1,
+        "blend": 0.9953535104746116
+      },
+      {
+        "axis": 1,
+        "elapsed_s": 0.61672528499912,
+        "residual_deg": -0.1,
+        "blend": 1.0
+      },
+      {
+        "axis": 1,
+        "elapsed_s": 0.6368270829989342,
+        "residual_deg": -0.1,
+        "blend": 1.0
+      },
+      {
+        "axis": 1,
+        "elapsed_s": 0.805757514999641,
+        "residual_deg": 0.1,
+        "blend": 1.0
+      },
+      {
+        "axis": 6,
+        "elapsed_s": 0.61672528499912,
+        "residual_deg": 0.05,
+        "blend": 1.0
+      },
+      {
+        "axis": 6,
+        "elapsed_s": 0.6368270829989342,
+        "residual_deg": 0.05,
+        "blend": 1.0
+      }
+    ],
+    "limitations": [
+      "The model uses only A1/A6; hybrid orientation retains the other four measured axes.",
+      "The zero-order-held host command is an approximation of firmware input timing.",
+      "Initial measured velocity is a sensitivity case, not an independently identified state.",
+      "No physical mechanism is established by a frozen second-order prediction error."
+    ]
+  },
+  "prediction_comparison": {
+    "prior_counterfactual_whole_orientation_peak_deg": 0.7195116503737995,
+    "actual_whole_orientation_peak_deg": 1.1301999461962333,
+    "interpretation": "The earlier recorded-v7-residual replay did not predict the v8 startup excursion. The frozen profile, driven by actual v8 commands and cadence, also underestimates A1/A6 startup deviation. Command reconstruction is exact; physical mechanism remains unidentified."
+  },
+  "conclusion": "V8 modestly improves matched-cycle tip RMS and median stroke but does not fix startup. Two orientation samples exceed 1 degree at 0.514/0.617 s; whole peak rises from v7 1.095 to v8 1.130 deg. Matched-cycle stroke is 18.837 mm median, 18.254-21.507 mm range against 20 mm planned. No motion guard or motor fault occurred; disable/mode restoration are verified. Accuracy and repeatability remain unqualified.",
+  "next_work": "Use the actual v8 startup and cadence as a separate response-model validation case. Rework the bounded startup transient and initial periodic handoff before another physical claim; preserve the improved steady phase, all guards, and the unchanged nominal periodic path. Investigate cycle shape and A6 residual response; defer ILC.",
+  "limitations": [
+    "Window diagnostics do not override the formal analyzer completeness or acceptance result.",
+    "Interrupted dispatches at manual pause are excluded before selecting the interior window.",
+    "Sequential trials have different preparation starts and control policies; no causal isolation of all physical effects.",
+    "One fixed temporal offset is fitted for position diagnostics; no spatial fit. Orientation acceptance remains same-time.",
+    "No independent tip measurements or specified tip position tolerance.",
+    "Sampled cycle extrema can miss peaks between feedback samples.",
+    "Fitted periodic lag is shorter than the median tick and is not a transport-latency measurement.",
+    "The formal analyzer retains manual-pause and one interrupted-dispatch issues, so its lag is unavailable. Matched interior diagnostics do not waive those gates.",
+    "The Ready-state first weld request was blocked pending stationary joints; a later request succeeded. This was not a runtime motion guard.",
+    "Offline prediction and measured initial-state sensitivity do not identify motor inertia, coupling, friction, or firmware timing as the physical cause."
+  ],
+  "follow_up_decision": "Operator reverted to v7; this v8 result is historical and is not the active profile.",
+  "current_baseline": "docs/measurements/arm-weld-v7-baseline-2026-11-24.json"
+}

@@ -128,7 +128,7 @@ class RecoveryControlTests(unittest.TestCase):
     def test_changed_pose_during_preload_never_enables(self):
         original = self.arm.hold
         def shifted(expected, check):
-            self.arm.q += .4
+            self.arm.q += .6
             original(expected, check)
         self.arm.hold = shifted
         self.control.go_initial()
@@ -138,7 +138,7 @@ class RecoveryControlTests(unittest.TestCase):
 
     def test_hold_drift_requires_replan_and_never_starts_recovery(self):
         self.control.go_initial()
-        self.arm.q += .4
+        self.arm.q += .6
         self.tick()
         self.assertEqual(self.control.state, 'paused')
         self.assertIsNone(self.control.plan)

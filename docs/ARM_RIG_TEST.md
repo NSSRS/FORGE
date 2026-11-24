@@ -136,7 +136,18 @@ explicitly labeled offline. Code and interface text remain English.
 ## Weld panel with embedded model preview
 
 The panel defaults to `--tracker pid` for bounded host PID position tracking and
-velocity lead. Use the same reviewed mapping, standby and launch speed arguments;
+velocity lead. Preparation now slows its common clock when shafts trail the
+reference, with command braking inside the existing correction envelope;
+welding retains nominal timing. `Path rate` can fall below 100% during
+preparation. This does not change the planned route or the 3-degree trip.
+During hold verification, `Hold preload` shows the actual fixed target captured
+by the owner. A small enable transient may settle within the existing 2 s wait;
+recovery cannot start until feedback is within 0.5 degree of the checked path
+start and stationary for 0.2 s. Drift beyond 0.5 degree from the fixed hold target
+still pauses. The operator selected this startup tolerance on Nov 24; the
+3-degree motion tracking trip and 0.25-degree arrival tolerance are unchanged.
+The journal records both the preload and planned start and the 0.5-degree setting.
+Use the same reviewed mapping, standby and launch speed arguments;
 an already running panel does not reload changed code. **Diagnostics & evidence**
 shows **Tracker: PID + velocity feedforward**. **Targets & response** shows
 A1–A6 actual Hz and travel; expand **Frequency & travel details** for comparison
@@ -166,22 +177,36 @@ default A5 target. Confirm alignment away from the straight reference and ensure
 fresh raw positions are inside its two-degree cable backoff before physical
 planning. Reopening the panel does not require repeating that capture.
 
-If A1 reports the same independently verified physical orientation on a different
-encoder turn after restart, select that branch explicitly with
-`--a1-encoder-turns 1` (raw readings +360 degrees relative to the saved mapping)
-or `--a1-encoder-turns -1` (raw readings -360 degrees). For example, raw +163.1074
-corresponds to the old -196.8926 branch; selecting +1 also moves the saved A1
-standby from -174.6916 to +185.3084 raw degrees. Check the physical pose and cable
-state before selecting a branch; the software cannot infer turn history from a
-single reading. A full physical revolution is not an encoder restart correction.
+Hardware **Calculate path** selects the nearest adjacent equivalent A1 target
+using fresh stationary raw feedback. For the Nov 24 post-reset reading
+-181.511 degrees, it selects -174.692 degrees: CCW +6.819 degrees, rather than
+the stale +185.308-degree goal and its 366.819-degree return. Review the checked
+preview, then explicitly Start recovery. The choice alone does not enable motion.
+The same selection runs after an explicit motor-fault reset when the operator
+reselects the arm and calculates again; restarting to change a branch flag is
+not required. Existing running panels must first be restarted to load this code.
 
-The branch is fixed for that session and shown in the panel/journal/report.
+`--a1-encoder-turns {-1,0,1}` remains available to seed the initial map, and
+offline simulation keeps that explicit branch. Hardware replanning can replace
+the initial choice with the nearer equivalent target. This chooses a short
+command path; it does not establish encoder retention or physical turn history.
+
+The Nov 24 trial exposed this distinction: `--a1-encoder-turns 0` with A1 at
+raw +175.0194 degrees requested a 349.711-degree return to -174.6916 degrees.
+All four staging candidates failed, leaving a six-stop recovery and 51.52 s
+nominal preparation. The explicit +1 branch places that same model target at
++185.3084 degrees. Offline replay then selects the current pose as staging and
+the checked raised approach, with 10.289 degrees of A1 travel and 6.99 s nominal
+preparation. These are model calculations, not a newly completed hardware run.
+See the [recovery review](measurements/arm-recovery-review-2026-11-24.json).
+
+The selected branch stays fixed throughout each checked motion plan.
 Feedback stays in the motor's actual raw coordinates; calibration intercept,
 raw bounds, standby and planned targets translate together. The saved calibration
 and standby files are unchanged, their original fingerprints must match, and
-old search solutions need regeneration for the selected session mapping. A4's
+old search solutions need regeneration for the selected planning mapping. A4's
 fixed cable reference and every other joint remain unchanged. An unexpected
-branch change during operation is still rejected; this option does not clear
+branch change during motion is still rejected; planning selection does not clear
 faults, change motor zero or qualify encoder retention across power cycles.
 
 Both profiles default to 5 deg/s preparation. The panel names the active waypoint
@@ -199,14 +224,14 @@ five-second comparison; other starts and physical tracking may take longer.
 See [route comparison](WELD_MOTION.md#checked-preparation-route-comparison).
 The preparation request now accepts up to `--max-speed-deg-s 100`; the existing
 motor guard still limits actual commands to 68.7549 deg/s. This changes the
-requested speed allowance, not acceleration, tracking, clearance or overspeed
-protections. A reported clearance fault needs pose/path diagnosis independently
-of the requested speed.
+requested speed allowance, not acceleration, tracking or overspeed protections.
+Hardware model space warnings use the advisory policy described below.
 
 For the Nov 17 direct-approach floor fault, add `--approach-lift-mm 30`. This
 requires a waypoint with the tool 30 mm above the weld point, followed by a
 checked lowering route to the original weld start. It does not increase the
-final wire gap, change mapping, or remove the gun/floor check. Optimization must
+final wire gap or change mapping. The gun/floor check is advisory on hardware
+and enforced in simulation. Optimization must
 preserve the requested lift; if it cannot find that route, planning fails rather
 than silently choosing the direct joint blend. The panel identifies the lift.
 Preparation time depends on the starting pose and checked route; it can exceed
@@ -266,10 +291,13 @@ interval and simulator joint ranges, retaining self/environment collision warnin
 Calculate uses that measured start without changing the saved calibration.
 Recovery can include the extra angle extent needed to return into the normal
 range, but cannot command farther outward. A4/A5/A6 cable envelopes, protocol bounds,
-freshness and start-drift checks remain. All subsequent sampled path poses must
-pass collision checks, and the temporary extent ends before approach/welding.
-A reported starting contact does not permit moving through that contact; an
-unavailable collision-free route remains blocked. Simulation keeps its pose limits.
+freshness and start-drift checks remain. The temporary angle extent ends before
+approach/welding. By the Nov 24 operator request, model floor/self/environment
+space checks are advisory for every hardware path sample and runtime correction.
+They do not block Calculate/Start or force a detour. The preview retains the
+warnings and labels them advisory. D3 closure, explicit mechanical stops, fixed
+cable limits and all motor protections remain enforced. Simulation keeps its
+pose limits and enforced spatial clearance.
 There is no new launch flag. Readings are never wrapped or clamped. An impossible
 D3 closure still withholds the pose image. Blocked actions are saved in the journal, including
 the planning-start readings when available, even when no motor was enabled.
@@ -287,7 +315,7 @@ raw readings up to **151.64 degrees** can qualify for a separate inward-only
 retreat to **149.39 degrees**. The same retreat can handle the nearby modeled
 A3 stop contact inside the saved interval. Calculation checks the original
 triangle meshes, rejects ambiguous/deepening contact or overlap deeper than
-0.15 mm, and checks the full retreat before ordinary staging. Other collisions,
+0.15 mm, and checks the full retreat before ordinary staging. Explicit stops,
 D3 closure, normal target bounds, cable travel and explicit A1 encoder-branch
 selection remain checked. The hardware measured-start policy above is separate
 from this contact-retreat exception. This is a provisional model policy, not a new
@@ -358,7 +386,8 @@ welding or energizes motors automatically.
 
 A blocked plan remains blocked: inspect the current/target views and numbered
 screen-space contact rings, which remain visible through occluding surfaces.
-Red means the clearance check failed. Passed mounting-gap labels, rings and leaders
+Red marks model clearance warnings; these are advisory on hardware, not a motion
+block. Passed mounting-gap labels, rings and leaders
 are hidden in **Overview**, **Side** and **Wrist**, including path playback.
 Only the explicit contact views show blue diagnostics for the reviewed concave
 pair's triangle-mesh gap passing despite overlapping convex envelopes. Labels identify
@@ -373,6 +402,46 @@ offline simulation starts at the configured mapping's simulation pose.
 `--no-preview` disables rendering if the graphics backend is unavailable.
 
 ## Weld motion accuracy test
+
+The operator-selected baseline is restored v7 with the exact version-1 bounded
+A1/A6 response profile from the physical v7 run. Further weld tuning is deferred.
+For later welding, close the previous panel
+normally and use the same 1.96 kg gun setup:
+
+```bash
+cd /home/forge2/forge2_ws
+.venv/bin/python scripts/control_weld.py \
+  --execute --supported --arm --profile weld \
+  --arm-profile src/robot_description/config/arm_rig_gun_a2_a6_load.json \
+  --mapping build/arm_tests/hold-01-20261119/mapping.json \
+  --initial-pose build/arm_tests/hold-01-20261119/standby.json \
+  --a1-encoder-turns 1 --tracker pid \
+  --weld-response-profile src/controls/config/weld_response_gun_20261124.json \
+  --hz 2 --amplitude-mm 10 --feed-mm-s 12 --cycles 1 \
+  --max-speed-deg-s 30 --prep-seconds 10 \
+  --optimize-preparation --approach-lift-mm 30 --lowering-seconds 2.3
+```
+
+Use **Calculate path -> Start recovery -> Ready -> Start welding**. The first
+approximately 0.58 s cycle gradually expands the stroke; subsequent cycles
+retain 20 mm and the checked approximately 1.73 Hz. The panel shows
+`Tracker: periodic response feedforward`. Continue for about 10-15 seconds,
+then use **Pause / Hold** and normal supported shutdown. Send the live journal
+path. Verify `tracker.version=7`, response profile `version=1`, `weld_entry`, and
+`weld_response.policy=bounded_periodic_response`; startup is `periodic_blend`.
+Do not combine this profile with `--weld-a1-shaper-only` or `--single-pass`.
+No setup or flash is required. Compensation intentionally changes A1/A6 command
+spans; judge measured tip stroke and error. The original 0.20/0.05-degree
+residual caps, 0.58 s entry and subsequent planned cycle are restored.
+
+The retained physical v7 result has 2.168 mm same-time tip RMS, 3.19 ms fitted
+periodic lag and 0.759 deg orientation peak over matched cycles 3-18. Whole-pass
+startup reaches 1.095 deg and sampled strokes range 15.723-19.611 mm, median
+18.350 mm. Operator selection as the working baseline does not waive those
+known limits. Report startup, each complete cycle's stroke and both edges,
+along with fitted lag, same-time errors and guard/fault evidence. Do not
+substitute the aggregate envelope for every-cycle stroke. ILC remains off.
+See the [baseline record](measurements/arm-weld-v7-baseline-2026-11-24.json).
 
 The Nov 23 operator session provides a joint-diagnostic and encoder-reconstructed
 tool-pose baseline; see the [review](ARM_SESSION_HANDOFF.md#accuracy-01-and-speed-01-review)
@@ -394,6 +463,16 @@ For the A1 comparison, run two arm-only passes at the archived 1.730 Hz and
 first pass and add `--weld-a1-shaper-only` to the arm-only launch for the
 second. The trial retains command shaping and disables
 the additive A1 correction during welding. Save both session paths.
+The earlier Nov 24 command-sampling comparison repeated the second pass with the same
+`--weld-a1-shaper-only` launch and settings after normally closing and restarting
+the panel. That journal records
+`tracker.version=6`; moving weld ticks show
+`shaping_policy=sampled_reference_increment`. A1 commanded travel should match
+the approximately 2.261-degree nominal path when no derivative limit intervenes;
+its old 3.443-degree command span was a host sampling defect. Actual shaft travel,
+tip stroke and lag must be measured again; the old 2.382-degree actual travel
+does not predict the corrected controller's physical response. A6 additive PID
+remains active in this matched comparison. ILC is deferred future work.
 For a later combined run, verify the four-wheel mapping before selecting
 **Chassis feed** and use the normal explicit chassis launch flags.
 
@@ -649,7 +728,8 @@ The following remains the deployment procedure for a board/rig needing setup:
 
    Expect six fresh disabled readings and **PASS**. Firmware/profile and actual
    drive ranges must match; do not edit expected ranges just to bypass failure.
-   After PASS, launch the same motion settings with the new profile:
+   After PASS, launch the same motion settings with the new profile. Hardware
+   Calculate selects A1's nearest equivalent target from fresh feedback.
 
    ```bash
    .venv/bin/python scripts/control_weld.py \
@@ -657,7 +737,7 @@ The following remains the deployment procedure for a board/rig needing setup:
      --arm-profile src/robot_description/config/arm_rig_gun_a2_a6_load.json \
      --mapping build/arm_tests/hold-01-20261119/mapping.json \
      --initial-pose build/arm_tests/hold-01-20261119/standby.json \
-     --a1-encoder-turns 0 --tracker pid \
+     --tracker pid \
      --max-speed-deg-s 30 --prep-seconds 10 \
      --optimize-preparation --approach-lift-mm 30 \
      --lowering-seconds 2.3 --cycles 1

@@ -1,0 +1,109 @@
+{
+  "date": "2026-11-24",
+  "branch": "nathan",
+  "scope": "Publish selected V7 baseline, short recovery/spatial policy corrections, and verified four-motor ENCOS support",
+  "status": "verification_complete_with_intermittent_ui_test_failure",
+  "agent_operated_hardware": false,
+  "physical_evidence": [
+    "docs/measurements/arm-weld-v7-baseline-2026-11-24.json",
+    "docs/measurements/encos-four-motor-physical-review-2026-11-24.json"
+  ],
+  "archive_manifest": "docs/measurements/weld/2026-11-24/manifest.json",
+  "cleanup": [
+    "Condense current handoff and README; retain dated measurements and closed-task references.",
+    "Retire completed motor identification/test and old capture/setup requests from active TODOs; retain unresolved physical mapping and qualification.",
+    "Correct stale three-motor/current-controller/left-stick documentation; retain explicit four-motor selection and historical defaults.",
+    "Clarify ENCOS commissioning plan construction, thresholds and cleanup; expand compressed C cleanup statements without changing control settings."
+  ],
+  "runtime_parameters_changed_during_cleanup": false,
+  "shutdown_requested": "Schedule host power-off one minute after verified push, not before.",
+  "base_commit": "b9fc689fc306f2bbf91afb8f0a8d10d71af0e345",
+  "remote_at_initial_fetch": "b9fc689fc306f2bbf91afb8f0a8d10d71af0e345",
+  "cleanup_counts": {
+    "handoff_lines_before": 653,
+    "handoff_lines_after": 188,
+    "readme_lines": 301
+  },
+  "verification": {
+    "encos_native": {
+      "groups_passed": 3,
+      "groups_failed": 0,
+      "seconds": 20.89,
+      "log": "build/publication-20261124/encos-tests.log"
+    },
+    "ros_motor_session_mirror": {
+      "tests_passed": 35,
+      "skipped": 0,
+      "seconds": 11.947,
+      "log": "build/publication-20261124/ros-motor-tests.log",
+      "hardware": false
+    },
+    "source_and_archive": {
+      "local_links_checked": 350,
+      "json_files_parsed": 30,
+      "python_files_parsed": 36,
+      "archive_files_verified": 7,
+      "link_issues": []
+    },
+    "weld_suite": {
+      "tests_run": 314,
+      "tests_passed": 313,
+      "failures": 1,
+      "errors": 0,
+      "skipped": 0,
+      "seconds": 754.069,
+      "log": "build/publication-20261124/weld-tests.log",
+      "intermittent_failure": {
+        "test": "test_weld_panel.WeldPanelTests.test_ready_survives_focus_pause_and_heartbeat_until_fresh_weld_click",
+        "stage": "ready_arm preparation, before focus/heartbeat assertions",
+        "observed_message": "Paused \u00b7 Motion guard",
+        "specific_guard_reason": null,
+        "root_cause": null,
+        "assessment": "Not reproduced in the isolated test or complete panel rerun; the original failure output omitted the underlying guard message. Do not infer a confirmed scheduling cause.",
+        "isolated_rerun": {
+          "tests_passed": 1,
+          "seconds": 2.659,
+          "log": "build/publication-20261124/panel-focus-repro.log"
+        },
+        "panel_rerun": {
+          "tests_passed": 33,
+          "seconds": 20.402,
+          "log": "build/publication-20261124/panel-suite-repro.log"
+        },
+        "change": "Include the controller reason in panel wait failures; runtime control and protection are unchanged.",
+        "panel_after_diagnostic_change": {
+          "tests_passed": 33,
+          "failures": 0,
+          "seconds": 20.997,
+          "log": "build/publication-20261124/panel-final.log"
+        }
+      }
+    },
+    "offline_cli": {
+      "v7-archive-analysis": {
+        "exit_code": 2,
+        "expected_exit_code": 2,
+        "log": "build/publication-20261124/v7-archive-analysis.log"
+      },
+      "weld-audit": {
+        "exit_code": 0,
+        "expected_exit_code": 0,
+        "log": "build/publication-20261124/weld-audit.log"
+      }
+    },
+    "archived_v7_replay": {
+      "samples": 561,
+      "rejected_samples": 0,
+      "whole_orientation_peak_deg": 1.0947876663486789,
+      "matches_original_review": true,
+      "passed": false,
+      "interpretation": "Expected recorded accuracy failure: startup exceeds 1 degree; manual pause remains reported. Not a software-test failure.",
+      "report": "build/publication-20261124/v7-accuracy.json"
+    },
+    "formatting_ast_preserved": [
+      "src/bringup/setup.py",
+      "tests/test_encos_cli.py",
+      "tests/test_encos_commissioning.py"
+    ]
+  }
+}

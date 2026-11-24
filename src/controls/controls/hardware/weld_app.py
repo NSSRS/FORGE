@@ -13,7 +13,7 @@ import threading
 import time
 
 from motors.arm_calibration import CalibrationMap, digest
-from controls.controller.calibration import select_a1_encoder_branch
+from controls.controller.calibration import select_a1_encoder_branch, nearest_a1_recovery_branch
 from controls.controller.limits import MAX_PREPARATION_SPEED_DEG_S
 from controls.controller.tracking import TrackingSettings
 from controls.controller.weld_plan import (
@@ -59,10 +59,14 @@ def make_window(args, mapping, initial, settings, root):
         if getattr(args, "tracker", "pid") == "pid" else None
     )
     tracker_document = None if tracker_settings is None else tracker_settings.document()
+    response_profile = getattr(args, "weld_response_document", None)
+    if response_profile is not None:
+        tracker_document["weld_response_profile"] = response_profile
 
     class OwnerThread(QtCore.QThread):
         status = QtCore.pyqtSignal(object)
         preview_plan = QtCore.pyqtSignal(object)
+        preview_mapping = QtCore.pyqtSignal(object, object)
 
         def __init__(self):
             super().__init__()
@@ -78,6 +82,7 @@ def make_window(args, mapping, initial, settings, root):
             self.heartbeat_expired = False
             self.resetting = threading.Event()
             self.controller = None
+            self.mapping, self.initial = mapping, list(initial)
             self.pending = None
             self.planning_started = None
             self.request = None
@@ -232,6 +237,8 @@ def make_window(args, mapping, initial, settings, root):
                             version=1,
                             simulated=not args.execute,
                             measured_hardware_start=bool(args.execute and args.arm),
+                            spatial_clearance_policy="advisory" if args.execute else "enforced",
+                            a1_recovery_policy="nearest adjacent equivalent target from fresh stationary feedback" if args.execute else "explicit simulation branch",
                             continuous_weld=not getattr(args, "single_pass", False),
                             settings=asdict(settings),
                             tracker=tracker_document,
@@ -243,7 +250,8 @@ def make_window(args, mapping, initial, settings, root):
                     )
                 # Load the model before opening hardware. This guard uses only
                 # cached six-axis feedback and never acquires a transport owner.
-                geometry = WeldGeometry(mapping) if args.arm else None
+                geometry = (WeldGeometry(mapping, enforce_spatial_clearance=not args.execute)
+                            if args.arm else None)
                 if args.arm:
                     if args.execute:
                         from motors.arm_bench import read_arm_plan
@@ -302,6 +310,7 @@ def make_window(args, mapping, initial, settings, root):
                     allow_optimized_preparation=settings.optimize_preparation,
                     continuous_weld=not getattr(args, "single_pass", False),
                     tracking_settings=tracker_settings,
+                    weld_response_profile=response_profile,
                     intent_pause_cause=self.intent_pause_cause,
                 )
                 if getattr(arm, "fault", None):
@@ -362,12 +371,34 @@ def make_window(args, mapping, initial, settings, root):
                                 raw = (
                                     c.feedback(stationary=True).raw_deg.tolist()
                                     if c.arm_on
-                                    else list(initial)
+                                    else list(self.initial)
                                 )
+                                if args.execute and c.arm_on:
+                                    selected, target, decision = nearest_a1_recovery_branch(
+                                        self.mapping, raw, self.initial
+                                    )
+                                    if decision is not None:
+                                        if c.arm_holding:
+                                            from controls.controller.recovery import START_TOLERANCE_DEG
+                                            if max(abs(q - held) for q, held in zip(raw, arm.held_target())) > START_TOLERANCE_DEG:
+                                                raise RuntimeError("Raw feedback changed relative to the fixed hold; disable before A1 branch selection")
+                                        # Planning is paused and feedback is stationary.
+                                        # Targets, native bounds and the model switch
+                                        # together; raw feedback/hold targets never move.
+                                        arm.configure_mapping(selected.document)
+                                        geometry.mapping = selected
+                                        self.mapping, self.initial = selected, target
+                                        c.event("a1_recovery_branch_selected", **decision)
+                                        if self.journal is not None:
+                                            self.journal.record(dict(
+                                                kind="mapping_selected", mapping=selected.document,
+                                                initial_raw_deg=target, decision=decision,
+                                            ))
+                                        self.preview_mapping.emit(selected.document, target)
                                 self.request = dict(
-                                    mapping=mapping.document,
+                                    mapping=self.mapping.document,
                                     current_raw_deg=raw,
-                                    initial_raw_deg=list(initial),
+                                    initial_raw_deg=list(self.initial),
                                     settings=asdict(settings),
                                     arm_enabled=c.arm_on,
                                     chassis_enabled=c.chassis_on,
@@ -377,6 +408,8 @@ def make_window(args, mapping, initial, settings, root):
                                     self.request["scene_fingerprint"] = (
                                         args.scene_fingerprint
                                     )
+                                if response_profile is not None:
+                                    self.request["weld_response_profile"] = response_profile
                                 self.pending = self.executor.submit(
                                     build_plan, self.request
                                 )
@@ -539,9 +572,9 @@ def make_window(args, mapping, initial, settings, root):
                     start_report=str(getattr(args, "start_report", None) or "") or None,
                     settings=asdict(settings),
                     tracker=tracker_document,
-                    mapping_fingerprint=mapping.fingerprint,
-                    encoder_branch_selection=mapping.document.get("encoder_branch_selection"),
-                    initial_raw_deg=list(initial),
+                    mapping_fingerprint=self.mapping.fingerprint,
+                    encoder_branch_selection=self.mapping.document.get("encoder_branch_selection"),
+                    initial_raw_deg=list(self.initial),
                     events=[] if c is None else c.events,
                     accepted_plan=None if c is None else c.last_accepted_plan,
                     trajectory_trace=[] if c is None else list(c.trace),
@@ -662,6 +695,7 @@ def make_window(args, mapping, initial, settings, root):
                 preview_scroll.setWidget(self.preview)
                 content.addWidget(preview_scroll)
                 self.worker.preview_plan.connect(self.preview.set_plan)
+                self.worker.preview_mapping.connect(self.preview.set_mapping)
             self.tabs = QtWidgets.QTabWidget()
             telemetry_page = QtWidgets.QWidget()
             telemetry_layout = QtWidgets.QVBoxLayout(telemetry_page)
@@ -744,7 +778,10 @@ def make_window(args, mapping, initial, settings, root):
             self.details.setWidgetResizable(True)
             detail_body = QtWidgets.QWidget()
             detail_layout = QtWidgets.QVBoxLayout(detail_body)
-            self.controller_label = QtWidgets.QLabel("Tracker: PID + velocity feedforward" if tracker_settings is not None else "Tracker: feedback-paced")
+            self.controller_label = QtWidgets.QLabel(
+                "Tracker: periodic response feedforward" if response_profile is not None
+                else "Tracker: PID + velocity feedforward" if tracker_settings is not None
+                else "Tracker: feedback-paced")
             if a1_trial:
                 self.controller_label.setText("Tracker: PID with A1 weld correction off")
             self.weld_run_label = QtWidgets.QLabel(f"Welding: one planned pass ({settings.cycles} cycles), then hold." if getattr(args, "single_pass", False) else "Welding: continuous until Pause / Hold.")
@@ -766,7 +803,7 @@ def make_window(args, mapping, initial, settings, root):
                 profile_text += "\n" + " | ".join(f"{motor['unit']}: trip {motor['torque_trip_nm']:g} Nm, TMAX {motor['ranges']['tmax']:g} Nm, rated {ratings.get(motor['unit'], 'unknown')} Nm" for motor in document["motors"])
             branch = mapping.document.get("encoder_branch_selection")
             if branch:
-                profile_text += f"\nA1 branch: {branch['turns']:+d} turn, {branch['raw_shift_deg']:+g}° raw shift. Verify physical pose."
+                profile_text += f"\nInitial A1 branch: {branch['turns']:+d} turn. Hardware recalculation selects the nearest equivalent A1 target."
             profile_label = QtWidgets.QLabel(profile_text)
             profile_label.setWordWrap(True)
             detail_layout.addWidget(profile_label)
@@ -1209,7 +1246,7 @@ def main(argv=None):
         type=int,
         choices=(-1, 0, 1),
         default=0,
-        help="explicit A1 restart branch relative to the saved mapping; +1 shifts raw bounds/targets by +360 deg, after physical pose verification",
+        help="initial A1 branch relative to the saved mapping; hardware Calculate selects the nearest equivalent target from fresh feedback; simulation keeps this branch",
     )
     start_mode = parser.add_mutually_exclusive_group()
     start_mode.add_argument(
@@ -1253,6 +1290,10 @@ def main(argv=None):
     parser.add_argument(
         "--weld-a1-shaper-only", action="store_true",
         help="Arm-only PID trial: omit A1 host correction during welding and retain command shaping",
+    )
+    parser.add_argument(
+        "--weld-response-profile", type=Path,
+        help="Explicit provisional A1/A6 periodic response profile for continuous arm-only welding",
     )
     parser.add_argument(
         "--single-pass", action="store_true",
@@ -1333,6 +1374,17 @@ def main(argv=None):
         args.tracker != "pid" or not args.arm or args.chassis or args.plan_only or args.audit
     ):
         parser.error("--weld-a1-shaper-only requires a live panel with --arm alone and --tracker pid")
+    args.weld_response_document = None
+    if args.weld_response_profile is not None:
+        if (args.tracker != "pid" or not args.arm or args.chassis or args.plan_only
+                or args.audit or args.single_pass or args.weld_a1_shaper_only):
+            parser.error("--weld-response-profile requires continuous --arm alone, --tracker pid, and no A1 isolation switch")
+        try:
+            args.weld_response_document = json.loads(args.weld_response_profile.read_text())
+            if not isinstance(args.weld_response_document, dict):
+                raise ValueError("Expected a response profile object")
+        except (OSError, ValueError) as exc:
+            parser.error(f"Cannot read weld response profile: {exc}")
     if args.execute:
         if not (args.arm or args.chassis):
             parser.error("Select --arm and/or --chassis explicitly for hardware")
@@ -1458,7 +1510,7 @@ def main(argv=None):
             window.worker.wait()
             result = window.worker.report
             exit_code = 2 if window.worker.failed else 0
-        result["encoder_branch_selection"] = mapping.document.get("encoder_branch_selection")
+        result.setdefault("encoder_branch_selection", mapping.document.get("encoder_branch_selection"))
         output.parent.mkdir(parents=True, exist_ok=True)
         with output.open("x") as stream:
             json.dump(result, stream, indent=2, allow_nan=False, ensure_ascii=False)

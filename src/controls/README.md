@@ -27,8 +27,9 @@ continuous weld -> Pause / Hold. The checked `--cycles` block repeats; add
 `--single-pass` only for an explicitly requested finite run and endpoint hold.
 Preparation defaults to 5 deg/s; optimized staging requires explicit
 `--optimize-preparation` on hardware.
-The default host PID tracker uses nominal preparation time, bounded velocity lead
-and acceleration-bounded braking inside each finite leg. Welding keeps the tiny
+The default host PID tracker slows the preparation clock as shaft error grows,
+with bounded velocity lead and acceleration-bounded braking inside each finite
+leg and the existing correction envelope. Welding retains nominal timing and the tiny
 nominal axis motions while omitting host correction below 0.3 deg peak-to-peak.
 Frequency, measured/planned travel and torque/temperature evidence use cached
 feedback. `--lowering-seconds` stretches only the final raised-approach lowering

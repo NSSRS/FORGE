@@ -1,0 +1,325 @@
+{
+  "date": "2026-11-24",
+  "scope": "Finite startup response inverse, response refit at the v7 command operating point, and per-cycle stroke reporting.",
+  "tracker_version": 8,
+  "response_profile_version": 2,
+  "hardware_qualified": false,
+  "agent_operated_hardware": false,
+  "profile": "src/controls/config/weld_response_gun_20261124.json",
+  "source_journal": "build/weld/sessions/20261124T101206.334308Z-lz462pcc/session.jsonl",
+  "fixture": "tests/fixtures/weld_response_v7_20261124.json",
+  "fit_training_interval_s": [
+    1.2,
+    8.0
+  ],
+  "fit_validation_interval": "Samples after 8 seconds; no held-out bias fitting.",
+  "fit": {
+    "1": {
+      "old": {
+        "params": [
+          11.718595563659845,
+          0.7121003711796551,
+          0.016138721813052797
+        ],
+        "bias": -0.0059114200157073795,
+        "train_rms": 0.10589485334344595,
+        "heldout_rms": 0.08507172156488503,
+        "heldout_peak": 0.1957898895811075,
+        "predicted_span": 2.3001247112708256,
+        "actual_span": 2.229428386605548
+      },
+      "new": {
+        "params": [
+          11.161717030155547,
+          0.7368474552239775,
+          0.010672161459183035
+        ],
+        "bias": -0.0038472220652134106,
+        "train_rms": 0.08774995053151555,
+        "heldout_rms": 0.07437578609313492,
+        "heldout_peak": 0.203273349218397,
+        "predicted_span": 2.1277108559948203,
+        "actual_span": 2.229428386605548
+      }
+    },
+    "6": {
+      "old": {
+        "params": [
+          9.702798404551984,
+          0.5719343858612753,
+          0.01679553269212784
+        ],
+        "bias": 0.00826809077563673,
+        "train_rms": 0.11676831770507624,
+        "heldout_rms": 0.11354138525268405,
+        "heldout_peak": 0.21411737402679187,
+        "predicted_span": 0.4610269940023599,
+        "actual_span": 0.7649811870414283
+      },
+      "new": {
+        "params": [
+          8.87435059761151,
+          0.3005175040438899,
+          2.3347087527159083e-09
+        ],
+        "bias": 0.012325792727145924,
+        "train_rms": 0.08053087226958752,
+        "heldout_rms": 0.07510898780487706,
+        "heldout_peak": 0.22497367013411837,
+        "predicted_span": 0.6671580279108511,
+        "actual_span": 0.7649811870414283
+      }
+    }
+  },
+  "changes": [
+    "Include expansion velocity and acceleration product terms in the finite startup inverse, with a common reference expansion and an input that starts at rest.",
+    "Keep the 0.578 s startup duration and unchanged periodic path; exact piecewise-cubic startup position/derivative checks and a startup-command fingerprint are added.",
+    "Refit only the explicit response profile; A1 proportional residual cap tightens from 0.20 to 0.10 deg, with A6 unchanged at 0.05 deg.",
+    "Retain combined startup/steady command-span ceilings of 4 deg A1 and 1 deg A6, alongside all existing runtime speed/acceleration/pose/cable/age/lease/tracking/fault protections.",
+    "Report sampled complete-cycle stroke median, range and individual edges separately from the whole-window envelope; no acceptance gating is waived.",
+    "Preparation, motor firmware, drive gains/current, steady nominal A2-A5 targets and continuous operator-pause behavior are unchanged. ILC remains deferred."
+  ],
+  "preflight": {
+    "report": "build/arm_tests/weld-response-v8-20261124/preflight-plan.json",
+    "full_model_success": true,
+    "geometry_checked": true,
+    "nominal_preparation_s": 5.089419167885392,
+    "planning_elapsed_s": 22.838489372001277,
+    "startup_duration_s": 0.5780656484857803,
+    "startup_reference_delay_s": 0.023672161459183036,
+    "command_span_bound_deg": [
+      3.7015892655590505,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.5445759826030496
+    ]
+  },
+  "model_predictions": {
+    "v7_recorded_disturbance": {
+      "state": "welding",
+      "message": "Welding motion repeats until Pause / Hold.",
+      "whole_orientation_peak_deg": 1.1070761050979563,
+      "startup_orientation_peak_deg": 1.1070761050979563,
+      "steady_orientation_peak_deg": 0.7543738307341414,
+      "steady_orientation_rms_deg": 0.29124533880666664,
+      "whole_tip_rms_mm": 2.181391802150227,
+      "steady_tip_rms_mm": 2.0698351050424044,
+      "heldout_tip_rms_mm": 2.002918630268876,
+      "cycle_stroke_mm": {
+        "count": 25,
+        "median_width_mm": 18.42221380044343,
+        "width_mm": {
+          "mean": 18.193093260393198,
+          "minimum": 15.78120694890907,
+          "maximum": 19.694364687783334,
+          "peak_abs": 19.694364687783334,
+          "rms": 18.211641270908284
+        }
+      },
+      "command_span_deg": [
+        3.1495116315526843,
+        0.061670958870863046,
+        0.13054210879455752,
+        0.09917490780139815,
+        0.07128125875581404,
+        0.595268366438404
+      ],
+      "limited_samples": 0
+    },
+    "v8_recorded_disturbance": {
+      "state": "welding",
+      "message": "Welding motion repeats until Pause / Hold.",
+      "whole_orientation_peak_deg": 0.7195116503737995,
+      "startup_orientation_peak_deg": 0.5653006198610129,
+      "steady_orientation_peak_deg": 0.7122953589009996,
+      "steady_orientation_rms_deg": 0.2787227562194329,
+      "whole_tip_rms_mm": 1.9451426681573012,
+      "steady_tip_rms_mm": 1.9322593694734256,
+      "heldout_tip_rms_mm": 1.899708452287143,
+      "cycle_stroke_mm": {
+        "count": 25,
+        "median_width_mm": 19.902274865128533,
+        "width_mm": {
+          "mean": 19.702444824600803,
+          "minimum": 17.35314101193731,
+          "maximum": 21.226677821265806,
+          "peak_abs": 21.226677821265806,
+          "rms": 19.719712381370847
+        }
+      },
+      "command_span_deg": [
+        3.4548626122835344,
+        0.061670958870863046,
+        0.13054210879455752,
+        0.09917490780139815,
+        0.07128125875581404,
+        0.5179239876494321
+      ],
+      "limited_samples": 0
+    },
+    "v8_nominal": {
+      "state": "welding",
+      "message": "Welding motion repeats until Pause / Hold.",
+      "whole_orientation_peak_deg": 0.5238649329493648,
+      "startup_orientation_peak_deg": 0.4056364559431236,
+      "steady_orientation_peak_deg": 0.5238649329493648,
+      "steady_orientation_rms_deg": 0.23469966501557196,
+      "whole_tip_rms_mm": 1.7705553993002106,
+      "steady_tip_rms_mm": 1.7965639719284048,
+      "heldout_tip_rms_mm": 1.8021420928763385,
+      "cycle_stroke_mm": {
+        "count": 25,
+        "median_width_mm": 19.89937948799324,
+        "width_mm": {
+          "mean": 19.864803580110266,
+          "minimum": 19.276320233008338,
+          "maximum": 20.320363005004836,
+          "peak_abs": 20.320363005004836,
+          "rms": 19.86621510335173
+        }
+      },
+      "command_span_deg": [
+        3.426418329755421,
+        0.061670958870863046,
+        0.13054210879455752,
+        0.09917490780139815,
+        0.07128125875581404,
+        0.5378860895775119
+      ],
+      "limited_samples": 0
+    },
+    "v8_slower": {
+      "state": "welding",
+      "message": "Welding motion repeats until Pause / Hold.",
+      "whole_orientation_peak_deg": 0.9030557883312683,
+      "startup_orientation_peak_deg": 0.4885863203507814,
+      "steady_orientation_peak_deg": 0.9030557883312683,
+      "steady_orientation_rms_deg": 0.44936327338929666,
+      "whole_tip_rms_mm": 3.272337206798677,
+      "steady_tip_rms_mm": 3.327907997347526,
+      "heldout_tip_rms_mm": 3.286291290486368,
+      "cycle_stroke_mm": {
+        "count": 25,
+        "median_width_mm": 15.528349959563748,
+        "width_mm": {
+          "mean": 15.468284177229862,
+          "minimum": 14.90570852437726,
+          "maximum": 15.876632496353242,
+          "peak_abs": 15.876632496353242,
+          "rms": 15.469598212313148
+        }
+      },
+      "command_span_deg": [
+        3.4794041206954205,
+        0.061670958870863046,
+        0.13054210879455752,
+        0.09917490780139815,
+        0.07128125875581404,
+        0.5326102967101036
+      ],
+      "limited_samples": 0
+    },
+    "v8_faster": {
+      "state": "welding",
+      "message": "Welding motion repeats until Pause / Hold.",
+      "whole_orientation_peak_deg": 0.8625828151336954,
+      "startup_orientation_peak_deg": 0.3560380972258431,
+      "steady_orientation_peak_deg": 0.8625828151336954,
+      "steady_orientation_rms_deg": 0.363566937113618,
+      "whole_tip_rms_mm": 2.553095514393117,
+      "steady_tip_rms_mm": 2.594842272081199,
+      "heldout_tip_rms_mm": 2.6156181516634827,
+      "cycle_stroke_mm": {
+        "count": 25,
+        "median_width_mm": 22.349663045524704,
+        "width_mm": {
+          "mean": 22.32594648805004,
+          "minimum": 21.753488159642497,
+          "maximum": 22.724044056773,
+          "peak_abs": 22.724044056773,
+          "rms": 22.326958153634006
+        }
+      },
+      "command_span_deg": [
+        3.371446261736935,
+        0.061670958870863046,
+        0.13054210879455752,
+        0.09917490780139815,
+        0.07128125875581404,
+        0.5402795892874934
+      ],
+      "limited_samples": 0
+    },
+    "v8_old_response": {
+      "state": "welding",
+      "message": "Welding motion repeats until Pause / Hold.",
+      "whole_orientation_peak_deg": 0.5081954184351651,
+      "startup_orientation_peak_deg": 0.4330812293840659,
+      "steady_orientation_peak_deg": 0.5081954184351651,
+      "steady_orientation_rms_deg": 0.2347572643737263,
+      "whole_tip_rms_mm": 1.7450493270216374,
+      "steady_tip_rms_mm": 1.7723867136841387,
+      "heldout_tip_rms_mm": 1.7957268163881077,
+      "cycle_stroke_mm": {
+        "count": 25,
+        "median_width_mm": 21.5348616602696,
+        "width_mm": {
+          "mean": 21.50298586902345,
+          "minimum": 20.913469692133468,
+          "maximum": 21.974133041563952,
+          "peak_abs": 21.974133041563952,
+          "rms": 21.50438788421933
+        }
+      },
+      "command_span_deg": [
+        3.4235055894068864,
+        0.061670958870863046,
+        0.13054210879455752,
+        0.09917490780139815,
+        0.07128125875581404,
+        0.5343877786413387
+      ],
+      "limited_samples": 0
+    }
+  },
+  "limitations": [
+    "No new physical run or independent tool measurement was performed; these predictions do not qualify hardware.",
+    "Replaying unexplained v7 output residual on a changed controller is a sensitivity case, not identification of a causal external disturbance.",
+    "The model reproduces the v7 startup failure but does not prove inertia, coupling or pure transport delay as the cause.",
+    "Predicted cycle stroke remains 17.35-21.23 mm with recorded residuals despite a 19.90 mm median; repeatability is not resolved.",
+    "A 20 percent response-speed change predicts median stroke of 15.53-22.35 mm; the updated profile is specific to the reviewed operating point.",
+    "All startup orientation samples remain scored. Whole-pass orientation target is still 0.5 deg, maximum 1 deg; predicted 0.72 deg peak does not meet the preferred target.",
+    "A separate mm acceptance tolerance and synchronized independent tip measurements remain missing."
+  ],
+  "sha256": {
+    "src/controls/controls/controller/weld_response.py": "2c9a421d8d01b0883e1c58e3c08edca79055c6aca5a913f91a9d31b18b285d44",
+    "src/controls/controls/controller/tracking.py": "64532be4a5ee69d9b8582d099611916894aa4a6fa48f7af07ef7ecdf9ea321de",
+    "src/controls/controls/hardware/weld_accuracy.py": "de42ac092747fda9be14764d46947d7cfce70699f9920be8f35d13d37b7cf340",
+    "src/controls/config/weld_response_gun_20261124.json": "f94f7ec1c399c00ffcc80eade6fff298e977f17c4e5286e5b2bca396c3b13038",
+    "tests/fixtures/weld_response_v7_20261124.json": "c40baa2d4d606be69a716e53a5467717673371ab2b02c61455f9da7dc90b5a42",
+    "tests/test_weld_response.py": "12fe8a009dc77c72bd7ad4f70767d01516ced76d023bb8d451280cde8c2a1398",
+    "tests/test_weld_accuracy.py": "c678e3bbfe25dd3d3ba71969b99d77875f718053f7c96559ee621d68cf5d4aff",
+    "tests/test_weld_panel.py": "41601e9b7922171a473517c8a7588cd01186df43e79250be55b43344037778f4"
+  },
+  "tests": {
+    "passed": 214,
+    "failed": 0,
+    "skipped": 0,
+    "elapsed_s": 242.283,
+    "log": "build/arm_tests/weld-response-v8-20261124/regression.log",
+    "scope": "Controller, command sampling, recorded/fake response, native fake-CAN, preparation, hold/retreat/guards, journal/accuracy, Qt panel, real renderer/preview and planning checks.",
+    "earlier_attempt": "The first focused run exposed a list/array mismatch in the new test helper, corrected before final validation; the historical model test retains the original profile instead of applying the new operating-point fit to older traces."
+  },
+  "historical_analyzer_recheck": {
+    "report": "build/arm_tests/weld-response-v8-20261124/v7-analysis-with-cycle-stroke.json",
+    "orientation_and_acceptance_unchanged": true,
+    "complete_periodic_cycles": 26,
+    "median_cycle_stroke_mm": 18.350008311198586
+  },
+  "record_type": "Historical offline v8 preflight; model predictions are not measured physical performance.",
+  "archived_profile": "tests/fixtures/weld_response_v8_profile_20261124.json",
+  "follow_up": "docs/measurements/arm-weld-response-v8-physical-review-2026-11-24.json",
+  "current_baseline": "docs/measurements/arm-weld-v7-baseline-2026-11-24.json"
+}

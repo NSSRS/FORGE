@@ -1,6 +1,6 @@
 # Chassis model and motor communication: open work
 
-Reviewed 2026-11-15 against local `nathan`. Model import, four-wheel differential
+Reviewed 2026-11-24 against local `nathan`. Model import, four-wheel differential
 mixing, encoder mirroring and dual-family cached ROS telemetry are implemented.
 This list distinguishes implementation from physical qualification; remove entries
 when their acceptance evidence exists. Arm ownership remains in
@@ -8,7 +8,7 @@ when their acceptance evidence exists. Arm ownership remains in
 
 | ID | Remaining work | Acceptance |
 | --- | --- | --- |
-| CHASSIS-02 | Complete four-wheel ID, CAN slot, direction and external gearing mapping; current bench explicitly omits motor 4. | Per-wheel signed physical checks and a versioned full-chassis profile. |
+| CHASSIS-02 | Record explicit wheel-to-ID locations, forward protocol signs and external gearing before promoting the physical wheel mapping. | Per-wheel mapping evidence; the [passed four-motor run](measurements/encos-four-motor-physical-review-2026-11-24.json) closes identification and bounded signed-motion/stop testing. Do not repeat those completed checks. |
 | CHASSIS-03 | Qualify effective radius/track, slip, mass/inertia, magnetic/contact and actuator parameters. | Measured motion, stopping and load evidence; no promotion of illustrative dynamics. |
 | CHASSIS-04 | Complete full ROS description/TF, sensor mounting transforms, odometry, fusion and closed-loop path tracking; coordinate seam-relative correction with [FEEDBACK-01](ARM_LAYER_TODOS.md#feedback-01--sensor-feedback-and-bounded-weld-tip-correction). | Measured frame/pose agreement and defined path/endpoint tolerances. |
 | COMMS-01 | Establish per-motor ENCOS CAN freshness and bridge cache/DLC/TxPDO Toggle semantics. | Version-specific vendor or RX-source evidence plus independent missing/identical reply tests. See [vendor review](MOTOR_TELEMETRY.md#encos-vendor-evidence). |

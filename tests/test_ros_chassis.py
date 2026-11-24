@@ -17,7 +17,10 @@ class RosChassisTests(unittest.TestCase):
     def test_three_motor_bench_profile_topics_and_publisher_loss(self):
         self.run_chassis(bench=True)
 
-    def run_chassis(self, bench=False):
+    def test_four_motor_split_bus_profile_topics_and_publisher_loss(self):
+        self.run_chassis(four=True)
+
+    def run_chassis(self, bench=False, four=False):
         import rclpy
         from rclpy.executors import SingleThreadedExecutor
         from rclpy.node import Node
@@ -28,8 +31,9 @@ class RosChassisTests(unittest.TestCase):
 
         # All hardware execution is explicitly disabled, even if environment differs.
         args = ["--ros-args"]
-        if bench:
-            config = Path(__file__).resolve().parents[1] / "src/bringup/config/chassis_bench.yaml"
+        if bench or four:
+            name = 'chassis_four_motor_bench.yaml' if four else 'chassis_bench.yaml'
+            config = Path(__file__).resolve().parents[1] / 'src/bringup/config' / name
             args += ["--params-file", str(config)]
         args += ["-p", "simulate:=true", "-p", "execute:=false"]
         rclpy.init(args=args)
@@ -37,6 +41,8 @@ class RosChassisTests(unittest.TestCase):
         executor = SingleThreadedExecutor()
         try:
             driver = ForgeMotorDriver(); nodes.append(driver)
+            if four:
+                self.assertEqual([m['slot'] for m in driver._bus.snapshot()['motors']], [0, 1, 3, 4])
             probe = Node("chassis_test_probe"); nodes.append(probe)
             states = []
             raw_pub = probe.create_publisher(Float64MultiArray, "/drive/motor_rpm_commands", 1)
@@ -69,6 +75,9 @@ class RosChassisTests(unittest.TestCase):
                 expected = signs[:3] if bench else signs
                 self.assertEqual(len(states[-1].velocity), len(expected))
                 self.assertTrue(all(v * s > 0 for v, s in zip(states[-1].velocity, expected)))
+                if four:
+                    import math
+                    self.assertTrue(all(abs(v) <= 5 * math.tau / 60 + 1e-6 for v in states[-1].velocity))
             # Upstream disappears while the unified driver keeps running.
             spin_for(0.6)
             self.assertTrue(all(abs(v) < 0.01 for v in states[-1].velocity))

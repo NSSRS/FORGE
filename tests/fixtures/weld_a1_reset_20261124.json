@@ -1,0 +1,168 @@
+{
+  "source_journal": "build/weld/sessions/20261124T084010.393988Z-2frbz95c/session.jsonl",
+  "source_sha256": "7f1da3730bd7b9fb47aa25eb0407ad48c11b29ffdf21de80659c10cbbf6cfd48",
+  "mapping": {
+    "version": 1,
+    "equipment_revision": "forge-arm-2026-11-15-measured-offset-candidate-a5-observed-1794824963125188189",
+    "production_qualified": false,
+    "units": "q_model_deg = model_per_raw * raw_output_shaft_deg + model_intercept_deg",
+    "source_repository_commit": "01a56e35c63e4ec6d2e58dcac3b2d55eb4c31818",
+    "basis": "Full-precision initial anchors and corrected measured endpoint spans; unit output-shaft gain.",
+    "initial_pose_target_authorized": false,
+    "notes": [
+      "Generated from preserved source measurements; no new hardware evidence.",
+      "A2 initial is inherited model intent; A3 standby is projected inside measured bounds with explicit backoff.",
+      "No external gear ratio was identified. Dynamics and physical calibration remain unqualified.",
+      "A4 cable travel is fixed at CW/CCW 270 degrees from the preserved initial anchor, per operator on Nov 16; startup does not rebase it."
+    ],
+    "joints": {
+      "1": {
+        "model_joint": "b2_arm_d1",
+        "model_per_raw": -1.0,
+        "model_intercept_deg": 185.30840435359923,
+        "raw_branch_deg": [
+          5.308404353599258,
+          365.30840435359926
+        ],
+        "basis": "output-shaft sign plus fitted offset; no empirical gear scaling"
+      },
+      "2": {
+        "model_joint": "b3_arm_d2",
+        "model_per_raw": -1.0,
+        "model_intercept_deg": -55.88724205982144,
+        "raw_branch_deg": [
+          -141.73134301396698,
+          -3.1146209030391745
+        ],
+        "basis": "output-shaft sign plus fitted offset; no empirical gear scaling"
+      },
+      "3": {
+        "model_joint": "b4_arm_d3",
+        "model_per_raw": -1.0,
+        "model_intercept_deg": 126.72764404296873,
+        "raw_branch_deg": [
+          72.77,
+          151.39
+        ],
+        "basis": "output-shaft sign plus fitted offset; no empirical gear scaling"
+      },
+      "4": {
+        "model_joint": "b5_arm_d4",
+        "model_per_raw": -1.0,
+        "model_intercept_deg": 173.1834352361486,
+        "raw_branch_deg": [
+          -96.8165647638514,
+          443.1834352361486
+        ],
+        "basis": "output-shaft sign plus fitted offset; no empirical gear scaling"
+      },
+      "5": {
+        "model_joint": "b6_arm_d5",
+        "model_per_raw": -1.0,
+        "model_intercept_deg": 101.51405787753104,
+        "raw_branch_deg": [
+          -96.60760497201417,
+          114.836287036511
+        ],
+        "basis": "Independent operator-declared straight pose; cable ends restrict raw travel only"
+      },
+      "6": {
+        "model_joint": "b7_arm_d6",
+        "model_per_raw": -1.0,
+        "model_intercept_deg": 64.16104853467226,
+        "raw_branch_deg": [
+          -115.83895146532774,
+          244.16104853467226
+        ],
+        "basis": "output-shaft sign plus fitted offset; no empirical gear scaling"
+      }
+    },
+    "adjacent_stop_pairs": [
+      [
+        "collision_411",
+        "collision_463"
+      ],
+      [
+        "collision_469",
+        "collision_519"
+      ]
+    ],
+    "simulation_model_deg": {
+      "1": 0.0,
+      "2": 5.470115947061906,
+      "3": -22.662355957031252,
+      "4": 0.0,
+      "5": -10.771606548459477,
+      "6": 0.0
+    },
+    "simulation_pose_note": "Measured-bound controller standby; calculated candidate, not a six-axis captured pose.",
+    "a5_observations": {
+      "cw_raw_deg": -98.60760497201417,
+      "ccw_raw_deg": 116.836287036511,
+      "straight_raw_deg": 8.341526593970292,
+      "backoff_deg": 2.0,
+      "original_mapping_fingerprint": "ee33d723e915d69fb26413d64eeae9e4a3e55de3994f294b88257feedb706eff",
+      "physical_alignment_verified": false,
+      "cable_envelope_qualified": false,
+      "note": "Candidate for review. Independent poses and loaded clearance remain unqualified. Regenerate prior motion plans and standby raw targets."
+    },
+    "encoder_branch_selection": {
+      "joint": 1,
+      "turns": 1,
+      "raw_shift_deg": 360.0,
+      "source_mapping_fingerprint": "e19226781bf4e1519414315cc4c3ead50e294eea48134199d96eb95aafab398f",
+      "basis": "Explicit operator selection of A1 encoder restart branch; physical pose must be verified"
+    }
+  },
+  "settings": {
+    "hz": 2.0,
+    "amplitude_m": 0.01,
+    "feed_m_s": 0.012,
+    "cycles": 1,
+    "time_scale": 1.0,
+    "max_speed_deg_s": 30.0,
+    "max_accel_deg_s2": 30.0,
+    "control_period_s": 0.02,
+    "auto_retime": true,
+    "lock_base_yaw": false,
+    "limit_profile": "weld",
+    "search_solution": null,
+    "preparation_target_s": 10.0,
+    "optimize_preparation": true,
+    "approach_lift_m": 0.03,
+    "lowering_min_s": 2.3,
+    "preparation_planner": "direct-first"
+  },
+  "initial_raw_deg": [
+    185.30840435359923,
+    -61.357358006883345,
+    149.39,
+    173.1834352361486,
+    41.51405787753105,
+    64.16104853467226
+  ],
+  "current_raw_deg": [
+    -181.5109657967682,
+    -108.00605455297843,
+    131.67714063116813,
+    178.88811851396997,
+    -11.616949664897767,
+    59.65853319228649
+  ],
+  "blocked": {
+    "event": "action_blocked",
+    "time_s": 5790.754488655,
+    "state": "paused",
+    "action": "planning_result",
+    "error": "A1 recovery would move 366.82 deg from -181.5110 to +185.3084 deg, outside the selected encoder branch [+5.3084, +365.3084] deg. Verify the physical orientation and restart history, then select --a1-encoder-turns explicitly from the original mapping. No angle was wrapped or branch changed.",
+    "planning_start_raw_deg": [
+      -181.5109657967682,
+      -108.00605455297843,
+      131.67714063116813,
+      178.88811851396997,
+      -11.616949664897767,
+      59.65853319228649
+    ]
+  },
+  "hardware_qualified": false
+}

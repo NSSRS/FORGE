@@ -1,0 +1,71 @@
+{
+  "date": "2026-11-24",
+  "scope": "Weld command sampling correction; offline software validation only.",
+  "source_session": "20261124T090959.455805Z-9mdzh098",
+  "source_snapshot_sha256": "d6e40b09acb77773c6fa1649aab6cb955818a66bbcf790244c704094784784eb",
+  "regression_fixture": "tests/fixtures/weld_command_sampling_20261124.json",
+  "fixture_sha256": "053ca5c10063a8d09b2c14c10a05e37e6946181c871386c2144cee2cfd8817a9",
+  "tracker_version": 6,
+  "root_cause": "The shaper added instantaneous reference velocity to a position chase although the nominal position was already sampled at the end of the current interval. Irregular sampling inflated commanded travel even with additive A1 correction disabled.",
+  "changes": [
+    "Use exact successive nominal position increments for welding, with pursuit applied to residual correction.",
+    "Limit changes of interval-average command velocity over interval-midpoint spacing on irregular weld ticks.",
+    "Retain preparation pursuit and braking, PID gains, fixed endpoint holds, continuous repeat semantics, motor modes and all existing ceilings and trips.",
+    "Record shaping_policy and acceleration_interval_s in trace entries; keep ILC deferred under ILC-01."
+  ],
+  "matched_window_cycles": [
+    3,
+    22
+  ],
+  "old_a1_command_travel_deg": 3.4429419596804394,
+  "corrected_a1_command_travel_deg": 2.260654781825963,
+  "planned_a1_travel_deg": 2.260654781825963,
+  "replay": {
+    "recorded_sent_ticks": 517,
+    "timing_schedules": [
+      "recorded",
+      "fixed_5_ms",
+      "fixed_10_ms",
+      "fixed_20_ms",
+      "fixed_40_ms",
+      "fixed_65_ms",
+      "fixed_100_ms",
+      "alternating_10_65_20_40_ms"
+    ],
+    "maximum_nominal_command_error_deg": 0.0,
+    "condition": "Additive corrections disabled, derivative limits inactive on the recorded checked path.",
+    "report": "build/arm_tests/command-sampling-20261124/replay.json"
+  },
+  "tests": {
+    "passed": 175,
+    "failed": 0,
+    "skipped": 0,
+    "modules": [
+      "test_weld_command_sampling",
+      "test_weld_tracking",
+      "test_weld_hardware",
+      "test_weld_preparation",
+      "test_weld_preparation_guard",
+      "test_weld_hold_activation",
+      "test_weld_endpoint_recovery",
+      "test_weld_recording",
+      "test_weld_accuracy",
+      "test_weld_panel"
+    ],
+    "log": "build/arm_tests/command-sampling-20261124/regression.log",
+    "coverage": "Recorded cadence, fixed 5-100 ms and alternating cadence, periodic seams, active PID and saturation, native fake-CAN execution, preparation/retreat, motion guards, fixed holds, journal analysis and offscreen GUI."
+  },
+  "implementation_sha256": {
+    "src/controls/controls/controller/tracking.py": "d74168441798befc6ab98d6fa17797e0206913103a83097201a65b23f41e5a20",
+    "src/controls/controls/hardware/weld_control.py": "3402209466b39367de8b5b7a4b191fd4aaba39c748d1daa2c83ace3b96668bef"
+  },
+  "hardware_operated": false,
+  "hardware_qualified": false,
+  "next_operator_trial": "Normally restart the panel and repeat the same arm-only --weld-a1-shaper-only launch. Verify tracker.version=6 and shaping_policy=sampled_reference_increment. No firmware change is required.",
+  "remaining_limits": [
+    "No new physical response, tip position/orientation or load qualification is claimed.",
+    "Existing enabled-axis additive PID, including A6 in the matched trial, remains active and requires separate tuning.",
+    "The fitted 144 ms physical tracking lag is not identified as a fixed transport delay or eliminated by this offline test.",
+    "ILC is later future work; no learning is implemented."
+  ]
+}

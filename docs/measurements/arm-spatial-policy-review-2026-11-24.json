@@ -1,0 +1,103 @@
+{
+  "schema": "forge.arm_spatial_policy_review",
+  "version": 1,
+  "date": "2026-11-24",
+  "operator_request": "Remove hardware model space constraints; retain motor protection and explicit physical limits.",
+  "source_session": "build/weld/sessions/20261124T085248.706761Z-0m06q4iy/session.jsonl",
+  "source_snapshot": "build/arm_tests/spatial-policy-20261124/source.jsonl",
+  "source_sha256": "5904aeb27912a06dab4d72afd8b50e5d4ac6f516fe9b55affe9132106e7963a3",
+  "blocked_event": {
+    "event": "action_blocked",
+    "time_s": 6464.764912498,
+    "state": "paused",
+    "action": "planning_result",
+    "error": "No checked recovery route to standby. Keep supported and reposition/replan; bounded joint-order search exhausted. Direct route: Arm/environment clearance: ['preview_floor', 'collision_795'], 0.900 mm (convex hull)",
+    "planning_start_raw_deg": [
+      -176.72425994339656,
+      -100.02828431937682,
+      130.34383306366828,
+      175.2598673853458,
+      16.272515886205177,
+      62.06275978013098
+    ]
+  },
+  "preceding_motion_guard": {
+    "event": "pause",
+    "time_s": 6459.873972406,
+    "state": "paused",
+    "reason": "Tracking error A5: -3.785 deg; paused both components; inspect and replan.",
+    "cause": "motion_guard",
+    "ready_preserved": false
+  },
+  "policy": {
+    "hardware": "advisory",
+    "simulation": "enforced",
+    "stages": [
+      "planning",
+      "preload",
+      "recovery",
+      "approach",
+      "welding",
+      "tracking correction",
+      "preview"
+    ],
+    "spatial_contacts": [
+      "floor",
+      "self",
+      "environment"
+    ],
+    "retained": [
+      "raw/cable bounds",
+      "explicit adjacent mechanical stops",
+      "D3 closure",
+      "stationary preload",
+      "0.5 deg start tolerance",
+      "0.25 deg arrival tolerance",
+      "3 deg tracking guard",
+      "speed/acceleration/torque/temperature/freshness/lease/fault protection"
+    ]
+  },
+  "offline": {
+    "request": "build/arm_tests/spatial-policy-20261124/request.json",
+    "plan": "build/arm_tests/spatial-policy-20261124/plan.json",
+    "plan_sha256": "4293771e28d6eef7f09eafc85c8ce25339af858df2f2585de1c78f8c8d514774",
+    "spatial_clearance_policy": "advisory",
+    "nominal_preparation_s": 5.284846174123315,
+    "planning_time_s": 17.3300599410004,
+    "recovery": {
+      "version": 1,
+      "route": "direct checked recovery",
+      "waypoint_times_s": [
+        0.5
+      ],
+      "checked_edges": 1,
+      "clearance_mm": 2.0,
+      "joint_order": null
+    },
+    "approach_route": "checked raised-tool approach, 30 mm above weld tip",
+    "start_pose_warnings": [
+      "Arm/environment clearance: ['preview_floor', 'collision_795'], 0.900 mm (convex hull) (advisory; does not block hardware motion)"
+    ],
+    "fake_shaft_evidence": "Ideal and first-order lag shafts reach Ready and continue welding with the actual advisory geometry checks."
+  },
+  "tests": [
+    {
+      "log": "build/arm_tests/spatial-policy-20261124/regression.log",
+      "passed": 61,
+      "duration_s": 74.187
+    },
+    {
+      "log": "build/arm_tests/spatial-policy-20261124/motion-regression.log",
+      "passed": 152,
+      "duration_s": 261.931
+    }
+  ],
+  "total_passed": 213,
+  "hardware_accessed": false,
+  "hardware_qualified": false,
+  "limitations": [
+    "The preceding A5 -3.785 deg tracking pause is separate from the spatial replan rejection; no physical tracking improvement is established.",
+    "No motor owner was launched, stopped, reset or flashed.",
+    "Existing running panels retain their loaded code until operator restart."
+  ]
+}

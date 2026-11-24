@@ -81,11 +81,13 @@ limits, validated before opening the bridge.
 
 The example IDs and CAD signs are not verified physical wiring assignments.
 IDs 1–3 have prior unloaded CAN1 bench evidence; motor 3 was also
-operator-confirmed on CAN2 on 2026-09-29 in direct-RPM mode. The full
-four-wheel hardware mapping remains unverified. Confirm wheel-to-ID
-assignment, signs, external gearing, and the fourth CAN2 slot before selecting
-hardware mode. Set `wheel_directions` to the actual protocol sign that drives
-each wheel forward; do not multiply a second CAD sign into it. Preserve
+operator-confirmed on CAN2 on 2026-09-29 in direct-RPM mode. The Nov 24 split-bus
+four-motor test passed both signed motion legs and stop checks; see the
+[physical record](measurements/encos-four-motor-physical-review-2026-11-24.json).
+Explicit wheel-to-ID assignment, forward signs and external gearing still need
+recording before promoting the full physical mapping. Set `wheel_directions`
+to the actual protocol sign that drives each wheel forward; do not multiply
+a second CAD sign into it. Preserve
 `motor_ids` slot order when changing wheel assignments.
 
 ## Build and run
@@ -171,8 +173,13 @@ the native 60 RPM/s slew and watchdogs are unchanged. Release or Space/X request
 zero speed. Test with secured, unloaded motors; three-motor bench mixing is
 not validation of a complete chassis's physical turning behavior.
 
-When motor 4 returns, set `bench_omit_motor_id: 0` in this profile to require
-all four motors. Its reserved slot 4 is on CAN2; confirm the ID and wheel sign.
+For the four-motor bench confirmed on Nov 24, use the separate
+`chassis_four_motor_bench.yaml` and `bash scripts/run_motor_test.sh --four-motors`
+instead of editing the existing bench profile. It requires slots 0/1/3/4 and
+starts at a 5 RPM ceiling. Follow the
+[isolated ID and direction checks](CAN2_BENCH.md#motor-4-identification-and-four-motor-test)
+for initial setup. The Nov 24 four-motor motion/stop test passed; routine runs
+do not require repeating discovery or ID assignment.
 The original `chassis.yaml` remains the default complete four-motor layout
 (IDs 1/2/3 CAN1, ID 4 CAN2), without omission. The `can2_bench.yaml` profile
 remains a legacy direct-RPM driver profile; the WASD/RC teleop rejects it.

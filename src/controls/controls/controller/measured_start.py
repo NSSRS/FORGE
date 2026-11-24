@@ -68,7 +68,7 @@ class MeasuredStart:
 
 
 class RecoveryGeometry:
-    """Use observed angle extents only for recovery; retain path collision checks."""
+    """Use observed angle extents only for recovery with the selected space policy."""
 
     def __init__(self, geometry, start):
         self.geometry, self.start = geometry, start

@@ -32,9 +32,11 @@ robot_description contains the shared MJCF model, motor inventories and Xacro ma
 constraints, MuJoCo D3-closed IK, retiming and CMA-ES. `controller/preparation.py`
 owns the acceleration-bounded path clock, progress watchdog and preparation-time
 budget report used during recovery/approach. `controller/tracking.py` owns bounded
-PID/velocity lead, finite-leg braking and command derivative shaping;
+PID/velocity lead, finite-leg braking and exact sampled-reference command shaping.
+`controller/weld_response.py` owns bounded A1/A6 periodic response compensation
+and the shared startup reference; v7 is the active baseline.
 `controller/motion_feedback.py` estimates mechanical Hz/travel from cached samples.
-Neither module owns transport or writes drive parameters.
+These controller modules do not own transport or write drive parameters.
 Sibling `hardware/` owns
 `weld_ports.py`, `weld_control.py` and `weld_app.py`; sibling `simulation/` keeps
 the original dynamic weave controller. The hardware `weld_plan.py` is a small
@@ -54,7 +56,9 @@ triangle contact depth for the separating-contact check. The controller, native
 owner, preview and journal share the explicit retreat policy.
 `controller/measured_start.py` owns the hardware-only observed starting pose and
 temporary recovery extent. It preserves saved calibration, cable bounds and
-subsequent path collision checks, and expires before approach/welding.
+the selected spatial policy, and expires before approach/welding. General model
+clearance is advisory for hardware; explicit mechanical stops, D3 closure and
+cable limits remain enforced. Simulation retains strict spatial checks.
 `hardware/weld_ports.py` explicitly latches settled endpoint holds without
 changing position, mode or speed allowance. Native drive-gain writes are not implemented.
 `hardware/weld_dashboard.py` derives read-only state/progress presentation.

@@ -72,17 +72,22 @@ orientation target is 0.5 deg with a 1.0 deg maximum. Runtime limits remain
 Calculation latency remains separate. The accuracy analyzer reads saved data
 without a transport. Planner caches reuse unchanged scene and weave inputs. Recovery is checked from each fresh measured start.
 
+The operator requires the short A1 recovery direction. Hardware Calculate now
+selects the nearest adjacent equivalent A1 target from fresh stationary feedback,
+translating the session's A1 map, native bounds and preview together before
+planning. After the Nov 24 reset, raw -181.511 degrees targets -174.692 degrees
+(CCW +6.819 degrees), instead of the stale +185.308-degree target. Never wrap
+feedback, change branches during execution or translate A2-A6/cable envelopes.
+The saved calibration stays unchanged; simulation retains explicit branches.
+Full model/path checks still apply. See
+`docs/measurements/arm-a1-shortest-recovery-review-2026-11-24.json`.
+
 PLAN-01 and BASE-04 were resolved by operator confirmation on Nov 23. Do not
 carry their historical planning delays or CAN incidents forward as open tasks.
-The Nov 23 accuracy/speed review records an existing physical baseline: A1/A6
-measured travel 3.891/1.333 deg versus planned 2.261/0.428 deg; measured frequency
-1.734/1.728 Hz versus checked 1.730 Hz. Prioritize overswing under SPEED-01.
-Phase remains diagnostic for the arm-only position comparison. Encoder-reconstructed full tool orientation has 1.408 deg RMS /
-2.633 deg peak error, exceeding the 1-degree maximum. Independent
-workpiece-relative tool-pose measurements and a tip-mm tolerance remain
-missing. Complete logs, calibration, accepted plan, issues and offline commands
-are tracked in `docs/measurements/weld/2026-11-23/README.md`. See
-`docs/measurements/arm-accuracy-speed-review-2026-11-23.json`.
+The Nov 23 accuracy/speed measurements are the earlier baseline; current v7
+results and scheme are below. Keep independent tool-pose measurements and a
+separate tip-mm tolerance open. Original dated evidence is indexed from
+`docs/ARM_SESSION_HANDOFF.md`; do not present old measurements as current results.
 
 Use `docs/ARM_SESSION_HANDOFF.md` for current evidence and `docs/WELD_MOTION.md`
 for architecture. Shared planning belongs in `src/controls/controls/controller/`;
@@ -108,7 +113,7 @@ The Nov 19 review records two attempts: first, untouched A5 movement during a
 fixed Ready hold and a 1.51648 rad/s speed trip; second, Ready in 12.53 s,
 8.69 s fixed hold, 45.71 s welding and verified final disable/mode restoration.
 Those incidents remain historical evidence. On Nov 23 the operator confirmed
-the A5 holding issue no longer exists and closed HOLD-01. The latest session,
+the A5 holding issue no longer exists and closed HOLD-01. The Nov 23 session,
 with the operator-confirmed 1.96 kg EE, reached Ready in 8.22 s and held fixed
 targets for 25.19 s; A5's maximum error was 0.053 deg, with no recorded fault
 and verified final disable/mode restoration. A1/A6 travel accuracy and
@@ -116,15 +121,49 @@ thermal/continuous-load qualification remain separate work.
 The gun was attached during the earlier 12.0137 Nm A2 fault
 although its raw journal is under `no-ee/`; preserve the load-context correction.
 
-The default host PID tracker follows nominal preparation time with bounded lead,
-filtered derivative feedback, anti-windup and acceleration-bounded braking inside
-finite path extrema. `--tracker paced` retains the older common clock. Settled
+The operator restored the physical v7 weld baseline on Nov 24 and deferred
+further weld tuning. ENCOS motor-4 commissioning subsequently passed. The explicit
+`--weld-response-profile src/controls/config/weld_response_gun_20261124.json`
+now uses the exact version-1 profile from `20261124T101206.334308Z-lz462pcc`,
+tracker version 7, periodic-blend startup and A1/A6 residual caps 0.20/0.05 deg.
+Retain bounded three-harmonic amplitude/phase compensation, exact reference
+increments, no stacked weld lead/PID, unchanged A2-A5/preparation, shared startup
+reference and all guards. The active profile covers only the recorded arm-only
+1.96 kg gun setup; ILC remains deferred. The v8 profile is test data only.
+See `docs/measurements/arm-weld-v7-baseline-2026-11-24.json` for the exact
+parameters and reusable scheme. V7 steady matched-cycle tip RMS is 2.168 mm,
+fitted lag 3.19 ms and orientation peak 0.759 deg. Whole-pass startup peak
+1.095 deg and cycle stroke 15.723-19.611 mm remain known limits; operator
+selection does not waive accuracy criteria or promote calibration.
+The ENCOS four-motor bench uses IDs 1/2 on CAN1, IDs 3/4 on CAN2,
+slots 0/1/3/4, with no motor omitted. The operator's Nov 24 report
+`20261124T110254.496409Z.json` passed both signed 5 RPM legs and stop checks
+for all four, without recorded faults or failed EtherCAT exchanges; the owner
+closed normally. The subsequent four-motor viewer/keyboard session looked
+normal to the operator. Identification and this bounded motion test are complete;
+do not repeat setup or ID assignment. Explicit per-wheel location/sign/gearing,
+CAN freshness and loaded/host-loss qualification remain separate. The operator
+does all hardware work. Follow `docs/CAN2_BENCH.md` and
+`docs/measurements/encos-four-motor-physical-review-2026-11-24.json`.
+
+The default host PID tracker uses a bounded preparation clock: nominal speed
+while tracking permits, soft slowing at 1 degree trailing error and a zero-speed request
+at 2 degrees, with acceleration-bounded slew and the separate 3-degree trip.
+Lead commands brake within both finite leg extrema and the 12-degree correction
+envelope. Filtered derivative feedback and anti-windup remain. Welding retains
+its nominal clock. `--tracker paced` omits PID lead. Settled
 endpoints retain the original fixed target and checked speed allowance. A pause
 during travel captures measured hold once and requires replanning; repeated
 pauses do not recapture drift. Ready focus/heartbeat pauses retain the checked
 plan and explicit Start welding action. Fault/disable/close remove torque.
 Reset motor fault (R) saves evidence through the same owner and verifies disabled,
 stationary feedback; success stays disabled with selections off and plan invalid.
+Hold activation uses the owner's fixed fresh preload as its drift reference,
+without recapturing feedback. The operator selected a 0.5-degree startup tolerance
+on Nov 24, shared by planning/preload checks and fixed-target activation drift.
+Recovery requires that checked-start tolerance and a continuous 0.2 s stationary dwell; the 2 s
+activation deadline and fixed-target drift limit remain. Keep preload, planned
+start and measured feedback distinct in diagnostics.
 
 The operator requires welding to repeat until manual Pause / Hold, without a
 cycle-count stop. `--cycles` sets only the checked preview block, even at 1.
@@ -133,6 +172,11 @@ operator explicitly requests a finite run. Preserve focus/heartbeat stops and
 periodic cubic checks. Moving ticks use one cached feedback batch and
 one target batch. Weld host lead/PID is omitted below 0.3 deg planned axis travel;
 nominal targets remain unchanged. Measured Hz/travel uses cached feedback.
+The command-sampling fix retained in v7 advances welding commands by exact sampled reference increments and
+shapes only residual correction. Interval-average command rates use midpoint
+spacing for acceleration checks on irregular ticks; existing ceilings remain.
+Preparation retains its previous pursuit/braking. ILC is later future work under
+ILC-01, after command timing and the loaded tracking baseline are qualified.
 
 Preparation defaults to 5 deg/s and <=30 deg/s². The current explicit loaded
 trial uses 30 deg/s, a 10 s goal, `--optimize-preparation`, 30 mm approach lift
@@ -146,14 +190,17 @@ Hardware accepts fresh measured starting poses independently of saved pose
 windows and simulator joint ranges. The plan records a session-local recovery
 extent only as far as that measured start; no outward extension, wrapping or
 saved calibration change is allowed. A4/A5/A6 cable envelopes and motor protections
-remain. Starting contact is a visible warning; subsequent path samples still
-require collision clearance. The allowance ends before approach/welding.
-Simulation retains strict pose limits. Physical qualification remains open.
+remain. By operator request on Nov 24, hardware model spatial clearance is
+advisory throughout planning, recovery, approach, welding and tracker correction.
+Floor/self/environment contacts remain visible but must not block hardware
+motion or force detours. Explicit mechanical stops and D3 closure still apply.
+The measured angle extent ends before approach/welding. Simulation retains
+strict pose and spatial checks. Physical qualification remains open.
 
 The special A3 contact retreat permits up to 0.25 deg startup excess above 151.39 deg, with a separate
 checked inward retreat to 149.39 deg at <=1 deg/s and <=5 deg/s². It requires
 shallow separating contact at the reviewed stop pair and strict normal handoff;
-other cable/branch/collision checks remain. Raw readings are never wrapped or
+other cable/branch/mechanical-stop checks remain. Raw readings are never wrapped or
 clamped. Physical loaded retreat still needs qualification.
 
 Use the independent A5 candidate with its matching standby; production flags

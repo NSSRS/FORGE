@@ -1,0 +1,54 @@
+{
+  "schema": "forge.weld_response",
+  "version": 2,
+  "hardware_qualified": false,
+  "basis": "Provisional second-order fit at the v7 command operating point, using 1.2-8 s only; samples after 8 s reserved for validation. No inertia identification or online learning.",
+  "source_sessions": [
+    "20261124T101206.334308Z-lz462pcc"
+  ],
+  "payload_kg": 1.96,
+  "mapping_fingerprint": "335f411af2625e157d875a0dd203a9dab69ce02bcdd2f4ad207ce147fd8fd21b",
+  "scene_fingerprint": "b0f6e114fb5cdfb874217138133c76731ef3287895d1de8875cb8f5c8b22e63f",
+  "effective_hz": 1.7299098150383365,
+  "center_raw_deg": [
+    -174.69153975769245,
+    -99.38180618224932,
+    127.6549523456106,
+    173.63034258899182,
+    21.781759999020622,
+    63.62424671267609
+  ],
+  "travel_deg": [
+    2.2606549751341447,
+    0.06167096641999592,
+    0.13054237083034081,
+    0.09917502537402356,
+    0.07128148788283895,
+    0.4275512153715084
+  ],
+  "harmonics": 3,
+  "command_hold_s": 0.026,
+  "residual_kp": 0.15,
+  "axes": {
+    "1": {
+      "natural_frequency_rad_s": 11.161717030155547,
+      "damping_ratio": 0.7368474552239775,
+      "delay_s": 0.010672161459183035,
+      "max_inverse_gain": 2.0,
+      "max_residual_deg": 0.1
+    },
+    "6": {
+      "natural_frequency_rad_s": 8.87435059761151,
+      "damping_ratio": 0.3005175040438899,
+      "delay_s": 2.3347087527159083e-09,
+      "max_inverse_gain": 2.0,
+      "max_residual_deg": 0.05
+    }
+  },
+  "startup_policy": "finite_response_inverse",
+  "fit_interval_s": [
+    1.2,
+    8.0
+  ],
+  "validation_interval_start_s": 8.0
+}

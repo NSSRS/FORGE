@@ -1,12 +1,10 @@
 # Combined IMU, camera, Pocket and motor bench test
 
-The combined launch now uses LEFT stick for chassis and RIGHT stick for arm,
-with SB/SC selection and held SE. Its `radio_config` argument now accepts the
-JSON mapping described in [Pocket controls](POCKET_ARM_CONTROL.md), rather than
-the old right-stick YAML profile. Capture missing channels before running the
-commands below. Arm defaults to simulation; physical arm use additionally
-requires `arm_execute:=true arm_unloaded:=true arm_port:=...` and measured CW
-signs. Historical right-stick references below describe the previous setup.
+The combined launch uses LEFT stick for chassis and RIGHT stick for arm,
+with SB/SC selection and held SE. `radio_config` accepts the JSON mapping in
+[Pocket controls](POCKET_ARM_CONTROL.md). The saved channel mapping is present;
+recapture only if transmitter configuration changes. Arm defaults to simulation;
+physical arm use requires the explicit fixture/profile/port settings in that guide.
 
 `system_test.launch.py` starts the existing HWT9052 reader, Gemini 338Le
 camera, Pocket radio teleop and motor driver together. No estimator or navigation
@@ -15,10 +13,27 @@ with real sensors/controller and sudo elevation when required. It supplies the
 commissioned bench execution/mapping/failsafe flags; explicit CLI flags override
 these defaults. The underlying ROS launch retains its simulated defaults.
 Use `bash scripts/run_system_test.sh simulate:=true` for simulated motors.
-The selected profile is the confirmed three-motor bench: IDs 1/2 on CAN1,
-ID 3 on CAN2, motor 4 absent. Pocket right stick uses CH2 forward and CH1 turn.
+The default profile remains the three-motor bench: IDs 1/2 on CAN1,
+ID 3 on CAN2, motor 4 omitted. Pocket LEFT stick uses CH3 forward and CH4 turn.
 Limits remain 20 output RPM and the existing provisional 2 A phase-current
 ceiling; these are unloaded bench settings, not loaded robot limits.
+
+## Select the four-motor bench
+
+The Nov 24 four-motor native test and keyboard/viewer inspection passed. The
+combined sensor/Pocket workflow still needs its own physical validation.
+Close the standalone motor session, then select the same split-bus profile:
+
+```bash
+bash scripts/run_system_test.sh \
+  config:=/home/forge2/forge2_ws/src/bringup/config/chassis_four_motor_bench.yaml
+```
+
+IDs 1/2 stay on CAN1 and 3/4 on CAN2, slots 0/1/3/4. This profile requires all
+four, limits commands to 5 RPM and 2 A, and supplies 0.02 m/s / 0.07 rad/s
+requests to Pocket teleop. Driver and viewer receive the same profile. Append
+`simulate:=true` for fake motors with real sensors/controller. No ID setup or
+firmware flash is required. See the [physical record](measurements/encos-four-motor-physical-review-2026-11-24.json).
 
 ## Connections and preparation
 
@@ -74,7 +89,7 @@ ros2 run teleop keyboard_teleop --ros-args -p input_source:=radio_monitor -p ser
 ```
 
 Stop the radio monitor with Ctrl+C before the combined launch. Confirm the
-right-stick channel mapping. In monitor/simulation only, turn off the transmitter
+left-stick chassis channel mapping. In monitor/simulation only, turn off the transmitter
 and verify receiver failsafe: held nonzero channel values must not continue to
 arrive as fresh commands. The current ESP32 CSV cannot distinguish those from
 a healthy RF link. Physical radio operation requires this verification.
@@ -114,7 +129,7 @@ This explicit simulation command uses ROS domain 44 and three windows:
   No position is inferred. The IMU's standard
   quaternion remains unavailable; this viewer consumes `/imu/data_rpy`.
 - Existing MuJoCo motor model: measured `/joint_states` drive the saved wheel
-  mapping, with motor 4 absent. The same `config` profile is passed to the driver
+  mapping, with motor 4 present or omitted according to the selected profile. The same `config` profile is passed to the driver
   and viewer. The chassis stays fixed; no uncalibrated IMU mounting transform
   is applied to it. This checkout's model is MJCF, not URDF.
 
@@ -133,7 +148,7 @@ camera preflight may ask for sudo only when its host IP needs configuring.
 For serial access as the normal user, use the existing dialout setup. The
 launcher rejects absent ports and two aliases for the same serial device.
 
-Center the Pocket right stick for at least 0.3 seconds. Check forward/reverse,
+Center the Pocket left stick for at least 0.3 seconds. Check forward/reverse,
 left/right, diagonals and neutral. The driver logs the resulting motor RPM
 requests. No native EtherCAT library is used in simulation.
 

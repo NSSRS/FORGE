@@ -158,6 +158,32 @@ class NativeTests(unittest.TestCase):
             self.assertEqual(bus._backend.status(), 3)
         self.assertGreater(self.fake.fake_clears(), 0)
 
+    def test_four_motors_split_bus_requires_fourth_and_leaves_gap_empty(self):
+        from motor_control.differential import DifferentialDrive
+        self.bus.close()
+        configs = [MotorConfig(i, -180, 180, 5, 2) for i in (1, 2, 3, 4)]
+        with MotorBus(configs, interface='forge-test-can2', execute=True,
+                      library=self.path, motor_slots=[0, 1, 3, 4]) as bus:
+            with self.assertRaisesRegex(MotorError, r'missing motor IDs: \[4\]'):
+                bus.wait_ready(timeout=.15)
+            self.assertEqual(self.fake.fake_controls(), 0)
+        drive = DifferentialDrive(max_velocity_rpm=5)
+        with MotorBus(configs, interface='forge-test-four', execute=True,
+                      library=self.path, motor_slots=[0, 1, 3, 4]) as bus:
+            bus.wait_ready()
+            self.assertEqual([m['slot'] for m in bus.snapshot()['motors']], [0, 1, 3, 4])
+            for forward, yaw in ((.02, 0), (-.02, 0), (0, .07), (0, -.07), (0, 0)):
+                targets = drive.mix(forward, yaw)
+                for _ in range(12):
+                    for i, rpm in zip((1, 2, 3, 4), targets): bus.velocity(i, rpm)
+                    bus.check()
+                    time.sleep(.02)
+                for i, rpm in zip((1, 2, 3, 4), targets):
+                    self.assertAlmostEqual(bus.state(i).velocity_rpm, rpm, places=2)
+            self.assertEqual(self.fake.fake_slot_frames(2), 0)
+            self.assertEqual(self.fake.fake_slot_frames(5), 0)
+            self.assertGreater(self.fake.fake_slot_controls(4), 0)
+
     def test_invalid_slot_maps(self):
         self.bus.close()
         for slots in ([0], [0, 0], [0, 6], [0, -1], [0, True]):

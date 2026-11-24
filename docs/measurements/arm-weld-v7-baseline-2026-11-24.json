@@ -1,0 +1,191 @@
+{
+  "date": "2026-11-24",
+  "decision": "Operator selected physical v7 as the working baseline and deferred further weld tuning to resume ENCOS motor-4 commissioning.",
+  "tracker_version": 7,
+  "profile_version": 1,
+  "profile": "src/controls/config/weld_response_gun_20261124.json",
+  "profile_sha256": "0129789f453a8a1c1cd7e444f0328301889ca1b8bc6cbd18b5d9e458b5676e69",
+  "physical_source": "build/weld/sessions/20261124T101206.334308Z-lz462pcc/session.jsonl",
+  "hardware_qualified": false,
+  "agent_operated_hardware": false,
+  "what_worked": [
+    "Correct nominal command sampling first: advance by exact reference increments, without integrating instantaneous reference velocity a second time.",
+    "Keep the checked tool path fixed; compensate the command-to-shaft response on A1/A6 with bounded amplitude and phase pre-emphasis in position commands.",
+    "Use only three harmonics, inverse-gain ceiling 2, bounded stroke normalization and command-span ceilings 4 deg A1 / 1 deg A6.",
+    "Disable the former welding velocity-lead, integral and derivative correction in response mode; use proportional residual gain 0.15 capped at A1 0.20 deg / A6 0.05 deg.",
+    "Use one 0.578 s quintic periodic-blend entry and share that reference with execution, preview and accuracy scoring; preserve subsequent 20 mm / 1.730 Hz nominal cycles and tiny A2-A5 paths.",
+    "Keep preparation separate from weld compensation, with one cached feedback batch and one command batch per moving tick.",
+    "Bind the profile to payload context, scene, mapping, pose, amplitude and frequency; keep command derivatives, cable bounds, runtime trips, freshness, leases and explicit stops.",
+    "Judge physical journals at matched cycles and same-time orientation. Report one fitted position lag and per-cycle stroke separately from the aggregate envelope."
+  ],
+  "accepted_parameters": {
+    "schema": "forge.weld_response",
+    "version": 1,
+    "hardware_qualified": false,
+    "basis": "Provisional second-order command-to-shaft fit to first halves of two operator journals; no inertia identification or online learning.",
+    "source_sessions": [
+      "20261124T090959.455805Z-9mdzh098",
+      "20261124T094738.392812Z-uzorvwep"
+    ],
+    "payload_kg": 1.96,
+    "mapping_fingerprint": "335f411af2625e157d875a0dd203a9dab69ce02bcdd2f4ad207ce147fd8fd21b",
+    "scene_fingerprint": "b0f6e114fb5cdfb874217138133c76731ef3287895d1de8875cb8f5c8b22e63f",
+    "effective_hz": 1.7299098150383365,
+    "center_raw_deg": [
+      -174.69153975769245,
+      -99.38180618224932,
+      127.6549523456106,
+      173.63034258899182,
+      21.781759999020622,
+      63.62424671267609
+    ],
+    "travel_deg": [
+      2.2606549751341447,
+      0.06167096641999592,
+      0.13054237083034081,
+      0.09917502537402356,
+      0.07128148788283895,
+      0.4275512153715084
+    ],
+    "harmonics": 3,
+    "command_hold_s": 0.026,
+    "residual_kp": 0.15,
+    "axes": {
+      "1": {
+        "natural_frequency_rad_s": 11.718595563659845,
+        "damping_ratio": 0.7121003711796551,
+        "delay_s": 0.016138721813052797,
+        "max_inverse_gain": 2.0,
+        "max_residual_deg": 0.2
+      },
+      "6": {
+        "natural_frequency_rad_s": 9.702798404551984,
+        "damping_ratio": 0.5719343858612753,
+        "delay_s": 0.01679553269212784,
+        "max_inverse_gain": 2.0,
+        "max_residual_deg": 0.05
+      }
+    }
+  },
+  "physical_matched_cycles_3_to_18": {
+    "source": "build/arm_tests/weld-response-20261124/physical-v7-20261124T101206/session.jsonl",
+    "sha256": "3709db21c2f6277f0ebc7ad5cbe22104bb2ca7d67b30ca7e484376f9a2f7ae6b",
+    "tracker_version": 7,
+    "samples": 316,
+    "all_sent_samples": 561,
+    "closed": true,
+    "final_fault": null,
+    "dropped_records": 0,
+    "disable_acknowledged": true,
+    "mode_restoration_verified": true,
+    "preparation_s": 7.427872207999826,
+    "welding_s": 15.95893131000048,
+    "effective_hz": 1.729909669715139,
+    "tick_interval_ms": {
+      "median": 27.38663499985705,
+      "p95": 44.71874219962047,
+      "maximum": 74.73937599934288
+    },
+    "joints": {
+      "A1": {
+        "planned_travel_deg": 2.2606550348100996,
+        "command_travel_deg": 3.1563359268795637,
+        "measured_travel_deg": 2.251284991949575,
+        "tracking_error_deg": {
+          "mean": 0.0010619340980101942,
+          "minimum": -0.5839368902737192,
+          "maximum": 0.7404394032172092,
+          "peak_abs": 0.7404394032172092,
+          "rms": 0.24614033174610092
+        }
+      },
+      "A6": {
+        "planned_travel_deg": 0.42755065738376885,
+        "command_travel_deg": 0.5963391497859405,
+        "measured_travel_deg": 0.8086943977295107,
+        "tracking_error_deg": {
+          "mean": -0.007206605770431173,
+          "minimum": -0.2766846436728798,
+          "maximum": 0.2465739356904706,
+          "peak_abs": 0.2766846436728798,
+          "rms": 0.1254015182671612
+        }
+      }
+    },
+    "tip_window_envelope": {
+      "planned_width_mm": 20.000089004197402,
+      "measured_width_mm": 20.05004120387665,
+      "lower_edge_outward_error_mm": 0.09520860966561884,
+      "upper_edge_outward_error_mm": -0.04525640998637215
+    },
+    "tip_cycle_stroke_mm": {
+      "minimum": 15.723315424717432,
+      "median": 18.3502150603315,
+      "maximum": 19.6108776090554,
+      "mean": 18.086148210339974,
+      "stddev": 0.9255248576637923
+    },
+    "sampled_nominal_cycle_stroke_mm": {
+      "minimum": 19.999999493035865,
+      "median": 19.99999967219858,
+      "maximum": 20.000047200302237
+    },
+    "tip_lag_ms": 3.189411078887974,
+    "tip_same_time_3d_mm": {
+      "mean": 1.8521328674919333,
+      "minimum": 0.06807138252653232,
+      "maximum": 6.523043312985551,
+      "peak_abs": 6.523043312985551,
+      "rms": 2.1675352834177524
+    },
+    "tip_after_fixed_lag_3d_mm": {
+      "mean": 1.8539008424261736,
+      "minimum": 0.07888468419207433,
+      "maximum": 6.024519188309455,
+      "peak_abs": 6.024519188309455,
+      "rms": 2.156683632546897
+    },
+    "orientation_same_time_deg": {
+      "mean": 0.2543746734103915,
+      "minimum": 0.01915388528666333,
+      "maximum": 0.7585440701885234,
+      "peak_abs": 0.7585440701885234,
+      "rms": 0.29530526506155214
+    }
+  },
+  "known_limits": {
+    "whole_orientation_peak_deg": 1.0947876663486789,
+    "post_startup_orientation_peak_deg": 0.7589682940969145,
+    "cycle_stroke_median_mm": 18.3502150603315,
+    "cycle_stroke_range_mm": [
+      15.723315424717432,
+      19.6108776090554
+    ],
+    "independent_tip_measurements": false,
+    "formal_accuracy_passed": false
+  },
+  "future_change_rules": [
+    "Preserve this exact profile and the 561 recorded-command regression as the reference when exploring another controller.",
+    "Change one element at a time and compare actual full-startup and matched steady windows before claiming improvement.",
+    "A steady-state fit or replay of another run's residual does not validate a changed startup transient; v8's predicted 0.720 deg whole peak became 1.130 deg in its first physical run.",
+    "Operator selection as a useful baseline does not promote physical calibration or waive the 1 deg accuracy maximum.",
+    "Keep ILC as a later future TODO, with no online learning now."
+  ],
+  "rollback": {
+    "active_parameters_equal_saved_v7": true,
+    "raw_recorded_commands_reproduced": 561,
+    "tolerance_deg": 1e-10,
+    "experimental_v8_profile": "tests/fixtures/weld_response_v8_profile_20261124.json",
+    "v8_runtime_selected": false,
+    "cycle_analysis_retained": true
+  },
+  "verification": {
+    "command": "QT_QPA_PLATFORM=offscreen MUJOCO_GL=egl PYTHONPATH=tests .venv/bin/python -m unittest test_weld_response test_weld_command_sampling test_weld_tracking test_weld_accuracy test_weld_panel test_weld_preview",
+    "tests_passed": 99,
+    "skips": 0,
+    "seconds": 112.8,
+    "log": "build/encos_motor4/weld-v7-regression.log"
+  },
+  "archived_source": "docs/measurements/weld/2026-11-24/v7-session.jsonl.gz",
+  "archive_manifest": "docs/measurements/weld/2026-11-24/manifest.json"
+}

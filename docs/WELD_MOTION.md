@@ -52,10 +52,14 @@ resumes motion automatically.
 `--start-report PATH` seeds fake shafts from saved six-axis data and is rejected
 in hardware mode; `--no-preview` disables rendering.
 
-`--a1-encoder-turns {-1,0,1}` explicitly selects a verified A1 encoder restart
-branch relative to the saved mapping. It translates the session's A1 intercept,
-raw bounds and inverse-mapped targets together, preserving model poses and raw
-bus feedback. It never wraps samples automatically or rebases A4's cable limits.
+`--a1-encoder-turns {-1,0,1}` sets the initial A1 branch relative to the saved
+mapping; offline simulation retains this explicit selection. Hardware Calculate
+selects the nearest adjacent equivalent A1 target from fresh stationary feedback
+before model search, including after an explicit fault reset. The owner, model
+and preview receive the same translated A1 intercept/bounds; raw feedback and
+fixed hold targets remain unchanged. Branch selection never runs during motion,
+changes A2-A6, clears a fault or enables a motor. Each accepted plan stores its
+mapping so accuracy analysis follows the correct branch within a session.
 See the [branch selection procedure](ARM_RIG_TEST.md#weld-panel-with-embedded-model-preview).
 
 ### Supported startup and recovery
@@ -75,7 +79,7 @@ the saved pose window and authored simulator joint ranges. Simulation remains st
 `controller/measured_start.py` records that start and mapping identity in the
 plan. Recovery may use only the additional angle extent between the measured
 start and the normal range; it cannot command farther outward. A4/A5/A6 cable
-envelopes and protocol bounds remain enforced. The existing 0.3-degree start
+envelopes and protocol bounds remain enforced. The operator-selected 0.5-degree start
 comparison also applies to feedback at an extended boundary, never to expanding
 command bounds. Before approach, both feedback and targets must pass the normal
 pose checks and the owner removes the temporary recovery allowance.
@@ -87,15 +91,19 @@ measured-start recovery, exact path-extrema checks, firmware session setup and
 manual jogging. Neither restart nor feedback tolerance extends this envelope.
 Equivalent angles a full turn away are not interchangeable cable positions.
 
-Self/environment contact at the exact measured start is reported as a warning.
-Every subsequent sampled recovery pose still requires clearance. A warning does
-not authorize motion through contact: if no checked route exists, recovery stays
-blocked. The reviewed A3 separating-contact retreat remains available below.
+By operator request on Nov 24, hardware model spatial clearance is advisory for
+the complete path and runtime checks. Floor, self-contact and environment
+warnings remain visible, but they do not reject a path, force a detour or scale
+tracker correction. Simulation retains enforced spatial clearance. This policy
+is recorded as `spatial_clearance_policy` in the journal and accepted plan and is
+part of the weave-cache identity. Raw/cable limits, D3 closure and explicit
+adjacent mechanical stops remain enforced. The reviewed A3 retreat remains
+available below. Model warnings are not evidence of physical clearance.
 
 `controller/endpoint_recovery.py` allows A3 startup up to raw 151.64 deg
 (151.39 + 0.25 deg), then builds an inward-only path to 149.39 deg at <=1 deg/s
 and <=5 deg/s². The original stop meshes must show bounded shallow contact that
-separates along the retreat; all other pose/cable/clearance guards remain strict.
+separates along the retreat; other pose/cable/mechanical-stop guards remain strict.
 Fresh feedback is rechecked before preload and after stationary hold verification;
 other axes retain their fixed pose. Normal preparation starts only after a
 stationary, in-range endpoint. Pause requires a fresh checked plan. Its time is
@@ -124,13 +132,62 @@ pose as hardware home. See [operator procedure](ARM_RIG_TEST.md#weld-panel-with-
 | Endpoint settling | Separate 10 s timer after reference reaches the endpoint |
 | Total time target | `--prep-seconds 5`; includes initial hold and waypoint/approach settling |
 
-The panel now defaults to `--tracker pid`. Preparation runs the planned clock at
-100%; a host position tracker corrects unequal shaft lag instead of routinely
-slowing every joint. Native mode 2 still takes a position and positive speed
+The panel defaults to `--tracker pid`. Preparation runs the planned clock at
+100% while tracking permits; increasing shaft error slows the common clock
+before the independent 3-degree trip. Welding retains nominal timing.
+Native mode 2 still takes a position and positive speed
 ceiling. The host command is the reference plus velocity lead and PID correction:
 `q_target = q_ref + tau * v_ref + Kp * error + I + Kd * (v_ref - filtered_v)`.
 This is position pre-emphasis, not a signed velocity/torque feedforward input to
 the drive. There are no drive gain, mode, current or firmware changes.
+
+Tracker v7 is the operator-selected baseline restored on Nov 24. Its explicit
+`--weld-response-profile` uses the exact version-1 profile from the first
+physical v7 run. `controller/weld_response.py` compiles bounded periodic
+position feedforward from the command-to-shaft response on A1/A6. It retains
+three harmonics, caps inverse gain at two, normalizes predicted stroke, and adds
+proportional residual gain 0.15 capped at 0.20 deg A1 / 0.05 deg A6. Ordinary
+weld lead, integral and derivative terms are disabled in this mode. Preparation
+and tiny A2-A5 targets remain separate and unchanged; this is static response
+compensation, with no ILC or online learning.
+
+The first 0.578 s cycle uses the original quintic `periodic_blend` expansion;
+subsequent 20 mm / 1.730 Hz cycles retain the original nominal path. Combined
+A1/A6 command-span ceilings remain 4/1 deg, with speed/acceleration checks.
+The active profile's response frequencies, damping and delays are preserved
+exactly, rather than refitted after each run. The saved v7 fixture includes its
+accepted path and all 561 commands; rollback regression reproduces its startup
+reference and dispatches within 1e-10 deg.
+
+The reusable scheme is: correct sampled command generation first; compensate
+bounded amplitude/phase on the axes that need it; do not stack another lead/PID;
+keep the nominal geometry and preparation independent; and compare physical
+journals at matched cycles with full startup scoring. V7 reduced matched tip
+lag from 168.74 to 3.19 ms and same-time tip RMS from 10.122 to 2.168 mm.
+Its known 1.095-degree startup peak and 15.723-19.611 mm cycle-stroke range
+remain recorded. Operator preference does not waive acceptance criteria.
+See the [baseline record](measurements/arm-weld-v7-baseline-2026-11-24.json).
+
+Version-2 finite-startup inversion remains supported for explicit offline
+regression only; its profile is retained under tests/fixtures. Its first
+physical run missed the predicted startup improvement. A steady response fit
+and residual replay from a different controller must not be treated as proof
+of a changed transient. Keep v7 as the comparison reference for future work.
+
+The profile binds to mapping/scene fingerprints, weld center, travel and checked
+frequency. Planning checks startup/reference and feedforward poses plus
+residual corners in its separate process. Acceptance verifies profile/path/
+startup fingerprints; runtime pose, cable, speed, acceleration, tracking, age,
+lease and fault checks remain. The first `weld_entry` cycle ramps the planned
+stroke from zero. Preview shows startup then the regular cycle. Execution and
+accuracy use the same startup reference, retaining all orientation samples.
+Only periodic lag fitting reports startup samples as excluded. Subsequent
+periodic geometry, frequency and continuous-until-Pause behavior are unchanged.
+Finite or combined chassis runs and the A1 isolation switch reject this trial.
+Accuracy reports distinguish the full-window transverse envelope from sampled
+per-cycle stroke, including median, range and each complete cycle's edges.
+Missing or partial cycles do not count as complete; these statistics do not
+waive the existing completeness or orientation acceptance checks.
 
 The initial per-axis lag estimates come from the Nov 17 recorded approaches;
 they are provisional. During preparation, sufficient same-direction movement
@@ -138,8 +195,10 @@ updates a bounded local lag estimate using the previous dispatched target and
 cached feedback. Welding freezes that estimate across reversals. PID includes
 filtered velocity feedback, conditional integration with a 0.5-degree integral
 bound, a 12-degree virtual position-correction bound, and command speed and
-acceleration shaping within the existing stage limits. Measured error is still
-checked against the **unmodified reference**, with the same 3-degree trip.
+acceleration shaping within the existing stage limits. Preparation command
+braking reserves distance within both finite leg extrema and the correction
+envelope, including when the reference slows. Measured error is still checked
+against the **path reference before PID correction**, with the same 3-degree trip.
 
 During welding, host PID/velocity lead is applied only to joints whose planned
 peak-to-peak travel is at least 0.3 deg. Smaller axes retain their nominal path
@@ -166,17 +225,33 @@ stopping distance before an extremum; it does not wait for the reference clock
 to finish. This fixes the recorded Nov 17 A6 command crossing below its approach
 endpoint while decelerating. Speed/acceleration limits and arrival/tracking
 tolerances are unchanged. These command bounds do not prove physical stopping.
-Geometry limits virtual targets before
+In simulation, spatial geometry limits virtual targets before
 shaping; constrained correction gain returns gradually, rather than repeatedly
 jumping to full gain. Approach/weld correction requests prefer 1.8 mm clearance
 to leave shaping headroom; this does not change the nominal/measured 0.5 mm check.
 Recovery retains 2 mm. Shaped dispatched targets are independently checked,
 alongside measured poses and native raw/cable bounds; these sampled checks do
 not certify the continuous physical swept volume between feedback samples. A
-correction that cannot satisfy those checks pauses; it never bypasses clearance.
+correction that cannot satisfy the enforced checks pauses. Hardware uses advisory
+spatial clearance at all of these entry points, including the 1.8 mm correction
+check; raw/cable limits, explicit mechanical stops and tracking guards still apply.
 Arrival also waits for the tracker command to settle at the exact unshifted
 endpoint before latching the native fixed hold. No integrator continues moving
 the target while ready, complete or paused.
+
+Tracker v6 uses exact successive nominal position increments during welding.
+The reference is already evaluated at the current tick; its instantaneous
+velocity is used by the existing lead term, but is not integrated again to
+advance the shaped nominal path. Only the residual correction is pursued.
+With correction disabled and no active derivative limit, the dispatched target
+equals the checked sample, including periodic seams and irregular ticks.
+Command rates are interval averages, so their acceleration limit uses the time
+between interval midpoints. The speed/acceleration ceilings are unchanged.
+Preparation retains its existing velocity pursuit and finite-leg braking.
+The journal records `shaping_policy` and `acceleration_interval_s` per tick.
+Existing A1/A6 PID lead remains a separate tuning question; this fix does not
+identify motor response or qualify physical tip accuracy. ILC is deferred under
+[ILC-01](ARM_LAYER_TODOS.md#ilc-01--iterative-learning-for-repeated-welding-later-future-work).
 
 Online geometry checks use kinematics and collision detection without a redundant
 dynamics solve. Nearby D3 closure updates use the analytic site Jacobian, retaining
@@ -197,9 +272,9 @@ The live cards label a half-weave-frequency pattern as **Two-cycle response**,
 and show measured travel alongside planned travel. A two-cycle pattern is not
 50% travel or a 50% speed setting; the estimator is not forced to the planned Hz.
 
-`--tracker paced` retains the previous controller for explicit comparison.
-It streams a constant checked speed allowance and an acceleration-bounded
-common path clock. For `q(s(t))`, acceleration is `q'' * s_dot² + q' * s_ddot`;
+Both preparation trackers use a constant checked speed allowance and an
+acceleration-bounded common path clock. `--tracker paced` omits PID lead for
+explicit comparison. For `q(s(t))`, acceleration is `q'' * s_dot² + q' * s_ddot`;
 10% path-acceleration reserve supports clock slew. Each step uses signed cubic
 velocity/acceleration bounds over the traversed interval, including internal
 extrema and knot boundaries. This allows braking to cancel path acceleration;
@@ -210,6 +285,10 @@ Soft slowing starts at 1 degree of lag and requests zero clock speed at 2 degree
 acceleration-limited braking can temporarily exceed that soft threshold. The
 separate 3-degree tracking trip remains. Progress detection still starts at
 0.5 degree, independently of the pacing thresholds.
+The clock compares fresh feedback with this tick's predicted reference, so a
+longer tick does not hide lag. Only error trailing the current path direction
+requests slowing: slowing for a shaft already ahead would increase its error.
+The absolute-error guard still checks all six axes independently of this pacing.
 Pacing changes time, not path
 geometry, motor gains, or target offsets. The nominal-timeout defect recorded in
 [the recovery review](measurements/arm-recovery-review-2026-11-16.json) is fixed.
@@ -223,8 +302,9 @@ clearance under tracking error, or loaded shutdown.
 Add `--optimize-preparation` to `--simulate`, `--plan-only`, or explicit hardware
 `--execute --arm --supported`. It compares the
 requested standby with the current pose and three raw-joint interpolated staging
-poses toward the same full weld start. Each candidate checks recovery at 2 mm, approach at the
-normal clearance, fixed travel bounds and sampled reduced-inertia acceleration.
+poses toward the same full weld start. Each candidate inspects recovery at 2 mm
+and approach at the normal clearance under the selected spatial policy, and
+enforces fixed travel bounds and sampled reduced-inertia acceleration.
 Exact cubic extrema set timing with a 2% margin and 10% pacing reserve.
 Independent transfer timing retains the authored two-second final lowering
 floor; it must not compress that short leg merely because its derivative limits
@@ -243,7 +323,8 @@ to at most 0.1 degree of raw travel on every axis, using exact interval derivati
 extrema. Slow or stationary paths need fewer repeated geometry queries. This is
 sampled clearance checking, not continuous collision detection. Private planner
 models omit only chassis-only contact pairs while preserving all original pairs
-that touch the arm. The runtime clearance thresholds and motion guards remain.
+that touch the arm. Hardware uses these distances for advisory warnings;
+simulation enforces the clearance thresholds. Motor motion guards remain.
 
 The persistent planner process reuses a private copy of the initialized scene
 and a start-independent weave solution keyed by model contents, calibration,
@@ -438,7 +519,8 @@ stroke and dwell; quintic ramps replace velocity steps. Exact polynomial extrema
 set a common time factor, reducing arm frequency and nominal chassis feed together.
 Initial and approach are retimed separately. A raised-tool path is checked when
 a direct transition clips the floor. Model validation bounds sample travel to
-0.2 deg and retains 0.5 mm arm/environment clearance and 0.1 mm adjacent-stop checks.
+0.2 deg and inspects 0.5 mm arm/environment clearance (advisory on hardware,
+enforced in simulation), with enforced 0.1 mm adjacent-stop checks in both modes.
 
 `weld_start_check` records target/tip positions, residual and floor standoff. The
 authored 2 mm `WIRE_GAP` is independent of the reported post-prep joint sag.

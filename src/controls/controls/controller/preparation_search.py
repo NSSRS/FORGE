@@ -125,8 +125,9 @@ def optimize_preparation(plan, geometry, settings, *, recovery_geometry=None):
     """Compare current pose and three staging poses to the requested standby.
 
     A staging pose is a raw-coordinate interpolation toward the same weld start,
-    not a truncated approach. Check recovery at 2 mm and approach at the normal
-    clearance, including fixed cable bounds and reduced-inertia acceleration.
+    not a truncated approach. Inspect recovery at 2 mm and approach at the normal
+    clearance under the selected spatial policy. Fixed cable bounds and
+    reduced-inertia acceleration remain enforced.
     This small search is not a global optimum or a physical readiness claim.
     """
     from .weld_plan import approach_path, raised_approach_path, APPROACH_LOWERING_SECONDS

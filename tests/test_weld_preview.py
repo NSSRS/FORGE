@@ -199,6 +199,20 @@ class PreviewContracts(unittest.TestCase):
         finally:
             renderer.close()
 
+    def test_renderer_uses_replanned_branch_without_wrapping_raw_pose(self):
+        from controls.controller.calibration import select_a1_encoder_branch
+
+        renderer = PoseRenderer(select_a1_encoder_branch(self.mapping, 1).document)
+        try:
+            standby = json.loads((ROOT / 'src/robot_description/config/arm_standby_compact.json').read_text())
+            raw = standby['raw_output_shaft_deg']
+            result = renderer.frame(dict(raw=raw, mapping=self.mapping.document, clearance_mm=2, token=1))
+            self.assertIsNone(result['issue'])
+            self.assertEqual(renderer.geometry.mapping.fingerprint, self.mapping.fingerprint)
+            self.assertLess(raw[0], 0)
+        finally:
+            renderer.close()
+
     def test_outside_endpoint_pose_is_visible_only_as_an_observation(self):
         document = deepcopy(self.mapping.document)
         document['joints']['5'].update(

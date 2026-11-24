@@ -119,6 +119,7 @@ def sample_commands(run, path):
     rejected = 0
     last_clock = -1.0
     last_elapsed = -1.0
+    entry = JointPath.from_document(run.plan["weld_entry"]) if run.plan.get("weld_entry") else None
     for trace in run.commands:
         try:
             at = trace.get("time_s")
@@ -137,10 +138,11 @@ def sample_commands(run, path):
             commanded = finite_vector(trace.get("command_raw_deg"), "dispatched pose")
             nominal = finite_vector(trace.get("requested_raw_deg"), "reference pose")
             phase = elapsed % path.duration if run.continuous else elapsed
+            nominal_path = entry if entry is not None and elapsed < entry.duration else path
             if (
                 trace.get("dispatch_state") != "sent"
                 or np.any((age < 0) | (age >= MAX_FEEDBACK_AGE_MS))
-                or not np.allclose(nominal, path.sample(phase)[0], atol=1e-6, rtol=0)
+                or not np.allclose(nominal, nominal_path.sample(phase)[0], atol=1e-6, rtol=0)
             ):
                 raise ValueError("Invalid or stale weld feedback")
         except (TypeError, ValueError):
@@ -225,12 +227,43 @@ def read_tip_csv(csv_path, duration):
 def measured_tip_errors(times, positions, run, path, model, duration, feed_mm_s):
     origin = model.tip_mm(path.positions[0])
     errors = []
+    entry = JointPath.from_document(run.plan["weld_entry"]) if run.plan.get("weld_entry") else None
     for elapsed, position in zip(times, positions):
         phase = elapsed % path.duration if run.continuous else elapsed
-        reference = model.tip_mm(path.sample(phase)[0]) - origin
+        nominal_path = entry if entry is not None and elapsed < entry.duration else path
+        reference = model.tip_mm(nominal_path.sample(phase)[0]) - origin
         reference[0] += feed_mm_s * elapsed
         errors.append(position - reference)
     return dict(coverage=coverage(times, duration), **tip_statistics(errors))
+
+
+def tip_cycle_strokes(period, times, transverse, planned_low, planned_high):
+    """Sampled extrema in complete periods, distinct from the run envelope."""
+    times, transverse = np.asarray(times), np.asarray(transverse)
+    if len(times) < 2:
+        return dict(status="insufficient complete cycles", cycles=[])
+    # Permit a boundary sample offset of at most one normal coverage gap.
+    # Do not include the partial final cycle or recover missing interior data.
+    margin = min(MAX_GAP_S, period / 4)
+    first = max(0, int(np.ceil((times[0] - margin) / period)))
+    last = int(np.floor((times[-1] + margin) / period))
+    cycles = []
+    for index in range(first, last):
+        mask = (times >= index*period) & (times < (index+1)*period)
+        t, values = times[mask], transverse[mask]
+        if (len(t) < 4 or t[0] - index*period > margin
+                or (index+1)*period - t[-1] > margin or np.max(np.diff(t)) > MAX_GAP_S):
+            continue
+        low, high = float(min(values)), float(max(values))
+        cycles.append(dict(cycle=index+1, samples=len(values), measured_width_mm=high-low,
+                           lower_edge_outward_error_mm=planned_low-low,
+                           upper_edge_outward_error_mm=high-planned_high))
+    widths = [row["measured_width_mm"] for row in cycles]
+    return dict(status="available" if cycles else "insufficient complete cycles",
+                basis="Sampled extrema per complete cycle; between-sample peaks are not measured.",
+                planned_width_mm=planned_high-planned_low, count=len(cycles),
+                width_mm=stats(widths), median_width_mm=float(np.median(widths)) if widths else None,
+                cycles=cycles)
 
 
 def tip_lag_report(path, model, period, times, positions, same_time, source):
@@ -276,6 +309,7 @@ def tip_lag_report(path, model, period, times, positions, same_time, source):
             lower_edge_outward_error_mm=planned_low - measured_low,
             upper_edge_outward_error_mm=measured_high - planned_high,
         ),
+        cycle_stroke=tip_cycle_strokes(period, times, positions[:, 1], planned_low, planned_high),
     )
 
 
@@ -314,7 +348,7 @@ def analyze(journal, *, run_number=None, tip_csv=None, peak_joint_deg=None, peak
     if type(chassis_selected) is not bool or not finite(feed) or feed < 0:
         raise ValueError("Invalid planned chassis feed")
     feed_mm_s = feed * 1000 if chassis_selected else 0.0
-    mapping = CalibrationMap(session["mapping"])
+    mapping = CalibrationMap(plan.get("mapping", session["mapping"]))
     if plan.get("mapping_fingerprint") != mapping.fingerprint:
         raise ValueError("The weld plan and journal use different encoder mappings")
     path = JointPath.from_document(plan["weld"])
@@ -400,11 +434,24 @@ def analyze(journal, *, run_number=None, tip_csv=None, peak_joint_deg=None, peak
                 if not tip_csv:
                     tip_times = times
                     tip_positions = np.asarray(encoder_positions) - model.tip_mm(path.positions[0])
+                excluded_startup = 0
+                if plan.get("weld_entry"):
+                    entry_duration = float(plan["weld_entry"]["times_s"][-1])
+                    keep = np.asarray(tip_times) >= entry_duration
+                    excluded_startup = int(np.sum(~keep))
+                    tip_times = np.asarray(tip_times)[keep].tolist()
+                    tip_positions = np.asarray(tip_positions)[keep]
+                    origin = model.tip_mm(path.positions[0])
+                    same_time = tip_statistics([
+                        p - (model.tip_mm(path.sample(t % path.duration)[0]) - origin)
+                        for t, p in zip(tip_times, tip_positions)
+                    ])
                 hz = plan.get("effective_hz")
                 lag_report = tip_lag_report(
                     path, model, 1 / hz if finite(hz) and hz > 0 else None,
                     tip_times, tip_positions, same_time, source,
-                )
+                ) if len(tip_times) >= 2 else dict(status="insufficient steady cycles after startup")
+                lag_report["excluded_startup_samples"] = excluded_startup
     elif tip_csv:
         raise ValueError("Independent tip analysis requires the exact model used to plan the pass")
 
@@ -469,11 +516,17 @@ def print_summary(report):
         source_label = ("independent measurements" if lag["source"] == "independent" else "encoder estimate")
         print(f"  Tip with one fixed lag ({source_label}): {lag['lag_ms']:+.1f} ms, "
               f"3D RMS {error['rms']:.3f} mm, peak {error['peak_abs']:.3f} mm")
-        print(f"    Transverse stroke: {stroke['measured_width_mm']:.3f} mm measured, "
+        print(f"    Full-window transverse envelope: {stroke['measured_width_mm']:.3f} mm measured, "
               f"{stroke['planned_width_mm']:.3f} mm planned")
         print(f"    Edge errors (positive is overshoot): "
               f"lower {stroke['lower_edge_outward_error_mm']:+.3f} mm, "
               f"upper {stroke['upper_edge_outward_error_mm']:+.3f} mm")
+        cycles = lag.get("cycle_stroke", {})
+        if cycles.get("status") == "available":
+            widths = cycles["width_mm"]
+            print(f"    Sampled stroke across {cycles['count']} complete cycles: "
+                  f"median {cycles['median_width_mm']:.3f} mm, "
+                  f"range {widths['minimum']:.3f}-{widths['maximum']:.3f} mm")
     elif lag:
         print(f"  Tip lag unavailable: {lag['status']}")
     orientation = report.get("encoder_orientation")

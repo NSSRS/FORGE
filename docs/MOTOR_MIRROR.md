@@ -56,6 +56,20 @@ Use `./scripts/run_motor_test.sh --simulate` for hardware-free testing on domain
 the keyboard pane requests a stop; stop each process with Ctrl+C when finished.
 Closing only the MuJoCo window does not stop the motors.
 
+For motor-4 commissioning, add `--four-motors` to the launcher. It selects
+`chassis_four_motor_bench.yaml` for the driver, keyboard and viewer, so motor 4
+is required and can show LIVE instead of ABSENT. IDs 1/2 stay on CAN1, 3/4 on
+CAN2, with a 5 RPM ceiling. Follow the
+[motor-4 procedure](CAN2_BENCH.md#motor-4-identification-and-four-motor-test).
+The default three-motor launcher remains unchanged.
+
+On Nov 24 the operator reported normal visual behavior in the four-motor
+session after the bounded motor test passed. The reported message
+`is not in registered window list` originates in Terminator's window
+deregistration, not the motor driver. Its exact UI trigger was not captured;
+the message alone does not establish a driver fault or verify session health.
+See the [physical record](measurements/encos-four-motor-physical-review-2026-11-24.json).
+
 ## Run with the current hardware test
 
 Keep the driver and differential keyboard using `chassis_bench.yaml`, domain 44.

@@ -21,14 +21,32 @@
       "can_id": 3,
       "can_bus": 2,
       "pdo_slot": 3
+    },
+    {
+      "can_id": 4,
+      "can_bus": 2,
+      "pdo_slot": 4
     }
   ],
-  "fourth_motor_present": false,
+  "fourth_motor_present": true,
   "model": null,
   "profiles": [
     "bringup/config/chassis.yaml",
     "bringup/config/chassis_bench.yaml",
-    "bringup/config/can2_bench.yaml"
+    "bringup/config/can2_bench.yaml",
+    "bringup/config/chassis_four_motor_bench.yaml"
   ],
-  "note": "Keep existing chassis IDs and ENCOS packet layout; arm IDs are on a separate controller."
+  "note": "Keep existing chassis IDs and ENCOS packet layout; arm IDs are on a separate controller.",
+  "fourth_motor": {
+    "target_can_id": 4,
+    "current_can_id": 4,
+    "can_bus": 2,
+    "pdo_slot": 4,
+    "physical_wheel": null,
+    "forward_protocol_sign": null,
+    "status": "Physical signed motion and stop test passed; explicit wheel location/sign/gearing pending",
+    "evidence": "docs/measurements/encos-four-motor-physical-review-2026-11-24.json"
+  },
+  "bench_evidence": "docs/measurements/encos-four-motor-physical-review-2026-11-24.json",
+  "hardware_qualified": false
 }

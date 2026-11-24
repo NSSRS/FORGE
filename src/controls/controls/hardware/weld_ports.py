@@ -287,6 +287,20 @@ class ArmOwner:
     def recover(self, report_path):
         self.port.recover(report_path)
 
+    def configure_mapping(self, document):
+        """Update only A1's equivalent planning branch; never touch the bus."""
+        from controls.controller.calibration import check_a1_branch_translation
+
+        selected = CalibrationMap(document)
+        check_a1_branch_translation(self.port.mapping, selected)
+        if self.port.path_active or self.port.moving:
+            raise ValueError("A1 branch cannot change during motion")
+        self.port.mapping = selected
+        self.port.measured_start = None
+        self.port.endpoint_policy = None
+        self.port._event("a1_mapping_selected", mapping_fingerprint=selected.fingerprint,
+                         selection=document.get("encoder_branch_selection"))
+
     def read(self):
         rows = (
             self.port.cached_positions() if self.port.holding else self.port.positions()
@@ -332,6 +346,12 @@ class ArmOwner:
             validate_preload=validate,
         )
 
+    def held_target(self):
+        """Copy the owner's fixed hold targets without polling or recapturing."""
+        if not self.port.holding or set(self.port.hold_targets) != set(range(6)):
+            raise ValueError("All six fixed hold targets are required")
+        return np.degrees([self.port.hold_targets[i] for i in range(6)])
+
     def configure_endpoint(self, document):
         self.port.configure_endpoint(document)
 
@@ -366,6 +386,10 @@ class SimulatedArm:
     """Rate-limited fake shafts for UI/state-machine tests, never a dynamics claim."""
 
     offline = True
+
+    def configure_mapping(self, document):
+        # Used by fake-owner hardware UI tests; simulation planning stays strict.
+        self.mapping = CalibrationMap(document)
 
     def configure_start_recovery(self, document):
         # Tests may replay an explicitly hardware-scoped plan through fake shafts.
@@ -419,6 +443,11 @@ class SimulatedArm:
         self.path_active = False
         self.target = self.q.copy()
         self.speed = np.zeros(6)
+
+    def held_target(self):
+        if not self.enabled:
+            raise ValueError("All six fixed hold targets are required")
+        return self.target.copy()
 
     def command(self, raw, speed):
         if not self.enabled:

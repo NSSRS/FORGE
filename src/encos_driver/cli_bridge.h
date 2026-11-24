@@ -27,5 +27,14 @@ bool encos_query_reply(int expected_wkc, const encos_can_frame_t *request,
                        encos_reply_matcher_t matcher, void *result);
 bool encos_discover_motor(int expected_wkc, uint16_t *motor_id);
 bool encos_query_position(int expected_wkc, encos_position_reply_t *position);
+/* Read-only utilities can select either bus without moving physical wiring.
+ * Legacy callers retain slot 0/CAN1 through the wrappers above. */
+bool encos_parse_can_bus(const char *text, uint8_t *slot);
+bool encos_query_reply_at_slot(int expected_wkc, uint8_t slot,
+                              const encos_can_frame_t *request,
+                              encos_reply_matcher_t matcher, void *result);
+bool encos_discover_motor_at_slot(int expected_wkc, uint8_t slot, uint16_t *motor_id);
+bool encos_query_position_at_slot(int expected_wkc, uint8_t slot,
+                                  encos_position_reply_t *position);
 
 #endif

@@ -24,7 +24,15 @@ deg/s and age in ms; adapters convert to radians/rad/s at the motor API boundary
 
 Arm commands follow `WeldController -> ArmOwner -> TrajectoryArmPort ->
 ArmGroupHoldPort -> ArmBus -> DM-MC02 -> CAN`. Native mode 2 / USB type 4 carries
-position and speed allowance. The default host PID tracker adds bounded position
+position and speed allowance. An explicit `--weld-response-profile` selects the
+operator-selected v7 bounded periodic A1/A6 response baseline, with the original
+quintic first-cycle blend and capped residual feedback (0.20/0.05 deg).
+Its exact physical-run profile is restored; preparation is unchanged.
+The plan, preview and accuracy analyzer share `weld_entry`; only periodic lag
+fitting excludes startup.
+The provisional profile requires the recorded arm-only pose, amplitude,
+frequency, mapping and scene. See `docs/ARM_RIG_TEST.md` for its command.
+The default host PID tracker adds bounded position
 lead using reference velocity and measured error; the drive velocity field
 remains a ceiling. No torque feedforward, gain writes or type-25 jog smoothing
 are added. Complete targets are validated before sequential dispatch;
@@ -36,13 +44,22 @@ refresh. Dispatch rechecks sample age after calculation. Standalone `command`
 reads its own batch when none is pending; idle `poll` reads and refreshes fixed
 holds. Each stage keeps its checked mode-2 speed allowance through arrival.
 
-`--tracker pid` keeps nominal preparation time, shapes corrected command speed
+`--tracker pid` slows preparation time when shaft error grows, shapes corrected command speed
 and acceleration, checks corrected targets and removes offsets before endpoint
-hold. Finite preparation commands brake inside the current leg's exact extrema;
+hold. Finite preparation commands brake inside both the current leg's exact extrema
+and the 12-degree correction envelope;
 mandatory recovery stops have separate bounds. Weld correction is enabled only
 for axes with at least 0.3 deg planned peak-to-peak travel; all nominal axis
 trajectories remain commanded. This keeps tiny-axis lag estimates from consuming
-the shared clearance margin. `--tracker paced` retains the old common-clock algorithm. The reusable
+the shared clearance margin in enforced spatial mode. Welding retains its
+nominal clock. The sampling fix retained in v7 advances by exact sampled
+reference increments, then shapes residual correction;
+it does not integrate the current reference velocity again. Sampled command
+rates use interval-midpoint spacing for acceleration checks on irregular ticks.
+Preparation pursuit and all existing ceilings remain unchanged. The A1-only
+comparison switch still disables only its additive weld correction; other
+enabled-axis PID lead is not retuned by this command-generation fix.
+`--tracker paced` uses the common clock without PID lead. The reusable
 `WeldController` accepts explicit `TrackingSettings`; callers omitting it retain
 legacy behavior. Tracking/frequency calculations consume the same feedback batch.
 The table distinguishes planned weave Hz from measured per-axis mechanical Hz
@@ -63,7 +80,9 @@ own inward-only guard and strict return to normal limits; see the shared
 For hardware, `controller/measured_start.py` accepts the observed start outside
 saved pose windows or authored simulator joint ranges. Planning, live recovery
 checks and the native owner share its bounded temporary extent. Start contact
-is a warning; subsequent path samples must pass clearance. A4/A5/A6 cable bounds
+is a warning. By operator request, model spatial clearance is advisory throughout
+hardware planning and execution, including tracker correction; simulation keeps
+enforced spatial checks. Explicit mechanical stops, D3 closure and A4/A5/A6 cable bounds
 remain fixed. Both actual and commanded endpoints must pass normal checks before
 the owner removes the allowance and enters approach. Simulation stays strict.
 `finish_trajectory()` is called

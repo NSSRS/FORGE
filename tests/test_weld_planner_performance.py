@@ -145,7 +145,8 @@ class PlanningCacheTests(unittest.TestCase):
 
     def test_weave_cache_invalidates_inputs_and_returns_independent_data(self):
         clear_planning_caches()
-        geometry = SimpleNamespace(mapping=SimpleNamespace(document={"calibration": 1}))
+        geometry = SimpleNamespace(mapping=SimpleNamespace(document={"calibration": 1}),
+                                   enforce_spatial_clearance=True)
         path = move_path(np.zeros(6), np.ones(6), Settings())
         constraints = {"version": 1}
         with patch("controls.controller.weld_plan.solve_weave", return_value=(path, {"detail": [1]})) as solve, \
@@ -166,6 +167,10 @@ class PlanningCacheTests(unittest.TestCase):
             constraints["version"] = 2
             cached_weave(geometry, Settings(), Path("."), "scene-a")
             self.assertEqual(solve.call_count, 5)
+            geometry.enforce_spatial_clearance = False
+            _, _, hit = cached_weave(geometry, Settings(), Path("."), "scene-a")
+            self.assertFalse(hit)
+            self.assertEqual(solve.call_count, 6)
         clear_planning_caches()
 
     def test_scene_copies_do_not_share_mutable_state(self):

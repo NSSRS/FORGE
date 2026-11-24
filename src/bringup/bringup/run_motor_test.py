@@ -15,10 +15,11 @@ ROLES = ('driver', 'keyboard', 'relay', 'viewer')
 TITLES = ('1. Motor driver', '2. W/S/A/D keyboard', '3. Read-only feedback relay', '4. MuJoCo viewer')
 
 
-def command(role, simulate, domain, authenticated=False):
-    profile = str(ROOT / 'src/bringup/config/chassis_bench.yaml')
+def command(role, simulate, domain, authenticated=False, four_motors=False):
+    name = 'chassis_four_motor_bench.yaml' if four_motors else 'chassis_bench.yaml'
+    profile = str(ROOT / 'src/bringup/config' / name)
     if role == 'viewer':
-        return [str(ROOT / 'scripts/run_motor_viewer.sh')]
+        return [str(ROOT / 'scripts/run_motor_viewer.sh'), '--config', profile]
     if role == 'driver':
         args = ['ros2', 'launch', 'bringup', 'chassis.launch.py',
                 f'config:={profile}', f'simulate:={str(simulate).lower()}',
@@ -35,7 +36,7 @@ def command(role, simulate, domain, authenticated=False):
     return ([] if simulate or authenticated else ['sudo']) + ['bash', '-lc', script]
 
 
-def layout(simulate, domain, session=None):
+def layout(simulate, domain, session=None, four_motors=False):
     result = {
         'window': {'type': 'Window', 'parent': '', 'size': [1200, 800]},
         'columns': {'type': 'HPaned', 'parent': 'window', 'position': 600},
@@ -48,6 +49,8 @@ def layout(simulate, domain, session=None):
             args += ['--session', str(session)]
         if simulate:
             args.append('--simulate')
+        if four_motors:
+            args.append('--four-motors')
         result[role] = dict(type='Terminal', parent='left' if index < 2 else 'right',
                             order=index % 2, profile='forge', title=title,
                             command=shlex.join(args))
@@ -57,6 +60,8 @@ def layout(simulate, domain, session=None):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--simulate', action='store_true', help='Run without hardware or sudo (domain 42)')
+    parser.add_argument('--four-motors', action='store_true',
+                        help='Require IDs 1/2 on CAN1 and 3/4 on CAN2; 5 RPM bench ceiling')
     parser.add_argument('--domain', type=int, help='ROS domain (hardware 44, simulation 42)')
     parser.add_argument('--dry-run', action='store_true', help='Show commands without launching anything')
     parser.add_argument('--pane', choices=ROLES, help=argparse.SUPPRESS)
@@ -70,14 +75,14 @@ def main():
         if os.geteuid() != 0 or 'SUDO_UID' not in os.environ:
             parser.error('the authenticated session must be started by the launcher through sudo')
         from bringup.motor_test_session import serve
-        serve(args.serve, {role: command(role, False, domain, authenticated=True)
+        serve(args.serve, {role: command(role, False, domain, authenticated=True, four_motors=args.four_motors)
                            for role in ROLES if role != 'viewer'}, int(os.environ['SUDO_UID']))
         return
     if args.dry_run:
         if not args.simulate:
             print('One sudo authentication in launcher; driver/keyboard/relay run in its private session.')
         for role in ROLES:
-            print(f'{role}: {shlex.join(command(role, args.simulate, domain, authenticated=True))}')
+            print(f'{role}: {shlex.join(command(role, args.simulate, domain, authenticated=True, four_motors=args.four_motors))}')
         return
     if args.pane:
         print(f'FORGE {args.pane} — {"SIMULATION" if args.simulate else "HARDWARE"}', flush=True)
@@ -92,7 +97,7 @@ def main():
                 return
             if not args.simulate and args.pane != 'viewer':
                 parser.error('hardware panes require an authenticated launcher session')
-            result = subprocess.run(command(args.pane, args.simulate, domain), cwd=ROOT)
+            result = subprocess.run(command(args.pane, args.simulate, domain, four_motors=args.four_motors), cwd=ROOT)
             print(f'Process exited with status {result.returncode}.', flush=True)
         except KeyboardInterrupt:
             print('\nPane stopped.', flush=True)
@@ -121,7 +126,8 @@ def main():
             if not args.simulate:
                 server = subprocess.Popen(
                     ['sudo', '-n', '/usr/bin/python3', str(ROOT / 'scripts/run_motor_test.py'),
-                     '--serve', str(session), '--domain', str(domain)], stdin=subprocess.PIPE)
+                     '--serve', str(session), '--domain', str(domain)]
+                    + (['--four-motors'] if args.four_motors else []), stdin=subprocess.PIPE)
                 deadline = time.monotonic() + 10
                 while not (session / 'ready').exists():
                     if server.poll() is not None:
@@ -134,7 +140,8 @@ def main():
             config['profiles'] = {'forge': {'use_system_font': False, 'font': 'Monospace 10',
                                             'scrollback_lines': 5000, 'exit_action': 'hold'}}
             config['layouts'] = {'forge': layout(args.simulate, domain,
-                                                None if args.simulate else session)}
+                                                None if args.simulate else session,
+                                                four_motors=args.four_motors)}
             config['plugins'] = {}
             path = session / 'terminator.conf'
             config.filename = str(path)

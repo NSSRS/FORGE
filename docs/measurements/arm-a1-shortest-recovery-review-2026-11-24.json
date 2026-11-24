@@ -1,0 +1,103 @@
+{
+  "schema": "forge.arm_a1_shortest_recovery_review",
+  "version": 1,
+  "date": "2026-11-24",
+  "source_journal": "build/weld/sessions/20261124T084010.393988Z-2frbz95c/session.jsonl",
+  "source_snapshot": "build/arm_tests/a1-shortest-recovery-20261124/source.jsonl",
+  "source_sha256": "7f1da3730bd7b9fb47aa25eb0407ad48c11b29ffdf21de80659c10cbbf6cfd48",
+  "fixture": "tests/fixtures/weld_a1_reset_20261124.json",
+  "fixture_sha256": "6107ee0620fa3c493a5f4507cb490a2c022dc5fb50b590cb813f224a96bbcd6f",
+  "recorded_block": {
+    "event": "action_blocked",
+    "time_s": 5790.754488655,
+    "state": "paused",
+    "action": "planning_result",
+    "error": "A1 recovery would move 366.82 deg from -181.5110 to +185.3084 deg, outside the selected encoder branch [+5.3084, +365.3084] deg. Verify the physical orientation and restart history, then select --a1-encoder-turns explicitly from the original mapping. No angle was wrapped or branch changed.",
+    "planning_start_raw_deg": [
+      -181.5109657967682,
+      -108.00605455297843,
+      131.67714063116813,
+      178.88811851396997,
+      -11.616949664897767,
+      59.65853319228649
+    ]
+  },
+  "selection": {
+    "current_raw_deg": -181.5109657967682,
+    "previous_goal_raw_deg": 185.30840435359923,
+    "goal_raw_deg": -174.69159564640077,
+    "delta_deg": 6.819370150367433,
+    "previous_delta_deg": 366.81937015036743,
+    "relative_turns": -1,
+    "turns": 0,
+    "direction": "CCW",
+    "previous_mapping_fingerprint": "8d7c205afb5b17288dd7d65e80e8ab0b9126f61bf58d635f72aa0b0b0795af20",
+    "mapping_fingerprint": "335f411af2625e157d875a0dd203a9dab69ce02bcdd2f4ad207ce147fd8fd21b"
+  },
+  "authorization": "Operator requested the short CCW A1 path instead of the stale-branch 366.819-degree return.",
+  "change": [
+    "Hardware Calculate chooses the nearest adjacent equivalent A1 target from fresh stationary feedback before model search.",
+    "The existing owner, runtime geometry and preview receive the same session mapping. Raw feedback and fixed hold targets are not wrapped or changed.",
+    "Only A1 unit-gain full-turn calibration is translated; A2-A6, fixed cable envelopes, original calibration files and protocol bounds are preserved.",
+    "Mapping changes are prohibited during motion, and a held pose must still agree with its fixed hold reference. Fault reset and starting recovery remain explicit.",
+    "Accepted plans carry their own mapping; the accuracy analyzer uses the matching plan map after an in-session branch change."
+  ],
+  "offline": {
+    "calculation_s": 15.721961197999917,
+    "nominal_preparation_s": 6.654290740421679,
+    "a1_total_travel_deg": 6.819370150367433,
+    "a1_monotone": true,
+    "direction": "CCW",
+    "approach_route": "checked raised-tool approach, 30 mm above weld tip",
+    "approach_lift_mm": 30,
+    "lowering_minimum_s": 2.3,
+    "full_model_checked": true,
+    "ideal_fake_shafts": "ready",
+    "lagged_fake_shafts": "ready",
+    "plan": "build/arm_tests/a1-shortest-recovery-20261124/plan.json",
+    "plan_sha256": "62b47903fa6a4bf82fe69d860bbb92c3188004e073861a7c10c188cafb1eddb4"
+  },
+  "validation": {
+    "distinct_targeted_tests": 130,
+    "runs": [
+      {
+        "command": "MUJOCO_GL=egl QT_QPA_PLATFORM=offscreen PYTHONPATH=tests .venv/bin/python -m unittest test_weld_encoder_branch test_weld_panel test_weld_accuracy test_weld_preview test_weld_hardware test_weld_hold_activation -v",
+        "tests_passed": 130,
+        "seconds": 116.071,
+        "log": "build/arm_tests/a1-shortest-recovery-20261124/regression.log",
+        "sha256": "f40c6f44806078ef50b6905de5e633edab19035774069165c8c897651bea4a55"
+      },
+      {
+        "command": "MUJOCO_GL=egl QT_QPA_PLATFORM=offscreen PYTHONPATH=tests .venv/bin/python -m unittest test_weld_encoder_branch.EncoderBranchTests test_weld_panel.WeldPanelTests.test_hardware_recalculation_selects_short_a1_branch_after_raw_turn_change -v",
+        "tests_passed": 9,
+        "seconds": 0.599,
+        "log": "build/arm_tests/a1-shortest-recovery-20261124/final-tests.log",
+        "sha256": "dab017cc2175ada032d264a3676d574746a4da407ca014de70b58978ef116199"
+      }
+    ],
+    "complete_weld_suite_repeated": false,
+    "initial_test_issue": "The first GUI test assertion inspected __self__ on a deliberately mocked geometry method. Corrected to check the mock geometry mapping and the controller binding; full regression passes."
+  },
+  "unchanged_limits": {
+    "start_deg": 0.5,
+    "tracking_deg": 3,
+    "arrival_deg": 0.25,
+    "measured_speed_rad_s": 1.5
+  },
+  "separate_fault": "The source journal contains an A1 CAN transmission failure before explicit motor reset. This branch-selection change does not establish or repair its physical cause.",
+  "hardware_accessed_by_agent": false,
+  "hardware_qualified": false,
+  "production_qualified": false,
+  "source_sha256_by_file": {
+    "src/controls/controls/controller/calibration.py": "1bb0b7a62c3748f75789d3bed81fb197759f711c2183885bac8535be36c51dd6",
+    "src/controls/controls/controller/weld_plan.py": "75623192e09626c3ce502be2faf2e52430eb6d3beb74d2614359c47d53214ba2",
+    "src/controls/controls/hardware/weld_app.py": "d3abbfec8f0430be5f69f07eba081759c73132408f614d39a14f87d7bbe16ff9",
+    "src/controls/controls/hardware/weld_ports.py": "e8d2584cac406d6558beaf91743d2822e7e914b59f1971533cb4230dbafb3c50",
+    "src/controls/controls/hardware/weld_accuracy.py": "de28f25803f99bded9032224e7538f415ebcf74496254bea6f9e815392f3ee69",
+    "src/simulation/simulation/weld_preview.py": "7b2ecc253bba59136b2c3a51a1d0bd5963122a5dd0cf6d3dfe97abfc1a55f98e",
+    "tests/test_weld_encoder_branch.py": "ee62c570171b1ccfe63d90bdc3a0d9f9ce88a67d0db080d64e9f41c780034db6",
+    "tests/test_weld_panel.py": "1d84fbd97ce71743b07db24e6f6fed6bc95585620c9545ce14abd51fefd357d3",
+    "tests/test_weld_accuracy.py": "122762388b3316acd9cf02fbab5baff5849027e4d257c2cfc21d34501ae697bf",
+    "tests/test_weld_preview.py": "959c2c57cfd6d0deec414a22823af484736b248e0b278d22f0f543781314fcfc"
+  }
+}

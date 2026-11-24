@@ -1,0 +1,193 @@
+{
+  "schema": "forge.arm_motion_guard_review",
+  "version": 1,
+  "date": "2026-11-24",
+  "repository_commit": "b9fc689",
+  "source_journal": "build/weld/sessions/20261124T075541.085884Z-4zwi55xa/session.jsonl",
+  "normalized_source_snapshot": "build/arm_tests/motion-guard-20261124/source.jsonl",
+  "normalized_source_snapshot_sha256": "e7e300f11a80c50c07d25e69648495448ae5168e4b74ec75e2e68ac35b88427f",
+  "regression_fixture": "tests/fixtures/weld_preparation_guard_20261124.json",
+  "regression_fixture_sha256": "431c3837c2ea9179bae6bc2f15ae6145f86f2b06f8a23e8df03dd70993112408",
+  "recorded_failure": {
+    "a1_encoder_turns": 1,
+    "reason": "Tracking error A3: +3.093 deg; paused both components; inspect and replan.",
+    "cause": "motion_guard",
+    "nominal_preparation_s": 6.919666433398596,
+    "feedback_age_ms": [
+      5.0,
+      4.0,
+      3.0,
+      2.0,
+      2.0,
+      2.0
+    ],
+    "a3_measured_speed_deg_s": 7.975256723987049,
+    "a3_previous_reference_speed_deg_s": 14.858432895300764,
+    "reference_clock_scales": [
+      1.0
+    ]
+  },
+  "findings": [
+    "The previous branch fix removed the full-circle A1 return. This attempt paused on A3 reference error, with fresh feedback.",
+    "PID preparation advanced nominal time regardless of physical lag. The previous generic lagged-plant failure was already an unresolved regression and should have blocked handing the change back for physical trial.",
+    "Both preparation trackers now use the bounded common clock. The clock compares feedback with the current-tick predicted reference and slows only for trailing axes.",
+    "Lead commands reserve acceleration-bounded braking distance inside the existing correction envelope as well as finite leg extrema. This prevents coasting beyond the correction limit when the reference slows.",
+    "Healthy preparation retains nominal speed and the existing short checked path. Welding retains nominal periodic timing; no global speed reduction is applied."
+  ],
+  "recorded_feedback_replay": {
+    "original_guard_error_deg": 3.0929033238092103,
+    "replayed_peak_reference_error_deg": 1.6006658171540238,
+    "final_clock_scale": 0.584103697549089,
+    "nominal_elapsed_s": 0.8806049189997793,
+    "governed_elapsed_s": 0.7617121890246605,
+    "physical_prediction": false
+  },
+  "synthetic_closed_loop": [
+    {
+      "plant": "SimulatedArm",
+      "state": "ready",
+      "time_to_ready_s": 7.039999999999938,
+      "peak_reference_error_deg": 0.48995208744895535,
+      "peak_correction_deg": 0.9046987182167214,
+      "minimum_clock_scale": 1.0,
+      "ticks": 340,
+      "tick_intervals_s": [
+        0.02
+      ]
+    },
+    {
+      "plant": "PositionLoopArm",
+      "state": "ready",
+      "time_to_ready_s": 10.159999999999872,
+      "peak_reference_error_deg": 1.4946287899899744,
+      "peak_correction_deg": 9.572544897782237,
+      "minimum_clock_scale": 0.5142673210405491,
+      "ticks": 496,
+      "tick_intervals_s": [
+        0.02
+      ]
+    },
+    {
+      "plant": "WristLagArm",
+      "state": "ready",
+      "time_to_ready_s": 10.11999999999996,
+      "peak_reference_error_deg": 1.504350339186871,
+      "peak_correction_deg": 9.673856658150726,
+      "minimum_clock_scale": 0.5089588467632673,
+      "ticks": 247,
+      "tick_intervals_s": [
+        0.04
+      ]
+    },
+    {
+      "plant": "WristLagArm",
+      "state": "ready",
+      "time_to_ready_s": 10.160000000000007,
+      "peak_reference_error_deg": 1.5255860254630846,
+      "peak_correction_deg": 9.674832929392991,
+      "minimum_clock_scale": 0.45952908469281395,
+      "ticks": 123,
+      "tick_intervals_s": [
+        0.08
+      ]
+    },
+    {
+      "plant": "DelayedSlowArm",
+      "state": "ready",
+      "time_to_ready_s": 12.200999999999976,
+      "peak_reference_error_deg": 1.9118994509876188,
+      "peak_correction_deg": 10.436228870307033,
+      "minimum_clock_scale": 0.3212996411120628,
+      "ticks": 240,
+      "tick_intervals_s": [
+        0.01,
+        0.02,
+        0.04,
+        0.08,
+        0.099
+      ]
+    },
+    {
+      "plant": "QuantizedDelayedArm",
+      "state": "ready",
+      "time_to_ready_s": 12.207766174999506,
+      "peak_reference_error_deg": 1.7888452036588802,
+      "peak_correction_deg": 10.22033568134276,
+      "minimum_clock_scale": 0.3446485839995148,
+      "ticks": 446,
+      "tick_intervals_s": "recorded approach intervals repeated"
+    }
+  ],
+  "validation": {
+    "targeted_command": "QT_QPA_PLATFORM=offscreen PYTHONPATH=tests .venv/bin/python -m unittest test_weld_preparation_guard test_weld_tracking.TrackingTests test_weld_preparation.PreparationTests -v",
+    "targeted_tests_passed": 35,
+    "targeted_tests_failed": 0,
+    "full_weld_suite": {
+      "command": "QT_QPA_PLATFORM=offscreen PYTHONPATH=tests .venv/bin/python -m unittest discover -s tests -p 'test_weld_*.py' -v",
+      "tests_run": 272,
+      "passed_initially": 267,
+      "failures": 1,
+      "errors_initially": 4,
+      "duration_s": 504.524,
+      "renderer_rerun_command": "MUJOCO_GL=egl QT_QPA_PLATFORM=offscreen PYTHONPATH=tests .venv/bin/python -m unittest test_weld_preview test_weld_tracking.TrackingTests.test_reference_braking_keeps_lead_inside_correction_envelope -v",
+      "renderer_and_braking_rerun_passed": 12,
+      "renderer_error_resolution": "All four gladLoadGL initialization errors passed with the required EGL offscreen context; no renderer code changed.",
+      "combined_unique_test_methods": 275,
+      "combined_passed": 274,
+      "combined_failed": 1,
+      "remaining_failure": "test_weld_tracking.ModelTrackingTests.test_tiny_joint_corrections_cannot_throttle_a6_clearance_projection",
+      "remaining_failure_status": "Existing failure documented before this patch in ARM_SESSION_HANDOFF.md: masked target floor clearance 1.538 mm against the required 1.8 mm. Thresholds unchanged."
+    },
+    "trace_checks": [
+      "Unfiltered model checks on measured poses and dispatched commands",
+      "Command speed <=30 deg/s and acceleration <=30 deg/s^2",
+      "Finite path extrema, correction <=12 deg and absolute reference error <3 deg",
+      "Exact final hold target and <=0.25 deg measured arrival",
+      "Stuck shaft pauses at unchanged 10 s progress deadline",
+      "Injected 5 deg shaft disturbance still triggers unchanged 3 deg tracking guard",
+      "Delayed/stale/control-gap and continuous weld tests"
+    ],
+    "targeted_execution": "The initial combined run passed 32 tests. The final five-test regression module passed with six closed-loop combinations; the added correction-braking unit test also passed. Unique targeted coverage: 35 tests.",
+    "logs": [
+      {
+        "path": "build/arm_tests/motion-guard-20261124/weld-suite.log",
+        "sha256": "d857a5b0760d2534ec680c529dc8d2ba02ac25dc5d0393dc9efdf7731a5beb22"
+      },
+      {
+        "path": "build/arm_tests/motion-guard-20261124/final-cases.log",
+        "sha256": "33f3a9a3deca8262f60bea991c188ec058475991523abd241f159bced64ea4cf"
+      },
+      {
+        "path": "build/arm_tests/motion-guard-20261124/render-rerun.log",
+        "sha256": "9f98a9944e90c4598a00dfe4ada9a76dfb71568224d272388c448cd66d99f320"
+      }
+    ]
+  },
+  "unchanged": {
+    "tracking_trip_deg": 3,
+    "correction_bound_deg": 12,
+    "arrival_tolerance_deg": 0.25,
+    "preparation_speed_cap_deg_s": 30,
+    "preparation_acceleration_cap_deg_s2": 30,
+    "measured_speed_trip_rad_s": 1.5,
+    "approach_lift_mm": 30,
+    "lowering_minimum_s": 2.3,
+    "automatic_angle_wrapping": false,
+    "automatic_branch_selection": false
+  },
+  "limitations": [
+    "Synthetic lag, transport delay and quantization are not an identified loaded motor model.",
+    "Recorded-feedback replay checks reference generation only; it cannot predict response to changed commands.",
+    "Physical recovery timing, clearance under tracking error and loaded stopping remain unqualified."
+  ],
+  "hardware_accessed": false,
+  "hardware_qualified": false,
+  "production_qualified": false,
+  "source_sha256": {
+    "src/controls/controls/controller/preparation.py": "23fbfb86989696da9604c178f68aedfb034b94e8d6b02b239746369695cf65e5",
+    "src/controls/controls/controller/tracking.py": "049e26ee58559ae3132acfc4a7a3b38e0f6bba03eb32cb52639f9ad2f76fdab9",
+    "src/controls/controls/hardware/weld_control.py": "cda93690ebcbc1c6c4c403fd53741105364615969f144933bd7b5e1b9d887b8a",
+    "tests/test_weld_tracking.py": "d7df66f0bd8330d733666215293eeca9135d6a9b25bb296d611e06d9ecffb980",
+    "tests/test_weld_preparation_guard.py": "c3291ab7d13389185e185b42acf17632ed97c7c7910b8bcfdefe6faf6f5c34f8"
+  }
+}

@@ -1,0 +1,93 @@
+{
+  "date": "2026-11-24",
+  "task": "CHASSIS-02: prepare isolated ENCOS motor-4 identification and four-motor split-bus driving.",
+  "agent_operated_hardware": false,
+  "hardware_qualified": false,
+  "physical_results": null,
+  "proposed_routing": [
+    {
+      "can_id": 1,
+      "can_bus": 1,
+      "pdo_slot": 0
+    },
+    {
+      "can_id": 2,
+      "can_bus": 1,
+      "pdo_slot": 1
+    },
+    {
+      "can_id": 3,
+      "can_bus": 2,
+      "pdo_slot": 3
+    },
+    {
+      "can_id": 4,
+      "can_bus": 2,
+      "pdo_slot": 4
+    }
+  ],
+  "fourth_current_can_id": null,
+  "fourth_physical_wheel": null,
+  "fourth_forward_sign": null,
+  "changes": [
+    "Extend the existing read-only query and one-shot ID-assignment CLIs with --can-bus 1|2; retain legacy CAN1 defaults.",
+    "Use the same exclusive interface lock as MotorBus; verify isolated OLD_ID discovery before a persistent ID write; no brake, timeout, zero or firmware writes.",
+    "Keep unused transmit passages empty. Receive entries have no verified CAN-bus source tag, so protocol/ID matching retains all-entry scanning rather than assuming input-slot placement.",
+    "Extend the existing commissioning module with ID-4-only and all-four 5 RPM, 2 A, one-second positive/negative tests, signed-feedback and stop checks, and cached JSON evidence on success/failure.",
+    "Add an explicit four-motor split-bus profile with no omission, and forward it through the existing launcher to driver, keyboard and read-only viewer.",
+    "Preserve the historical three-motor profile/default launcher, motor leases, native slew, current limits and latched faults."
+  ],
+  "verification": {
+    "native_build": "C11, -Wall -Wextra -Werror; pinned SOEM v1.4.0 from the existing local dependency checkout.",
+    "soem_commit": "abbf0d42e38d6cfbaa4c1e9e8e07ace651c386fd",
+    "ctest": {
+      "passed_groups": 3,
+      "protocol": "passed",
+      "python_native_tests": 31,
+      "cli_tests": 7,
+      "log": "build/encos_motor4/ctest.log"
+    },
+    "ros_python": {
+      "tests": 29,
+      "skipped": 0,
+      "seconds": 9.213,
+      "log": "build/encos_motor4/ros-python-tests.log",
+      "hardware": false,
+      "domain": 96
+    },
+    "final_viewer_launcher": {
+      "tests": 10,
+      "skipped": 0,
+      "seconds": 3.824,
+      "log": "build/encos_motor4/final-viewer-tests.log"
+    },
+    "viewer_model_check": "build/encos_motor4/viewer-check.log",
+    "single_simulation": "build/encos_motor4/motor4-simulation.json",
+    "four_simulation": "build/encos_motor4/four-motor-simulation.json",
+    "launch_commands": "build/encos_motor4/launcher-dry-run.log",
+    "bringup_installed": true,
+    "build_log": "build/encos_motor4/ros-build.log"
+  },
+  "procedure": "docs/CAN2_BENCH.md#motor-4-identification-and-four-motor-test",
+  "pending": [
+    "Isolated discovered ID and versions/timeout/brake readback.",
+    "Persistent ID 4 only if needed; power-cycle and readback.",
+    "Physical motor/wheel identity and positive-RPM direction.",
+    "Single/four-motor motion and stopping reports, W/S/A/D signs and release behavior.",
+    "Independent CAN freshness, host-loss and loaded motion qualification remain open."
+  ],
+  "source_sha256": {
+    "src/encos_driver/main.c": "4e65d8921c6b7f3259d74e5510dc1247fa26cd42e3f10bcb8f0e632d1ea8485a",
+    "src/encos_driver/assign_id.c": "e2ffa489a22558e224b39a0f8781a2a24004171e61c2283fbb5a44e6cf3c30db",
+    "src/encos_driver/cli_bridge.c": "b818de03d804d38f54b8b0f0f26350a4d284becbcf341d6cc706f1485f205ad1",
+    "src/encos_driver/cli_bridge.h": "421f65cb3d1db16d522d6099689ea7baf83c4990abdaa9a49cf9f6b7f1c8bcea",
+    "src/motors/commissioning.py": "9ff251f73f0fe92895fed0b472cdf4e6ee91bab2c5f9bf7e3f7ed9a2f082cfe1",
+    "scripts/test_encos_motors.py": "5b95d7242bcab4f686a6d450f4dd75309198aed135b807c9e714227a44b65d3f",
+    "src/bringup/bringup/run_motor_test.py": "b7fea594a4bb47caefa9720bad82886fe4daf2b2d49a0444f8e9958b4599092b",
+    "src/bringup/config/chassis_four_motor_bench.yaml": "8acbf6cdc56908b8c6dbc31294a8a5d784da0a02543eebdbc551c9ea4292c929",
+    "src/robot_description/config/chassis_motors.json": "356078d15b0b36168e3e2b83343dda3bad733f0597fa622a74ef1ea3bab26890"
+  },
+  "record_type": "Historical preparation snapshot; pending items and hashes describe the pre-hardware state.",
+  "follow_up": "docs/measurements/encos-four-motor-physical-review-2026-11-24.json",
+  "current_status": "Identification and four-motor signed-motion/stop tests passed; explicit wheel mapping and broader qualification remain open."
+}

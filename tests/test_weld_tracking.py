@@ -61,14 +61,16 @@ class TrackingTests(unittest.TestCase):
                 break
         self.assertEqual(control.state, "ready", control.message)
 
-    def test_nominal_clock_tracks_unequal_lag_faster_than_pacing(self):
+    def test_pid_with_bounded_clock_tracks_unequal_lag_faster_than_pacing(self):
         times = []
         for pid in (False, True):
             clock, arm, control = self.controller(pid)
             self.run_to_ready(clock, control)
             times.append(clock())
             if pid:
-                self.assertTrue(all(r["path_clock_scale"] == 1 for r in control.trace))
+                scales = [r["path_clock_scale"] for r in control.trace]
+                self.assertTrue(all(0 <= scale <= 1 for scale in scales))
+                self.assertLess(min(scales), 1)
                 self.assertTrue(any(max(abs(np.array(r["tracker"]["correction_deg"]))) > 1
                                     for r in control.trace))
                 self.assertLess(max(max(abs(np.array(r["tracking_error_deg"])))
@@ -135,14 +137,16 @@ class TrackingTests(unittest.TestCase):
                     np.testing.assert_array_equal(corrections[:, 0], 0)
                     commands = np.array([row["command_raw_deg"] for row in weld])
                     reference = np.array([row["requested_raw_deg"] for row in weld])
-                    self.assertGreater(np.max(abs(commands[:, 0] - reference[:, 0])), 0)
+                    np.testing.assert_allclose(commands[:, 0], reference[:, 0], atol=1e-12)
+                    self.assertTrue(all(row["tracker"]["shaping_policy"] ==
+                                        "sampled_reference_increment" for row in weld))
                 else:
                     self.assertGreater(np.max(abs(corrections[:, 0])), 0)
                 self.assertEqual(control.tracking_deg, 3.0)
                 self.assertEqual(control.arrival_deg, 0.25)
         np.testing.assert_array_equal(preparation[0], preparation[1])
 
-    def test_mismatched_response_adapts_or_retains_tracking_stop(self):
+    def test_mismatched_response_reaches_ready_with_unchanged_tracking_trip(self):
         # The controller's initial estimates must not have to match the plant.
         for factor in (0.5, 1.2, 1.5):
             with self.subTest(response_time_factor=factor):
@@ -155,17 +159,16 @@ class TrackingTests(unittest.TestCase):
                         control.tick()
                         if control.state in ("ready", "paused", "fault"):
                             break
-                    if factor == 1.5:
-                        self.assertEqual(control.state, "paused", control.message)
-                        self.assertIn("Tracking error", control.message)
-                        np.testing.assert_array_equal(arm.target, arm.q)
-                    else:
-                        self.assertEqual(control.state, "ready", control.message)
-                        control.start_weld()
-                        for _ in range(500):
-                            clock.advance()
-                            control.tick()
-                        self.assertEqual(control.state, "welding", control.message)
+                    self.assertEqual(control.state, "ready", control.message)
+                    self.assertLess(max(max(abs(np.array(row["tracking_error_deg"])))
+                                        for row in control.trace), 3)
+                    control.start_weld()
+                    for _ in range(500):
+                        clock.advance()
+                        control.tick()
+                    self.assertEqual(control.state, "welding", control.message)
+                    self.assertTrue(all(row["path_clock_scale"] == 1
+                                        for row in control.trace if row["stage"] == "welding"))
                     self.assertTrue(arm.enabled)
                     self.assertEqual(control.tracking_deg, 3)
                 finally:
@@ -191,7 +194,7 @@ class TrackingTests(unittest.TestCase):
         self.assertEqual(control.state, "fault")
         self.assertFalse(arm.enabled)
 
-    def test_jammed_shaft_pauses_at_unchanged_tracking_trip(self):
+    def test_jammed_shaft_pauses_at_existing_progress_deadline(self):
         class Jammed(LaggedArm):
             def poll(self):
                 self.last = self.clock()
@@ -203,8 +206,25 @@ class TrackingTests(unittest.TestCase):
             if control.state in ("paused", "fault"):
                 break
         self.assertEqual(control.state, "paused", control.message)
-        self.assertIn("Tracking error", control.message)
+        self.assertIn("Preparation stalled A2: no 0.1 deg net progress for 10 s", control.message)
+        self.assertLess(clock(), 12)
         self.assertTrue(arm.enabled)
+        self.assertEqual(control.tracking_deg, 3)
+        np.testing.assert_array_equal(arm.target, arm.q)
+
+    def test_displaced_shaft_still_pauses_at_three_degree_tracking_guard(self):
+        clock, arm, control = self.controller()
+        self.addCleanup(control.close)
+        for _ in range(25):
+            clock.advance()
+            control.tick()
+        self.assertEqual(control.state, "initial")
+        # A disturbance cannot be hidden by slowing the reference clock.
+        arm.q[0] -= 5
+        clock.advance()
+        control.tick()
+        self.assertEqual(control.state, "paused", control.message)
+        self.assertIn("Tracking error A1", control.message)
         self.assertEqual(control.tracking_deg, 3)
         np.testing.assert_array_equal(arm.target, arm.q)
 
@@ -284,6 +304,32 @@ class TrackingTests(unittest.TestCase):
                 break
         self.assertTrue(tracker.at_endpoint(end))
         np.testing.assert_array_equal(tracker.integral, np.zeros(6))
+
+    def test_reference_braking_keeps_lead_inside_correction_envelope(self):
+        tracker = PositionTracker(TrackingSettings(lead_time_s=(1,) * 6))
+        tracker.reset([0] * 6)
+        elapsed, previous_velocity = 0.0, np.zeros(6)
+        for tick in range(300):
+            dt = (0.01, 0.02, 0.08, 0.099)[tick % 4]
+            elapsed += dt
+            if elapsed < 1:
+                reference, rate = 15 * elapsed**2, 30 * elapsed
+            elif elapsed < 2:
+                u = elapsed - 1
+                reference, rate = 15 + 30 * u - 15 * u**2, 30 - 30 * u
+            else:
+                reference, rate = 30, 0
+            # A valid 30 deg/s^2 reference brakes while substantial command
+            # lead is still moving. Finite path extrema alone are too far
+            # away to stop the old shaper exceeding 20 degrees of correction.
+            command = tracker.step(
+                [reference] * 6, [rate] * 6, [reference - 1] * 6, [rate] * 6,
+                dt, [30] * 6, [30] * 6, adapt=False,
+                position_bounds=([0] * 6, [80] * 6),
+            )
+            self.assertLessEqual(max(abs(command - reference)), 12 + 1e-9)
+            self.assertLessEqual(max(abs(tracker.velocity - previous_velocity)) / dt, 30 + 1e-8)
+            previous_velocity = tracker.velocity.copy()
 
     def test_recorded_approach_commands_brake_inside_checked_extrema(self):
         fixture = json.loads((Path(__file__).parent /
@@ -401,13 +447,15 @@ class FrequencyTests(unittest.TestCase):
 
 
 class ModelTrackingTests(unittest.TestCase):
-    def test_tiny_joint_corrections_cannot_throttle_a6_clearance_projection(self):
+    def test_hardware_space_warnings_cannot_throttle_a6_tracking_projection(self):
         from controls.controller.weld_plan import WeldGeometry
         from motors.arm_calibration import CalibrationMap
         root = Path(__file__).parent / "fixtures"
         samples = json.loads((root / "weld_small_motion_20261117.json").read_text())
         fixture = json.loads((root / samples["mapping_fixture"]).read_text())
-        geometry = WeldGeometry(CalibrationMap(fixture["mapping"]))
+        mapping = CalibrationMap(fixture["mapping"])
+        geometry = WeldGeometry(mapping, enforce_spatial_clearance=False)
+        strict = WeldGeometry(mapping)
         clock = Clock()
         arm = LaggedArm(fixture["plan"]["current_raw_deg"], clock=clock)
         control = WeldController(arm, clock=clock, pose_check=geometry.check,
@@ -420,9 +468,11 @@ class ModelTrackingTests(unittest.TestCase):
         for row in samples["blocked_correction_samples"]:
             reference = np.array(row["requested_raw_deg"])
             correction = np.array(row["tracker"]["target_correction_deg"])
-            # All-axis lead used to hit clearance and throttle every axis.
+            # Preserve the historical block as evidence, then exercise the
+            # hardware policy: spatial warnings cannot throttle any correction.
             with self.assertRaises(ValueError):
-                geometry.check(reference + correction, clearance_mm=1.8)
+                strict.check(reference + correction, clearance_mm=1.8)
+            self.assertTrue(geometry.check(reference + correction, clearance_mm=1.8))
             control.tracking_projection_scale = 1.0
             wanted = reference + correction * control.weld_correction_mask
             projected = control.project_tracking_target(reference, wanted, recovery=False, dt=.02)

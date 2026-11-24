@@ -72,3 +72,22 @@ add_test(NAME python_motors COMMAND ${CMAKE_COMMAND} -E env
     "PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}/..:${CMAKE_CURRENT_SOURCE_DIR}/../../tests:$ENV{PYTHONPATH}"
     "ENCOS_TEST_LIBRARY=$<TARGET_FILE:encos_driver_test>"
     ${Python3_EXECUTABLE} -m unittest -v test_python_motors test_native_driver)
+
+# Exercise actual discovery/ID-assignment CLIs with a socket-free transport.
+foreach(tool query assign_id)
+    if(tool STREQUAL "query")
+        set(cli_source main.c)
+    else()
+        set(cli_source assign_id.c)
+    endif()
+    add_executable(encos_${tool}_test ${cli_source} cli_bridge.c
+                   ../../tests/fake_soem/fake_cli_soem.c)
+    target_include_directories(encos_${tool}_test PRIVATE ../../tests/fake_soem)
+    target_compile_options(encos_${tool}_test PRIVATE -Wall -Wextra -Werror)
+    target_link_libraries(encos_${tool}_test PRIVATE encos_protocol)
+endforeach()
+add_test(NAME encos_cli COMMAND ${CMAKE_COMMAND} -E env
+    "PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}/../../tests"
+    "ENCOS_QUERY_TEST=$<TARGET_FILE:encos_query_test>"
+    "ENCOS_ASSIGN_TEST=$<TARGET_FILE:encos_assign_id_test>"
+    ${Python3_EXECUTABLE} -m unittest -v test_encos_cli)

@@ -1,5 +1,59 @@
 # Controls, sensors, and robot-model tests
 
+ENCOS motor-4 commissioning: CTest builds socket-free versions of the actual
+query and ID-assignment CLIs. `test_encos_cli` checks both buses, empty passages,
+one-shot assignment, OLD_ID mismatch, receive-entry reordering and the shared
+owner lock. Native fake-CAN tests require all four IDs in slots 0/1/3/4 and
+cover W/S/A/D plus stop. Python tests cover bounded direction tests, report/fault
+cleanup and profile forwarding. ROS tests use simulated motors only. Run:
+
+```bash
+ctest --test-dir build/encos_driver --output-on-failure
+source scripts/ros2_env.sh
+ROS_DOMAIN_ID=96 PYTHONPATH=tests:$PYTHONPATH .venv/bin/python -m unittest \
+  test_encos_commissioning test_motor_test_session test_differential_drive \
+  test_unified_controls test_ros_chassis test_motor_mirror
+```
+
+`test_weld_response.py` checks the restored v7 baseline against held-out
+recorded command/shaft data,
+closed-loop second-order fake motors, response mismatch, irregular cadence,
+startup/preview/journal agreement, all-sample orientation scoring, periodic-lag
+startup exclusion, pause and tracking guards. The panel suite also checks
+profile delivery through the worker, planner and journal. The v7 fixture keeps
+its original profile and raw recorded cadence/commands/feedback. An exact
+561-command regression pins the active v7 profile and startup. Explicit
+experimental v8 checks use a test-only profile for the finite startup inverse,
+continuous command bounds and fingerprints,
+and recorded-residual replay with per-cycle stroke scoring. The accuracy suite
+distinguishes center drift across cycles from actual cycle stroke and excludes
+incomplete/gapped cycles. These are offline tests, not physical qualification.
+Run without motors:
+
+```bash
+QT_QPA_PLATFORM=offscreen MUJOCO_GL=egl PYTHONPATH=tests .venv/bin/python -m unittest \
+  test_weld_response test_weld_command_sampling test_weld_tracking \
+  test_weld_accuracy test_weld_panel test_weld_preview
+```
+
+`test_weld_command_sampling.py` replays the Nov 24 command inflation with saved
+timestamps and the checked periodic cubic. It checks exact nominal output at
+5-100 ms fixed periods and alternating periods, interval-midpoint acceleration
+bounds, active correction/projection/saturation, reset, continuous wrap, finite
+arrival and fixed pause holds. Run without motors:
+
+```bash
+QT_QPA_PLATFORM=offscreen MUJOCO_GL=egl PYTHONPATH=tests .venv/bin/python -m unittest test_weld_command_sampling test_weld_tracking
+```
+
+`test_weld_spatial_policy.py` replays the Nov 24 floor-blocked hardware start,
+checks advisory space throughout planning/runtime/preview, and retains explicit
+mechanical stops, cable bounds and D3 closure. Run without motors:
+
+```bash
+QT_QPA_PLATFORM=offscreen MUJOCO_GL=egl PYTHONPATH=tests .venv/bin/python -m unittest test_weld_spatial_policy
+```
+
 Follow the [Ubuntu build guide](../docs/ENCOS_WORKSPACE.md#build-on-ubuntu);
 `./scripts/build.sh` builds both native drivers and runs CTest: ENCOS codec,
 Python MotorBus/native fake-bridge tests, and Damiao firmware tests. The ENCOS
@@ -412,10 +466,12 @@ and [Nov 17 archive](../docs/measurements/weld/2026-11-17/README.md).
 | `test_weld_accuracy.py` | Cached joint diagnostics, full tool-orientation error with separate target/maximum, rotation-frame invariance, scene/mapping identity, synchronized workpiece-relative tip data, and incomplete evidence rejection |
 | `test_weld_hold_analysis.py` | Offline HOLD-01 timing and torque/speed summaries; separate interrupted attempts, reject stale/faulted samples, deduplicate cached feedback, preserve gaps and shutdown uncertainty, and flag changed comparison paths/settings |
 | `test_weld_constraints.py` | Calibration identifiability, output-shaft units, physical/host limits and exact retiming |
-| `test_weld_encoder_branch.py` | Explicit A1 restart-branch selection, unchanged physical interval/A4 winding limits, source fingerprints and raw target continuity |
+| `test_weld_encoder_branch.py` | Explicit simulation branches, nearest equivalent hardware A1 targets in both directions, native mapping synchronization without transport, unchanged other-axis/cable limits, and Nov 24 starts including the post-reset CCW recovery through full model checks and fake shafts |
 | `test_weld_hardware.py` | Shared state machine, native C fake-CAN arm, ENCOS simulator, continuous periodic execution/pause, fixed hold, retained ready plan and same-owner fault reset without automatic enable |
 | `test_weld_preparation.py` | Signed interval acceleration bounds, fast-route A5 lag regression, pacing/stall/timeouts, speed allowances and unchanged motion guards |
-| `test_weld_tracking.py` | Nominal-clock PID with unequal/delayed response, recorded A6 overshoot/two-cycle regressions, tiny-axis correction isolation under full clearance checks, finite-leg braking at variable tick intervals, ordered recovery stops, command derivative limits, anti-windup, fixed endpoint and pause holding, failure guards, full recorded-route geometry, repeated welding, measured Hz and insufficient-motion rejection |
+| `test_weld_tracking.py` | PID with a bounded preparation clock under unequal/delayed response, recorded A6 overshoot/two-cycle regressions, tiny-axis correction isolation under full clearance checks, finite-leg braking at variable tick intervals, ordered recovery stops, command derivative limits, anti-windup, fixed endpoint and pause holding, stall/displacement guards, full recorded-route geometry, repeated welding, measured Hz and insufficient-motion rejection |
+| `test_weld_preparation_guard.py` | Nov 24 A3 motion-guard feedback replay, unchanged nominal clock under healthy/ahead feedback, current-tick lag detection, and the failed plan through the unfiltered model with ideal/lagged/delayed/quantized shafts and recorded/variable ticks; original tracking/correction/arrival and command derivative bounds remain checked |
+| `test_weld_hold_activation.py` | Nov 24 fresh-preload/older-plan mismatch through the full model, signed 0.5-degree boundaries across plan loading/start/preload/activation, fixed-target drift rejection, checked-start settling deadline, reused hold without recapture, and cached six-slot target access without transport |
 | `test_weld_preparation_search.py` | Nov 16 <=5 s ideal replay; Nov 17 raised approach with unequal lag and full geometry; Nov 19 long-wrist start at explicit 30 deg/s under 10 s with ideal shafts; final lowering minimum preserves selected staging, earlier timings, geometric cubics and limits, including the recorded loaded start with synthetic lag; independent stopped-leg timing, required lift, acceleration reserve, hardware opt-in and legacy offline-plan rejection |
 | `test_weld_recovery.py` | Bounded depth-first route search and backtracking, start/preload validation, waypoint arrival and cancelled activation |
 | `test_weld_planner_performance.py` | Interval sampling bounds and retiming invariance, exact joined endpoints, contact-mask equivalence against the full model, cache invalidation/copy isolation and optimistic stopped-motion bounds; latency itself belongs in the seeded benchmark |

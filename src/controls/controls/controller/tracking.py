@@ -11,6 +11,7 @@ import math
 import numpy as np
 
 from .weld_plan import finite_vector
+from .recovery import START_TOLERANCE_DEG
 
 
 @dataclass(frozen=True)
@@ -47,11 +48,15 @@ class TrackingSettings:
 
     def document(self):
         return dict(
-            version=3, **asdict(self), hardware_qualified=False,
+            version=7, **asdict(self), hardware_qualified=False,
             initial_estimate_source="weld-1794907065402842317.jsonl",
             adaptive_lead="bounded 0–1 s during preparation; frozen during welding",
-            preparation_braking="command stays inside finite path extrema with acceleration-bounded braking",
+            preparation_clock="bounded common clock slows at 1 deg lag and requests zero clock speed at 2 deg; 3 deg trip retained",
+            preparation_braking="acceleration-bounded braking within finite path extrema and the correction envelope",
+            hold_activation="fixed owner preload reference; checked-start tolerance required before motion",
+            start_tolerance_deg=START_TOLERANCE_DEG,
             small_weld_motion="nominal targets retained; no host PID lead below minimum_weld_travel_deg",
+            weld_shaping="exact sampled reference increments; bounded correction tracking without integrating instantaneous reference velocity again",
         )
 
 
@@ -67,6 +72,8 @@ class PositionTracker:
     def __init__(self, settings=None):
         self.settings = settings or TrackingSettings()
         self.command = None
+        self.reference = None
+        self.previous_interval_s = None
         self.velocity = np.zeros(6)
         self.filtered_velocity = np.zeros(6)
         self.integral = np.zeros(6)
@@ -75,6 +82,8 @@ class PositionTracker:
 
     def reset(self, raw, *, reset_model=False):
         self.command = finite_vector(raw, "tracking initial command").copy()
+        self.reference = self.command.copy()
+        self.previous_interval_s = None
         self.velocity[:] = 0
         self.filtered_velocity[:] = 0
         self.integral[:] = 0
@@ -84,8 +93,14 @@ class PositionTracker:
 
     def step(self, reference, rate, measured, velocity, dt, speed_limits,
              acceleration_limits, *, endpoint=False, project=None, remaining_s=None,
-             adapt=True, position_bounds=None, correction_mask=None):
+             adapt=True, position_bounds=None, correction_mask=None,
+             sampled_reference=False, feedforward_reference=None):
         reference = finite_vector(reference, "tracking reference")
+        base = (reference if feedforward_reference is None else
+                finite_vector(feedforward_reference, "tracking feedforward reference"))
+        if feedforward_reference is not None and (not sampled_reference or correction_mask is None
+                                                  or np.any(correction_mask)):
+            raise ValueError("Periodic feedforward requires sampled shaping with additive PID disabled")
         rate = finite_vector(rate, "tracking reference velocity")
         measured = finite_vector(measured, "tracking measurement")
         velocity = finite_vector(velocity, "tracking measured velocity")
@@ -142,6 +157,10 @@ class PositionTracker:
             correction = np.where(mask, correction, 0.0)
             candidate_integral = np.where(mask, candidate_integral, 0.0)
             self.integral = np.where(mask, self.integral, 0.0)
+        if feedforward_reference is not None and not endpoint:
+            correction += base - reference
+        if endpoint:
+            base = reference
         limited = np.clip(correction, -cfg.max_correction_deg, cfg.max_correction_deg)
         target = reference + limited
         if position_bounds is not None:
@@ -150,6 +169,12 @@ class PositionTracker:
             if (np.any(low > high) or np.any(self.command < low - 1e-9)
                     or np.any(self.command > high + 1e-9)):
                 raise ValueError("Tracking command is outside the finite path envelope")
+            # Reserve braking distance inside the existing correction bound as
+            # well as the finite path. When the reference slows for shaft lag,
+            # a previously accelerating lead command must not coast beyond the
+            # 12-degree envelope before its target catches up with it.
+            low = np.maximum(low, reference - cfg.max_correction_deg)
+            high = np.minimum(high, reference + cfg.max_correction_deg)
             # A velocity lead must never ask a finite preparation move to pass
             # its checked extrema and then reverse back into the endpoint.
             target = np.clip(target, low, high)
@@ -157,9 +182,29 @@ class PositionTracker:
             target = finite_vector(project(reference, target), "projected tracking target")
         distance = target - self.command
         dv = acceleration * dt
+        acceleration_dt = dt
+        if sampled_reference and self.previous_interval_s is not None:
+            # Sample-to-sample command rates are interval averages, located at
+            # interval midpoints. Comparing them over only the newer dt falsely
+            # clips a valid cubic after a long tick followed by a short one.
+            acceleration_dt = (self.previous_interval_s + dt) / 2
+        velocity_change = acceleration * acceleration_dt
         # Follow the moving position demand subject to the command derivative
         # bounds. Brake into a finite endpoint instead of braking at every tick.
-        wanted_velocity = np.clip(rate + 10.0 * distance, -speed, speed)
+        if sampled_reference:
+            # The reference is already sampled at the END of this interval.
+            # Integrating its instantaneous velocity again advances/distorts
+            # the checked path, especially around reversals on irregular ticks.
+            # Carry its exact increment forward, then pursue only the residual
+            # correction relative to the previous reference. With no correction
+            # or active derivative limit, the output equals this tick's sample.
+            reference_step = base - self.reference
+            correction_distance = target - base - (self.command - self.reference)
+            wanted_velocity = np.clip(
+                reference_step / dt + 10.0 * correction_distance, -speed, speed
+            )
+        else:
+            wanted_velocity = np.clip(rate + 10.0 * distance, -speed, speed)
         if endpoint:
             # Reserve this step's travel plus acceleration-bounded stopping
             # distance before the stationary final target.
@@ -167,7 +212,8 @@ class PositionTracker:
             wanted_velocity = np.sign(distance) * np.minimum(speed, stopping_speed)
             near = (abs(distance) <= dv * dt) & (abs(self.velocity) <= dv)
             wanted_velocity = np.where(near, distance / dt, wanted_velocity)
-        next_velocity = np.clip(wanted_velocity, self.velocity - dv, self.velocity + dv)
+        next_velocity = np.clip(wanted_velocity, self.velocity - velocity_change,
+                                self.velocity + velocity_change)
         next_velocity = np.clip(next_velocity, -speed, speed)
         if position_bounds is not None:
             # Brake BEFORE reaching an extremum, not only after the reference
@@ -178,8 +224,8 @@ class PositionTracker:
                 0, self.command - low)) - dv
             positive = np.sqrt(dv**2 + 2 * acceleration * np.maximum(
                 0, high - self.command)) - dv
-            lower = np.maximum(self.velocity - dv, -np.minimum(speed, negative))
-            upper = np.minimum(self.velocity + dv, np.minimum(speed, positive))
+            lower = np.maximum(self.velocity - velocity_change, -np.minimum(speed, negative))
+            upper = np.minimum(self.velocity + velocity_change, np.minimum(speed, positive))
             if np.any(lower > upper + 1e-8):
                 raise ValueError("Tracking cannot brake within the finite path envelope")
             next_velocity = np.clip(wanted_velocity, lower, np.maximum(lower, upper))
@@ -190,6 +236,8 @@ class PositionTracker:
         accept = residual * error <= 0
         self.integral = np.where(accept, candidate_integral, self.integral)
         self.command, self.velocity = command, next_velocity
+        self.reference = base.copy()
+        self.previous_interval_s = dt
         self.last = dict(
             command_raw_deg=command.tolist(),
             correction_deg=(command - reference).tolist(),
@@ -201,6 +249,10 @@ class PositionTracker:
             projected=bool(np.any(abs(target - reference - limited) > 1e-6)),
             correction_axes=(list(range(1, 7)) if correction_mask is None
                              else (np.flatnonzero(correction_mask) + 1).tolist()),
+            shaping_policy=("sampled_reference_increment" if sampled_reference
+                            else "velocity_reference_pursuit"),
+            acceleration_interval_s=acceleration_dt,
+            feedforward_reference_deg=None if feedforward_reference is None else base.tolist(),
         )
         return command.copy()
 

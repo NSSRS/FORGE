@@ -142,12 +142,23 @@ class PreparationClock:
     def advance(self, dt, measured, offset, end):
         if not math.isfinite(dt) or not 0 <= dt <= 0.1:
             raise ValueError("Invalid preparation clock interval")
+        if self.position_interval != (offset, end):
+            self.position_bounds = self.path.position_bounds(offset, end)
+            self.position_interval = (offset, end)
         if dt == 0:
             position, rate = self.path.sample(min(offset + self.elapsed, end))
             return position, rate * self.scale
         start = min(offset + self.elapsed, end)
-        previous, _ = self.path.sample(start)
-        error = float(np.max(abs(previous - measured)))
+        # Feedback belongs to the new tick. Comparing it with the previous
+        # reference subtracts a whole tick of real motion from the lag and
+        # permits renewed acceleration on longer intervals. Predict this
+        # tick's unbraked reference before deciding the clock speed.
+        predicted, rate = self.path.sample(min(end, start + dt * self.scale))
+        # Slowing for an axis already ahead makes that error worse. The hard
+        # guard still checks absolute error; only trailing axes slow travel.
+        direction = np.sign(rate)
+        lag = (predicted - measured) * direction
+        error = float(np.max(np.maximum(lag, 0)))
         target_scale = np.clip((self.wait_error_deg - error) /
                                (self.wait_error_deg - self.slow_error_deg), 0.0, 1.0)
         scale = float(np.clip(target_scale, self.scale - self.slew_per_s * dt,
@@ -165,21 +176,3 @@ class PreparationClock:
         self.scale = scale
         position, rate = self.path.sample(offset + self.elapsed)
         return position, rate * scale
-
-    def advance_nominal(self, dt, offset, end):
-        """Keep planned time for closed-loop tracking; retain independent trips.
-
-        There is no backlog catch-up after a delayed tick. The controller's
-        timing-gap, tracking, progress and arrival checks remain responsible
-        for stopping motion that cannot follow this reference.
-        """
-        if not math.isfinite(dt) or not 0 <= dt <= 0.1:
-            raise ValueError("Invalid preparation clock interval")
-        if self.position_interval != (offset, end):
-            # Each mandatory recovery stop is a finite move of its own. Lead
-            # may not borrow travel from a later, unchecked-at-this-stage leg.
-            self.position_bounds = self.path.position_bounds(offset, end)
-            self.position_interval = (offset, end)
-        self.scale = 1.0
-        self.elapsed = min(end - offset, self.elapsed + dt)
-        return self.path.sample(offset + self.elapsed)

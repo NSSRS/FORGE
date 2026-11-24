@@ -393,7 +393,22 @@ its removal. No startup pause or watchdog extension was added.
 
 This is an operator-reported functional CAN2 result, not a measured stopping,
 loaded-motion, or host-loss test. No new timing/current measurements or raw CAN
-capture were supplied. Four-wheel differential hardware testing remains pending.
-Current teleop uses `chassis_bench.yaml` and W/S/A/D (20 RPM ceiling);
+capture were supplied. At that date, four-wheel differential testing remained pending.
+The retained three-motor teleop uses `chassis_bench.yaml` and W/S/A/D (20 RPM ceiling);
 see [CAN2 bench instructions](CAN2_BENCH.md). The old direct-RPM keyboard
 mode is no longer available. This historical result does not validate radio driving.
+
+## Four-motor confirmation (2026-11-24)
+
+The operator identified the fourth motor initially as CAN ID 1 on isolated CAN2;
+the subsequent physical report confirms it operating as ID 4 in full-rig slot 4.
+All four motors passed +5/-5 RPM one-second legs and both below-0.5-RPM stop
+checks. The owner closed, with no motor faults and zero failed exchanges out
+of 532. The operator then reported normal visual behavior in the four-motor
+keyboard/viewer workflow. See the [physical review](measurements/encos-four-motor-physical-review-2026-11-24.json)
+and [archived original report](measurements/weld/2026-11-24/encos-four-motor.json.gz).
+
+Use `bash scripts/run_motor_test.sh --four-motors` for this bench. The original
+three-motor launch remains available. Identification and bounded motion testing
+are complete; explicit per-wheel mapping/gearing and loaded/host-loss acceptance
+remain open. Routine operation does not require repeating ID assignment.

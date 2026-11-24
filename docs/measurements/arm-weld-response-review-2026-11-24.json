@@ -1,0 +1,201 @@
+{
+  "date": "2026-11-24",
+  "scope": "Provisional bounded periodic mode-2 command compensation for A1/A6, with planned startup stroke ramp.",
+  "tracker_version": 7,
+  "hardware_qualified": false,
+  "agent_operated_hardware": false,
+  "profile": "src/controls/config/weld_response_gun_20261124.json",
+  "fixture": "tests/fixtures/weld_response_20261124.json",
+  "fit_training_interval_s": [
+    1.2,
+    5.5
+  ],
+  "fit_validation_interval": "Each source after 5.5 seconds.",
+  "fit": {
+    "1": {
+      "wn_rad_s": 11.718595563659845,
+      "damping_ratio": 0.7121003711796551,
+      "delay_s": 0.016138721813052797,
+      "runs": [
+        {
+          "source": "20261124T090528.728245Z-m7_jcu23",
+          "heldout_rms_deg": 0.32019876679002446,
+          "bias_deg": 0.02363973998033252,
+          "measured_ptp_deg": 5.354977592316715,
+          "predicted_ptp_deg": 5.783976579071982
+        },
+        {
+          "source": "20261124T090959.455805Z-9mdzh098",
+          "heldout_rms_deg": 0.07797509344311414,
+          "bias_deg": 0.011319172887390564,
+          "measured_ptp_deg": 2.3824246240138223,
+          "predicted_ptp_deg": 2.267773266046049
+        },
+        {
+          "source": "20261124T094738.392812Z-uzorvwep",
+          "heldout_rms_deg": 0.07200052801178634,
+          "bias_deg": 0.0016749228564027496,
+          "measured_ptp_deg": 2.0545209023398456,
+          "predicted_ptp_deg": 1.7895785677456162
+        }
+      ]
+    },
+    "6": {
+      "wn_rad_s": 9.702798404551984,
+      "damping_ratio": 0.5719343858612753,
+      "delay_s": 0.01679553269212784,
+      "runs": [
+        {
+          "source": "20261124T090528.728245Z-m7_jcu23",
+          "heldout_rms_deg": 0.19516712246155682,
+          "bias_deg": 0.007356962258672101,
+          "measured_ptp_deg": 1.6173887954590285,
+          "predicted_ptp_deg": 1.2057769072611961
+        },
+        {
+          "source": "20261124T090959.455805Z-9mdzh098",
+          "heldout_rms_deg": 0.07988763941490691,
+          "bias_deg": 0.013029115474190634,
+          "measured_ptp_deg": 0.9398340297937509,
+          "predicted_ptp_deg": 0.9757363671026142
+        },
+        {
+          "source": "20261124T094738.392812Z-uzorvwep",
+          "heldout_rms_deg": 0.08034910634751165,
+          "bias_deg": 0.008081774872226966,
+          "measured_ptp_deg": 0.9398340297937509,
+          "predicted_ptp_deg": 1.0448604109159434
+        }
+      ]
+    }
+  },
+  "model_predictions": {
+    "v6_shaper_model": {
+      "state": "welding",
+      "whole_pass_orientation_peak_deg": 2.086344212961771,
+      "whole_pass_orientation_rms_deg": 1.3159574156154075,
+      "steady_orientation_peak_deg": 2.086344212961771,
+      "steady_orientation_rms_deg": 1.32874398407265,
+      "steady_tip_stroke_mm": 15.517969918573604,
+      "steady_tip_error_mm": {
+        "mean": 9.392226262342122,
+        "minimum": 0.22562203550703677,
+        "maximum": 15.855192788901652,
+        "peak_abs": 15.855192788901652,
+        "rms": 10.133602674028735
+      },
+      "a1_command_span_deg": 2.2606531387335167,
+      "a6_command_span_deg": 0.7031359183539792
+    },
+    "v7_response_model": {
+      "state": "welding",
+      "whole_pass_orientation_peak_deg": 0.8283044480023479,
+      "whole_pass_orientation_rms_deg": 0.2435842690705489,
+      "steady_orientation_peak_deg": 0.44190199629639215,
+      "steady_orientation_rms_deg": 0.23095026748318948,
+      "steady_tip_stroke_mm": 20.03849272979432,
+      "steady_tip_error_mm": {
+        "mean": 1.4474742092587645,
+        "minimum": 0.009757137526326473,
+        "maximum": 3.389165866519203,
+        "peak_abs": 3.389165866519203,
+        "rms": 1.775781242980904
+      },
+      "a1_command_span_deg": 3.1023774884247644,
+      "a6_command_span_deg": 0.5375289105890175
+    },
+    "response_slower": {
+      "state": "welding",
+      "whole_pass_orientation_peak_deg": 0.8323412283764634,
+      "whole_pass_orientation_rms_deg": 0.4224868337427771,
+      "steady_orientation_peak_deg": 0.794281038061987,
+      "steady_orientation_rms_deg": 0.4269705015912299,
+      "steady_tip_stroke_mm": 15.949480344366975,
+      "steady_tip_error_mm": {
+        "mean": 2.870279317140779,
+        "minimum": 0.007105642665388703,
+        "maximum": 6.023415230458207,
+        "peak_abs": 6.023415230458207,
+        "rms": 3.2488756902422558
+      },
+      "a1_command_span_deg": 3.198297499737606,
+      "a6_command_span_deg": 0.553129439490732
+    },
+    "response_faster": {
+      "state": "welding",
+      "whole_pass_orientation_peak_deg": 0.867821437786619,
+      "whole_pass_orientation_rms_deg": 0.33853777595575785,
+      "steady_orientation_peak_deg": 0.7787277422303306,
+      "steady_orientation_rms_deg": 0.3381857953731612,
+      "steady_tip_stroke_mm": 22.076295182210252,
+      "steady_tip_error_mm": {
+        "mean": 1.95728953817188,
+        "minimum": 0.007543541459980986,
+        "maximum": 6.032165474781855,
+        "peak_abs": 6.032165474781855,
+        "rms": 2.6302942145614816
+      },
+      "a1_command_span_deg": 3.0106829777654127,
+      "a6_command_span_deg": 0.5128315357210695
+    },
+    "response_irregular": {
+      "state": "welding",
+      "whole_pass_orientation_peak_deg": 0.6925619232403563,
+      "whole_pass_orientation_rms_deg": 0.2648723541778694,
+      "steady_orientation_peak_deg": 0.5543853894201123,
+      "steady_orientation_rms_deg": 0.25714145016061546,
+      "steady_tip_stroke_mm": 20.555490432669522,
+      "steady_tip_error_mm": {
+        "mean": 1.539138453515371,
+        "minimum": 0.012151620746181922,
+        "maximum": 4.215736287302847,
+        "peak_abs": 4.215736287302847,
+        "rms": 1.937651615397181
+      },
+      "a1_command_span_deg": 3.1492159754309625,
+      "a6_command_span_deg": 0.5461141985156033
+    }
+  },
+  "preflight": {
+    "report": "build/arm_tests/weld-response-20261124/preflight-plan.json",
+    "full_model_success": true,
+    "spatial_clearance_policy": "advisory",
+    "nominal_preparation_s": 5.08941916787909
+  },
+  "changes": [
+    "Bounded three-harmonic periodic inverse and predicted stroke normalization on A1/A6.",
+    "Cap inverse magnitude at two; use proportional residual feedback capped at 0.20/0.05 deg. No weld velocity lead, integral or derivative terms are stacked.",
+    "First planned cycle ramps stroke from stationary start; execution, preview and accuracy use weld_entry. All startup orientation samples remain scored.",
+    "Plan and profile fingerprints, original runtime geometry/cable/derivative/age/lease/tracking/fault guards remain. Geometry preflight runs only in the planning process.",
+    "Preparation, normal periodic reference, drive mode/gains/current/firmware and continuous manual-pause behavior remain.",
+    "ILC is deferred; no learning is active."
+  ],
+  "limitations": [
+    "No new physical run or independent tip measurement.",
+    "One provisional response profile covers this recorded pose, amplitude, frequency, mapping, scene and load context.",
+    "Synthetic response variation changes predicted stroke to 15.95-22.08 mm; a physical journal must establish actual improvement.",
+    "The second-order fit does not identify mechanical inertia or prove a pure transport delay."
+  ],
+  "tests": {
+    "passed": 209,
+    "failed": 0,
+    "skipped": 0,
+    "elapsed_s": 238.209,
+    "log": "build/arm_tests/weld-response-20261124/regression-final.log",
+    "scope": "Response holdouts/fake plants, command shaping, native fake-CAN, preparation, retreat/hold/guard, journal/accuracy, Qt panel, real renderer and planning cache/model regressions.",
+    "earlier_attempt": "An earlier 183-test run had one Qt motion-guard timing failure while other offline model work ran concurrently. The final isolated 209-test run passes without changing that test or its guard."
+  },
+  "sha256": {
+    "src/controls/config/weld_response_gun_20261124.json": "0129789f453a8a1c1cd7e444f0328301889ca1b8bc6cbd18b5d9e458b5676e69",
+    "tests/fixtures/weld_response_20261124.json": "7fa2ffa2b5b39df3ba8ede7475a305a1cfe034c70c2462aebb03f2795183b904",
+    "src/controls/controls/controller/weld_response.py": "ffbf549444f69d15b5e397d7d6995fc6acee49301c4e31204d4d38532e24f826",
+    "src/controls/controls/controller/tracking.py": "e1271a16f917480b8e3c9abe04abc8129a3c8a4c245e590ef148cf389ce54656",
+    "src/controls/controls/controller/weld_plan.py": "9cd2051bbdac93c30630ff061358b5bc334cd73dc428f1ba9b55bb30a14f849f",
+    "src/controls/controls/hardware/weld_control.py": "dc053b0c366f18391bcad64b222ff1cac1a0c7924ef48166f75de3eea81345f6",
+    "src/controls/controls/hardware/weld_app.py": "8c796697ae011535536cf7cc546105eea927ccc91cbbc8878f75e1184e7713ea",
+    "src/controls/controls/hardware/weld_accuracy.py": "3de1bdde4a2cd6ec9b6cab2d7c6769fcde15f0f836a5cd4f5bf237c619de4597",
+    "src/simulation/simulation/weld_preview.py": "d69f23ff43637a0016bf24675aeb7328c5493c3d31f8c86dde70b8e21c15c4f3",
+    "tests/test_weld_response.py": "c41978327e843227db9fb8ea49ca197ea94df87cfb01bd082507d0d8ac5c1b70",
+    "tests/test_weld_panel.py": "0c76071f06f61e0d6643bfae5bb1b84dd8bff6954b71144e778452786aafb706"
+  }
+}

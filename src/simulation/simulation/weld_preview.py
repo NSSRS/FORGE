@@ -89,7 +89,7 @@ def annotated_frame(result):
         painter.end()
         return frame
     for index, contact in enumerate(contacts[:3], 1):
-        color = QtGui.QColor("#ff493b" if contact["blocked"] else "#32c6ed")
+        color = QtGui.QColor("#ff493b" if contact.get("warning", contact["blocked"]) else "#32c6ed")
         top = 8 + (index - 1) * 42
         painter.fillRect(8, top, frame.width() - 16, 39, QtGui.QColor(16, 28, 43, 235))
         painter.setPen(color)
@@ -144,6 +144,10 @@ class PlanPlayback:
             name: JointPath.from_document(plan[name])
             for name in ("home", "approach", "weld")
         }
+        self.weld_entry = (JointPath.from_document(plan["weld_entry"])
+                           if plan.get("weld_entry") else None)
+        if self.weld_entry is not None:
+            self.paths["weld_entry"] = self.weld_entry
         self.endpoint = plan.get("endpoint_recovery")
         self.measured_start = plan.get("measured_start")
         # Include the same minimum stationary checks as preparation_timing.
@@ -166,9 +170,11 @@ class PlanPlayback:
             [
                 ("approach", approach.duration, 0.0, True),
                 ("approach", 0.2, approach.duration, False),
-                ("weld", self.paths["weld"].duration, 0.0, True),
             ]
         )
+        if self.weld_entry is not None:
+            self.segments.append(("weld_entry", self.weld_entry.duration, 0.0, True))
+        self.segments.append(("weld", self.paths["weld"].duration, 0.0, True))
         self.duration = sum(segment[1] for segment in self.segments)
         self.feed_m_s = plan["feed_m_s"] if plan.get("chassis_enabled") else 0.0
 
@@ -240,8 +246,8 @@ class PoseRenderer:
             raise ValueError('D3 linkage cannot close at the measured pose; image withheld')
         mj.mj_collision(geometry.model, geometry.data)
         geometry.contact_report = geometry.inspect_contacts(clearance_mm)
-        if any(row['blocked'] for row in geometry.contact_report):
-            issues.append('Measured pose also fails the model clearance check.')
+        if any(row.get('warning', row['blocked']) for row in geometry.contact_report):
+            issues.append('Measured pose has a model clearance warning.')
         stop = geometry.stops.check(0.1)
         if stop:
             issues.append(f'Adjacent mechanical stop: {stop}')
@@ -268,9 +274,12 @@ class PoseRenderer:
         import numpy as np
         from controls.controller.weld_plan import finite_vector
         from controls.simulation.weave_xy_z import SEAM_WIDTH, line
-        from motors.arm_calibration import RawAngleLimitError
+        from motors.arm_calibration import CalibrationMap, RawAngleLimitError
 
         geometry, mj = self.geometry, self.mj
+        geometry.enforce_spatial_clearance = request.get('spatial_clearance_policy', 'enforced') != 'advisory'
+        if request.get("mapping") is not None and request["mapping"] != geometry.mapping.document:
+            geometry.mapping = CalibrationMap(request["mapping"])
         raw = finite_vector(request['raw'], 'preview pose')
         geometry.data.qpos[:] = geometry.seed
         issue = None
@@ -285,7 +294,8 @@ class PoseRenderer:
                 warnings = geometry.check_recovery(raw, request['recovery_start'], clearance_mm=request['clearance_mm'])
                 issue = '; '.join(warnings) or None
             else:
-                geometry.check(raw, clearance_mm=request["clearance_mm"])
+                warnings = geometry.check(raw, clearance_mm=request["clearance_mm"])
+                issue = '; '.join(warnings or []) or None
         except RawAngleLimitError:
             if request.get('measured_pose') is not True:
                 raise
@@ -321,10 +331,10 @@ class PoseRenderer:
         if view not in ("Contact", "Contact parts"):
             # Passed mesh refinements are diagnostics, not warnings. Keep them
             # out of normal views without changing the complete clearance check.
-            contacts = [row for row in contacts if row["blocked"]]
+            contacts = [row for row in contacts if row.get("warning", row["blocked"])]
         isolated = view == "Contact parts" and bool(contacts)
         if view in ("Contact", "Contact parts") and contacts:
-            first = next((row for row in contacts if row["blocked"]), contacts[0])
+            first = next((row for row in contacts if row.get("warning", row["blocked"])), contacts[0])
             camera.lookat[:] = first["point"] + offset
             camera.distance, camera.elevation = 0.42, -12
         if isolated:
@@ -666,6 +676,8 @@ def make_preview(mapping, initial, *, simulated, parent=None, backend_factory=No
             self.raw_age_ms = 0.0
             self.chassis_motion = None
             self.plan = None
+            self.mapping_document = mapping.document
+            self.initial = list(initial)
             self.standby = list(initial)
             self.elapsed = 0.0
             self.playing = False
@@ -746,8 +758,10 @@ def make_preview(mapping, initial, *, simulated, parent=None, backend_factory=No
 
         def set_plan(self, plan):
             self.pause_playback()
+            if plan and plan.get("mapping") is not None:
+                self.mapping_document = plan["mapping"]
             self.standby = (
-                list(plan.get("initial_raw_deg", initial)) if plan else list(initial)
+                list(plan.get("initial_raw_deg", self.initial)) if plan else list(self.initial)
             )
             self.plan = PlanPlayback(plan) if plan and plan.get("arm_enabled") else None
             self.elapsed = 0.0
@@ -760,6 +774,11 @@ def make_preview(mapping, initial, *, simulated, parent=None, backend_factory=No
             )
             self.scrub.setEnabled(self.plan is not None)
             self.invalidate_frame()
+
+        def set_mapping(self, document, initial):
+            self.mapping_document = document
+            self.initial = list(initial)
+            self.set_plan(None)
 
         def invalidate_frame(self, *_):
             self.token += 1
@@ -890,6 +909,7 @@ def make_preview(mapping, initial, *, simulated, parent=None, backend_factory=No
                     home="Recovery to standby",
                     approach="Approach weld start",
                     weld="Weld motion",
+                    weld_entry="Weld startup",
                 )
                 travel = self.plan.chassis_travel(self.elapsed)
                 caption = f"Preview: {names[stage]} | {self.elapsed:.1f} / {self.plan.duration:.1f} s"
@@ -928,6 +948,8 @@ def make_preview(mapping, initial, *, simulated, parent=None, backend_factory=No
                                 + contact_text(result["contacts"][0])
                                 + ". Select Contact for a close-up."
                             )
+                        if not simulated:
+                            message += " Hardware model space is advisory; it does not block motion."
                         self.geometry_status.setText(message)
                         self.geometry_status.setStyleSheet(
                             "color: #b43a20;" if issue else "color: #24704a;"
@@ -948,6 +970,8 @@ def make_preview(mapping, initial, *, simulated, parent=None, backend_factory=No
                 if key != self.last_request and self.backend.submit(
                     dict(
                         raw=raw,
+                        mapping=self.mapping_document,
+                        spatial_clearance_policy="enforced" if simulated else "advisory",
                         view=self.view.currentText(),
                         clearance_mm=clearance,
                         token=self.token,

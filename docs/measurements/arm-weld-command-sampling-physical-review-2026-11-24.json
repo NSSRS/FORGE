@@ -1,0 +1,148 @@
+{
+  "date": "2026-11-24",
+  "scope": "Operator-run v6 command sampling follow-up, compared with the preceding v5 A1 shaper-only run.",
+  "hardware_qualified": false,
+  "agent_operated_hardware": false,
+  "window": {
+    "first_cycle": 3,
+    "last_cycle": 18,
+    "count": 16
+  },
+  "detailed_report": "build/arm_tests/command-sampling-20261124/physical-v6-20261124T094738/matched-window.json",
+  "formal_analyzer_report": "build/arm_tests/command-sampling-20261124/physical-v6-20261124T094738/accuracy.json",
+  "formal_analyzer_issues": [
+    "Pass outcome: pause",
+    "Weld trace has rejected samples or gaps over 100 ms"
+  ],
+  "formal_orientation_passed": false,
+  "command_fix_verified": {
+    "sent_ticks": 405,
+    "a1_max_abs_command_minus_nominal_deg": 0.0
+  },
+  "nominal_path_max_coordinate_difference_deg": 8.700465059519047e-07,
+  "nominal_path_max_knot_time_difference_s": 5.898884773980484e-07,
+  "runs": {
+    "v5_a1_shaper_only": {
+      "source": "build/weld/sessions/20261124T090959.455805Z-9mdzh098/session.jsonl",
+      "sha256": "92ca6b4e1dc88a3b93736741621b12cd4546e8540511de8304905080231e8d15",
+      "tracker_version": 5,
+      "samples": 357,
+      "closed": true,
+      "final_fault": null,
+      "dropped_records": 0,
+      "disable_acknowledged": true,
+      "mode_restoration_verified": true,
+      "preparation_s": 7.360256658999788,
+      "welding_s": 13.51883407800051,
+      "effective_hz": 1.7299080497469779,
+      "a1": {
+        "planned_travel_deg": 2.2606548893629963,
+        "command_travel_deg": 3.4429419596804394,
+        "measured_travel_deg": 2.3824246240138223
+      },
+      "a6": {
+        "planned_travel_deg": 0.427552017642455,
+        "command_travel_deg": 1.6092968089904858,
+        "measured_travel_deg": 0.9398340297937509
+      },
+      "a6_frozen_lead_s": 0.11965780614887092,
+      "tip_stroke": {
+        "planned_width_mm": 20.000089004206984,
+        "measured_width_mm": 21.097835309404875,
+        "lower_edge_outward_error_mm": -0.14608592871347348,
+        "upper_edge_outward_error_mm": 1.2438322339113626
+      },
+      "tip_lag_ms": 144.59148856658788,
+      "tip_same_time_3d_mm": {
+        "mean": 8.760892952437578,
+        "minimum": 0.24087616124192268,
+        "maximum": 16.76653023901502,
+        "peak_abs": 16.76653023901502,
+        "rms": 9.491872350886956
+      },
+      "tip_after_fixed_lag_3d_mm": {
+        "mean": 2.2669511034365875,
+        "minimum": 0.08003530336082539,
+        "maximum": 6.450282716417623,
+        "peak_abs": 6.450282716417623,
+        "rms": 2.6157600284010383
+      },
+      "orientation_same_time_deg": {
+        "mean": 1.2071036315205692,
+        "minimum": 0.11979203675292216,
+        "maximum": 2.254772640652983,
+        "peak_abs": 2.254772640652983,
+        "rms": 1.3066339033802439
+      }
+    },
+    "v6_a1_shaper_only": {
+      "source": "build/arm_tests/command-sampling-20261124/physical-v6-20261124T094738/session.jsonl",
+      "sha256": "26957e90685b307f2ebb2e1b009617a97a41fc918dd7bf450ac8060ac2397b46",
+      "tracker_version": 6,
+      "samples": 353,
+      "closed": true,
+      "final_fault": null,
+      "dropped_records": 0,
+      "disable_acknowledged": true,
+      "mode_restoration_verified": true,
+      "preparation_s": 7.3598461330002465,
+      "welding_s": 10.584052875999987,
+      "effective_hz": 1.7299098150383365,
+      "a1": {
+        "planned_travel_deg": 2.2606549751341447,
+        "command_travel_deg": 2.260653410154333,
+        "measured_travel_deg": 2.0545209023398456
+      },
+      "a6": {
+        "planned_travel_deg": 0.4275512153715084,
+        "command_travel_deg": 1.667104156236313,
+        "measured_travel_deg": 0.9398340297937509
+      },
+      "a6_frozen_lead_s": 0.16862232844389544,
+      "tip_stroke": {
+        "planned_width_mm": 20.000089004198998,
+        "measured_width_mm": 18.22623004845266,
+        "lower_edge_outward_error_mm": -1.2903427281357072,
+        "upper_edge_outward_error_mm": -0.48351622761062885
+      },
+      "tip_lag_ms": 168.73823814141755,
+      "tip_same_time_3d_mm": {
+        "mean": 9.344082970229334,
+        "minimum": 0.7377644783941727,
+        "maximum": 17.122224438870155,
+        "peak_abs": 17.122224438870155,
+        "rms": 10.121614237576898
+      },
+      "tip_after_fixed_lag_3d_mm": {
+        "mean": 2.3358400243895594,
+        "minimum": 0.06687422563962671,
+        "maximum": 5.16615796845731,
+        "peak_abs": 5.16615796845731,
+        "rms": 2.6292655228949102
+      },
+      "orientation_same_time_deg": {
+        "mean": 1.2639405695935886,
+        "minimum": 0.09653071706453488,
+        "maximum": 2.341732904845675,
+        "peak_abs": 2.341732904845675,
+        "rms": 1.3653950843304898
+      }
+    }
+  },
+  "limitations": [
+    "Window diagnostics do not override the formal analyzer completeness or acceptance result.",
+    "One incomplete dispatch at manual pause in each run is excluded before selecting the interior window.",
+    "Sequential trials have different preparation starts and frozen A6 lead; no causal isolation of all physical effects.",
+    "One fixed temporal offset is fitted for position diagnostics; no spatial fit. Orientation acceptance remains same-time.",
+    "No independent tip measurements or specified tip position tolerance."
+  ],
+  "conclusion": "A1 command inflation is eliminated in this recorded run. Physical same-time tracking has not improved: A1 and tool stroke now undershoot, fitted lag increases, and full tool orientation remains above 1 deg. A6 additive correction remains active; its frozen lead also differs between runs. These logs do not identify inertia or a pure transport delay as the cause.",
+  "next_work": "Identify bounded A1 command-to-shaft amplitude and phase response on v6, then isolate A6 host correction using matched conditions. Preserve existing motion guards; ILC remains deferred.",
+  "v6_whole_pass_orientation_deg": {
+    "mean": 1.2712359268724633,
+    "minimum": 0.06372892386633353,
+    "maximum": 2.4850316251560534,
+    "peak_abs": 2.4850316251560534,
+    "rms": 1.377369668893429
+  }
+}

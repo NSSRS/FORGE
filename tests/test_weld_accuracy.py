@@ -10,13 +10,26 @@ import unittest
 import numpy as np
 
 from controls.controller.weld_plan import JointPath
-from controls.hardware.weld_accuracy import analyze, TipModel, orientation_error_deg
+from controls.hardware.weld_accuracy import analyze, TipModel, orientation_error_deg, tip_cycle_strokes
 from motors.arm_calibration import CalibrationMap
 from simulation.arm_calibration import scene_fingerprint
 from simulation.paths import MODEL_DIR
 
 
 class WeldAccuracyTests(unittest.TestCase):
+    def test_per_cycle_stroke_does_not_confuse_center_drift_with_amplitude(self):
+        times = np.arange(.02, 2.98, .02)
+        positions = 9*np.sin(2*np.pi*times) + 2*np.floor(times)
+        result = tip_cycle_strokes(1., times, positions, -10., 10.)
+        self.assertEqual(result['count'], 3)
+        self.assertGreater(np.ptp(positions), 21)
+        self.assertAlmostEqual(result['median_width_mm'], 18, delta=.05)
+        self.assertTrue(all(row['measured_width_mm'] < 18.01 for row in result['cycles']))
+        # Truncation and missing samples must not create a complete cycle.
+        keep = ~((times > 1.3) & (times < 1.6)) & (times < 2.7)
+        partial = tip_cycle_strokes(1., times[keep], positions[keep], -10., 10.)
+        self.assertEqual([row['cycle'] for row in partial['cycles']], [1])
+
     @classmethod
     def setUpClass(cls):
         config = Path(__file__).resolve().parents[1] / "src/robot_description/config"
@@ -98,6 +111,18 @@ class WeldAccuracyTests(unittest.TestCase):
         self.assertGreater(report["encoder_tip"]["distance_mm"]["rms"], 0)
         self.assertIsNone(report["independent_tip"])
         self.assertTrue(report["passed"])
+
+    def test_pass_uses_its_mapping_after_a1_branch_changes_in_same_journal(self):
+        from controls.controller.calibration import select_a1_encoder_branch
+
+        self.plan['mapping'] = self.mapping.document
+        self.write_journal(error=0.10)
+        rows = [json.loads(line) for line in self.journal.read_text().splitlines()]
+        rows[0]['mapping'] = select_a1_encoder_branch(self.mapping, 1).document
+        self.journal.write_text(''.join(json.dumps(row) + '\n' for row in rows))
+        report = analyze(self.journal, peak_joint_deg=0.11)
+        self.assertEqual(report['mapping_fingerprint'], self.mapping.fingerprint)
+        self.assertTrue(report['passed'])
 
     def test_orientation_rotation_angle_is_frame_invariant_and_includes_roll(self):
         # Independent analytic rotations, including the 180-degree singularity.
