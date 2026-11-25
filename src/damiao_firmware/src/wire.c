@@ -3,6 +3,10 @@
 static uint32_t u32(const uint8_t *d) { return (uint32_t)d[0]|(uint32_t)d[1]<<8|(uint32_t)d[2]<<16|(uint32_t)d[3]<<24; }
 static uint16_t u16(const uint8_t *d) { return (uint16_t)(d[0]|d[1]<<8); }
 static float f32(const uint8_t *d) { uint32_t u=u32(d); float f; memcpy(&f,&u,4); return f; }
+static void put16(uint8_t *d, uint16_t u) {
+    d[0] = (uint8_t)u;
+    d[1] = (uint8_t)(u >> 8);
+}
 static void put32(uint8_t *d,uint32_t u) { for(unsigned i=0;i<4;i++) d[i]=(uint8_t)(u>>(8*i)); }
 static void putf(uint8_t *d,float f) { uint32_t u; memcpy(&u,&f,4); put32(d,u); }
 uint32_t wire_crc(const uint8_t *d,size_t n) {
@@ -12,23 +16,53 @@ uint32_t wire_crc(const uint8_t *d,size_t n) {
 }
 void wire_init(arm_wire *w,arm_controller *a) { memset(w,0,sizeof(*w)); w->arm=a; }
 static bool active(arm_controller *a) { for(unsigned i=0;i<6;i++) if(a->joints[i].enabled) return true; return false; }
+/* Offsets are relative to the response payload, including its status byte. */
+static void write_active_config(const arm_controller *a, unsigned slot, uint8_t *p) {
+    const arm_joint *joint = &a->joints[slot];
+    if (!joint->configured) return;
+    const arm_config *config = &joint->cfg;
+    p[1] = 1u | (joint->manual_travel ? 2u : 0u) | (joint->position_hold ? 4u : 0u) |
+        (joint->group_hold ? 8u : 0u);
+    p[2] = config->bus;
+    p[3] = arm_control_mode(a, joint);
+    p[4] = joint->model;
+    p[5] = joint->registers;
+    put16(p + 6, config->id);
+    put16(p + 8, arm_setpoint_id(a, joint));
+    put16(p + 10, config->feedback_id);
+    const float limits[] = {config->lo, config->hi, config->speed, config->torque, config->kp, config->kd};
+    for (unsigned k = 0; k < 6; k++) putf(p + 12 + k * 4, limits[k]);
+    if (joint->registers & 1u) putf(p + 36, joint->range.p);
+    if (joint->registers & 2u) putf(p + 40, joint->range.v);
+    if (joint->registers & 4u) putf(p + 44, joint->range.t);
+}
 static bool dispatch(arm_wire *w,uint32_t now,uint8_t *out) {
     uint8_t type=w->buffer[3], *p=w->buffer+8; unsigned i=p[0];
     uint32_t seq=u32(w->buffer+4); arm_controller *a=w->arm;
     memset(out,0,64); memcpy(out,w->buffer,8); out[3]|=0x80; bool ok=false;
+    arm_request_result result = ARM_REQUEST_OK;
+    uint8_t failed_slot = ARM_REJECT_NO_SLOT;
     if(type==1 && !active(a)) { w->session=true; w->sequence=seq; memcpy(out+9,"FORGE-MC02/1",12); put32(out+21,1000u/ARM_CONTROL_PERIOD_MS); put32(out+25,ARM_CAPABILITIES); ok=true; }
     else if(type==6) { arm_stop(a); ok=true; } /* stop always accepted, including replay */
     else if(w->session && seq>w->sequence) {
         w->sequence=seq;
+        if (i < ARM_COUNT) failed_slot = i;
         if(type==2) {
             arm_config c={.bus=p[1],.id=u16(p+2),.feedback_id=u16(p+4),.lo=f32(p+6),.hi=f32(p+10),
                 .speed=f32(p+14),.torque=f32(p+18),.kp=f32(p+22),.kd=f32(p+26)};
-            ok=!a->bench && arm_configure(a,i,&c);
-        } else if(type==3) ok=arm_probe(a,i);
-        else if(type==4) { dm_command c={f32(p+1),f32(p+5),f32(p+9),f32(p+13),f32(p+17)}; ok=arm_set(a,i,&c,now); }
-        else if(type==25) { dm_command c={f32(p+1),f32(p+5),f32(p+9),f32(p+13),f32(p+17)}; ok=arm_set_smooth(a,i,&c,now); }
-        else if(type==5) ok=arm_enable(a,i,now);
-        else if(type==7 && i<6) {
+            result = a->bench ? ARM_REJECT_INVALID_STATE : arm_configure_result(a, i, &c);
+            ok = result == ARM_REQUEST_OK;
+        } else if (type == 3) {
+            result = arm_probe_result(a, i);
+            ok = result == ARM_REQUEST_OK;
+        } else if (type == 4 || type == 25) {
+            dm_command c = {f32(p + 1), f32(p + 5), f32(p + 9), f32(p + 13), f32(p + 17)};
+            result = type == 4 ? arm_set_result(a, i, &c, now) : arm_set_smooth_result(a, i, &c, now);
+            ok = result == ARM_REQUEST_OK;
+        } else if (type == 5) {
+            result = arm_enable_result(a, i, now);
+            ok = result == ARM_REQUEST_OK;
+        } else if(type==7 && i<6) {
             arm_joint *j=&a->joints[i]; ok=true;
             out[9]=a->fault; out[10]=j->enabled; out[11]=j->registers; out[12]=j->status;
             out[13]=j->mos; out[14]=j->rotor; out[15]=j->stopping;
@@ -47,10 +81,20 @@ static bool dispatch(arm_wire *w,uint32_t now,uint8_t *out) {
         else if(type==16) {
             arm_config c={.bus=p[1],.id=u16(p+2),.feedback_id=u16(p+4),
                 .lo=f32(p+8),.hi=f32(p+12),.speed=f32(p+16),.torque=f32(p+20),.kp=0,.kd=0};
-            ok=arm_prepare_routed(a,i,&c,p[6],p[7]);
+            result = arm_prepare_routed_result(a, i, &c, p[6], p[7]);
+            ok = result == ARM_REQUEST_OK;
         } else if(type==17) ok=arm_routed_write(a,i,p[1],u32(p+2),now);
-        else if(type==18) ok=arm_enable_group(a,p[0],now);
-        else if(type==20) ok=arm_id_operation(a,p[0],u32(p+1),now);
+        else if (type == 18) {
+            result = arm_enable_group_result(a, p[0], now, &failed_slot);
+            ok = result == ARM_REQUEST_OK;
+        } else if (type == 29) {
+            if (i < ARM_COUNT) {
+                write_active_config(a, i, out + 8);
+                ok = true;
+            } else {
+                result = ARM_REJECT_INVALID_ARGUMENT;
+            }
+        } else if(type==20) ok=arm_id_operation(a,p[0],u32(p+1),now);
         else if(type==27) ok=arm_a2_range_setup(a,p[0],now);
         else if(type==28) ok=arm_load_range_setup(a,p[0],p[1],now);
         else if(type==22 && p[0]<3) {
@@ -120,9 +164,23 @@ static bool dispatch(arm_wire *w,uint32_t now,uint8_t *out) {
             out[9]=q->state; out[10]=q->bus; out[11]=q->id; out[12]=q->id>>8;
             out[13]=q->reg; out[14]=q->feedback_id; out[15]=q->feedback_id>>8;
             put32(out+16,q->value);
+        } else {
+            failed_slot = ARM_REJECT_NO_SLOT;
+            if (type == 1) result = ARM_REJECT_INVALID_STATE;
+            else if (type == 7 || type == 21 || type == 22 || type == 23)
+                result = ARM_REJECT_INVALID_ARGUMENT;
+            else result = ARM_REJECT_UNSUPPORTED;
         }
+    } else {
+        result = w->session ? ARM_REJECT_STALE_SEQUENCE : ARM_REJECT_SESSION_REQUIRED;
     }
-    out[8]=ok?0:1; put32(out+60,wire_crc(out,60)); return true;
+    out[8] = ok ? 0 : 1;
+    if (!ok && result != ARM_REQUEST_OK) {
+        out[9] = (uint8_t)result;
+        out[10] = failed_slot;
+    }
+    put32(out + 60, wire_crc(out, 60));
+    return true;
 }
 bool wire_byte(arm_wire *w,uint8_t b,uint32_t now,uint8_t out[64]) {
     if(w->used==0 && b!=0xa5) return false;

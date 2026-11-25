@@ -57,9 +57,10 @@ and the final counters show 532 exchanges with zero failures. The owner closed.
 The operator then launched the four-motor pane/viewer workflow and reported
 normal visual behavior. Identification and the bounded four-motor test do not
 need repeating; the commands below remain the setup/reference procedure.
-Explicit wheel location/sign/gearing and loaded/host-loss qualification remain
-open under CHASSIS-02 and the communication tasks. See the
-[physical record](measurements/encos-four-motor-physical-review-2026-11-24.json).
+The operator confirmed the [wheel mapping](DIFFERENTIAL_DRIVE.md#model-source-and-hardware-mapping)
+on Nov 25. CAN freshness, loaded stopping and host-loss qualification remain
+open. The [Nov 24 physical record](measurements/encos-four-motor-physical-review-2026-11-24.json)
+preserves the bench results.
 
 The `src/bringup/config/chassis_four_motor_bench.yaml` profile requires all four motors,
 with a 5 output-shaft RPM ceiling and the existing provisional 2 A phase-current
@@ -169,8 +170,8 @@ bash scripts/run_motor_test.sh --four-motors
 ```
 
 Driver, keyboard and read-only MuJoCo viewer receive the same four-motor
-profile. Wait for `Ready` with `motor IDs=(1, 2, 3, 4)`. With provisional
-wheel signs confirmed by the physical direction checks:
+profile. Wait for `Ready` with `motor IDs=(1, 2, 3, 4)`. The confirmed mapping
+uses these command signs.
 
 | Key | Requested movement | ID 1/2/3/4 protocol signs |
 | --- | --- | --- |
@@ -188,10 +189,10 @@ mechanical brake. Stop motion before closing the session. Closing only the
 viewer does not stop the driver. Do not run another `/cmd_vel` publisher
 alongside this keyboard.
 
-Send the discovery/readback output, both JSON report paths, the physical
-location and positive-RPM direction of motor 4, and whether all four turn and
-stop as expected under W/S/A/D. Record any error exactly. Wheel sign/gearing,
-loaded traction/stopping and host-loss acceptance remain open.
+For a changed setup, record discovery/readback output, the JSON report paths,
+any revised wheel locations and signs, and whether all four wheels turn and
+stop as expected under W/S/A/D. Loaded traction, stopping and host-loss
+acceptance remain open.
 
 Hardware-free rehearsal uses the same paths:
 
@@ -199,3 +200,79 @@ Hardware-free rehearsal uses the same paths:
 .venv/bin/python scripts/test_encos_motors.py --four-motors --simulate
 bash scripts/run_motor_test.sh --four-motors --simulate
 ```
+
+## Combined ENCOS commissioning
+
+Use the confirmed four-motor profile and the
+[secured, unloaded fixture](ENCOS_TEST_BENCH.md#12-stop-behavior-and-fault-tests).
+Keep the 5 output-shaft RPM and 2 A bench limits for the bounded motion already
+documented above. The operator runs the physical stages. Record the exact
+bridge board/firmware and ESI revision, each motor's model/firmware and
+configured CAN timeout, and the software commit and profile. The supplier
+question for that bridge revision is when each input slot's ID/DLC/data is
+cleared or replaced, and what event drives the State/Toggle bits.
+
+| Stage | Capture and evaluate | TODO |
+| --- | --- | --- |
+| Healthy four-motor baseline | Record query-only stationary feedback, then use the existing bounded motion and deliberate stop. Capture both CAN buses and raw EtherCAT throughout. Include consecutive identical replies from each motor. Record motor current and temperature and the independent motion reference. | COMMS-01 baseline and COMMS-06 evidence |
+| Individual reply loss | Return to query-only on the secured fixture. Use an approved setup that can suppress one motor's replies while preserving CAN wiring, termination and capture of the other motors. Repeat for each ID. Log the event time, compare raw PDO bytes with the independent CAN recordings, then record recovery. Make wiring changes only with all affected equipment unpowered. | COMMS-01 |
+| Owner and link loss | On the secured, unloaded fixture, record graceful stop as a reference. Run publisher loss, host-owner termination and EtherCAT link loss as separate events with an agreed independent means of removing motor power. Keep the independent CAN logger and motion reference running through the loss and reconnection. Compare the last outgoing nonzero command with the physical stop time and verify that motion requires explicit re-arm. | COMMS-02 and part of COMMS-06 |
+| Loaded chassis | After unloaded stop behavior and current/thermal limits are established, use a separate supported loaded run. Measure travel and yaw independently for effective radius/track and slip. Record current, temperature, load and stopping distance with the same evidence format. | CHASSIS-03 and remaining ENCOS COMMS-06 |
+
+For COMMS-06, verify phase-current scaling against independent phase-current
+measurement and use the motor's documented temperature limits. Record the
+configured command ceiling separately from measured current and stop behavior.
+See the [protection TODO](MOTOR_PROTECTION_TODO.md).
+
+### Passive capture on the bench
+
+Collect both CAN buses with independent SocketCAN adapters in listen-only
+mode, using the existing bit timing and termination. Use an Ethernet capture
+on the dedicated ENCOS interface or a passive capture point that sees returned
+EtherCAT frames. Capture software only records traffic and runs alongside the
+existing owner. Prefer both captures on the same clock and record a bound on
+relative timestamp error, including adapter delays. If the host is being
+powered off, use an independent logger so the capture survives. Retain
+logger drop counts and reject capture windows with drops or logger outage.
+
+Example commands in separate capture terminals with an empty run directory
+and the approved interfaces set in each terminal:
+
+```bash
+sudo tcpdump -i "$ETHERCAT_IF" -s 0 -w "$RUN_DIR/ethercat.pcap" 'ether proto 0x88a4'
+candump -d -L "$CAN1_MONITOR" "$CAN2_MONITOR" > "$RUN_DIR/can.log"
+```
+
+Use a classic Ethernet pcap from the single-bridge SOEM process image and
+absolute timestamps in the candump log. Capture the healthy baseline before
+each analysis window and continue logging until after the last event. Save the
+window start/end and event times in absolute epoch seconds. The analyzer
+requires pre-window CAN replies from all four IDs and at least one valid
+returned process image. The passive capture commands use
+[tcpdump](https://github.com/the-tcpdump-group/tcpdump/blob/master/tcpdump.1.in)
+and [can-utils candump](https://github.com/linux-can/can-utils/blob/master/candump.c).
+
+```bash
+.venv/bin/python scripts/analyze_encos_capture.py \
+  "$RUN_DIR/ethercat.pcap" "$RUN_DIR/can.log" \
+  --can1 "$CAN1_MONITOR" --can2 "$CAN2_MONITOR" \
+  --start "$START_EPOCH_S" --end "$END_EPOCH_S" \
+  --clock-skew-ms "$MEASURED_SKEW_BOUND_MS" > "$RUN_DIR/capture-analysis.json"
+```
+
+Review per-motor CAN reply counts and gaps, identical replies of the same
+type, and valid PDOs that still report data after the CAN silence threshold.
+The default 250 ms matches the driver's observation timeout. Use one window
+per event and check that the other motors continue reporting during the
+single-motor loss case. During CAN silence, the report distinguishes matching
+retained payloads from cleared or missing feedback and counts Toggle edges.
+Review the raw bytes and supplier semantics before using a bit as a freshness
+signal. An observed Toggle edge during one motor's silence can occur while
+other motors keep reporting.
+
+For COMMS-02, set the window start to the marked loss event. Compare nonzero
+velocity command counts and the last observed command time with the
+independent shaft or wheel motion trace. A zero-velocity command is a request.
+Use the motion trace to establish physical stopping and check for movement
+after reconnection. The capture report is evidence for review. Acceptance
+requires repeatable physical results with the identified bridge firmware.

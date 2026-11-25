@@ -1159,6 +1159,59 @@ class WeldNativeArmTests(unittest.TestCase):
                 port.set_targets([0] * 6, [5, 5, 5, 5, 5, 11])
             self.assertEqual(before, [self.lib.fake_commands(i) for i in range(6)])
 
+    def test_legacy_usb_failure_partially_updates_targets_and_leases_before_stop(self):
+        import ctypes
+
+        from motors.arm import ArmBus, decode
+        from motors import arm_position as position, arm_bench as bench
+        from test_damiao_arm import NativeTransport
+
+        self.lib.fake_target.argtypes = [ctypes.c_uint]
+        self.lib.fake_target.restype = ctypes.c_float
+        self.lib.fake_command_timestamp.argtypes = [ctypes.c_uint]
+        self.lib.fake_command_timestamp.restype = ctypes.c_uint32
+
+        slots = range(6)
+        targets_deg = np.array([.2, -.2, .2, -.2, .2, -.2])
+        targets_rad = np.radians(targets_deg)
+
+        # Characterize the existing sequential USB path. Keep this case on the
+        # legacy path when atomic dispatch is added.
+        self.bus.close()
+        for failed_slot in (0, 2, 5):
+            with self.subTest(failed_slot=failed_slot), patch.object(position, "time", bench.time):
+                self.bus = ArmBus(transport=NativeTransport(self.lib))
+                with self.port() as port:
+                    port.hold_all()
+                    previous_targets = [self.lib.fake_target(i) for i in slots]
+                    previous_leases = [self.lib.fake_command_timestamp(i) for i in slots]
+                    at_failure = []
+                    write = self.bus.serial.write
+
+                    def interrupt(frame):
+                        kind, _, payload = decode(frame)
+                        if kind == 4 and payload[0] == failed_slot:
+                            at_failure.append((
+                                [self.lib.fake_target(i) for i in slots],
+                                [self.lib.fake_command_timestamp(i) for i in slots],
+                            ))
+                            return 0
+                        return write(frame)
+
+                    with patch.object(self.bus.serial, "write", side_effect=interrupt):
+                        with self.assertRaisesRegex(RuntimeError, "short USB write"):
+                            port.set_targets(targets_deg, [5.0] * 6)
+
+                    self.assertEqual(len(at_failure), 1)
+                    targets, leases = at_failure[0]
+                    np.testing.assert_allclose(targets[:failed_slot], targets_rad[:failed_slot], atol=1e-7)
+                    self.assertEqual(targets[failed_slot:], previous_targets[failed_slot:])
+                    self.assertTrue(all(leases[i] > previous_leases[i] for i in range(failed_slot)))
+                    self.assertEqual(leases[failed_slot:], previous_leases[failed_slot:])
+                    self.assertEqual([self.lib.fake_status(i) for i in slots], [0] * 6)
+                    self.assertTrue(port.recovery_required)
+                    self.assertFalse(port.holding)
+
     def test_native_trajectory_needs_no_custom_smoothing_capability(self):
         from motors import arm_position as position, arm_bench as bench
         from motors.arm import CAP_SMOOTH_JOG, CAP_SMOOTH_JOG_10

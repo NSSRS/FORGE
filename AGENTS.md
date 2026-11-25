@@ -64,8 +64,9 @@ The operator confirmed the earlier A1 undervoltage issue was fixed.
 
 ## Current welding implementation (2026-11-24)
 
-ACCURACY-01 and SPEED-01 prioritize wire-tip position and stroke. Continuous
-arm-only tip reporting allows one fixed lag. The separate same-time tool
+ACCURACY-01 is an operator-run v7 motion check when available. Use the
+saved journal to review cycle stroke and startup. Continuous arm-only tip
+reporting allows one fixed lag. The separate same-time tool
 orientation target is 0.5 deg with a 1.0 deg maximum. Runtime limits remain
 3 degrees for tracking and 0.25 degree for arrival. The operator accepted
 8.22 s preparation under the 10 s trial goal and retired the five-second goal.
@@ -85,9 +86,9 @@ Full model/path checks still apply. See
 PLAN-01 and BASE-04 were resolved by operator confirmation on Nov 23. Do not
 carry their historical planning delays or CAN incidents forward as open tasks.
 The Nov 23 accuracy/speed measurements are the earlier baseline; current v7
-results and scheme are below. Keep independent tool-pose measurements and a
-separate tip-mm tolerance open. Original dated evidence is indexed from
-`docs/ARM_SESSION_HANDOFF.md`; do not present old measurements as current results.
+results and scheme are below. Independent tip measurements are optional for
+the operator's ACCURACY-01 check. The dated evidence is indexed from
+`docs/ARM_SESSION_HANDOFF.md`.
 
 Use `docs/ARM_SESSION_HANDOFF.md` for current evidence and `docs/WELD_MOTION.md`
 for architecture. Shared planning belongs in `src/controls/controls/controller/`;
@@ -141,9 +142,10 @@ slots 0/1/3/4, with no motor omitted. The operator's Nov 24 report
 for all four, without recorded faults or failed EtherCAT exchanges; the owner
 closed normally. The subsequent four-motor viewer/keyboard session looked
 normal to the operator. Identification and this bounded motion test are complete;
-do not repeat setup or ID assignment. Explicit per-wheel location/sign/gearing,
-CAN freshness and loaded/host-loss qualification remain separate. The operator
-does all hardware work. Follow `docs/CAN2_BENCH.md` and
+do not repeat setup or ID assignment. On Nov 25, the operator confirmed the
+wheel locations, forward command signs and 1:1 gearing in the four-motor
+profile, closing CHASSIS-02. CAN freshness and loaded/host-loss qualification
+remain open. The operator does all hardware work. Follow `docs/CAN2_BENCH.md` and
 `docs/measurements/encos-four-motor-physical-review-2026-11-24.json`.
 
 The default host PID tracker uses a bounded preparation clock: nominal speed

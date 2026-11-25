@@ -410,5 +410,7 @@ and [archived original report](measurements/weld/2026-11-24/encos-four-motor.jso
 
 Use `bash scripts/run_motor_test.sh --four-motors` for this bench. The original
 three-motor launch remains available. Identification and bounded motion testing
-are complete; explicit per-wheel mapping/gearing and loaded/host-loss acceptance
-remain open. Routine operation does not require repeating ID assignment.
+are complete. The operator confirmed the [wheel mapping](DIFFERENTIAL_DRIVE.md#model-source-and-hardware-mapping)
+on Nov 25. Follow the [combined bench plan](CAN2_BENCH.md#combined-encos-commissioning)
+for CAN freshness, protection and host-loss evidence. Loaded traction and
+stopping remain commissioning work.

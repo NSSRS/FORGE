@@ -36,14 +36,18 @@ bool dm_pack_posvel(float p,float v,uint8_t d[8]) {
     for(unsigned k=0;k<8;k++) d[k]=(uint8_t)(words[k/4]>>(8*(k%4)));
     return true;
 }
+uint8_t arm_control_mode(const arm_controller *a, const arm_joint *j) {
+    bool position_velocity = a->routed_bench ? j->bench_mode == 2 : a->bench_posvel;
+    return position_velocity ? 2 : 1;
+}
 static bool posvel(const arm_controller *a,const arm_joint *j) {
-    return a->routed_bench ? j->bench_mode==2 : a->bench_posvel;
+    return arm_control_mode(a, j) == 2;
 }
 static bool pack_command(arm_controller *a,arm_joint *j,const dm_command *c,uint8_t d[8]) {
     if(posvel(a,j)) return c->kp==0 && c->kd==0 && c->t==0 && dm_pack_posvel(c->p,c->v,d);
     return dm_pack(&j->range,c,d);
 }
-static uint16_t command_id(arm_controller *a,arm_joint *j) {
+uint16_t arm_setpoint_id(const arm_controller *a, const arm_joint *j) {
     return j->cfg.id+(posvel(a,j)?0x100:0);
 }
 void arm_init(arm_controller *a, arm_send_fn send, void *context) {
@@ -77,7 +81,8 @@ static bool routed_disabled(arm_controller *a,unsigned i,uint32_t now) {
     return j->configured && j->feedback_seen && now-j->feedback_at<ARM_FEEDBACK_MS &&
         j->status==0 && fabsf(j->v)<=0.03f;
 }
-bool arm_prepare_routed(arm_controller *a,unsigned i,const arm_config *c,uint8_t model,uint8_t mode) {
+arm_request_result arm_prepare_routed_result(arm_controller *a, unsigned i, const arm_config *c,
+                                              uint8_t model, uint8_t mode) {
     /* Rated torque ceilings from the P-series manuals: 20 / 12 / 3.5 Nm.
        8009P speed uses 24 V; 4340P retains its 1.5 rad/s commissioning cap.
        These are configuration ceilings, not current clamps or permission to
@@ -86,35 +91,60 @@ bool arm_prepare_routed(arm_controller *a,unsigned i,const arm_config *c,uint8_t
     const bool position_hold=(mode & ARM_ROUTED_POSITION_HOLD)!=0;
     const bool group_hold=(mode & ARM_ROUTED_GROUP_HOLD)!=0;
     mode &= (uint8_t)~(ARM_ROUTED_MANUAL_TRAVEL | ARM_ROUTED_POSITION_HOLD | ARM_ROUTED_GROUP_HOLD);
-    if(manual_travel && mode!=2) return false;
-    if(position_hold && (!manual_travel || mode!=2)) return false;
-    if(group_hold && !position_hold) return false;
+    if ((manual_travel && mode != 2) || (position_hold && !manual_travel) ||
+        (group_hold && !position_hold)) return ARM_REJECT_INVALID_ARGUMENT;
     const float max_speed=model==1?10.4719755f:model==3?12.5663706f:1.5f;
     /* Operator-authorized gun-load trial, not a new continuous motor rating.
        The explicit configured trip remains instantaneous; no overload timer. */
     const bool load_trial=i>=1 && i<ARM_COUNT && model==(i<3?2:3) &&
         c->bus==2 && c->id==i+1 && c->feedback_id==i+17;
     const float max_torque=model==1?20.0f:model==3?(load_trial?10.0f:3.5f):(load_trial?30.0f:12.0f);
-    if(i>=ARM_COUNT || a->id_commissioning || a->range_commissioning || a->fault || busy(a) || a->diagnostic.state==1 ||
-       (a->bench && !a->routed_bench) || model<1 || model>3 || (mode!=1 && mode!=2) ||
-       (model==1 ? c->bus!=1 : c->bus==1) ||
-       !bounded(c->lo,-12.5f,12.5f) || !bounded(c->hi,-12.5f,12.5f) ||
-       !bounded(c->speed,0.03f,max_speed) || !bounded(c->torque,0.01f,max_torque) || c->kp!=0 || c->kd!=0) return false;
-    for(unsigned k=0;k<ARM_COUNT;k++) if(a->joints[k].configured) {
-        if(!a->routed_bench || a->joints[k].probing) return false;
-        if(k!=i && c->bus==1 && a->joints[k].cfg.bus==1) return false;
-        /* Reconfiguration may narrow bounds/change verified mode, never reroute a live session. */
-        if(k==i && (a->joints[k].cfg.bus!=c->bus || a->joints[k].cfg.id!=c->id ||
-           a->joints[k].cfg.feedback_id!=c->feedback_id || a->joints[k].model!=model)) return false;
+    if (i >= ARM_COUNT) return ARM_REJECT_INVALID_ARGUMENT;
+    if (a->id_commissioning || a->range_commissioning) return ARM_REJECT_INVALID_STATE;
+    if (a->fault) return ARM_REJECT_FAULT_LATCHED;
+    if (busy(a) || a->diagnostic.state == 1 || (a->bench && !a->routed_bench))
+        return ARM_REJECT_INVALID_STATE;
+    if (model < 1 || model > 3 || (mode != 1 && mode != 2))
+        return ARM_REJECT_INVALID_ARGUMENT;
+    if (model == 1 ? c->bus != 1 : c->bus == 1) return ARM_REJECT_INVALID_ROUTE;
+    if (!isfinite(c->lo) || !isfinite(c->hi) || !isfinite(c->speed) ||
+        !isfinite(c->torque) || !isfinite(c->kp) || !isfinite(c->kd))
+        return ARM_REJECT_INVALID_ARGUMENT;
+    if (!bounded(c->lo, -12.5f, 12.5f) || !bounded(c->hi, -12.5f, 12.5f) ||
+        !bounded(c->speed, 0.03f, max_speed) || !bounded(c->torque, 0.01f, max_torque) ||
+        c->kp != 0 || c->kd != 0)
+        return ARM_REJECT_LIMIT_EXCEEDED;
+
+    for (unsigned k = 0; k < ARM_COUNT; k++) {
+        const arm_joint *joint = &a->joints[k];
+        if (!joint->configured) continue;
+        if (!a->routed_bench || joint->probing) return ARM_REJECT_INVALID_STATE;
+        if (k != i && c->bus == 1 && joint->cfg.bus == 1) return ARM_REJECT_INVALID_ROUTE;
+        /* A routed session can change bounds and mode within the same route. */
+        if (k == i && (joint->cfg.bus != c->bus || joint->cfg.id != c->id ||
+                      joint->cfg.feedback_id != c->feedback_id || joint->model != model))
+            return ARM_REJECT_INVALID_ROUTE;
     }
-    bool old_bench=a->bench, old_routed=a->routed_bench;
-    a->bench=true; a->routed_bench=true;
-    if(!arm_configure(a,i,c)) { a->bench=old_bench; a->routed_bench=old_routed; return false; }
-    a->joints[i].bench_mode=mode; a->joints[i].model=model;
-    a->joints[i].manual_travel=manual_travel;
-    a->joints[i].position_hold=position_hold;
-    a->joints[i].group_hold=group_hold;
-    return true;
+
+    bool old_bench = a->bench, old_routed = a->routed_bench;
+    a->bench = true;
+    a->routed_bench = true;
+    arm_request_result result = arm_configure_result(a, i, c);
+    if (result != ARM_REQUEST_OK) {
+        a->bench = old_bench;
+        a->routed_bench = old_routed;
+        return result;
+    }
+    a->joints[i].bench_mode = mode;
+    a->joints[i].model = model;
+    a->joints[i].manual_travel = manual_travel;
+    a->joints[i].position_hold = position_hold;
+    a->joints[i].group_hold = group_hold;
+    return ARM_REQUEST_OK;
+}
+bool arm_prepare_routed(arm_controller *a, unsigned i, const arm_config *c,
+                        uint8_t model, uint8_t mode) {
+    return arm_prepare_routed_result(a, i, c, model, mode) == ARM_REQUEST_OK;
 }
 bool arm_routed_write(arm_controller *a,unsigned i,uint8_t reg,uint32_t value,uint32_t now) {
     /* Even after a fault, allow restoration only after acknowledged stationary disable. */
@@ -252,20 +282,50 @@ bool arm_prepare_posvel(arm_controller *a,float lo,float hi) {
     a->joints[0].cfg.kp=0; a->joints[0].cfg.kd=0;
     return true; /* Wide bounds may probe, but arm_enable still forbids them. */
 }
-bool arm_configure(arm_controller *a, unsigned i, const arm_config *c) {
-    if(a->id_commissioning || a->range_commissioning || a->diagnostic.state==1) return false;
-    if(i>=ARM_COUNT || busy(a) || c->bus<1 || c->bus>3 || c->id<1 || c->id>15 ||
-       (c->feedback_id<16 && !(a->routed_bench && c->feedback_id==0) && !(a->bench && i==0 && c->bus==2 && c->id==1 && c->feedback_id==0)) || c->feedback_id>=0x7ff || !isfinite(c->lo)||!isfinite(c->hi)||c->lo>=c->hi ||
-       !positive(c->speed)||!positive(c->torque)||!bounded(c->kp,0,500)||!bounded(c->kd,0,5)) return false;
-    for(unsigned j=0;j<ARM_COUNT;j++) if(j!=i && a->joints[j].configured && a->joints[j].cfg.bus==c->bus &&
-        (a->joints[j].cfg.id==c->id || a->joints[j].cfg.feedback_id==c->feedback_id)) return false;
-    memset(&a->joints[i],0,sizeof(a->joints[i])); a->joints[i].cfg=*c; a->joints[i].configured=true;
-    return true;
+arm_request_result arm_configure_result(arm_controller *a, unsigned i, const arm_config *c) {
+    if (a->id_commissioning || a->range_commissioning || a->diagnostic.state == 1)
+        return ARM_REJECT_INVALID_STATE;
+    if (i >= ARM_COUNT) return ARM_REJECT_INVALID_ARGUMENT;
+    if (busy(a)) return ARM_REJECT_INVALID_STATE;
+    bool allows_zero_feedback = a->routed_bench || (a->bench && i == 0 && c->bus == 2 && c->id == 1);
+    if (c->bus < 1 || c->bus > 3 || c->id < 1 || c->id > 15 || c->feedback_id >= 0x7ff ||
+        (c->feedback_id < 16 && !(allows_zero_feedback && c->feedback_id == 0)))
+        return ARM_REJECT_INVALID_ROUTE;
+    if (!isfinite(c->lo) || !isfinite(c->hi) || !isfinite(c->speed) ||
+        !isfinite(c->torque) || !isfinite(c->kp) || !isfinite(c->kd))
+        return ARM_REJECT_INVALID_ARGUMENT;
+    if (c->lo >= c->hi || c->speed <= 0 || c->torque <= 0 ||
+        !bounded(c->kp, 0, 500) || !bounded(c->kd, 0, 5))
+        return ARM_REJECT_LIMIT_EXCEEDED;
+    for (unsigned j = 0; j < ARM_COUNT; j++) {
+        const arm_joint *joint = &a->joints[j];
+        if (j != i && joint->configured && joint->cfg.bus == c->bus &&
+            (joint->cfg.id == c->id || joint->cfg.feedback_id == c->feedback_id))
+            return ARM_REJECT_INVALID_ROUTE;
+    }
+    memset(&a->joints[i], 0, sizeof(a->joints[i]));
+    a->joints[i].cfg = *c;
+    a->joints[i].configured = true;
+    return ARM_REQUEST_OK;
 }
-bool arm_probe(arm_controller *a,unsigned i) {
-    if(i>=ARM_COUNT || a->diagnostic.state==1 || busy(a) || !a->joints[i].configured) return false;
-    arm_joint *j=&a->joints[i]; j->registers=0; j->probing=true; j->probe_index=0;
-    j->command_seen=false; j->feedback_seen=false; return true;
+bool arm_configure(arm_controller *a, unsigned i, const arm_config *c) {
+    return arm_configure_result(a, i, c) == ARM_REQUEST_OK;
+}
+
+arm_request_result arm_probe_result(arm_controller *a, unsigned i) {
+    if (i >= ARM_COUNT) return ARM_REJECT_INVALID_ARGUMENT;
+    if (a->diagnostic.state == 1 || busy(a) || !a->joints[i].configured)
+        return ARM_REJECT_INVALID_STATE;
+    arm_joint *joint = &a->joints[i];
+    joint->registers = 0;
+    joint->probing = true;
+    joint->probe_index = 0;
+    joint->command_seen = false;
+    joint->feedback_seen = false;
+    return ARM_REQUEST_OK;
+}
+bool arm_probe(arm_controller *a, unsigned i) {
+    return arm_probe_result(a, i) == ARM_REQUEST_OK;
 }
 static bool special(arm_controller *a, arm_joint *j, uint8_t code) {
     uint8_t d[8]; memset(d,0xff,8); d[7]=code;
@@ -302,85 +362,169 @@ bool arm_reset(arm_controller *a) {
     for(unsigned i=0;i<ARM_COUNT;i++) { a->joints[i].registers=0; a->joints[i].command_seen=false; }
     return true;
 }
-bool arm_set(arm_controller *a,unsigned i,const dm_command *c,uint32_t now) {
-    if(i>=ARM_COUNT || a->id_commissioning || a->range_commissioning || a->fault) return false;
-    arm_joint *j=&a->joints[i]; uint8_t d[8];
-    if(!j->configured || j->registers!=31 || j->stopping ||
-       !bounded(c->p,j->cfg.lo,j->cfg.hi)||!bounded(c->v,-j->cfg.speed,j->cfg.speed)||
-       !bounded(c->t,-j->cfg.torque,j->cfg.torque)||!bounded(c->kp,0,j->cfg.kp)||!bounded(c->kd,0,j->cfg.kd)||
-       !pack_command(a,j,c,d)) return false;
-    if(j->enabled && !j->enable_confirmed &&
-       (c->p!=j->cmd.p || c->v!=(posvel(a,j)?j->cmd.v:0) || c->t!=0 || c->kp!=j->cmd.kp || c->kd!=j->cmd.kd)) return false;
-    if(posvel(a,j) && fabsf(c->p-j->p)>(a->routed_bench?3.2f:1.0f)) return false;
-    j->cmd=*c; j->command_at=now; j->command_seen=true;
-    j->smooth_jog=false; /* Release/hold commands bypass the jog slew. */
-    return true;
+arm_request_result arm_set_result(arm_controller *a, unsigned i, const dm_command *c, uint32_t now) {
+    if (i >= ARM_COUNT) return ARM_REJECT_INVALID_ARGUMENT;
+    if (a->id_commissioning || a->range_commissioning) return ARM_REJECT_INVALID_STATE;
+    if (a->fault) return ARM_REJECT_FAULT_LATCHED;
+    arm_joint *joint = &a->joints[i];
+    if (!joint->configured || joint->registers != 31 || joint->stopping)
+        return ARM_REJECT_INVALID_STATE;
+    if (!isfinite(c->p) || !isfinite(c->v) || !isfinite(c->t) ||
+        !isfinite(c->kp) || !isfinite(c->kd))
+        return ARM_REJECT_INVALID_ARGUMENT;
+    uint8_t data[8];
+    if (!bounded(c->p, joint->cfg.lo, joint->cfg.hi) ||
+        !bounded(c->v, -joint->cfg.speed, joint->cfg.speed) ||
+        !bounded(c->t, -joint->cfg.torque, joint->cfg.torque) ||
+        !bounded(c->kp, 0, joint->cfg.kp) || !bounded(c->kd, 0, joint->cfg.kd) ||
+        !pack_command(a, joint, c, data))
+        return ARM_REJECT_LIMIT_EXCEEDED;
+    if (joint->enabled && !joint->enable_confirmed &&
+        (c->p != joint->cmd.p || c->v != (posvel(a, joint) ? joint->cmd.v : 0) ||
+         c->t != 0 || c->kp != joint->cmd.kp || c->kd != joint->cmd.kd))
+        return ARM_REJECT_INVALID_STATE;
+    if (posvel(a, joint) && fabsf(c->p - joint->p) > (a->routed_bench ? 3.2f : 1.0f))
+        return ARM_REJECT_LIMIT_EXCEEDED;
+    joint->cmd = *c;
+    joint->command_at = now;
+    joint->command_seen = true;
+    joint->smooth_jog = false; /* Release/hold bypasses the jog slew. */
+    return ARM_REQUEST_OK;
 }
-bool arm_set_smooth(arm_controller *a,unsigned i,const dm_command *c,uint32_t now) {
-    if(i>=ARM_COUNT) return false;
-    arm_joint *j=&a->joints[i];
-    /* Only explicit, already-confirmed manual holding sessions may ramp.
-       Keep the operator-requested 10 deg/s ceiling separate from speed trips. */
-    if(!a->routed_bench || !j->position_hold || !j->manual_travel || j->bench_mode!=2 ||
-       !j->enabled || !j->enable_confirmed || !bounded(c->v,0.001f,0.17453294f)) return false;
-    if(!arm_set(a,i,c,now)) return false;
-    j->smooth_jog=true;
-    return true;
+bool arm_set(arm_controller *a, unsigned i, const dm_command *c, uint32_t now) {
+    return arm_set_result(a, i, c, now) == ARM_REQUEST_OK;
 }
-static bool can_enable(arm_controller *a,unsigned i,uint32_t now) {
-    if(i>=ARM_COUNT || a->id_commissioning || a->range_commissioning || a->fault || a->diagnostic.state==1) return false;
+
+arm_request_result arm_set_smooth_result(arm_controller *a, unsigned i, const dm_command *c, uint32_t now) {
+    if (i >= ARM_COUNT) return ARM_REJECT_INVALID_ARGUMENT;
+    arm_joint *joint = &a->joints[i];
+    /* Only explicit, already-confirmed manual mode-2 holds may ramp. */
+    if (!a->routed_bench || !joint->position_hold || !joint->manual_travel ||
+        joint->bench_mode != 2 || !joint->enabled || !joint->enable_confirmed)
+        return ARM_REJECT_INVALID_STATE;
+    if (!isfinite(c->v)) return ARM_REJECT_INVALID_ARGUMENT;
+    if (!bounded(c->v, 0.001f, 0.17453294f)) return ARM_REJECT_LIMIT_EXCEEDED;
+    arm_request_result result = arm_set_result(a, i, c, now);
+    if (result == ARM_REQUEST_OK) joint->smooth_jog = true;
+    return result;
+}
+bool arm_set_smooth(arm_controller *a, unsigned i, const dm_command *c, uint32_t now) {
+    return arm_set_smooth_result(a, i, c, now) == ARM_REQUEST_OK;
+}
+
+static arm_request_result check_enable(const arm_controller *a, unsigned i, uint32_t now) {
+    if (i >= ARM_COUNT) return ARM_REJECT_INVALID_ARGUMENT;
+    if (a->id_commissioning || a->range_commissioning) return ARM_REJECT_INVALID_STATE;
+    if (a->fault) return ARM_REJECT_FAULT_LATCHED;
+    if (a->diagnostic.state == 1) return ARM_REJECT_INVALID_STATE;
     /* Keep register polling out of the loaded control bus. */
-    for(unsigned k=0;k<ARM_COUNT;k++) if(a->joints[k].probing) return false;
-    arm_joint *j=&a->joints[i];
+    for (unsigned k = 0; k < ARM_COUNT; k++)
+        if (a->joints[k].probing) return ARM_REJECT_INVALID_STATE;
+    const arm_joint *joint = &a->joints[i];
     /* Single-axis hold cannot be mixed with another active axis. */
-    for(unsigned k=0;k<ARM_COUNT;k++) if(k!=i && a->joints[k].enabled &&
-        (j->position_hold || a->joints[k].position_hold) &&
-        !(j->group_hold && a->joints[k].group_hold)) return false;
-    if(!j->configured || j->enabled || j->stopping || j->registers!=31 || !j->command_seen ||
-       now-j->command_at>=ARM_LEASE_MS || !j->feedback_seen || now-j->feedback_at>=ARM_FEEDBACK_MS ||
-       j->status!=0 || fabsf(j->cmd.p-j->p)>0.05f || (!posvel(a,j) && j->cmd.v!=0) || j->cmd.t!=0) return false;
+    for (unsigned k = 0; k < ARM_COUNT; k++)
+        if (k != i && a->joints[k].enabled &&
+            (joint->position_hold || a->joints[k].position_hold) &&
+            !(joint->group_hold && a->joints[k].group_hold))
+            return ARM_REJECT_INVALID_STATE;
+    if (!joint->configured || joint->enabled || joint->stopping || joint->registers != 31)
+        return ARM_REJECT_INVALID_STATE;
+    if (!joint->command_seen || now - joint->command_at >= ARM_LEASE_MS)
+        return ARM_REJECT_STALE_PRELOAD;
+    if (!joint->feedback_seen || now - joint->feedback_at >= ARM_FEEDBACK_MS)
+        return ARM_REJECT_STALE_FEEDBACK;
+    if (joint->status != 0) return ARM_REJECT_INVALID_STATE;
+    if (fabsf(joint->cmd.p - joint->p) > 0.05f) return ARM_REJECT_LIMIT_EXCEEDED;
+    if ((!posvel(a, joint) && joint->cmd.v != 0) || joint->cmd.t != 0)
+        return ARM_REJECT_INVALID_STATE;
     /* Wide probing routes cannot enable without explicit manual-travel policy. */
-    if(a->bench && (!posvel(a,j) || (!a->routed_bench && i!=0))) return false;
-    if(a->bench && !(a->routed_bench && j->manual_travel) &&
-       j->cfg.hi-j->cfg.lo>(a->routed_bench?3.25f:1.1f)) return false;
-    return true;
+    if (a->bench && (!posvel(a, joint) || (!a->routed_bench && i != 0)))
+        return ARM_REJECT_INVALID_STATE;
+    if (a->bench && !(a->routed_bench && joint->manual_travel) &&
+        joint->cfg.hi - joint->cfg.lo > (a->routed_bench ? 3.25f : 1.1f))
+        return ARM_REJECT_LIMIT_EXCEEDED;
+    return ARM_REQUEST_OK;
 }
-static bool enable_slot(arm_controller *a,unsigned i,uint32_t now) {
-    if(!can_enable(a,i,now)) return false;
-    arm_joint *j=&a->joints[i];
+static arm_request_result enable_slot(arm_controller *a, unsigned i, uint32_t now) {
+    arm_request_result result = check_enable(a, i, now);
+    if (result != ARM_REQUEST_OK) return result;
+    arm_joint *joint = &a->joints[i];
     /* Preload a bounded command while disabled before enabling. */
-    uint8_t d[8]; if(!pack_command(a,j,&j->cmd,d)) return false;
-    if(!tracked_send(a,j->cfg.bus,command_id(a,j),d,8)) { arm_fault(a,5,i,now); return false; }
-    j->sent_position=j->cmd.p; j->smooth_jog=false;
-    j->enable_confirmed=false; j->enabled=true; j->enabled_at=now;
-    if(!special(a,j,0xfc)) { arm_fault(a,5,i,now); return false; }
-    if(a->fault || !j->enabled) return false;
-    if(a->bench) a->bench_enabled_at=now;
-    j->enabled=true; j->enabled_at=now; return true;
-}
-bool arm_enable(arm_controller *a,unsigned i,uint32_t now) {
-    if(i>=ARM_COUNT) return false;
-    for(unsigned k=0;k<ARM_COUNT;k++)
-        if(a->joints[k].configured && a->joints[k].group_hold) return false;
-    return enable_slot(a,i,now);
-}
-bool arm_enable_group(arm_controller *a,uint8_t mask,uint32_t now) {
-    if(!a->routed_bench || mask==0 || (mask & ~63u)) return false;
-    uint8_t configured=0,group=0;
-    for(unsigned i=0;i<ARM_COUNT;i++) if(a->joints[i].configured) {
-        configured |= 1u<<i;
-        if(a->joints[i].group_hold) group |= 1u<<i;
+    uint8_t data[8];
+    if (!pack_command(a, joint, &joint->cmd, data)) return ARM_REJECT_LIMIT_EXCEEDED;
+    if (!tracked_send(a, joint->cfg.bus, arm_setpoint_id(a, joint), data, 8)) {
+        arm_fault(a, 5, i, now);
+        return ARM_REJECT_CAN_TX_FAILED;
     }
-    /* Never energize a partial or mixed hold group. All preloads must pass. */
-    if(group && (group!=configured || mask!=group)) return false;
-    for(unsigned i=0;i<ARM_COUNT;i++) if((mask & (1u<<i)) && a->joints[i].position_hold && !a->joints[i].group_hold &&
-        (mask & (mask-1u))) return false;
-    /* Validate every selected slot before sending the first enable frame. */
-    for(unsigned i=0;i<ARM_COUNT;i++) if((mask & (1u<<i)) && !can_enable(a,i,now)) return false;
-    for(unsigned i=0;i<ARM_COUNT;i++) if((mask & (1u<<i)) && !enable_slot(a,i,now)) {
-        arm_fault(a,5,i,now); return false;
+    joint->sent_position = joint->cmd.p;
+    joint->smooth_jog = false;
+    joint->enable_confirmed = false;
+    joint->enabled = true;
+    joint->enabled_at = now;
+    if (!special(a, joint, 0xfc)) {
+        arm_fault(a, 5, i, now);
+        return ARM_REJECT_CAN_TX_FAILED;
     }
-    return true;
+    if (a->fault) return ARM_REJECT_FAULT_LATCHED;
+    if (!joint->enabled) return ARM_REJECT_INVALID_STATE;
+    if (a->bench) a->bench_enabled_at = now;
+    joint->enabled = true;
+    joint->enabled_at = now;
+    return ARM_REQUEST_OK;
+}
+arm_request_result arm_enable_result(arm_controller *a, unsigned i, uint32_t now) {
+    if (i >= ARM_COUNT) return ARM_REJECT_INVALID_ARGUMENT;
+    for (unsigned k = 0; k < ARM_COUNT; k++)
+        if (a->joints[k].configured && a->joints[k].group_hold)
+            return ARM_REJECT_INVALID_STATE;
+    return enable_slot(a, i, now);
+}
+bool arm_enable(arm_controller *a, unsigned i, uint32_t now) {
+    return arm_enable_result(a, i, now) == ARM_REQUEST_OK;
+}
+
+arm_request_result arm_enable_group_result(arm_controller *a, uint8_t mask, uint32_t now,
+                                            uint8_t *failed_slot) {
+    *failed_slot = ARM_REJECT_NO_SLOT;
+    if (mask == 0 || (mask & ~63u)) return ARM_REJECT_INVALID_ARGUMENT;
+    if (!a->routed_bench) return ARM_REJECT_INVALID_STATE;
+    uint8_t configured = 0, group = 0;
+    for (unsigned i = 0; i < ARM_COUNT; i++) {
+        if (!a->joints[i].configured) continue;
+        configured |= 1u << i;
+        if (a->joints[i].group_hold) group |= 1u << i;
+    }
+    /* Validate the whole group before sending the first enable frame. */
+    if (group && (group != configured || mask != group)) return ARM_REJECT_INVALID_STATE;
+    for (unsigned i = 0; i < ARM_COUNT; i++) {
+        if ((mask & (1u << i)) && a->joints[i].position_hold && !a->joints[i].group_hold &&
+            (mask & (mask - 1u))) {
+            *failed_slot = i;
+            return ARM_REJECT_INVALID_STATE;
+        }
+    }
+    for (unsigned i = 0; i < ARM_COUNT; i++) {
+        if (!(mask & (1u << i))) continue;
+        arm_request_result result = check_enable(a, i, now);
+        if (result != ARM_REQUEST_OK) {
+            *failed_slot = i;
+            return result;
+        }
+    }
+    for (unsigned i = 0; i < ARM_COUNT; i++) {
+        if (!(mask & (1u << i))) continue;
+        arm_request_result result = enable_slot(a, i, now);
+        if (result != ARM_REQUEST_OK) {
+            arm_fault(a, 5, i, now);
+            *failed_slot = i;
+            return result;
+        }
+    }
+    return ARM_REQUEST_OK;
+}
+bool arm_enable_group(arm_controller *a, uint8_t mask, uint32_t now) {
+    uint8_t failed_slot;
+    return arm_enable_group_result(a, mask, now, &failed_slot) == ARM_REQUEST_OK;
 }
 void arm_tick(arm_controller *a,uint32_t now) {
     if(a->save_quiet) {
@@ -425,7 +569,7 @@ void arm_tick(arm_controller *a,uint32_t now) {
             else if(delta< -step) command.p=j->sent_position-step;
         }
         if(!pack_command(a,j,&command,d)) { arm_fault(a,4,i,now); return; }
-        if(!tracked_send(a,j->cfg.bus,command_id(a,j),d,8)) { arm_fault(a,5,i,now); return; }
+        if(!tracked_send(a,j->cfg.bus,arm_setpoint_id(a,j),d,8)) { arm_fault(a,5,i,now); return; }
         j->sent_position=command.p;
     }
 }

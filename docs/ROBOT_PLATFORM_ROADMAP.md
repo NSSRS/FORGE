@@ -11,7 +11,8 @@ alignment, closed-chain planning, physical motor envelopes, multi-start CMA-ES,
 actual motor adapters and checked plan animation are implemented in
 [the weld controller](WELD_MOTION.md). Independent arm/chassis switches gate output.
 The configured target remains 2 Hz; the checked provisional-model solution is
-about 1.815288 Hz. Physical weld motion accuracy is open under ACCURACY-01.
+about 1.815288 Hz. The operator can run the later v7 motion check
+under ACCURACY-01 when available.
 LOAD-01 weight compensation and FEEDBACK-01 sensor/ESO feedback follow the first
 arm welding run. These additions do not complete localization or production
 hold/stop qualification; the proposed system below remains a roadmap.
@@ -32,9 +33,10 @@ integration does not complete the state-estimation milestones below.
 Implementation update: [differential chassis control](DIFFERENTIAL_DRIVE.md) now
 integrates differential mixing into `motor_driver`, with stamped chassis
 commands and WASD in `keyboard_teleop`, using
-the four driven wheels in the integrated `robot_description` MuJoCo model. Geometry is provisional and hardware
-mapping awaits commissioning. Odometry, arbitration, localization and the safety
-supervisor described below remain planned.
+the four driven wheels in the integrated `robot_description` MuJoCo model. The
+operator confirmed the [four-motor mapping](DIFFERENTIAL_DRIVE.md#model-source-and-hardware-mapping)
+on Nov 25. Effective rolling geometry, odometry, arbitration, localization and
+the safety supervisor described below remain open.
 
 This document defines the planned control architecture and staged development of
 the four-motor magnetic wall-climbing welding robot. It is the working roadmap for

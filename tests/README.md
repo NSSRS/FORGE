@@ -158,6 +158,17 @@ The ROS test requires the installed `seam_detection` package. It starts only the
 detector and synthetic publisher, never camera acquisition or motor control.
 These tests do not establish real-weld recognition or millimeter accuracy.
 
+## Passive ENCOS capture analysis
+
+Run the offline analyzer regression against synthetic Ethernet pcaps and
+SocketCAN logs. The tests cover identical CAN replies, retention and DLC
+clearing on one motor while the others report, capture clock uncertainty,
+and continued velocity commands after EtherCAT input disappears.
+
+```bash
+PYTHONPATH=tests .venv/bin/python -m unittest test_encos_capture -v
+```
+
 ## Motor telemetry for both families
 
 `test_motor_telemetry.py` covers per-field freshness, missing/nonfinite feedback,
@@ -185,6 +196,11 @@ Keep the ROS domain isolated from hardware nodes. These tests open no physical
 motor transport and do not establish real bus timing or loaded acceptance.
 
 ## Damiao arm
+
+BASE-05 tests verify typed USB rejections, active MCU route and limit readback,
+legacy host/firmware compatibility, valid feedback CAN ID zero, and the
+absence of CAN sends or lease updates from rejected validation and readback.
+Run CTest and `test_damiao_arm` for the new wire and C-backed Python checks.
 
 `damiao_arm_test.c` verifies the portable firmware codec, leases, feedback loss,
 fault reset, rollover, CAN failure and framed USB protocol. `test_damiao_arm.py`

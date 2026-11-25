@@ -3,12 +3,9 @@
 The canonical acceptance criteria are in [ARM_LAYER_TODOS.md](../../docs/ARM_LAYER_TODOS.md).
 Current implementation and reproduction: [WELD_MOTION.md](../../docs/WELD_MOTION.md).
 
-- **ACCURACY-01:** prioritize 3D wire-tip position and both transverse stroke
-  edges. For continuous arm-only passes, report one fixed lag and the remaining
-  spatial error. Use the 1.730 Hz, 20 mm matched v7/v8 response trials and
-  synchronized independent tip measurements before setting a position
-  tolerance. Retain the 0.5 deg target and 1 deg maximum for same-time
-  orientation as a secondary criterion. See the
+- **ACCURACY-01, physical test when available:** run the existing v7 arm-only
+  motion check and save the journal for cycle-by-cycle stroke and startup
+  review. The encoder-based analysis is ready to use. See the
   [operator test](../../docs/ARM_RIG_TEST.md#weld-motion-accuracy-test).
 - **SPEED-01, further weld tuning deferred:** preserve the operator-selected
   v7 baseline and its exact 561-command regression. Future work remains

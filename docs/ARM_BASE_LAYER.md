@@ -68,7 +68,7 @@ latest save attempted. Older hosts therefore also see the lock during A3-A6
 setup. Under bit 24, payload byte 45 contains a uint32 physical joint number
 (0 if no setup), and bytes 49/50/51 contain written/save-attempted/save-acknowledged
 slot masks. All offsets include the leading status byte; packet size is unchanged.
-Complete capabilities are **0x1FFFF8F**. The operator must power-cycle motor
+The deployed Nov 19 build advertises **0x1FFFF8F**. The operator must power-cycle motor
 power and MC02 and read back persistence before launch. See the
 [setup procedure](ARM_RIG_TEST.md#expanded-gun-load-profile-a2a3-30-nm-a4-a6-10-nm).
 
@@ -228,6 +228,101 @@ capture invalidates old generations; reject the whole sample if pages differ.
 Motor record: position/velocity/torque float32, age u16, flags/status/MOS/rotor
 u8 each (18 bytes). Flags: configured=1, enabled=2, valid=4, stopping=8,
 enable-confirmed=16. No motor-specific register requests are generated.
+
+## BASE-05 specification
+
+Implemented and verified offline on Damiao DM-MC02 firmware and the existing
+Python ArmBus owner. Verify the readback against the rig during bench commissioning.
+
+### Typed request rejection
+
+Retain the 64-byte version-1 frame, CRC, request types and success payloads.
+Advertise `CAP_ARM_CONFIG_DIAGNOSTICS` (bit 25, `0x02000000`) in HELLO and
+base info when both BASE-05 features are available. Keep response payload
+byte 0 at `1` for rejected requests. For supported diagnostic replies use
+byte 1 for a reason and byte 2 for the attempted or first failing zero-based
+joint slot. Use `0xff` when there is no meaningful slot. Reason `0` denotes a
+generic rejection. Legacy hosts continue to use the existing response status.
+
+Cover configure (2, 16), probe (3), setpoint (4, 25), enable (5, 18), and active
+configuration readback (29) in the first implementation. Return the first
+failing selected slot for a per-slot group-enable validation error, in slot
+order. Group-wide failures use the no-slot sentinel.
+
+| Code | Reason | Meaning |
+| --- | --- | --- |
+| 1 | `INVALID_ARGUMENT` | Invalid slot, mask, mode encoding or non-finite numeric input |
+| 2 | `INVALID_ROUTE` | Invalid CAN address or conflicting route |
+| 3 | `INVALID_STATE` | Configuration, probe, enable, stop, preload or commissioning state prevents the operation |
+| 4 | `STALE_FEEDBACK` | Feedback is absent or has expired at an existing freshness gate |
+| 5 | `STALE_PRELOAD` | A required preload is absent or its command lease expired |
+| 6 | `LIMIT_EXCEEDED` | Finite value outside an enforced bound, or a numeric setpoint with a reserved command encoding |
+| 7 | `FAULT_LATCHED` | An existing fault blocks the requested operation |
+| 8 | `UNSUPPORTED` | Unknown request or unavailable feature |
+| 9 | `CAN_TX_FAILED` | A required CAN transmission failed during an otherwise eligible operation |
+| 10 | `SESSION_REQUIRED` | Request requires an established USB session |
+| 11 | `STALE_SEQUENCE` | Request sequence is repeated or behind the active session |
+
+Return the reason from the existing validation path. Preserve its acceptance
+criteria and error precedence. Keep STOP accepted on replay and discard
+malformed or CRC-invalid frames as before. A validation rejection leaves
+setpoints, leases and the fault latch unchanged and emits no CAN traffic.
+An execution failure follows the existing fault and stop path. Keep typed
+rejection separate from the asynchronous first-fault record.
+
+Expose valid rejection responses as `ArmRequestRejected(RuntimeError)` with
+`request_type`, `reason`, and `slot` attributes. Map legacy generic
+rejections and unrecognized reason codes to `UNKNOWN`. Translate a missing
+slot to `None`. Keep local host validation and USB timeout errors distinct.
+
+### Active configuration readback
+
+`ArmBus.active_config(slot)` uses USB request type 29 and one unsigned
+8-bit slot (0–5). Read the active MCU slot record in a single response. Return
+`configured=False` for an unused slot. Return `None` for fields without
+valid readback, including ranges whose probe-validity bits have not been set.
+Readback only uses MCU state and the existing USB owner.
+
+Success payload, little endian. Offsets start at the response status
+byte. Reserved bytes are zero.
+
+| Offset | Format | Fields |
+| --- | --- | --- |
+| 0 | u8 | Success status |
+| 1 | u8 | Slot flags. Bits 0–3 are configured, manual travel, position hold and group hold |
+| 2–5 | four u8 | CAN bus, selected mode, model code, verified register mask |
+| 6–11 | three u16 | Motor CAN ID, effective setpoint CAN ID, configured feedback CAN ID |
+| 12–35 | six float32 | Profile lower/upper bounds, speed trip, torque trip, Kp and Kd ceilings |
+| 36–47 | three float32 | Last verified `PMAX`, `VMAX` and `TMAX` |
+| 48–51 | four bytes | Reserved |
+
+Position, velocity and torque use raw output-shaft rad, rad/s and Nm. Return
+the exact configured feedback ID, including valid CAN ID zero on factory
+bench routes. Read mode and setpoint ID from the firmware's existing logic. Keep profile limits and probed protocol
+ranges distinct. Physical limits and calibration provenance belong to the
+measured profile. The active record describes one slot at request time.
+
+For firmware lacking the capability, `active_config()` reports unsupported
+before sending type 29. Legacy commands and telemetry keep their current
+behavior. Readback neither probes CAN registers nor refreshes a motion lease.
+
+### Offline acceptance
+
+- Exercise legacy and new host/firmware combinations with the native bridge.
+  Verify byte-for-byte existing success payloads, generic legacy rejection,
+  unknown reason handling and the capability check before type 29.
+- Exercise non-finite and out-of-bounds values, conflicting routes, active
+  reconfiguration, missing and stale feedback, expired preloads, faulted
+  state, group rejection and CAN TX failure. Check command age and CAN sends
+  before and after rejected validation. Verify STOP replay and fault latching.
+- Read an unconfigured slot, then valid configuration, changed routes and
+  post-probe ranges. Compare against MCU state and verify that missing range
+  validity yields `None`. Check that readback leaves CAN TX counts and
+  lease timestamps unchanged through the existing owner.
+- Run CTest and the C-backed Damiao Python suite. The STM32 build produces
+  an offline image for later deployment.
+- On the bench, compare the readback with the selected profile, documented
+  CAN routes and disabled motor range readback using the existing owner.
 
 ## Validation and remaining boundaries
 

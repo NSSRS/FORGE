@@ -37,14 +37,20 @@
     "bringup/config/chassis_four_motor_bench.yaml"
   ],
   "note": "Keep existing chassis IDs and ENCOS packet layout; arm IDs are on a separate controller.",
+  "wheel_mapping_confirmation": {
+    "date": "2026-11-25",
+    "source": "operator confirmation of wheel locations, forward protocol signs, and 1:1 external gearing",
+    "profile": "bringup/config/chassis_four_motor_bench.yaml",
+    "documentation": "docs/DIFFERENTIAL_DRIVE.md#model-source-and-hardware-mapping"
+  },
   "fourth_motor": {
     "target_can_id": 4,
     "current_can_id": 4,
     "can_bus": 2,
     "pdo_slot": 4,
-    "physical_wheel": null,
-    "forward_protocol_sign": null,
-    "status": "Physical signed motion and stop test passed; explicit wheel location/sign/gearing pending",
+    "physical_wheel": "wheel_4",
+    "forward_protocol_sign": 1,
+    "status": "Physical signed motion and stop test passed; operator confirmed right-rear location, forward sign, and 1:1 external gearing",
     "evidence": "docs/measurements/encos-four-motor-physical-review-2026-11-24.json"
   },
   "bench_evidence": "docs/measurements/encos-four-motor-physical-review-2026-11-24.json",

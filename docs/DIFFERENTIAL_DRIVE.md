@@ -28,12 +28,12 @@ older placeholder at `de5130d`. The source code currently sets DRIVE_RPM=60 and
 TURN_RPM=30; older README examples still say 10 and 6. Hardware defaults here
 are lower commissioning settings, not copied simulation speed requests.
 
-| Wheel joint | Robot side | Forward joint sign | Example motor ID |
+| Wheel joint | Position | Forward ENCOS command sign | CAN ID |
 |---|---|---|---|
-| wheel_1 | left | -1 | 1 |
-| wheel_2 | left | -1 | 2 |
-| wheel_3 | right | +1 | 3 |
-| wheel_4 | right | +1 | 4 |
+| wheel_1 | left front | -1 | 1 |
+| wheel_2 | left rear | -1 | 2 |
+| wheel_3 | right front | +1 | 3 |
+| wheel_4 | right rear | +1 | 4 |
 | wheel_5, wheel_6 | passive | no command | none |
 
 The loaded model's driven joint centers have wall-frame X coordinates
@@ -79,16 +79,16 @@ three driver entries use CAN1, and the fourth uses CAN2 (overridable through
 ID does not choose its CAN bus. The driver uses one configuration for wheel mapping, PDO order and RPM
 limits, validated before opening the bridge.
 
-The example IDs and CAD signs are not verified physical wiring assignments.
-IDs 1–3 have prior unloaded CAN1 bench evidence; motor 3 was also
-operator-confirmed on CAN2 on 2026-09-29 in direct-RPM mode. The Nov 24 split-bus
-four-motor test passed both signed motion legs and stop checks; see the
-[physical record](measurements/encos-four-motor-physical-review-2026-11-24.json).
-Explicit wheel-to-ID assignment, forward signs and external gearing still need
-recording before promoting the full physical mapping. Set `wheel_directions`
-to the actual protocol sign that drives each wheel forward; do not multiply
-a second CAD sign into it. Preserve
-`motor_ids` slot order when changing wheel assignments.
+On 2026-11-25, the operator confirmed the wheel locations, forward command
+signs above and 1:1 output-shaft-to-wheel gearing for all four wheels. The
+[four-motor split-bus profile](../src/bringup/config/chassis_four_motor_bench.yaml)
+records this mapping, with IDs 1/2 on CAN1 and IDs 3/4 on CAN2 in slots
+0/1/3/4. Hardware launch still requires explicit execution and mapping
+confirmation. The [Nov 24 bench record](measurements/encos-four-motor-physical-review-2026-11-24.json)
+covers signed shaft motion and stops.
+
+Set `wheel_directions` directly to the protocol sign that drives each wheel
+forward. Preserve `motor_ids` slot order when changing wheel assignments.
 
 ## Build and run
 

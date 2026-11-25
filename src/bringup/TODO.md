@@ -13,7 +13,3 @@ Completed implementation and run instructions belong in the
 [rig guide](../../docs/ARM_RIG_TEST.md) and
 [source map](../../docs/SOURCE_LAYOUT.md#arm-controls-and-rig-test-file-map).
 Update the owning registry entry instead of duplicating session histories here.
-
-**CHASSIS-02:** Record explicit wheel-to-ID locations, forward protocol signs and
-external gearing before promoting the physical wheel mapping. See the
-[remaining chassis work](../../docs/CHASSIS_MODEL_COMMS_TODOS.md).

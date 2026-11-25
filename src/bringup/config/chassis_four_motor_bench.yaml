@@ -1,4 +1,5 @@
-# Four secured, unloaded motors; physical wheel signs still require confirmation.
+# Four secured, unloaded motors. The operator confirmed the wheel mapping on 2026-11-25.
+# Physical runs require explicit execution and mapping confirmation flags.
 # Preserve the commissioned split bus: IDs 1/2 CAN1, IDs 3/4 CAN2.
 motor_driver:
   ros__parameters:

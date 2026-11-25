@@ -77,9 +77,13 @@ static void safety(void) {
     feedback(&a,0,20); assert(arm_set(&a,0,&hold,20));
     assert(!arm_enable(&a,0,20)); /* no diagnostics alongside active control */
 }
+static void packet_crc(uint8_t *d) {
+    uint32_t crc = wire_crc(d, 60);
+    for (unsigned i = 0; i < 4; i++) d[60 + i] = crc >> (8 * i);
+}
 static void packet(uint8_t *d,unsigned type,unsigned seq) {
     memset(d,0,64); d[0]=0xa5; d[1]=0x5a; d[2]=1; d[3]=type; d[4]=seq;
-    uint32_t crc=wire_crc(d,60); for(unsigned i=0;i<4;i++) d[60+i]=crc>>(8*i);
+    packet_crc(d);
 }
 static bool feed(arm_wire *w,uint8_t *d,uint8_t *out) { bool got=false; for(unsigned i=0;i<64;i++) got|=wire_byte(w,d[i],10,out); return got; }
 static void framing(void) {
@@ -88,15 +92,95 @@ static void framing(void) {
     packet(d,1,1); assert(feed(&w,d,out)); assert(out[8]==0); assert(!memcmp(out+9,"FORGE-MC02/1",12));
     assert(out[21]==0xf4 && out[22]==1 && out[23]==0 && out[24]==0);
     packet(d,7,2); assert(feed(&w,d,out)); assert(out[8]==0);
-    assert(feed(&w,d,out)); assert(out[8]==1); /* replay rejected */
+    uint8_t legacy_state[52] = {0};
+    memset(legacy_state + 8, 0xff, 4);
+    assert(!memcmp(out + 8, legacy_state, sizeof(legacy_state)));
+    assert(feed(&w,d,out));
+    assert(out[8] == 1 && out[9] == ARM_REJECT_STALE_SEQUENCE && out[10] == ARM_REJECT_NO_SLOT);
     packet(d,7,3); d[9]^=1; assert(!feed(&w,d,out));
     packet(d,7,4); assert(feed(&w,d,out)); assert(out[8]==0);
     /* A dropped byte followed by a good frame resynchronizes. */
     packet(d,7,5); for(unsigned i=0;i<63;i++) (void)wire_byte(&w,d[i],10,out);
     packet(d,7,6); assert(feed(&w,d,out)); assert(out[8]==0);
-    packet(d,13,7); assert(feed(&w,d,out)); assert(out[8]==1); /* retired MIT bench command */
+    packet(d,13,7); assert(feed(&w,d,out));
+    assert(out[8] == 1 && out[9] == ARM_REJECT_UNSUPPORTED && out[10] == ARM_REJECT_NO_SLOT);
     packet(d,6,1); assert(feed(&w,d,out)); assert(out[8]==0); /* stop bypasses sequence */
 }
+static void config_diagnostics(void) {
+    arm_controller a;
+    ready(&a);
+    arm_wire w;
+    wire_init(&w, &a);
+    uint8_t request[64], reply[64];
+    unsigned tx_before = sends;
+
+    packet(request, 29, 1);
+    assert(feed(&w, request, reply));
+    assert(reply[8] == 1 && reply[9] == ARM_REJECT_SESSION_REQUIRED && reply[10] == ARM_REJECT_NO_SLOT);
+    packet(request, 1, 2);
+    assert(feed(&w, request, reply) && reply[8] == 0);
+    assert(reply[28] & 2u); /* Capability bit 25. */
+
+    assert(arm_set_result(&a, 0, &hold, 3) == ARM_REQUEST_OK);
+    packet(request, 29, 3);
+    assert(feed(&w, request, reply) && reply[8] == 0);
+    const uint8_t active_header[] = {1, 1, 1, 0, 31, 1, 0, 1, 0, 17, 0};
+    assert(!memcmp(reply + 9, active_header, sizeof(active_header)));
+    assert(sends == tx_before && a.joints[0].command_at == 3);
+
+    packet(request, 29, 4);
+    request[8] = ARM_COUNT;
+    packet_crc(request);
+    assert(feed(&w, request, reply));
+    assert(reply[8] == 1 && reply[9] == ARM_REJECT_INVALID_ARGUMENT && reply[10] == ARM_REJECT_NO_SLOT);
+
+    dm_command bad = hold;
+    bad.p = NAN;
+    assert(arm_set_result(&a, 0, &bad, 10) == ARM_REJECT_INVALID_ARGUMENT);
+    bad.p = 2;
+    assert(arm_set_result(&a, 0, &bad, 10) == ARM_REJECT_LIMIT_EXCEEDED);
+    assert(arm_enable_result(&a, 0, 10) == ARM_REJECT_STALE_FEEDBACK);
+    assert(arm_enable_result(&a, 0, 153) == ARM_REJECT_STALE_PRELOAD);
+    assert(a.joints[0].command_at == 3 && sends == tx_before && !a.fault);
+
+    feedback(&a, 0, 10);
+    fail_send = true;
+    packet(request, 5, 5);
+    assert(feed(&w, request, reply));
+    fail_send = false;
+    assert(reply[8] == 1 && reply[9] == ARM_REJECT_CAN_TX_FAILED && reply[10] == 0);
+    assert(a.fault && a.fault_reason == 5 && sends == tx_before + 1);
+    packet(request, 5, 6);
+    assert(feed(&w, request, reply));
+    assert(reply[8] == 1 && reply[9] == ARM_REJECT_FAULT_LATCHED && reply[10] == 0);
+    assert(a.fault_reason == 5 && sends == tx_before + 1);
+
+    arm_init(&a, send_frame, 0);
+    wire_init(&w, &a);
+    const arm_config routes[] = {
+        {1, 1, 17, -1, 1, 1, 3, 0, 0},
+        {2, 2, 18, -1, 1, 1, 3, 0, 0},
+    };
+    uint8_t mode = 2 | ARM_ROUTED_MANUAL_TRAVEL | ARM_ROUTED_POSITION_HOLD | ARM_ROUTED_GROUP_HOLD;
+    const dm_command preload = {.p = 0, .v = .1f};
+    for (unsigned slot = 0; slot < 2; slot++) {
+        assert(arm_prepare_routed(&a, slot, &routes[slot], slot + 1, mode));
+        a.joints[slot].registers = 31;
+        a.joints[slot].range = (dm_range){12.5f, 10, 28};
+        assert(arm_set(&a, slot, &preload, 10));
+    }
+    feedback(&a, 0, 10);
+    packet(request, 1, 1);
+    assert(feed(&w, request, reply) && reply[8] == 0);
+    packet(request, 18, 2);
+    request[8] = 3;
+    packet_crc(request);
+    tx_before = sends;
+    assert(feed(&w, request, reply));
+    assert(reply[8] == 1 && reply[9] == ARM_REJECT_STALE_FEEDBACK && reply[10] == 1);
+    assert(sends == tx_before && !a.fault && !a.joints[0].enabled && !a.joints[1].enabled);
+}
+
 static void discovery(void) {
     arm_controller a; arm_init(&a,send_frame,0); unsigned start=sends;
     assert(!arm_read_register(&a,1,1,0x55,0));
@@ -204,4 +288,4 @@ static void enable_confirmation(void) {
     for(uint32_t t=40;t<270;t+=20) { feedback(&a,0,t); assert(arm_set(&a,0,&hold,t)); arm_tick(&a,t); assert(!a.fault); }
     feedback(&a,0,270); arm_tick(&a,270); assert(a.fault_reason==3);
 }
-int main(void) { codec(); posvel_codec(); safety(); framing(); discovery(); bench45(); bench_torque3(); fault_details(); enable_confirmation(); puts("Damiao codec, state machine, watchdog and framing tests passed"); }
+int main(void) { codec(); posvel_codec(); safety(); framing(); config_diagnostics(); discovery(); bench45(); bench_torque3(); fault_details(); enable_confirmation(); puts("Damiao codec, state machine, watchdog and framing tests passed"); }

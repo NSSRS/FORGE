@@ -19,7 +19,8 @@
 #define ARM_ROUTED_MANUAL_TRAVEL 0x80u /* USB configure mode flag; never sent to motor. */
 #define ARM_ROUTED_POSITION_HOLD 0x40u /* Requires manual travel and mode 2; leases still apply. */
 #define ARM_ROUTED_GROUP_HOLD 0x20u /* Requires position hold; complete group enable only. */
-#define ARM_CAPABILITIES (8079u | ARM_CAP_RATED_4340_TORQUE | ARM_CAP_CONTROL_READBACK | ARM_CAP_MANUAL_TRAVEL | ARM_CAP_POSITION_HOLD | ARM_CAP_GROUP_HOLD | ARM_CAP_SMOOTH_JOG | ARM_CAP_SMOOTH_JOG_10 | ARM_CAP_A2_LOAD_13 | ARM_CAP_A2_LOAD_30 | ARM_CAP_A2_RANGE_SETUP | ARM_CAP_GUN_LOAD | ARM_CAP_LOAD_RANGE_SETUP)
+#define ARM_CAP_CONFIG_DIAGNOSTICS (1u << 25)
+#define ARM_CAPABILITIES (8079u | ARM_CAP_RATED_4340_TORQUE | ARM_CAP_CONTROL_READBACK | ARM_CAP_MANUAL_TRAVEL | ARM_CAP_POSITION_HOLD | ARM_CAP_GROUP_HOLD | ARM_CAP_SMOOTH_JOG | ARM_CAP_SMOOTH_JOG_10 | ARM_CAP_A2_LOAD_13 | ARM_CAP_A2_LOAD_30 | ARM_CAP_A2_RANGE_SETUP | ARM_CAP_GUN_LOAD | ARM_CAP_LOAD_RANGE_SETUP | ARM_CAP_CONFIG_DIAGNOSTICS)
 #define ARM_BASE_API_VERSION 1u
 #ifndef FORGE_BUILD_ID
 #define FORGE_BUILD_ID 0u /* native tests/nonstandard builds */
@@ -69,6 +70,34 @@ typedef struct {
     uint8_t range_written_mask, range_save_attempted_mask, range_saved_mask;
     bool fault, bench, bench_posvel, routed_bench; uint32_t last_tick, bench_enabled_at;
 } arm_controller;
+/* Request rejection codes are part of the USB ABI. Fault reasons are separate. */
+typedef enum {
+    ARM_REQUEST_OK = 0,
+    ARM_REJECT_INVALID_ARGUMENT = 1,
+    ARM_REJECT_INVALID_ROUTE = 2,
+    ARM_REJECT_INVALID_STATE = 3,
+    ARM_REJECT_STALE_FEEDBACK = 4,
+    ARM_REJECT_STALE_PRELOAD = 5,
+    ARM_REJECT_LIMIT_EXCEEDED = 6,
+    ARM_REJECT_FAULT_LATCHED = 7,
+    ARM_REJECT_UNSUPPORTED = 8,
+    ARM_REJECT_CAN_TX_FAILED = 9,
+    ARM_REJECT_SESSION_REQUIRED = 10,
+    ARM_REJECT_STALE_SEQUENCE = 11,
+} arm_request_result;
+
+#define ARM_REJECT_NO_SLOT UINT8_MAX
+
+arm_request_result arm_configure_result(arm_controller *, unsigned, const arm_config *);
+arm_request_result arm_prepare_routed_result(arm_controller *, unsigned, const arm_config *, uint8_t, uint8_t);
+arm_request_result arm_probe_result(arm_controller *, unsigned);
+arm_request_result arm_set_result(arm_controller *, unsigned, const dm_command *, uint32_t);
+arm_request_result arm_set_smooth_result(arm_controller *, unsigned, const dm_command *, uint32_t);
+arm_request_result arm_enable_result(arm_controller *, unsigned, uint32_t);
+arm_request_result arm_enable_group_result(arm_controller *, uint8_t, uint32_t, uint8_t *failed_slot);
+uint8_t arm_control_mode(const arm_controller *, const arm_joint *);
+uint16_t arm_setpoint_id(const arm_controller *, const arm_joint *);
+
 bool dm_pack(const dm_range *, const dm_command *, uint8_t out[8]);
 void arm_init(arm_controller *, arm_send_fn, void *);
 bool arm_prepare_routed(arm_controller *, unsigned, const arm_config *, uint8_t, uint8_t);

@@ -1,7 +1,7 @@
 # Simulation and planning: cross-layer arm/motor TODOs
 
 Start with [cross-layer registry](../../docs/ARM_LAYER_TODOS.md) and
-[base API contract](../../docs/ARM_BASE_LAYER.md). Relevant stable IDs: **CAL-01, LOAD-01, FEEDBACK-01, ACCURACY-01**.
+[base API contract](../../docs/ARM_BASE_LAYER.md). Relevant stable IDs: **CAL-01, LOAD-01, FEEDBACK-01**.
 
 The simulation-only [single-joint collision study](../../docs/ARM_COLLISION_STUDY.md)
 implements candidate range scans and MuJoCo playback. The weld
@@ -21,6 +21,3 @@ For the next supported, assembled-arm stage, follow the
 [handoff](../../docs/ASSEMBLED_ARM_BRINGUP.md) and its central TODO IDs.
 Keep session jog bounds, sampled model intervals and calibrated physical
 limits distinct; coordinated gravity holding remains a separate controller.
-
-[ACCURACY-01](../../docs/ARM_LAYER_TODOS.md#accuracy-01--measure-motion-accuracy-during-welding)
-uses the checked model to reconstruct fixed-base wire-tip tracking from encoder logs.

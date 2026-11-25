@@ -109,6 +109,14 @@ replies, cache retention and restart. Do not promote the global toggle, WKC,
 payload changes or motor command timeout to per-motor freshness without that
 evidence. No physical test or firmware change was performed for this review.
 
+### ENCOS offline capture analysis
+
+Use the [paired CAN and EtherCAT capture procedure](CAN2_BENCH.md#combined-encos-commissioning)
+to record per-motor reply gaps, repeated identical replies, and the PDO status
+and DLCs during independently observed CAN silence. The tool reads saved files.
+Retain the bridge revision and supplier RX semantics with the captures before
+promoting CAN freshness in the runtime diagnostics.
+
 ## Viewing and deployment
 
 With the existing driver owners already running and the ROS environment sourced:

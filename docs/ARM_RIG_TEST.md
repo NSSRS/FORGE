@@ -446,23 +446,19 @@ See the [baseline record](measurements/arm-weld-v7-baseline-2026-11-24.json).
 The Nov 23 operator session provides a joint-diagnostic and encoder-reconstructed
 tool-pose baseline; see the [review](ARM_SESSION_HANDOFF.md#accuracy-01-and-speed-01-review)
 and [complete offline archive](measurements/weld/2026-11-23/README.md).
-Prioritize wire-tip position and stroke in the workpiece frame. On a continuous
-arm-only pass, allow one fixed time shift for position scoring. Keep same-time
-tool orientation as a separate secondary criterion with a **0.5 deg target**
-and **1 deg maximum**. Collect independent synchronized measurements before
-setting the tip-position tolerance in mm. Use joint errors as diagnostics.
-For a repeat or a matched tracking comparison, use the supported fixture and validated
-arm profile, mapping and matching standby from the
-[weld panel procedure](#weld-panel-with-embedded-model-preview). Perform a
-motion-only test. Use the same reviewed hardware launch command with
-`--cycles 4`, without `--single-pass`. Reports are saved automatically under
-`build/weld/latest/`. Start with **Arm output** selected.
-For the A1 comparison, run two arm-only passes at the archived 1.730 Hz and
-20 mm stroke with the same 1.96 kg payload, checked path and settings. Use
-`--cycles 1` as in the archived run. Use the standard PID tracker for the
-first pass and add `--weld-a1-shaper-only` to the arm-only launch for the
-second. The trial retains command shaping and disables
-the additive A1 correction during welding. Save both session paths.
+ACCURACY-01 is a physical motion-only check to run when available. Use the
+v7 launch above and select **Arm output**. Save the journal under
+`build/weld/latest/` and review per-cycle stroke and both edges against the
+20 mm plan. On a continuous arm-only pass, position scoring allows one fixed
+time shift. Report same-time orientation separately with a **0.5 deg target**
+and **1 deg maximum**, with startup reported separately. Record approximate
+times for any chassis movement observed during the pass.
+
+For the historical A1 comparison, two arm-only passes used the archived
+1.730 Hz and 20 mm stroke with the same 1.96 kg payload and checked path.
+The first used the standard PID tracker. The second used
+`--weld-a1-shaper-only` to keep shaping while disabling additive A1 correction.
+These are earlier comparison settings.
 The earlier Nov 24 command-sampling comparison repeated the second pass with the same
 `--weld-a1-shaper-only` launch and settings after normally closing and restarting
 the panel. That journal records
@@ -473,8 +469,8 @@ its old 3.443-degree command span was a host sampling defect. Actual shaft trave
 tip stroke and lag must be measured again; the old 2.382-degree actual travel
 does not predict the corrected controller's physical response. A6 additive PID
 remains active in this matched comparison. ILC is deferred future work.
-For a later combined run, verify the four-wheel mapping before selecting
-**Chassis feed** and use the normal explicit chassis launch flags.
+For a later combined run, use the [confirmed four-motor profile](DIFFERENTIAL_DRIVE.md#model-source-and-hardware-mapping)
+and the normal explicit chassis launch flags before selecting **Chassis feed**.
 
 Calculate and inspect the checked path. Start recovery, wait for Ready, and
 start welding motion. After the desired observation interval, click
@@ -499,8 +495,8 @@ tool frames, including roll, without phase alignment. Target/maximum coverage
 are reported separately; the maximum is used for acceptance. These estimates depend on the
 saved mapping, rigid geometry and correct tool mounting.
 
-For workpiece-relative accuracy, capture independent synchronized tip positions
-and export `elapsed_s,x_mm,y_mm,z_mm` in increasing time order. Use the
+If independent workpiece-relative tip measurements are available, export
+`elapsed_s,x_mm,y_mm,z_mm` in increasing time order. Use the
 `weld_started` event as time zero and retain samples over the checked moving
 interval shown as `duration_s`. Register the measurement frame to the **planned**
 starting tip on the fixture, with +X along commanded travel, +Y transverse and

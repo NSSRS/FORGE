@@ -17,11 +17,9 @@ in the guides; full hardware qualification below remains separate.
 The operator selected v7 and deferred further weld tuning; ILC remains later
 future work. ENCOS identification/four-motor testing is complete, with remaining
 mapping and qualification in the [chassis registry](CHASSIS_MODEL_COMMS_TODOS.md).
-When arm accuracy work resumes, prioritize wire-tip position and transverse stroke under ACCURACY-01/SPEED-01.
-Allow one fixed lag for arm-only tip scoring and retain the same-time 1 deg
-tool-orientation maximum as a secondary criterion. Apply the relevant
-CAL-01/SUPPORT-01 checks. LOAD-01 and FEEDBACK-01 follow the first qualified
-arm welding run.
+ACCURACY-01 is an operator-run physical check when the opportunity arises.
+Apply the relevant CAL-01/SUPPORT-01 checks to physical arm work. LOAD-01 and
+FEEDBACK-01 follow the first qualified arm welding run.
 
 ### SUPPORT-01 — base, gravity support and physical stopping
 
@@ -140,11 +138,10 @@ Owner: `src/controls/`, `src/motors/arm_position.py`, `src/teleop/`, firmware/pr
 ### BASE-05 — typed errors and active configuration readback
 
 Owner: `arm.c`, `wire.c`, `src/motors/arm.py`.
-Expose stable rejection codes (state, route, stale feedback, limits, capability)
-and actual active routes/bounds. Fault snapshots and disabled motor-register
-readback already exist. Distinguish protocol ceilings, profile trips and measured
-application limits. Preserve compatibility or negotiate a wire version; test
-invalid/nonfinite requests, route changes and missing capabilities.
+Typed rejections and MCU route/limit readback are implemented and tested with
+native fake CAN. On the rig, verify each reported route, mode and profile bound
+against the selected profile and compare probed protocol ranges with disabled
+motor readback. See the [BASE-05 specification](ARM_BASE_LAYER.md#base-05-specification).
 
 ### BASE-06 — atomic multi-joint targets
 
@@ -153,6 +150,12 @@ Validate a complete batch before committing a generation/common application
 time. Define partial/stale/replayed packet discard and mode support; an invalid
 or incomplete batch must neither move a subset nor renew leases. Measure
 cross-joint dispatch skew. Group enable alone is not synchronized trajectories.
+
+The [native weld regression](../tests/test_weld_hardware.py) interrupts the
+first, third and sixth USB setpoint writes. The sequential path updates
+the earlier axes' targets and leases before group stop. For atomic dispatch,
+a transfer interrupted before commit must preserve all six previous targets
+and lease timestamps.
 
 ### BASE-07 — physical fault-injection acceptance
 
@@ -201,28 +204,17 @@ re-enable after a fault/reconnect.
 
 ### ACCURACY-01 — measure motion accuracy during welding
 
-Owner: `src/controls/controls/hardware/`, operator.
-The [accuracy test procedure](ARM_RIG_TEST.md#weld-motion-accuracy-test) uses the
-weld panel's cached journal and `scripts/analyze_weld_accuracy.py` after the pass.
+Owner: operator. Status: pending a physical test when available.
 
-- [ ] Reduce 3D tip error and both transverse edge errors. Allow one fixed lag
-  for continuous arm-only position scoring and report the same-time result as
-  well. Build on the recorded v7/v8 comparison at 1.730 Hz and 20 mm stroke;
-  preserve the same 1.96 kg payload, route and settings for follow-ups. Collect
-  independent tip data before selecting a position tolerance in mm.
-- [ ] Retain **0.5 deg target / 1 deg maximum same-time tool-orientation error**
-  relative to the planned tool frame. The [v7 baseline](measurements/arm-weld-v7-baseline-2026-11-24.json)
-  has 0.759 deg matched-cycle peak and 1.095 deg whole-pass startup peak. Use
-  joint tracking and dispatch errors to diagnose the response. End continuous
-  welding with manual Pause / Hold. Repeat with chassis feed after wheel
-  mapping is confirmed. Retain the runtime tracking and arrival guards.
-- [ ] Independently measure synchronized tool orientation and 3D wire-tip
-  positions in a fixed workpiece frame.
-  Record the tool mounting, wire extension, seam axes and timing reference. Set
-  the separate position tolerance in mm and compare against the actual checked
-  weave and feed, including its retiming. Encoder reconstruction supplies a
-  fixed-base estimate. Independent tip data measures the effect of slip, flex
-  and tool alignment on workpiece-relative accuracy.
+- [ ] Run the [v7 arm-only motion check](ARM_RIG_TEST.md#weld-motion-accuracy-test)
+  with the existing settings and save the panel's `session.jsonl`.
+- [ ] Review each complete cycle's encoder-reconstructed transverse stroke and
+  both edges against the 20 mm plan. Report startup separately and compare
+  same-time orientation with the 0.5 deg target and 1 deg maximum. Record any
+  observed chassis movement or handling with its approximate time if known.
+
+The journal analysis uses the checked model with a fixed base. Independent
+workpiece-relative measurements are optional when equipment is available.
 
 ### WELDER-01 — welding machine Modbus API
 
@@ -267,7 +259,7 @@ sensor integration and `src/robot_description/` (frames/calibration).
 Requested 2026-11-15; deferred until the first qualified arm welding run.
 Coordinate with LOAD-01 and CHASSIS-04; this is not implemented compensation.
 
-- [ ] Use the ACCURACY-01 baseline to evaluate delay, jitter, quantization and
+- [ ] Use the archived v7 journal to evaluate delay, jitter, quantization and
   tracking error against timestamped positions, velocities, dispatched limits
   and feedback ages. Use the existing owner's cached telemetry.
 - [ ] Select and calibrate sensing of the wire tip relative to the weld seam,
@@ -318,7 +310,7 @@ methods to FORGE is an engineering proposal requiring the checks above.
 
 Owner: `src/controls/controls/controller/`, operator.
 Explicitly deferred by the operator on Nov 24. First qualify corrected command
-sampling/timing and the loaded ACCURACY-01/SPEED-01 tracking baseline.
+sampling/timing and the loaded SPEED-01 tracking baseline.
 
 - [ ] Identify repeatable cycle error separately from noise, timing variation
   and non-repeating load disturbances. Fit against the planned cycle phase;

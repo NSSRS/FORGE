@@ -4,6 +4,7 @@ No background refresh: application must supply fresh commands within 150 ms.
 Opening a port or reading status never enables motors. SI output-shaft units.
 """
 from dataclasses import dataclass
+from enum import IntEnum
 import json
 import math
 import struct
@@ -27,6 +28,7 @@ CAP_A2_LOAD_30 = 1 << 21
 CAP_A2_RANGE_SETUP = 1 << 22
 CAP_GUN_LOAD = 1 << 23
 CAP_LOAD_RANGE_SETUP = 1 << 24
+CAP_ARM_CONFIG_DIAGNOSTICS = 1 << 25
 # P-series manual register maps. These are reads only; write whitelist stays
 # TIMEOUT/CTRL_MODE. Imax/VBus are documented for 4340P/4310P, not 8009P V1.1.
 CONTROL_REGISTERS = {
@@ -96,6 +98,38 @@ FAULT_REASONS = {0: 'not recorded', 1: 'host command lease expired', 2: 'CAN fee
                  12: 'USB receive overflow', 13: 'CAN bus-off/status failure', 14: 'USB disconnected'}
 
 
+class ArmRejectReason(IntEnum):
+    UNKNOWN = 0
+    INVALID_ARGUMENT = 1
+    INVALID_ROUTE = 2
+    INVALID_STATE = 3
+    STALE_FEEDBACK = 4
+    STALE_PRELOAD = 5
+    LIMIT_EXCEEDED = 6
+    FAULT_LATCHED = 7
+    UNSUPPORTED = 8
+    CAN_TX_FAILED = 9
+    SESSION_REQUIRED = 10
+    STALE_SEQUENCE = 11
+
+
+class ArmRequestRejected(RuntimeError):
+    """An MC02 response rejected the request before or during execution."""
+
+    def __init__(self, request_type, reason=ArmRejectReason.UNKNOWN, slot=None):
+        self.request_type = request_type
+        self.reason = reason
+        self.slot = slot
+        message = f'MC02 rejected command {request_type}'
+        if reason == ArmRejectReason.UNKNOWN:
+            message += '; check configuration, state and watchdogs'
+        else:
+            message += f': {reason.name}'
+            if slot is not None:
+                message += f' (slot {slot}, A{slot + 1})'
+        super().__init__(message)
+
+
 def frame(kind, sequence, payload=b''):
     if len(payload) > 52:
         raise ValueError('payload too long')
@@ -150,6 +184,7 @@ class ArmBus:
             transport = serial.Serial(port, 115200, timeout=0.02, write_timeout=0.1, exclusive=True)
         self.serial = transport
         self.sequence = 0
+        self.capabilities = 0
         self.lock = threading.Lock()
         self.snapshot_lock = threading.Lock()
         self.buffer = bytearray()
@@ -193,7 +228,16 @@ class ArmBus:
                     if seq != self.sequence or rkind != kind | 0x80:
                         continue
                     if result[0]:
-                        raise RuntimeError(f'MC02 rejected command {kind}; check configuration, state and watchdogs')
+                        reason = ArmRejectReason.UNKNOWN
+                        slot = None
+                        if result[0] == 1 and self.capabilities & CAP_ARM_CONFIG_DIAGNOSTICS and result[1]:
+                            try:
+                                reason = ArmRejectReason(result[1])
+                            except ValueError:
+                                pass
+                            if result[2] < 6:
+                                slot = result[2]
+                        raise ArmRequestRejected(kind, reason, slot)
                     return result
             raise TimeoutError('MC02 response timeout; firmware command leases are not refreshed')
 
@@ -215,6 +259,33 @@ class ArmBus:
             info['range_setup_joint'] = struct.unpack_from('<I', p, 45)[0]
             info.update(zip(('range_written_mask', 'range_save_attempted_mask', 'range_saved_mask'), p[49:52]))
         return info
+
+    def active_config(self, slot):
+        """Read one active MCU slot over USB without probing or renewing leases."""
+        request = self._slot(slot)
+        if not self.capabilities & CAP_ARM_CONFIG_DIAGNOSTICS:
+            raise RuntimeError('Firmware lacks active configuration diagnostics (capability 0x02000000)')
+        payload = self._request(29, request)
+        flags, bus, mode, model, registers = struct.unpack_from('<5B', payload, 1)
+        configured = bool(flags & 1)
+        motor_id, setpoint_id, feedback_id = struct.unpack_from('<3H', payload, 6)
+        limits = struct.unpack_from('<6f', payload, 12)
+        ranges = struct.unpack_from('<3f', payload, 36)
+        return dict(
+            slot=slot, configured=configured,
+            bus=bus if configured else None,
+            mode=mode if configured else None,
+            model_code=model if configured and model else None,
+            motor_can_id=motor_id if configured else None,
+            setpoint_can_id=setpoint_id if configured else None,
+            feedback_can_id=feedback_id if configured else None,
+            manual_travel=bool(flags & 2), position_hold=bool(flags & 4), group_hold=bool(flags & 8),
+            verified_register_mask=registers,
+            profile_limits=dict(zip(('lower_rad', 'upper_rad', 'speed_trip_rad_s', 'torque_trip_nm',
+                                     'kp_max', 'kd_max'), limits)) if configured else None,
+            protocol_ranges={key: value if configured and registers & (1 << index) else None
+                             for index, (key, value) in enumerate(zip(('pmax_rad', 'vmax_rad_s', 'tmax_nm'), ranges))},
+        )
 
     def bus_health(self, bus):
         """Cumulative uint32 counters since MCU boot; reading never clears them."""

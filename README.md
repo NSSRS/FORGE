@@ -4,7 +4,7 @@ Motor control, sensing, teleoperation and visualization for the magnetic
 wall-climbing welding robot. Native Ubuntu 24.04 is the deployment target.
 ENCOS drives the chassis; six Damiao motors drive the arm through DM-MC02.
 
-## Current status — November 24
+## Current status — November 25
 
 - **Welding:** the operator selected **v7**, with exact sampled commands and
   bounded A1/A6 response compensation. Matched-cycle tip RMS is 2.168 mm and
@@ -13,8 +13,8 @@ ENCOS drives the chassis; six Damiao motors drive the arm through DM-MC02.
 - **ENCOS:** all four motors passed the 5 RPM signed-motion/stop test on
   slots 0/1/3/4; the operator reported normal viewer/keyboard behavior. Use
   `bash scripts/run_motor_test.sh --four-motors`. IDs 1/2 are on CAN1 and 3/4
-  on CAN2. [Results and setup](docs/CAN2_BENCH.md) distinguish this successful
-  bench run from pending physical wheel mapping and load/host-loss qualification.
+  on CAN2. The operator confirmed the [wheel mapping](docs/DIFFERENTIAL_DRIVE.md#model-source-and-hardware-mapping)
+  on Nov 25. [CAN freshness, loaded stopping and host-loss qualification](docs/CHASSIS_MODEL_COMMS_TODOS.md) remain open.
 - **Arm setup:** the gun-load firmware/ranges are deployed; routine runs need
   no setup or flash. Use the explicit matching profile. HOLD-01, PLAN-01 and
   BASE-04 are closed; do not reopen their historical incidents.

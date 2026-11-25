@@ -5,7 +5,8 @@ import struct
 import unittest
 from unittest.mock import patch
 import source_paths  # noqa
-from motors.arm import ArmBus, decode, frame
+from motors.arm import (ArmBus, ArmRejectReason, ArmRequestRejected,
+                        CAP_ARM_CONFIG_DIAGNOSTICS, decode, frame)
 
 
 class FakeUSB:
@@ -96,6 +97,31 @@ class ArmTests(unittest.TestCase):
             for call in (bus.snapshot,bus.base_info,lambda:bus.bus_health(1)):
                 with self.assertRaisesRegex(RuntimeError,'cached base telemetry'): call()
         self.assertEqual([kind for kind,_ in usb.sent],[1])
+
+    def test_diagnostics_capability_and_unknown_reason(self):
+        class RejectingFirmware(FakeUSB):
+            def write(self, data):
+                count = super().write(data)
+                kind, seq, payload = decode(self.rx)
+                reply = bytearray(payload)
+                if kind == 0x85:
+                    reply[:3] = bytes([1, 0xfe, 2])
+                self.rx = bytearray(frame(kind, seq, reply))
+                return count
+
+        firmware = RejectingFirmware()
+        with ArmBus(transport=firmware) as bus:
+            with self.assertRaisesRegex(RuntimeError, 'capability 0x02000000'):
+                bus.active_config(2)
+            self.assertEqual([kind for kind, _ in firmware.sent], [1])
+            with self.assertRaises(ArmRequestRejected) as legacy:
+                bus.enable(2)
+            self.assertEqual((legacy.exception.reason, legacy.exception.slot), (ArmRejectReason.UNKNOWN, None))
+            self.assertIsInstance(legacy.exception, RuntimeError)
+            bus.capabilities |= CAP_ARM_CONFIG_DIAGNOSTICS
+            with self.assertRaises(ArmRequestRejected) as unknown:
+                bus.enable(2)
+            self.assertEqual((unknown.exception.reason, unknown.exception.slot), (ArmRejectReason.UNKNOWN, 2))
 
     def test_can_budget_is_explicit_estimate(self):
         from motors.arm_telemetry import can_budget
@@ -247,6 +273,75 @@ class NativeRoundTrip(unittest.TestCase):
         cls.lib.fake_advance.argtypes=[ctypes.c_uint]
     @classmethod
     def tearDownClass(cls): cls.temp.cleanup()
+    def test_active_config_tracks_actual_route_and_verified_ranges(self):
+        with ArmBus(transport=NativeTransport(self.lib)) as bus:
+            self.assertTrue(bus.capabilities & CAP_ARM_CONFIG_DIAGNOSTICS)
+            self.assertEqual(bus.base_info()['capabilities'], bus.capabilities)
+            empty = bus.active_config(2)
+            self.assertFalse(empty['configured'])
+            self.assertIsNone(empty['feedback_can_id'])
+            self.assertIsNone(empty['profile_limits'])
+            self.assertRaises(ValueError, bus.active_config, -1)
+
+            def configure(slot, route, speed):
+                bus._request(2, struct.pack('<BBHH6f', slot, *route, -1, 1, speed, 2, 5, .25))
+
+            configure(2, (2, 3, 19), 1.)
+            before = bus.bus_health(2)['tx_frames']
+            initial = bus.active_config(2)
+            self.assertTrue(initial['configured'])
+            self.assertEqual((initial['bus'], initial['motor_can_id'], initial['feedback_can_id']), (2, 3, 19))
+            self.assertEqual(initial['setpoint_can_id'], 3)
+            self.assertEqual(initial['mode'], 1)
+            self.assertEqual(initial['profile_limits']['speed_trip_rad_s'], 1.)
+            self.assertEqual(initial['protocol_ranges'], dict(pmax_rad=None, vmax_rad_s=None, tmax_nm=None))
+            self.assertEqual(bus.bus_health(2)['tx_frames'], before)
+
+            with self.assertRaises(ArmRequestRejected) as rejected:
+                configure(3, (2, 3, 20), 1.)
+            self.assertEqual((rejected.exception.reason, rejected.exception.slot), (ArmRejectReason.INVALID_ROUTE, 3))
+            self.assertFalse(bus.active_config(3)['configured'])
+
+            configure(2, (3, 3, 19), .5)
+            bus.probe(2)
+            self.lib.fake_advance(40)
+            verified = bus.active_config(2)
+            self.assertEqual(verified['bus'], 3)
+            self.assertEqual(verified['profile_limits']['speed_trip_rad_s'], .5)
+            self.assertEqual(verified['verified_register_mask'], 31)
+            self.assertEqual(verified['protocol_ranges'], dict(pmax_rad=12.5, vmax_rad_s=30., tmax_nm=40.))
+
+    def test_probe_and_readback_preserve_factory_feedback_id_and_lease(self):
+        with ArmBus(transport=NativeTransport(self.lib)) as bus:
+            bus.set_bench_timeout()
+            bus.prepare_bench(-.15, .94)
+            bus.probe(0)
+            self.lib.fake_advance(40)
+            bus.stop()
+            self.lib.fake_advance(10)
+            bus.set_bench_mode(2)
+            bus.prepare_bench(-.15, .94, posvel=True)
+            before_probe = bus.active_config(0)
+            self.assertEqual((before_probe['mode'], before_probe['setpoint_can_id']), (2, 0x101))
+            self.assertEqual(before_probe['feedback_can_id'], 0)
+            self.assertIsNone(before_probe['protocol_ranges']['pmax_rad'])
+            bus.probe(0)
+            self.lib.fake_advance(40)
+            bus.stop()
+            self.lib.fake_advance(10)
+            bus.command(0, bus.state(0).position, velocity=.1)
+            bus.enable(0)
+            with self.assertRaises(ArmRequestRejected) as rejected:
+                bus.command(0, 5., velocity=.1)
+            self.assertEqual((rejected.exception.request_type, rejected.exception.reason, rejected.exception.slot),
+                             (4, ArmRejectReason.LIMIT_EXCEEDED, 0))
+            for _ in range(36):
+                active = bus.active_config(0)
+                self.assertEqual(active['protocol_ranges']['pmax_rad'], 12.5)
+            state = bus.state(0)
+            self.assertTrue(state.fault)
+            self.assertEqual(state.fault_reason, 1)
+
     def test_six_joint_host_firmware_roundtrip_and_timeout(self):
         usb=NativeTransport(self.lib); bus=ArmBus(transport=usb)
         p=ArmTests().profile(); p['hardware_confirmed']=True; p['joint_order_confirmed']=True

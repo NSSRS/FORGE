@@ -1,6 +1,6 @@
 # Arm and chassis session handoff
 
-Updated 2026-11-24 on `nathan`. This file describes the current baseline;
+Updated 2026-11-25 on `nathan`. This file describes the current baseline;
 [dated measurements](#calibration-and-evidence) retain earlier findings.
 Open work belongs in [ARM_LAYER_TODOS.md](ARM_LAYER_TODOS.md) and
 [CHASSIS_MODEL_COMMS_TODOS.md](CHASSIS_MODEL_COMMS_TODOS.md).
@@ -14,7 +14,7 @@ flash or repeated commissioning. The agent performed offline work only.
 
 | Subsystem | Current entry point | Status |
 | --- | --- | --- |
-| Arm welding | [V7 operator command](ARM_RIG_TEST.md#weld-motion-accuracy-test) | Selected baseline; startup and independent tip accuracy remain unqualified |
+| Arm welding | [V7 operator command](ARM_RIG_TEST.md#weld-motion-accuracy-test) | Selected baseline. ACCURACY-01 is pending an operator-run motion check |
 | Four ENCOS motors | `bash scripts/run_motor_test.sh --four-motors` | IDs 1/2 CAN1, 3/4 CAN2; slots 0/1/3/4; 5 RPM, 2 A trial limits |
 | Combined sensors/Pocket | [Full-system guide](FULL_SYSTEM_TEST.md) | Default remains three motors; explicitly select `chassis_four_motor_bench.yaml` for four |
 
@@ -25,8 +25,10 @@ normal owner close. The operator subsequently reported normal visual behavior
 in the four-motor keyboard/viewer session. The Terminator window-deregistration
 message came from the terminal UI; its exact trigger was not captured.
 See the [physical record](measurements/encos-four-motor-physical-review-2026-11-24.json).
-Explicit wheel locations, forward signs and external gearing remain to be
-recorded; loaded stopping, CAN freshness and host-loss behavior are separate.
+On Nov 25, the operator confirmed the [wheel locations, forward signs and
+1:1 gearing](DIFFERENTIAL_DRIVE.md#model-source-and-hardware-mapping) in the
+four-motor profile, closing CHASSIS-02. Loaded stopping, CAN freshness and
+host-loss qualification remain open.
 
 ## V7 baseline and reusable control scheme
 
@@ -125,10 +127,11 @@ preceded the command-sampling correction and v7. Its 2.633-degree orientation
 peak and A1/A6 overswing are historical comparisons, not current v7 performance.
 The [sampling review](measurements/arm-weld-command-sampling-review-2026-11-24.json)
 and [v7 physical comparison](measurements/arm-weld-response-physical-review-2026-11-24.json)
-record the progression. Future work prioritizes wire-tip position and stroke,
-with one fixed lag allowed for arm-only position reporting. Preserve same-time
-orientation targets of 0.5 deg / 1 deg maximum and report startup separately.
-Independent workpiece-relative tip measurements and a tip-mm tolerance are missing.
+record the progression. When available, run the v7 arm-only motion check
+and review stroke by cycle and startup separately from the saved journal.
+Compare same-time orientation with the 0.5 deg target and 1 deg maximum.
+The analyzer allows one fixed lag for arm-only tip position. Independent
+workpiece-relative measurements can supplement the encoder reconstruction.
 
 ## PLAN-01 and BASE-04 resolution
 

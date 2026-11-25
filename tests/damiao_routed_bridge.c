@@ -135,6 +135,7 @@ void fake_speed(unsigned i,float speed) { motors[i].stalled=true; motors[i].v=sp
 void fake_coast(unsigned i,unsigned replies) { motors[i].coasting_replies=replies; }
 unsigned fake_disables(unsigned i) { return motors[i].disables; }
 float fake_target(unsigned i) { return motors[i].target; }
+uint32_t fake_command_timestamp(unsigned i) { return a.joints[i].command_at; }
 unsigned fake_smoothing(unsigned i) { return a.joints[i].smooth_jog; }
 
 unsigned fake_id(unsigned i) { return motors[i].id; }
