@@ -17,7 +17,8 @@ Keep trajectory/collision policy above transport; simulation coordinates are not
 Update the central entries with implementation/test evidence; do not duplicate
 independent completion status here. Hardware acceptance is separate from unit tests.
 
-For the next supported, assembled-arm stage, follow the
-[handoff](../../docs/ASSEMBLED_ARM_BRINGUP.md) and its central TODO IDs.
+For selected integration work, follow the
+[consolidated registry](../../docs/ARM_LAYER_TODOS.md). LOAD-01 and FEEDBACK-01
+are future features, not automatic follow-up tests after a successful weld.
 Keep session jog bounds, sampled model intervals and calibrated physical
 limits distinct; coordinated gravity holding remains a separate controller.

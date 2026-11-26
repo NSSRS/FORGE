@@ -10,6 +10,7 @@ import argparse
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import json
+import math
 from pathlib import Path
 import sys
 import time
@@ -64,7 +65,7 @@ def print_states(bus, label, plan=None):
               f'temperature={state.temperature_c!r} C, error={state.error}', flush=True)
 
 
-def run(*, simulate, plan=None, report_path=None, bus_factory=MotorBus,
+def run(*, simulate, plan=None, report_path=None, bus_factory=MotorBus, query_only=False,
         clock=time.monotonic, sleep=time.sleep):
     plan = plan or BenchPlan()
     # Reserve output before acquiring any motor owner; never overwrite evidence.
@@ -81,12 +82,17 @@ def run(*, simulate, plan=None, report_path=None, bus_factory=MotorBus,
                   bidirectional=plan.bidirectional, stages=[], samples=[],
                   outcome='failed', error=None, owner_closed=False,
                   can_freshness_verified=False)
+    if query_only:
+        report.update(schema='forge.encos_idle_feedback', target_rpm=None, command_seconds=0,
+                      bidirectional=False, observation_seconds=2.0)
     bus = None
     started = clock()
 
     def sample(stage, target):
+        telemetry = bus.snapshot()
         report['samples'].append(dict(elapsed_s=clock()-started, stage=stage,
-                                      target_rpm=target, telemetry=bus.snapshot()))
+                                      target_rpm=target, telemetry=telemetry))
+        return telemetry
 
     def stop_and_check():
         stop_start = clock()
@@ -101,12 +107,39 @@ def run(*, simulate, plan=None, report_path=None, bus_factory=MotorBus,
             sleep(COMMAND_PERIOD_S)
         raise MotorError('Motors did not report below 0.5 RPM before stop timeout')
 
-    try:
-        kwargs = dict(simulate=True) if simulate else dict(interface=plan.interface, execute=True)
-        bus = bus_factory(configs(plan), motor_slots=plan.motor_slots, **kwargs)
-        bus.wait_ready(timeout=3.0)  # Every selected ID is required, without omission.
-        sample('initial', None)
-        print_states(bus, 'Initial feedback:', plan)
+    def observe_idle():
+        previous = {}
+        changes = {i: 0 for i in plan.motor_ids}
+        peaks = {i: 0.0 for i in plan.motor_ids}
+        until = clock() + report['observation_seconds']
+        while clock() < until:
+            bus.check()
+            snapshot = sample('query_only', None)
+            if snapshot['fault'] or {row['motor_id'] for row in snapshot['motors']} != set(plan.motor_ids):
+                raise MotorError('Incomplete or faulted idle feedback snapshot')
+            for row in snapshot['motors']:
+                motor = row['motor_id']
+                stamp = row['position_observed_s']
+                if stamp is None:
+                    raise MotorError(f'No accepted idle position for motor {motor}')
+                age = snapshot['captured_monotonic_s'] - stamp
+                peaks[motor] = max(peaks[motor], age * 1000)
+                if not math.isfinite(age) or not 0 <= age <= 0.25:
+                    raise MotorError(f'Motor {motor} idle position is {age:.3f} s old')
+                if motor in previous and stamp < previous[motor]:
+                    raise MotorError(f'Motor {motor} idle timestamp moved backwards')
+                if motor in previous and stamp > previous[motor]:
+                    changes[motor] += 1
+                previous[motor] = stamp
+            sleep(COMMAND_PERIOD_S)
+        if not all(changes.values()):
+            raise MotorError(f'Idle position timestamps did not advance for every motor: {changes}')
+        report['stages'].append(dict(observed_updates=changes, peak_observed_age_ms=peaks))
+        for motor in plan.motor_ids:
+            print(f'Motor {motor}: {changes[motor]} observed updates, '
+                  f'peak sampled age {peaks[motor]:.1f} ms', flush=True)
+
+    def run_motion():
         if not simulate:
             print(f'HARDWARE MOTION: IDs {plan.motor_ids}, slots {plan.motor_slots}; '
                   f'{plan.rpm:g} RPM, {plan.seconds:g} s per direction, '
@@ -140,6 +173,17 @@ def run(*, simulate, plan=None, report_path=None, bus_factory=MotorBus,
             )
             report['stages'].append(stage)
             print(f'Stopped after {target:+g} RPM: travel_deg={stage["travel_deg"]}', flush=True)
+
+    try:
+        kwargs = dict(simulate=True) if simulate else dict(interface=plan.interface, execute=True)
+        bus = bus_factory(configs(plan), motor_slots=plan.motor_slots, **kwargs)
+        bus.wait_ready(timeout=3.0)  # Every selected ID is required, without omission.
+        sample('initial', None)
+        print_states(bus, 'Initial feedback:', plan)
+        if query_only:
+            observe_idle()
+        else:
+            run_motion()
         print_states(bus, 'Final feedback:', plan)
         report['outcome'] = 'passed'
     except BaseException as error:
@@ -163,7 +207,10 @@ def run(*, simulate, plan=None, report_path=None, bus_factory=MotorBus,
                     json.dump(report, output, indent=2, allow_nan=False)
                     output.write('\n')
                 print(f'Report: {report_path}', flush=True)
-    print('PASS: every selected motor reported both commanded motion and stop.', flush=True)
+    if query_only:
+        print('PASS: all selected motors supplied recurring idle positions.', flush=True)
+    else:
+        print('PASS: every selected motor reported both commanded motion and stop.', flush=True)
     return report
 
 
@@ -172,6 +219,8 @@ def main(*, default_four_motors=False):
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument('--simulate', action='store_true')
     mode.add_argument('--execute', action='store_true')
+    mode.add_argument('--query-only', action='store_true',
+                      help='observe idle position updates on hardware for two seconds')
     selection = parser.add_mutually_exclusive_group()
     selection.add_argument('--motor4-only', action='store_true', help='Only CAN ID 4, PDO slot 4 on CAN2')
     selection.add_argument('--four-motors', action='store_true', help='Require IDs 1,2,3,4 in slots 0,1,3,4')
@@ -185,7 +234,7 @@ def main(*, default_four_motors=False):
     report_name = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S.%fZ') + '.json'
     report_path = args.report or ROOT / 'build/encos/sessions' / report_name
     try:
-        run(simulate=args.simulate, plan=plan, report_path=report_path)
+        run(simulate=args.simulate, plan=plan, report_path=report_path, query_only=args.query_only)
     except (MotorError, ValueError, OSError, KeyboardInterrupt) as error:
         print(f'FAIL: {error}', file=sys.stderr)
         return 1

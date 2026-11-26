@@ -333,12 +333,24 @@ class MotorBus:
         if not math.isfinite(timeout) or timeout <= 0:
             raise ValueError("timeout must be finite and positive")
         deadline = time.monotonic() + timeout
-        while time.monotonic() < deadline:
+        while True:
             self.check()
-            if all(self.state(i).position_deg is not None for i in self.configs):
+            if isinstance(self._backend, _Native) and self._backend._snapshot_reader is None:
+                # Keep the legacy read ABI usable when opening an older library.
+                states = {i: self.state(i) for i in self.configs}
+                times = {i: s.observed_monotonic_s for i, s in states.items() if s.position_deg is not None}
+                now = time.monotonic()
+            else:
+                snapshot = self.snapshot()
+                times = {m['motor_id']: m['position_observed_s'] for m in snapshot['motors']
+                         if m['position_observed_s'] is not None}
+                now = snapshot['captured_monotonic_s']
+            missing = [i for i in self.configs if i not in times or not 0 <= now - times[i] <= 0.25]
+            if not missing:
                 return
+            if time.monotonic() >= deadline:
+                break
             time.sleep(0.01)
-        missing = [i for i in self.configs if self.state(i).position_deg is None]
         raise MotorError(f"Initial position feedback timed out; missing motor IDs: {missing}")
 
     def stop(self):

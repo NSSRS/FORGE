@@ -130,36 +130,24 @@ not provide holding torque or prevent a gravity-driven fall.
 
 ## Next steps with the assembled arm
 
-The stable acceptance requirements remain in the
-[cross-layer TODO registry](ARM_LAYER_TODOS.md). Perform these stages in order;
-none is completed by the simulation study or the unloaded jogging reports.
+Use the [consolidated work list](ARM_LAYER_TODOS.md), not a mandatory sequence
+of qualification rounds. The remaining engineering work is calibration/coordinate
+integration (CAL-01) and the production ROS lifecycle (ROS-02). BASE-06 atomic
+commands/configuration deployment is complete within its recorded supported
+stationary scope; the BASE-07 command-loss/recovery check is also complete, with
+its scope recorded in the [handoff](ARM_SESSION_HANDOFF.md#base-07-command-loss-check).
 
-1. **Qualify support and stopping — SUPPORT-01, DEPLOY-01.** Document the
-   existing six-axis fixture, supported rest pose, cable clearance and response
-   to loss of power/torque. Resolve the saved A2 shutdown failure. MC02 disable
-   is not a brake; loaded hold/stop acceptance remains unconfirmed.
-2. **Validate measured alignment — CAL-01.** The eight reference readings and
-   Nov 13 return round already exist. Independently verify the candidate unit-gain
-   sign/offset map, raw branches and derived standby at additional poses.
-   The original A3 CAD pose conflicts with its stop; the controller's 2-degree
-   raw backoff is a calculated candidate, not a new physical measurement.
-3. **Qualify commanded movement and lifecycle — SPEED-01, ROS-02, BASE-06.**
-   Manual jitter investigation is deferred. Distinguish manual 5/10 deg/s
-   settings, 5 deg/s initial/approach, 68.7549 deg/s weld command caps and
-   1.5 rad/s reactive trips. The existing mode-2 group/weld controller does not
-   qualify the separate production ROS MIT lifecycle or atomic target dispatch.
-4. **After the first arm weld — LOAD-01, FEEDBACK-01.** Identify actual load
-   properties before adding gravity compensation. Add calibrated tool/seam
-   sensing, bounded outer correction and an observation-first ESO evaluation.
-   Independent participation switches remain output gates without compensation.
-5. **Qualify load and failures — PROTECT-01, BASE-07, DEPLOY-01.**
-   Measure motor protection, persistence, thermal behavior and
-   stop responses on the supported fixture. Preserve production flags until
-   their acceptance criteria have attributable physical evidence.
+PROTECT-01, further weld tuning and broader manual-jog investigation are deferred.
+Load compensation, seam feedback and learning are future features. Gun-off/gun-on
+comparison is removed. The reference captures, return round, six-motor register
+inspection and A5 visual comparison are already recorded; use the
+[handoff](ARM_SESSION_HANDOFF.md) rather than repeating them. Historical shutdown
+failures are evidence, not newly reopened tasks.
 
-When an opportunity arises, run the separate **ACCURACY-01** v7 arm-only
-motion check and save the journal for stroke and startup analysis. See the
-[operator procedure](ARM_RIG_TEST.md#weld-motion-accuracy-test).
+The **ACCURACY-01** v7 arm-only motion check and review completed on Nov 26.
+Remaining startup/stroke improvements belong to deferred SPEED-01. The
+[operator procedure](ARM_RIG_TEST.md#weld-motion-accuracy-test) remains available
+for future controlled comparisons.
 
 ## Evidence recorded on 2026-11-09
 

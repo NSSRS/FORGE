@@ -1,0 +1,280 @@
+{
+  "schema": "forge.arm_alignment_review",
+  "version": 1,
+  "date": "2026-11-26",
+  "joint": 5,
+  "scope": "Two saved off-straight poses, disabled hand positioning and operator visual comparison. This is a CAL-01 subcheck, not complete calibration qualification.",
+  "source_kind": "Original pose-mirror snapshots plus explicit operator confirmation in this chat",
+  "operator_confirmation": "Yes\u2014both poses and the direction matched",
+  "mechanical_support_operator_confirmed": true,
+  "visual_alignment_check_complete": true,
+  "visual_alignment_operator_confirmed": true,
+  "physical_angle_error_deg": null,
+  "independent_angle_measurements": null,
+  "physical_cw_viewing_convention_confirmed": null,
+  "mapping_path": "build/arm_tests/hold-01-20261119/mapping.json",
+  "mapping_sha256": "3b5d7a65c313971101e94698de7878b49c5251070909fe1eb7cc0d0a43542f8a",
+  "mapping_fingerprint": "e19226781bf4e1519414315cc4c3ead50e294eea48134199d96eb95aafab398f",
+  "a5_mapping": {
+    "model_joint": "b6_arm_d5",
+    "model_per_raw": -1.0,
+    "model_intercept_deg": 101.51405787753104,
+    "raw_branch_deg": [
+      -96.60760497201417,
+      114.836287036511
+    ],
+    "basis": "Independent operator-declared straight pose; cable ends restrict raw travel only"
+  },
+  "firmware_build_hex": "f78f6b0d",
+  "capabilities_hex": "0x1FFFF8F",
+  "snapshots": [
+    {
+      "source_path": "build/arm_mirror/cal01-20261126/pose-1795683410676311861.json",
+      "sha256": "fe1aa37a27772f97423fc15d523e19c78848b5c69713744fc19172c6f3bee127",
+      "created_utc": "2026-11-26T08:56:50.676371+00:00",
+      "operator_note": "",
+      "feedback": [
+        {
+          "joint": 1,
+          "bus": 1,
+          "can_id": 1,
+          "feedback_id": 17,
+          "raw_position_rad": -3.0653467178344727,
+          "raw_position_deg": -175.63142967619453,
+          "velocity_rad_s": -0.010990142822265625,
+          "age_ms": 7.123670999731985,
+          "enabled": false,
+          "status": 0,
+          "feedback_valid": true
+        },
+        {
+          "joint": 2,
+          "bus": 2,
+          "can_id": 2,
+          "feedback_id": 18,
+          "raw_position_rad": -1.9506750106811523,
+          "raw_position_deg": -111.76544531366682,
+          "velocity_rad_s": -0.0024423599243164062,
+          "age_ms": 7.123670999731985,
+          "enabled": false,
+          "status": 0,
+          "feedback_valid": true
+        },
+        {
+          "joint": 3,
+          "bus": 2,
+          "can_id": 3,
+          "feedback_id": 19,
+          "raw_position_rad": 2.244792938232422,
+          "raw_position_deg": 128.61716124148907,
+          "velocity_rad_s": -0.0024423599243164062,
+          "age_ms": 7.123670999731985,
+          "enabled": false,
+          "status": 0,
+          "feedback_valid": true
+        },
+        {
+          "joint": 4,
+          "bus": 2,
+          "can_id": 4,
+          "feedback_id": 20,
+          "raw_position_rad": 3.1000614166259766,
+          "raw_position_deg": 177.62043540401558,
+          "velocity_rad_s": -0.0073261260986328125,
+          "age_ms": 7.123670999731985,
+          "enabled": false,
+          "status": 0,
+          "feedback_valid": true
+        },
+        {
+          "joint": 5,
+          "bus": 2,
+          "can_id": 5,
+          "feedback_id": 21,
+          "raw_position_rad": -0.3412294387817383,
+          "raw_position_deg": -19.5510066878113,
+          "velocity_rad_s": -0.0073261260986328125,
+          "age_ms": 7.123670999731985,
+          "enabled": false,
+          "status": 0,
+          "feedback_valid": true
+        },
+        {
+          "joint": 6,
+          "bus": 2,
+          "can_id": 6,
+          "feedback_id": 22,
+          "raw_position_rad": 1.0595483779907227,
+          "raw_position_deg": 60.707650248800455,
+          "velocity_rad_s": -0.0073261260986328125,
+          "age_ms": 7.123670999731985,
+          "enabled": false,
+          "status": 0,
+          "feedback_valid": true
+        }
+      ],
+      "model_deg": [
+        0.939834029793758,
+        55.87820325384538,
+        -1.8895171985203376,
+        -4.437000167866984,
+        121.06506456534234,
+        3.453398285871806
+      ],
+      "baseline_raw_deg": [
+        -175.63142967619453,
+        -111.76544531366682,
+        128.61716124148907,
+        177.62043540401558,
+        -19.5510066878113,
+        60.707650248800455
+      ],
+      "delta_raw_deg": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "feedback_source": "disabled-refresh"
+    },
+    {
+      "source_path": "build/arm_mirror/cal01-20261126/pose-1795683492702780962.json",
+      "sha256": "f455b0322f9648b7cf9f5e246c964b1c0110c4c3046265ba49824f234654e7f0",
+      "created_utc": "2026-11-26T08:58:12.702857+00:00",
+      "operator_note": "twisted it CCW a bit",
+      "feedback": [
+        {
+          "joint": 1,
+          "bus": 1,
+          "can_id": 1,
+          "feedback_id": 17,
+          "raw_position_rad": -3.0653467178344727,
+          "raw_position_deg": -175.63142967619453,
+          "velocity_rad_s": -0.010990142822265625,
+          "age_ms": 6.099206001526909,
+          "enabled": false,
+          "status": 0,
+          "feedback_valid": true
+        },
+        {
+          "joint": 2,
+          "bus": 2,
+          "can_id": 2,
+          "feedback_id": 18,
+          "raw_position_rad": -1.897268295288086,
+          "raw_position_deg": -108.70546592398773,
+          "velocity_rad_s": -0.0024423599243164062,
+          "age_ms": 6.099206001526909,
+          "enabled": false,
+          "status": 0,
+          "feedback_valid": true
+        },
+        {
+          "joint": 3,
+          "bus": 2,
+          "can_id": 3,
+          "feedback_id": 19,
+          "raw_position_rad": 2.2375450134277344,
+          "raw_position_deg": 128.2018857399523,
+          "velocity_rad_s": -0.0024423599243164062,
+          "age_ms": 6.099206001526909,
+          "enabled": false,
+          "status": 0,
+          "feedback_valid": true
+        },
+        {
+          "joint": 4,
+          "bus": 2,
+          "can_id": 4,
+          "feedback_id": 20,
+          "raw_position_rad": 3.1191349029541016,
+          "raw_position_deg": 178.71326567121764,
+          "velocity_rad_s": -0.0073261260986328125,
+          "age_ms": 6.099206001526909,
+          "enabled": false,
+          "status": 0,
+          "feedback_valid": true
+        },
+        {
+          "joint": 5,
+          "bus": 2,
+          "can_id": 5,
+          "feedback_id": 21,
+          "raw_position_rad": -0.09136295318603516,
+          "raw_position_deg": -5.234711621411132,
+          "velocity_rad_s": -0.0073261260986328125,
+          "age_ms": 6.099206001526909,
+          "enabled": false,
+          "status": 0,
+          "feedback_valid": true
+        },
+        {
+          "joint": 6,
+          "bus": 2,
+          "can_id": 6,
+          "feedback_id": 22,
+          "raw_position_rad": 1.0076675415039062,
+          "raw_position_deg": 57.73509728049754,
+          "velocity_rad_s": -0.0073261260986328125,
+          "age_ms": 6.099206001526909,
+          "enabled": false,
+          "status": 0,
+          "feedback_valid": true
+        }
+      ],
+      "model_deg": [
+        0.939834029793758,
+        52.81822386416629,
+        -1.4742416969835688,
+        -5.529830435069044,
+        106.74876949894218,
+        6.42595125417472
+      ],
+      "baseline_raw_deg": [
+        -175.63142967619453,
+        -111.76544531366682,
+        128.61716124148907,
+        177.62043540401558,
+        -19.5510066878113,
+        60.707650248800455
+      ],
+      "delta_raw_deg": [
+        0.0,
+        3.0599793896790857,
+        -0.41527550153676884,
+        1.0928302672020607,
+        14.316295066400166,
+        -2.9725529683029137
+      ],
+      "feedback_source": "disabled-refresh"
+    }
+  ],
+  "a5_raw_change_deg": 14.316295066400166,
+  "a5_model_change_deg": -14.316295066400158,
+  "all_joint_raw_changes_deg": {
+    "A1": 0.0,
+    "A2": 3.0599793896790857,
+    "A3": -0.41527550153676884,
+    "A4": 1.0928302672020607,
+    "A5": 14.316295066400166,
+    "A6": -2.9725529683029137
+  },
+  "all_snapshots_fresh_disabled": true,
+  "identity_verified": true,
+  "mapping_unchanged": true,
+  "branch_warnings": [],
+  "render_warnings": [],
+  "interpretation": "The operator confirms the candidate wrist shape and direction at both recorded poses. The saved raw-to-model arithmetic is consistent with the unchanged candidate. Other joints also moved between snapshots, so this is a full-pose visual comparison, not an isolated A5 displacement-accuracy measurement.",
+  "remaining": [
+    "Independent quantitative alignment and broader pose/encoder-branch coverage.",
+    "Physical A5 cable backoff, recovery and stopping qualification; other CAL-01 requirements remain."
+  ],
+  "calibration_anchors_changed": false,
+  "motor_targets_sent": false,
+  "motor_parameter_writes": false,
+  "production_qualified": false,
+  "hardware_qualified": false,
+  "agent_hardware_access": false
+}

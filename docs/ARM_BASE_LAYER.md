@@ -1,6 +1,6 @@
 # Arm base-layer contract and implementation plan
 
-Status: 2026-11-15, `nathan`. This is the base transport/execution layer, not
+Status: 2026-11-26, `nathan`. This is the base transport/execution layer, not
 an arm planner. Code/build paths are relative to the FORGE checkout; deployment tools
 may be installed elsewhere. Cross-layer work: [ARM_LAYER_TODOS.md](ARM_LAYER_TODOS.md).
 
@@ -28,11 +28,72 @@ may be installed elsewhere. Cross-layer work: [ARM_LAYER_TODOS.md](ARM_LAYER_TOD
   a clear missing-capability error; there is no fallback to CAN diagnostics.
 - Native-backed tests for no extra CAN traffic, immutable snapshot pages,
   stale generation rejection, invalid data, lease expiry and fault preservation.
-The deployed rig build `156f20c8` provides these APIs, disabled control-register
-readback and explicit manual travel. Normal profile changes within the supported
+The current rig build `cd93f9b3 / 0x7FFFF8F` provides these APIs, disabled
+control-register readback, explicit manual travel and atomic mode-2 groups. Normal profile changes within the supported
 envelope and successful repeat sessions do not require reflashing. Production
 ROS mode, trajectories, current-limit writes and physical bus/load qualification
 remain separate work; see [current status](ARM_SESSION_HANDOFF.md).
+
+## BASE-06 atomic group targets
+
+Implemented offline on Nov 26. Capability bit 26 (`0x04000000`) enables USB
+type 30 and `ArmBus.command_group(targets, velocities, smooth_slots=())`.
+Both mappings use physical slots 0–5 and must cover the complete configured
+routed mode-2 group. A subset keeps its original slots. MIT mode and torque/gain
+batches are outside this API. The existing configuration, enable and stop APIs
+are unchanged.
+
+One ordinary 64-byte CRC-protected frame contains the entire request. Payload
+offsets exclude the eight-byte frame header; all numbers are little endian:
+
+| Offset | Format | Meaning |
+| --- | --- | --- |
+| 0 | u8 | Complete configured slot mask, bits 0–5 |
+| 1 | u8 | Smooth-jog slot mask, a subset of byte 0; zero for trajectories |
+| 2–3 | two u8 | Reserved, must be zero |
+| 4 + 8 × slot | float32 | Raw output-shaft position, rad |
+| 8 + 8 × slot | float32 | Positive speed allowance, rad/s |
+
+Unused slot fields are ignored; the host zeroes them. Smooth slots retain the
+existing confirmed manual-hold state and speed checks. Successful response
+payload byte 0 is zero, bytes 1–4 contain the common MCU commit timestamp in
+milliseconds, and the rest are zero. The outer response echoes the request
+sequence. Rejections use the existing typed reason/first-failing-slot format;
+group-wide errors use slot `0xff`.
+
+The parser waits for the whole valid frame. Validation checks the exact group,
+every slot's state, readback, bounds, finite values and fresh feedback before
+changing any target. Enabled slots must still have an unexpired 150 ms command
+lease, even when USB is serviced just before the watchdog tick. A frame whose
+assembly took at least 150 ms is rejected with `STALE_PRELOAD`; this measures
+time since the parser first saw its header, not host-to-device transit latency.
+Repeated/older sequences are rejected within the existing USB session.
+Rejected or incomplete batches change no target, lease or smoothing state and
+send no CAN frames. Existing watchdogs continue independently and can fault/stop
+while an incomplete frame is pending. No separate staging/commit exchange exists.
+
+After validation, all selected commands and lease timestamps change together
+in the main loop, before `arm_tick` runs. USB interrupts only enqueue bytes;
+they do not run this commit or the control tick. This provides atomic controller
+state, not simultaneous CAN transmissions or mechanically synchronized arrival.
+A CAN execution failure still follows the existing whole-group fault path.
+
+The sole group-hold owner uses this API for complete refreshes, including
+preload. Selected-joint manual start/jog operations retain their existing
+single-axis semantics. The trajectory owner uses it for every complete path or
+hold update and checks operator intent around dispatch. A rejected request,
+short write or lost ACK stops through the existing owner; no motion retry or
+fallback is attempted after an uncertain commit. Successful command delivery
+followed by intent loss retains the existing pause/hold policy.
+
+Firmware without bit 26 retains the established sequential command path.
+`group_command_transport` records `atomic_mode2` or `legacy_sequential`; weld
+reports also record `usb_command_type` as 30 or 4. The operator deployed
+`cd93f9b3 / 0x7FFFF8F` on Nov 26. USB identity, typed readback rejection,
+selected-profile configuration comparisons and 7.12 seconds of supported atomic
+group holding passed, with final disable/mode restoration verified. BASE-06 is
+complete within that stationary scope. The prior `f78f6b0d` image does not support type 30. See
+[deployment evidence](measurements/arm-base06-deployment-2026-11-26.json).
 
 ## CAN capacity and information policy
 
@@ -68,8 +129,9 @@ latest save attempted. Older hosts therefore also see the lock during A3-A6
 setup. Under bit 24, payload byte 45 contains a uint32 physical joint number
 (0 if no setup), and bytes 49/50/51 contain written/save-attempted/save-acknowledged
 slot masks. All offsets include the leading status byte; packet size is unchanged.
-The deployed Nov 19 build advertises **0x1FFFF8F**. The operator must power-cycle motor
-power and MC02 and read back persistence before launch. See the
+The Nov 19 build advertised **0x1FFFF8F**; the Nov 26 image retains these
+capabilities. Range persistence and readback are complete on this rig. A new
+range-setup session requires the documented power cycle and readback. See the
 [setup procedure](ARM_RIG_TEST.md#expanded-gun-load-profile-a2a3-30-nm-a4-a6-10-nm).
 
 Optional `--smooth-jog` requires capability bit 18 (`0x40000`) and USB type 25,

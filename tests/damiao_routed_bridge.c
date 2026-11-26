@@ -113,6 +113,11 @@ int fake_exchange(const uint8_t in[64],uint8_t out[64]) {
     int result=0; for(unsigned i=0;i<64;i++) result|=wire_byte(&w,in[i],now,out);
     fake_advance(5); return result;
 }
+int fake_fragment(const uint8_t *in, unsigned count, uint8_t out[64]) {
+    int result=0; for(unsigned i=0;i<count;i++) result|=wire_byte(&w,in[i],now,out);
+    return result;
+}
+float fake_controller_target(unsigned i) { return a.joints[i].cmd.p; }
 unsigned fake_now(void) { return now; }
 unsigned fake_mode(unsigned i) { return motors[i].mode; }
 unsigned fake_commands(unsigned i) { return motors[i].commands; }

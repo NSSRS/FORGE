@@ -58,8 +58,9 @@ The operator then launched the four-motor pane/viewer workflow and reported
 normal visual behavior. Identification and the bounded four-motor test do not
 need repeating; the commands below remain the setup/reference procedure.
 The operator confirmed the [wheel mapping](DIFFERENTIAL_DRIVE.md#model-source-and-hardware-mapping)
-on Nov 25. CAN freshness, loaded stopping and host-loss qualification remain
-open. The [Nov 24 physical record](measurements/encos-four-motor-physical-review-2026-11-24.json)
+on Nov 25. The operator closed [COMMS-01](ARM_SESSION_HANDOFF.md#comms-01-closure)
+after the Nov 26 reply-loss tests on both CAN ports. Loaded stopping and
+host-loss qualification remain open. The [Nov 24 physical record](measurements/encos-four-motor-physical-review-2026-11-24.json)
 preserves the bench results.
 
 The `src/bringup/config/chassis_four_motor_bench.yaml` profile requires all four motors,
@@ -212,17 +213,123 @@ configured CAN timeout, and the software commit and profile. The supplier
 question for that bridge revision is when each input slot's ID/DLC/data is
 cleared or replaced, and what event drives the State/Toggle bits.
 
-| Stage | Capture and evaluate | TODO |
+| Stage | Capture and evaluate | Status or TODO |
 | --- | --- | --- |
-| Healthy four-motor baseline | Record query-only stationary feedback, then use the existing bounded motion and deliberate stop. Capture both CAN buses and raw EtherCAT throughout. Include consecutive identical replies from each motor. Record motor current and temperature and the independent motion reference. | COMMS-01 baseline and COMMS-06 evidence |
-| Individual reply loss | Return to query-only on the secured fixture. Use an approved setup that can suppress one motor's replies while preserving CAN wiring, termination and capture of the other motors. Repeat for each ID. Log the event time, compare raw PDO bytes with the independent CAN recordings, then record recovery. Make wiring changes only with all affected equipment unpowered. | COMMS-01 |
-| Owner and link loss | On the secured, unloaded fixture, record graceful stop as a reference. Run publisher loss, host-owner termination and EtherCAT link loss as separate events with an agreed independent means of removing motor power. Keep the independent CAN logger and motion reference running through the loss and reconnection. Compare the last outgoing nonzero command with the physical stop time and verify that motion requires explicit re-arm. | COMMS-02 and part of COMMS-06 |
-| Loaded chassis | After unloaded stop behavior and current/thermal limits are established, use a separate supported loaded run. Measure travel and yaw independently for effective radius/track and slip. Record current, temperature, load and stopping distance with the same evidence format. | CHASSIS-03 and remaining ENCOS COMMS-06 |
+| Healthy four-motor baseline | All four motors supplied recurring stationary feedback. For protection measurements, record motor current, temperature and the independent motion reference during bounded motion and deliberate stop. | COMMS-01 closed. Protection work is deferred under PROTECT-01. |
+| Individual reply loss | The [guided reply-loss test](#individual-reply-loss-with-continuous-polling) passed for ID 1 on CAN1 and ID 3 on CAN2 with all four polled. | [COMMS-01 closed](ARM_SESSION_HANDOFF.md#comms-01-closure). |
+| Owner and link loss | On the secured, unloaded fixture, record graceful stop as a reference. Run publisher loss, host-owner termination and EtherCAT link loss as separate events with an agreed independent means of removing motor power. Keep the independent CAN logger and motion reference running through the loss and reconnection. Compare the last outgoing nonzero command with the physical stop time and verify that motion requires explicit re-arm. | Deferred COMMS-02; protection questions remain under deferred PROTECT-01 |
+| Loaded chassis | After unloaded stop behavior and current/thermal limits are established, use a separate supported loaded run. Measure travel and yaw independently for effective radius/track and slip. Record current, temperature, load and stopping distance with the same evidence format. | Deferred CHASSIS-03 and PROTECT-01 |
 
-For COMMS-06, verify phase-current scaling against independent phase-current
+When PROTECT-01 resumes, verify phase-current scaling against independent phase-current
 measurement and use the motor's documented temperature limits. Record the
 configured command ceiling separately from measured current and stop behavior.
 See the [protection TODO](MOTOR_PROTECTION_TODO.md).
+
+### Individual reply loss with continuous polling
+
+Start with all four stationary motors online and the previous owner closed.
+Use an installed, independently switchable motor supply branch or a fixture
+that can suppress that motor's replies while preserving the other three and
+CAN termination. Keep bridge power connected throughout. Leave the CAN and
+motor connectors seated. Make any wiring changes with the equipment unpowered.
+
+```bash
+sudo ./build/encos_driver/encos_feedback_probe enp86s0 \
+  "build/encos-loss-$(date -u +%Y%m%dT%H%M%SZ).jsonl" --reply-loss all
+```
+
+The probe names one ID at a time. Suppress that ID, then press Enter.
+When prompted, restore it and press Enter. To test a single branch,
+replace `all` with the motor ID. Every exchange polls all four motors on
+their commissioned routes, including while the probe waits for Enter.
+It alternates two read-only queries (position and firmware version) every
+50 ms so a stationary motor can demonstrate progress even at a constant angle.
+
+The report stores both operator markers, time-stamped raw input images and
+each output change. The probe evaluates the second from 250 to 1,250 ms
+after the suppression marker. It reports how often a target record remains
+visible and fails if the target continues changing reply type. Each peer
+must continue changing type within 250 ms. After the restore marker, two new
+target reply-type changes must arrive within five seconds. EtherCAT errors,
+sampling gaps over 250 ms and missing markers fail the run.
+Markers time the keypress. For actual CAN loss timing and qualification,
+start the [independent CAN capture](#passive-capture-on-the-bench) before the test.
+
+### Stationary feedback probe with the existing bridge
+
+To check the normal native driver's idle position updates on the secured
+four-motor bench, close the previous chassis owner normally, then run:
+
+```bash
+sudo .venv/bin/python scripts/test_encos_motors.py --four-motors --query-only
+```
+
+This selects a two-second position-only observation through the regular
+driver. Each motor must supply recurring timestamp updates and stay within
+the 250 ms idle activation age. The terminal prints updates seen and peak
+sampled age per motor plus the saved JSON path. The sampled count is a lower
+bound on driver updates. This mode issues no position or velocity setpoints.
+Use the separate probe below to inspect raw process images.
+
+The operator can test the host-visible response with only the ENCOS bridge
+and four stationary motors. Use the commissioned split bus and a secured,
+unloaded fixture. Close the existing chassis owner normally. Run from the
+workspace root with the bridge on its dedicated interface:
+
+```bash
+cmake --build build/encos_driver --target encos_feedback_probe
+sudo ./build/encos_driver/encos_feedback_probe enp86s0 \
+  "build/encos-feedback-$(date -u +%Y%m%dT%H%M%SZ).jsonl"
+```
+
+On a fresh checkout, configure the native build with `bash scripts/build.sh`
+first. The probe takes about eight seconds. It uses the existing EtherCAT
+interface lock, reads the bridge identity and optional version strings, and
+issues only position and version queries to IDs 1/2/3/4 in slots 0/1/3/4.
+After observing positions for all four, it leaves one motor's output slot
+empty for 800 ms while querying the other three. It then requests that
+motor's version followed by its position. This tests whether the returned
+record changes type when polling resumes. After a complete baseline, a
+missing or ambiguous reply is recorded and the remaining IDs are examined.
+A failed exchange, motor error, or interrupt ends acquisition and triggers
+an empty output exchange. Each run requires a new report path.
+
+For each pause the terminal prints how many returned process images still
+contained the target's position after 250 ms, how many matched its previous
+payload, and how often the global Toggle bit changed. For example, 100/100
+means the position stayed visible throughout those 100 observations. 0/100
+means it was absent from every sampled image in that interval. JSONL retains
+the raw output for each stage, timestamped input images and WKC, zero-DLC
+observations, State/Toggle edges, and the final completion flag. An
+interrupted or failed experiment exits nonzero. Withholding a host query
+does not establish when the last physical CAN reply arrived. The paired
+capture below can measure physical CAN timing.
+
+**Optional USB-C debug capture.** Page 2 of the supplied bridge manual
+identifies USB-C as a power input and a firmware-debug serial port.
+Use a vendor-confirmed power arrangement before connecting it to USB while
+external 5 V is present. Identify the bridge's own idle tty and choose a
+baud rate to test. Append `--debug-port "$BRIDGE_TTY" "$DEBUG_BAUD"` to
+the probe command. The probe opens only the named tty, read-only, in raw
+8N1 mode, and restores its termios settings on exit. It writes received
+bytes as hex in `debug_rx` records with host read times on the same monotonic
+clock as the PDOs. A zero byte count means silence at that setting during
+the run. Bytes received establish serial activity. Identifying independent
+CAN RX events requires decoding the trace and establishing its source.
+
+Inspect the journal without hardware:
+
+```bash
+.venv/bin/python scripts/inspect_encos_debug.py "$REPORT"
+```
+
+Set `REPORT` to the printed JSONL path. The inspector checks for exact
+position and version payload bytes in binary, contiguous hex or spaced hex
+within the same host polling stage. It distinguishes a quiet port, other
+debug bytes and recognizable payloads. A match can come from a cached copy
+or a payload shared by several motors. The reported target ID identifies the
+test stage. The serial protocol, motor identity and physical CAN RX time
+require separate confirmation.
 
 ### Passive capture on the bench
 

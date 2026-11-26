@@ -199,6 +199,9 @@ class EndpointControlTests(unittest.TestCase):
         for value in [plan['preparation_timing']]+[r['timing'] for r in plan['preparation_search']['candidates'] if r['checked']]:
             self.assertAlmostEqual(value['nominal_total_s'],original['nominal_total_s']+extra)
             self.assertAlmostEqual(value['nominal_total_s'],sum(s['nominal_motion_s'] for s in value['stages'])+value['minimum_settling_s'])
+        # Accepted retreat plans must survive both the live JSONL writer and
+        # final report writer, including every preparation-search candidate.
+        self.assertEqual(json.loads(json.dumps(plan, allow_nan=False)), plan)
 
 
 class EndpointGeometryTests(unittest.TestCase):

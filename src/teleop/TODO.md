@@ -1,12 +1,12 @@
-# Teleoperation: open arm work
+# Teleoperation: open work
 
-The [cross-layer registry](../../docs/ARM_LAYER_TODOS.md) is the status authority.
-Owning IDs: **SPEED-01, ROS-02**. Read [current hardware status](../../docs/ARM_SESSION_HANDOFF.md)
-and [the base contract](../../docs/ARM_BASE_LAYER.md) before continuing.
+Use the [consolidated registry](../../docs/ARM_LAYER_TODOS.md).
 
-Next: qualify faster commanded speeds on the supported fixture and the production ROS lifecycle. Preserve fresh intent, input deadlines, cancellation during enable, keyboard recovery staying disarmed, and the current release-disable behavior. GUI telemetry must not create another owner or command heartbeat.
+- **ROS-02 (deferred by the operator on Nov 26):** connect teleoperation to the production lifecycle and shared
+  BASE-07 stop/recovery behavior.
+- **SPEED-01:** broader manual-jog investigation is deferred; the selected
+  holding/teaching speeds are already implemented.
 
-Completed implementation and run instructions belong in the
-[rig guide](../../docs/ARM_RIG_TEST.md) and
-[source map](../../docs/SOURCE_LAYOUT.md#arm-controls-and-rig-test-file-map).
-Update the owning registry entry instead of duplicating session histories here.
+Preserve fresh intent, input deadlines, cancellation during enable, recovery
+staying disarmed and the existing release/hold behavior. GUI telemetry must not
+create another owner or command heartbeat.

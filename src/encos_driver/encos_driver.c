@@ -27,7 +27,8 @@ typedef struct {
     float target, sent_rpm;
     double command_time, feedback_time;
     double position_observed_s, velocity_observed_s, electrical_observed_s;
-    unsigned ack;
+    unsigned next_ack, last_control_reply;
+    bool request_position;
 } motor_t;
 
 struct encos_driver {
@@ -68,85 +69,159 @@ static int exchange(encos_driver_t *d)
     return d->last_wkc >= d->expected_wkc;
 }
 
-static motor_t *find_motor(encos_driver_t *d, uint16_t id)
+static motor_t *find_motor(encos_driver_t *d, uint32_t id)
 {
     for (size_t i = 0; i < d->count; ++i)
         if (d->motors[i].config.motor_id == id) return &d->motors[i];
     return NULL;
 }
 
-static void read_feedback(encos_driver_t *d, motor_t *m, double now)
+enum { QUERY_POSITION = 1, CONTROL_POSITION = 2, CONTROL_VELOCITY = 3 };
+
+static unsigned other_ack(unsigned ack)
 {
-    const encos_bridge_inputs_t *in = (const encos_bridge_inputs_t *)ec_slave[1].inputs;
+    return ack == CONTROL_POSITION ? CONTROL_VELOCITY : CONTROL_POSITION;
+}
+
+typedef struct {
+    encos_motor_state_t state;
+    unsigned reply_mask;
+    bool occupied;
+} feedback_sample_t;
+
+static bool within_limits(const motor_t *m, const encos_motor_state_t *state)
+{
+    const unsigned id = m->config.motor_id;
+    const float current_limit = m->config.max_current_a + fmaxf(0.5f, m->config.max_current_a * 0.25f);
+    if (state->error) {
+        fprintf(stderr, "ENCOS fault: motor %u reported error %u.\n", id, state->error);
+    } else if (state->temperature_c > 70) {
+        fprintf(stderr, "ENCOS fault: motor %u temperature %.2f C exceeds 70 C.\n", id, state->temperature_c);
+    } else if (fabsf(state->current_a) > current_limit) {
+        fprintf(stderr, "ENCOS fault: motor %u current %.3f A exceeds %.3f A.\n", id, state->current_a, current_limit);
+    } else if (m->mode == 1 && (state->position_deg < m->config.min_position_deg ||
+                                 state->position_deg > m->config.max_position_deg)) {
+        fprintf(stderr, "ENCOS fault: motor %u position %.3f deg outside [%.3f, %.3f].\n",
+                id, state->position_deg, m->config.min_position_deg, m->config.max_position_deg);
+    } else if (fabsf(state->velocity_rpm) > m->config.max_velocity_rpm + 1.0f) {
+        fprintf(stderr, "ENCOS fault: motor %u velocity %.3f RPM exceeds %.3f RPM.\n",
+                id, state->velocity_rpm, m->config.max_velocity_rpm);
+    } else {
+        return true;
+    }
+    return false;
+}
+
+static unsigned decode_feedback(const motor_t *m, const encos_can_frame_t *frame, encos_motor_state_t *state)
+{
+    unsigned id = m->config.motor_id;
+    uint8_t error;
+    float position;
+    encos_type2_feedback_t p;
+    encos_type3_feedback_t v;
+    if (!m->mode && encos_parse_position_reply(frame, id, &position, &error)) {
+        state->position_deg = position;
+        state->error = error;
+        state->flags |= 1;
+        return QUERY_POSITION;
+    }
+    if (m->mode && encos_parse_type2_feedback(frame, id, &p)) {
+        state->position_deg = p.position_deg;
+        state->current_a = p.current_a;
+        state->temperature_c = p.temperature_c;
+        state->error = p.error;
+        state->flags |= 5;
+        return CONTROL_POSITION;
+    }
+    if (m->mode && encos_parse_type3_feedback(frame, id, &v)) {
+        state->velocity_rpm = v.velocity_rpm;
+        state->current_a = v.current_a;
+        state->temperature_c = v.temperature_c;
+        state->error = v.error;
+        state->flags |= 6;
+        return CONTROL_VELOCITY;
+    }
+    return 0;
+}
+
+static void accept_observation(motor_t *m, const feedback_sample_t *sample, double now)
+{
+    m->state = sample->state;
+    m->state.observed_monotonic_s = now;
+    if (sample->reply_mask & ((1u << QUERY_POSITION) | (1u << CONTROL_POSITION))) m->position_observed_s = now;
+    if (sample->reply_mask & (1u << CONTROL_VELOCITY)) m->velocity_observed_s = now;
+    if (m->mode) m->electrical_observed_s = now;
+}
+
+static void read_feedback(encos_driver_t *d, double now)
+{
+    const encos_bridge_inputs_t *in = (const void *)ec_slave[1].inputs;
+    if (in->can_ide != 0 || in->motor_num > ENCOS_BRIDGE_CHANNELS) return;
+    feedback_sample_t samples[MAX_MOTORS] = {0};
+    for (size_t i = 0; i < d->count; ++i) samples[i].state = d->motors[i].state;
     for (size_t slot = 0; slot < ENCOS_BRIDGE_CHANNELS; ++slot) {
-        encos_type2_feedback_t p;
-        encos_type3_feedback_t v;
-        float position;
-        uint8_t error;
-        const encos_can_frame_t *f = &in->motor[slot];
-        bool seen = false;
-        if (!m->mode && encos_parse_position_reply(f, m->config.motor_id, &position, &error)) {
-            m->state.position_deg = position;
-            m->state.error = error;
-            m->state.flags |= 1;
-            m->position_observed_s = now;
-            seen = true;
-        } else if (m->mode && encos_parse_type2_feedback(f, m->config.motor_id, &p)) {
-            m->state.position_deg = p.position_deg;
-            m->state.current_a = p.current_a;
-            m->state.temperature_c = p.temperature_c;
-            m->state.error = p.error;
-            m->state.flags |= 5;
-            m->position_observed_s = m->electrical_observed_s = now;
-            seen = true;
-        } else if (m->mode && encos_parse_type3_feedback(f, m->config.motor_id, &v)) {
-            m->state.velocity_rpm = v.velocity_rpm;
-            m->state.current_a = v.current_a;
-            m->state.temperature_c = v.temperature_c;
-            m->state.error = v.error;
-            m->state.flags |= 6;
-            m->velocity_observed_s = m->electrical_observed_s = now;
-            seen = true;
-        }
-        if (!seen) continue;
-        /* Observation time is NOT a proven CAN reception timestamp: the bridge
-         * may retain frames. See docs/PYTHON_CONTROL.md before hardware use. */
-        m->state.observed_monotonic_s = m->feedback_time = now;
-        const float current_limit = m->config.max_current_a +
-                                    fmaxf(0.5f, m->config.max_current_a * 0.25f);
-        if (m->state.error) {
-            fprintf(stderr, "ENCOS fault: motor %u reported error %u.\n",
-                    m->config.motor_id, m->state.error);
+        const encos_can_frame_t *frame = &in->motor[slot];
+        if (!frame->dlc) continue;
+        motor_t *m = find_motor(d, frame->id);
+        if (!m) continue;
+        feedback_sample_t *sample = &samples[m - d->motors];
+        sample->occupied = true;
+        unsigned reply = decode_feedback(m, frame, &sample->state);
+        if (!reply) continue;
+        sample->reply_mask |= 1u << reply;
+        /* Check every decoded record, including duplicates and ambiguous images. */
+        if (!within_limits(m, &sample->state)) {
+            accept_observation(m, sample, now);
             d->fault = 3;
             return;
         }
-        if (m->state.temperature_c > 70) {
-            fprintf(stderr, "ENCOS fault: motor %u temperature %.2f C exceeds 70 C.\n",
-                    m->config.motor_id, m->state.temperature_c);
-            d->fault = 3;
-            return;
+    }
+    for (size_t i = 0; i < d->count; ++i) {
+        motor_t *m = &d->motors[i];
+        const feedback_sample_t *sample = &samples[i];
+        if (!m->mode) {
+            bool seen = sample->reply_mask == (1u << QUERY_POSITION);
+            bool requested = m->request_position;
+            /* Keep an outstanding query through delayed/unrelated replies;
+             * re-arm a completed one only when this ID clears. */
+            if (seen) m->request_position = false;
+            else if (!sample->occupied) m->request_position = true;
+            /* An idle query is armed by an empty observation for this ID.
+             * Wait for the prior reply to clear before asking again. */
+            if (!requested || !seen) continue;
+        } else {
+            /* Credit one unambiguous control reply type per image. Reordering
+             * two retained entries in the same image cannot manufacture progress. */
+            unsigned reply = 0;
+            if (sample->reply_mask == (1u << CONTROL_POSITION)) reply = CONTROL_POSITION;
+            else if (sample->reply_mask == (1u << CONTROL_VELOCITY)) reply = CONTROL_VELOCITY;
+            if (!reply || reply == m->last_control_reply) {
+                /* Recover from skipped samples or repeated ACKs without adding
+                 * a CAN frame. Healthy traffic keeps its pipelined alternation. */
+                if (m->last_control_reply && (!reply || now - m->feedback_time >= 2 * PERIOD_S))
+                    m->next_ack = other_ack(m->last_control_reply);
+                continue;
+            }
+            m->last_control_reply = reply;
         }
-        if (fabsf(m->state.current_a) > current_limit) {
-            fprintf(stderr, "ENCOS fault: motor %u current %.3f A exceeds %.3f A.\n",
-                    m->config.motor_id, m->state.current_a, current_limit);
+        accept_observation(m, sample, now);
+        m->feedback_time = now;
+    }
+}
+
+static void check_deadlines(encos_driver_t *d, double now)
+{
+    for (size_t i = 0; !d->fault && i < d->count; ++i) {
+        motor_t *m = &d->motors[i];
+        if (!m->mode) continue;
+        if (now - m->command_time > TIMEOUT_S) {
+            fprintf(stderr, "ENCOS fault: motor %u command age %.6f s exceeds %.2f s.\n",
+                    m->config.motor_id, now - m->command_time, TIMEOUT_S);
+            d->fault = 1;
+        } else if (now - m->feedback_time > TIMEOUT_S) {
+            fprintf(stderr, "ENCOS fault: motor %u feedback age %.6f s exceeds %.2f s.\n",
+                    m->config.motor_id, now - m->feedback_time, TIMEOUT_S);
             d->fault = 3;
-            return;
-        }
-        if (m->mode == 1 &&
-            (m->state.position_deg < m->config.min_position_deg ||
-             m->state.position_deg > m->config.max_position_deg)) {
-            fprintf(stderr, "ENCOS fault: motor %u position %.3f deg outside [%.3f, %.3f].\n",
-                    m->config.motor_id, m->state.position_deg,
-                    m->config.min_position_deg, m->config.max_position_deg);
-            d->fault = 3;
-            return;
-        }
-        if (fabsf(m->state.velocity_rpm) > m->config.max_velocity_rpm + 1.0f) {
-            fprintf(stderr, "ENCOS fault: motor %u velocity %.3f RPM exceeds %.3f RPM.\n",
-                    m->config.motor_id, m->state.velocity_rpm,
-                    m->config.max_velocity_rpm + 1.0f);
-            d->fault = 3;
-            return;
         }
     }
 }
@@ -165,19 +240,7 @@ static void *run(void *context)
             fprintf(stderr, "ENCOS fault: native EtherCAT loop gap %.6f s exceeds 0.1 s.\n", dt);
             d->fault = 2;
         }
-        for (size_t i = 0; i < d->count; ++i) {
-            motor_t *m = &d->motors[i];
-            if (!d->fault && m->mode && now - m->command_time > TIMEOUT_S) {
-                fprintf(stderr, "ENCOS fault: motor %u command age %.6f s exceeds %.2f s.\n",
-                        m->config.motor_id, now - m->command_time, TIMEOUT_S);
-                d->fault = 1;
-            }
-            if (!d->fault && m->mode && now - m->feedback_time > TIMEOUT_S) {
-                fprintf(stderr, "ENCOS fault: motor %u feedback age %.6f s exceeds %.2f s.\n",
-                        m->config.motor_id, now - m->feedback_time, TIMEOUT_S);
-                d->fault = 3;
-            }
-        }
+        check_deadlines(d, now);
         if (d->fault && stop_started == 0) stop_started = now;
         memset(out, 0, sizeof(*out));
         if (stop_started && now - stop_started >= 0.5) {
@@ -194,9 +257,11 @@ static void *run(void *context)
         for (size_t i = 0; i < d->count; ++i) {
             motor_t *m = &d->motors[i];
             if (!m->mode) {
-                out->motor[m->slot] = encos_make_query_request(m->config.motor_id, 1);
+                if (m->request_position)
+                    out->motor[m->slot] = encos_make_query_request(m->config.motor_id, 1);
             } else {
-                m->ack = m->ack == 2 ? 3 : 2;
+                uint8_t ack = (uint8_t)m->next_ack;
+                m->next_ack = other_ack(ack);
                 if (d->fault || m->mode == 2) {
                     if (d->fault) {
                         m->sent_rpm = 0.0f;
@@ -206,11 +271,11 @@ static void *run(void *context)
                             fminf(step, m->target - m->sent_rpm));
                     }
                     encos_make_servo_velocity_request(m->config.motor_id, m->sent_rpm,
-                        m->config.max_current_a, (uint8_t)m->ack, &out->motor[m->slot]);
+                        m->config.max_current_a, ack, &out->motor[m->slot]);
                 } else {
                     encos_make_servo_position_request(m->config.motor_id, m->target,
                         m->config.max_velocity_rpm, m->config.max_current_a,
-                        (uint8_t)m->ack, &out->motor[m->slot]);
+                        ack, &out->motor[m->slot]);
                 }
             }
         }
@@ -219,9 +284,11 @@ static void *run(void *context)
                     d->expected_wkc);
             d->fault = 2;
         }
-        if (!d->fault)
-            for (size_t i = 0; i < d->count && !d->fault; ++i)
-                read_feedback(d, &d->motors[i], now_s());
+        if (!d->fault) {
+            double observed = now_s();
+            check_deadlines(d, observed);
+            if (!d->fault) read_feedback(d, observed);
+        }
         pthread_mutex_unlock(&d->mutex);
         next += PERIOD_S;
         if (next < now_s()) next = now_s() + PERIOD_S;
@@ -297,6 +364,7 @@ encos_driver_t *encos_driver_open_mapped(const char *interface_name,
     d->count = count;
     for (size_t i = 0; i < count; ++i) {
         d->motors[i].config = config[i];
+        d->motors[i].next_ack = CONTROL_POSITION;
         d->motors[i].slot = slots ? slots[i] : (unsigned)i;
     }
     if (pthread_mutex_init(&d->mutex, NULL)) goto fail;
@@ -323,10 +391,8 @@ int encos_driver_command(encos_driver_t *d, uint16_t id, int mode, float target)
     motor_t *m = find_motor(d, id);
     int result = -1;
     double now = now_s();
-    /* A late setter cannot revive an expired command before the worker checks. */
-    for (size_t i = 0; i < d->count; ++i)
-        if (!d->fault && d->motors[i].mode && now - d->motors[i].command_time > TIMEOUT_S)
-            d->fault = 1;
+    /* Setters and the worker latch the same first expired deadline. */
+    check_deadlines(d, now);
     if (m && !d->fault && (m->state.flags & 1) && now - m->feedback_time <= TIMEOUT_S &&
         ((mode == 1 && target >= m->config.min_position_deg && target <= m->config.max_position_deg) ||
          (mode == 2 && fabsf(target) <= m->config.max_velocity_rpm))) {

@@ -767,7 +767,7 @@ class WeldNativeArmTests(unittest.TestCase):
             control.fail(RuntimeError(owner.fault))
             with tempfile.TemporaryDirectory() as directory, \
                  patch.object(self.bus, "enable_bench_group") as enable, \
-                 patch.object(self.bus, "command") as command, \
+                 patch.object(self.bus, "command_group") as command, \
                  patch.object(position, "ArmBus", side_effect=AssertionError("Second owner")):
                 control.reset_motor_fault(Path(directory) / "weld.json")
                 evidence = list(Path(directory).glob("weld.fault-*.json"))
@@ -808,11 +808,11 @@ class WeldNativeArmTests(unittest.TestCase):
             self.assertAlmostEqual(raw[0], 163.1074, delta=.03)
             raw[0] += .2
             writes = self.lib.fake_parameter_writes()
-            with patch.object(self.bus, "command", wraps=self.bus.command) as command:
+            with patch.object(self.bus, "command_group", wraps=self.bus.command_group) as command:
                 port.set_targets(raw, [5.0] * 6)
                 port.finish_trajectory()
                 port.pause_trajectory()
-                a1_targets = [call.args[1] for call in command.call_args_list if call.args[0] == 0]
+                a1_targets = [call.args[0][0] for call in command.call_args_list]
                 self.assertTrue(a1_targets)
                 np.testing.assert_allclose(np.degrees(a1_targets), raw[0], atol=.001)
             self.assertEqual(self.lib.fake_parameter_writes(), writes)
@@ -842,7 +842,7 @@ class WeldNativeArmTests(unittest.TestCase):
             self.assertGreater(inward[2],151.39)
             outward=inward.copy();outward[2]+=.01
             other=inward.copy();other[5]+=.01
-            with patch.object(self.bus,'command',wraps=self.bus.command) as command:
+            with patch.object(self.bus,'command_group',wraps=self.bus.command_group) as command:
                 for q,speed in ((outward,[1]*6),(other,[1]*6),(inward,[1.001]*6)):
                     with self.assertRaises(ValueError):port.set_targets(q,speed)
                 with self.assertRaises(ValueError):port.configure_endpoint(None)
@@ -873,7 +873,7 @@ class WeldNativeArmTests(unittest.TestCase):
             port.configure_start_recovery(start.document())
             port.set_targets(target, [5]*6)
             outward = raw.copy(); outward[0] -= .01
-            with patch.object(self.bus, 'command', wraps=self.bus.command) as command:
+            with patch.object(self.bus, 'command_group', wraps=self.bus.command_group) as command:
                 with self.assertRaisesRegex(ValueError, 'measured-start recovery bounds'):
                     port.set_targets(outward, [5]*6)
                 with self.assertRaises(ValueError):
@@ -904,7 +904,7 @@ class WeldNativeArmTests(unittest.TestCase):
             writes = self.lib.fake_parameter_writes()
             inward = raw.copy(); inward[5] += .1
             port.set_targets(inward, [5]*6)
-            with patch.object(self.bus, 'command', wraps=self.bus.command) as command:
+            with patch.object(self.bus, 'command_group', wraps=self.bus.command_group) as command:
                 for value in (a6_cable_bounds()[0]-.001, a6_cable_bounds()[1]+.001,
                               64.16104853467226-360):
                     outside = raw.copy(); outside[5] = value
@@ -980,16 +980,16 @@ class WeldNativeArmTests(unittest.TestCase):
                     break
             self.assertEqual(control.state, "initial", control.message)
             with patch.object(port.session, "sample", wraps=port.session.sample) as read, \
-                 patch.object(self.bus, "command", wraps=self.bus.command) as command:
+                 patch.object(self.bus, "command_group", wraps=self.bus.command_group) as command:
                 self.lib.fake_advance(20)
                 control.tick()
                 self.assertEqual(control.state, "initial", control.message)
                 self.assertEqual(read.call_count, 6)
-                self.assertEqual(command.call_count, 6)
+                self.assertEqual(command.call_count, 1)
                 # Consumed samples cannot authorize a second command batch.
                 port.set_targets([0.1] * 6, [5] * 6)
                 self.assertEqual(read.call_count, 12)
-                self.assertEqual(command.call_count, 12)
+                self.assertEqual(command.call_count, 2)
 
     def test_native_continuous_weld_keeps_enabled_across_wraps_and_pause(self):
         from motors import arm_position as position, arm_bench as bench
@@ -1048,7 +1048,7 @@ class WeldNativeArmTests(unittest.TestCase):
             port.hold_all()
             port.begin_cycle()
             self.lib.fake_advance(81)
-            with patch.object(self.bus, "command", wraps=self.bus.command) as command:
+            with patch.object(self.bus, "command_group", wraps=self.bus.command_group) as command:
                 with self.assertRaisesRegex(RuntimeError, "stale before trajectory dispatch"):
                     port.set_targets([0.2] * 6, [5] * 6)
                 command.assert_not_called()
@@ -1078,7 +1078,7 @@ class WeldNativeArmTests(unittest.TestCase):
             self.assertEqual([self.lib.fake_disables(i) for i in range(6)], disables)
             self.assertEqual([self.lib.fake_status(i) for i in range(6)], [1] * 6)
 
-    def test_intent_loss_mid_dispatch_holds_all_without_disabling(self):
+    def test_intent_loss_after_atomic_commit_holds_all_without_disabling(self):
         from motors import arm_position as position, arm_bench as bench
         from controls.hardware.weld_control import TrajectoryPaused
 
@@ -1087,14 +1087,14 @@ class WeldNativeArmTests(unittest.TestCase):
             disables = [self.lib.fake_disables(i) for i in range(6)]
             allowed = [True]
             port.motion_allowed = lambda: allowed[0]
-            command = self.bus.command
+            command = self.bus.command_group
 
-            def interrupt(slot, *args, **kwargs):
-                command(slot, *args, **kwargs)
-                if slot == 1:
-                    allowed[0] = False
+            def interrupt(*args, **kwargs):
+                result = command(*args, **kwargs)
+                allowed[0] = False
+                return result
 
-            with patch.object(self.bus, "command", side_effect=interrupt):
+            with patch.object(self.bus, "command_group", side_effect=interrupt):
                 with self.assertRaises(TrajectoryPaused):
                     port.set_targets([0.2] * 6, [5] * 6)
             self.assertEqual([self.lib.fake_status(i) for i in range(6)], [1] * 6)
@@ -1162,7 +1162,7 @@ class WeldNativeArmTests(unittest.TestCase):
     def test_legacy_usb_failure_partially_updates_targets_and_leases_before_stop(self):
         import ctypes
 
-        from motors.arm import ArmBus, decode
+        from motors.arm import ArmBus, CAP_ATOMIC_TARGETS, decode
         from motors import arm_position as position, arm_bench as bench
         from test_damiao_arm import NativeTransport
 
@@ -1181,6 +1181,7 @@ class WeldNativeArmTests(unittest.TestCase):
         for failed_slot in (0, 2, 5):
             with self.subTest(failed_slot=failed_slot), patch.object(position, "time", bench.time):
                 self.bus = ArmBus(transport=NativeTransport(self.lib))
+                self.bus.capabilities &= ~CAP_ATOMIC_TARGETS
                 with self.port() as port:
                     port.hold_all()
                     previous_targets = [self.lib.fake_target(i) for i in slots]
@@ -1212,6 +1213,72 @@ class WeldNativeArmTests(unittest.TestCase):
                     self.assertTrue(port.recovery_required)
                     self.assertFalse(port.holding)
 
+    def test_atomic_transfer_failures_never_leave_a_partial_target_group(self):
+        import ctypes
+        from motors.arm import ArmBus, decode, frame
+        from motors import arm_position as position, arm_bench as bench
+        from test_damiao_arm import NativeTransport
+
+        self.lib.fake_controller_target.argtypes = [ctypes.c_uint]
+        self.lib.fake_controller_target.restype = ctypes.c_float
+        self.lib.fake_command_timestamp.argtypes = [ctypes.c_uint]
+        self.lib.fake_command_timestamp.restype = ctypes.c_uint32
+        targets_deg = np.array([.2, -.2, .2, -.2, .2, -.2])
+        self.bus.close()
+        for failure in (0, 20, 63, 'last_axis', 'crc', 'lost_ack'):
+            with self.subTest(failure=failure), patch.object(position, 'time', bench.time):
+                self.bus = ArmBus(transport=NativeTransport(self.lib))
+                with self.port() as port:
+                    port.hold_all()
+                    def snapshot():
+                        return ([self.lib.fake_controller_target(i) for i in range(6)],
+                                [self.lib.fake_command_timestamp(i) for i in range(6)])
+                    before = snapshot()
+                    observed = []
+                    attempts = []
+                    write = self.bus.serial.write
+                    def interrupt(packet):
+                        kind, seq, payload = decode(packet)
+                        attempts.append(kind)
+                        if kind != 30:
+                            return write(packet)
+                        if isinstance(failure, int):
+                            output = ctypes.create_string_buffer(64)
+                            self.assertFalse(self.lib.fake_fragment(packet, failure, output))
+                            observed.append(snapshot())
+                            return failure
+                        if failure == 'last_axis':
+                            import struct
+                            payload = bytearray(payload)
+                            struct.pack_into('<f', payload, 44, 100.0)
+                            packet = frame(kind, seq, payload)
+                        if failure == 'crc':
+                            packet = bytearray(packet); packet[60] ^= 1
+                            try:
+                                return write(bytes(packet))
+                            finally:
+                                observed.append(snapshot())
+                        count = write(packet)
+                        observed.append(snapshot())
+                        if failure == 'lost_ack':
+                            self.bus.serial.rx.clear()
+                        return count
+                    with patch.object(self.bus.serial, 'write', side_effect=interrupt):
+                        with self.assertRaises(RuntimeError):
+                            port.set_targets(targets_deg, [5.0] * 6)
+                    self.assertEqual(attempts.count(30), 1)  # No retry or legacy fallback.
+                    self.assertNotIn(4, attempts)
+                    self.assertEqual(len(observed), 1)
+                    if failure == 'lost_ack':
+                        np.testing.assert_allclose(observed[0][0], np.radians(targets_deg), atol=1e-7)
+                        self.assertEqual(len(set(observed[0][1])), 1)
+                        self.assertGreater(observed[0][1][0], before[1][0])
+                    else:
+                        self.assertEqual(observed[0], before)
+                    self.assertEqual([self.lib.fake_status(i) for i in range(6)], [0] * 6)
+                    self.assertTrue(port.recovery_required)
+                    self.assertFalse(port.holding)
+
     def test_native_trajectory_needs_no_custom_smoothing_capability(self):
         from motors import arm_position as position, arm_bench as bench
         from motors.arm import CAP_SMOOTH_JOG, CAP_SMOOTH_JOG_10
@@ -1225,11 +1292,12 @@ class WeldNativeArmTests(unittest.TestCase):
                 self.lib.fake_advance(20)
                 port.set_targets([0.2] * 6, [5] * 6)
                 kinds = [call.args[0] for call in requests.call_args_list]
-                self.assertGreaterEqual(kinds.count(4), 6)
+                self.assertEqual(kinds.count(30), 1)
+                self.assertNotIn(4, kinds)
                 self.assertNotIn(25, kinds)
             self.assertFalse(port.smooth_jog)
             self.assertFalse(port.report["secondary_jog_smoothing"])
-            self.assertEqual(port.report["usb_command_type"], 4)
+            self.assertEqual(port.report["usb_command_type"], 30)
 
     def test_native_weld_can_exceed_jog_cap_without_raising_speed_trip(self):
         from motors import arm_position as position, arm_bench as bench

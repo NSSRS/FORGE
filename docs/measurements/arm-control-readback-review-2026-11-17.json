@@ -1,0 +1,1215 @@
+{
+  "schema": "forge.arm_control_readback_review",
+  "version": 1,
+  "observation_date": "2026-11-17",
+  "review_date": "2026-11-26",
+  "source": "build/arm_tests/a5-check-20261117-155015.json",
+  "source_sha256": "7189e85f399a7c512e696badce2ea32cd06d09fef1587fe0e26565a49b371bed",
+  "scope": "Completed disabled documented-register readback for all six motors, including A1. Historical baseline, not a new inspection or verification of the current firmware configuration-diagnostics feature.",
+  "passed": true,
+  "control_readback_complete": true,
+  "active_joints": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+  ],
+  "firmware_build_hex": "d61f6d16",
+  "capabilities_hex": "0xFFF8F",
+  "control_registers": [
+    {
+      "joint": 1,
+      "unit": "A1",
+      "model": "8009P",
+      "bus": 1,
+      "can_id": 1,
+      "feedback_id": 17,
+      "registers": {
+        "UV_Value": {
+          "address": 0,
+          "type": "float32",
+          "reply_can_id": 17,
+          "raw_uint32": 1101004800,
+          "raw_hex": "41a00000",
+          "status": "ok",
+          "value": 20.0
+        },
+        "KT_Value": {
+          "address": 1,
+          "type": "float32",
+          "reply_can_id": 17,
+          "raw_uint32": 0,
+          "raw_hex": "00000000",
+          "status": "ok",
+          "value": 0.0
+        },
+        "OT_Value": {
+          "address": 2,
+          "type": "float32",
+          "reply_can_id": 17,
+          "raw_uint32": 1120403456,
+          "raw_hex": "42c80000",
+          "status": "ok",
+          "value": 100.0
+        },
+        "OC_Value": {
+          "address": 3,
+          "type": "float32",
+          "reply_can_id": 17,
+          "raw_uint32": 1061997773,
+          "raw_hex": "3f4ccccd",
+          "status": "ok",
+          "value": 0.800000011920929
+        },
+        "ACC": {
+          "address": 4,
+          "type": "float32",
+          "reply_can_id": 17,
+          "raw_uint32": 1073741824,
+          "raw_hex": "40000000",
+          "status": "ok",
+          "value": 2.0
+        },
+        "DEC": {
+          "address": 5,
+          "type": "float32",
+          "reply_can_id": 17,
+          "raw_uint32": 3221225472,
+          "raw_hex": "c0000000",
+          "status": "ok",
+          "value": -2.0
+        },
+        "MAX_SPD": {
+          "address": 6,
+          "type": "float32",
+          "reply_can_id": 17,
+          "raw_uint32": 1142292480,
+          "raw_hex": "44160000",
+          "status": "ok",
+          "value": 600.0
+        },
+        "sw_ver": {
+          "address": 14,
+          "type": "uint32",
+          "reply_can_id": 17,
+          "raw_uint32": 942748471,
+          "raw_hex": "38313337",
+          "status": "ok",
+          "value": 942748471
+        },
+        "I_BW": {
+          "address": 24,
+          "type": "float32",
+          "reply_can_id": 17,
+          "raw_uint32": 1148846080,
+          "raw_hex": "447a0000",
+          "status": "ok",
+          "value": 1000.0
+        },
+        "KP_ASR": {
+          "address": 25,
+          "type": "float32",
+          "reply_can_id": 17,
+          "raw_uint32": 1004458633,
+          "raw_hex": "3bded289",
+          "status": "ok",
+          "value": 0.006800000090152025
+        },
+        "KI_ASR": {
+          "address": 26,
+          "type": "float32",
+          "reply_can_id": 17,
+          "raw_uint32": 990057071,
+          "raw_hex": "3b03126f",
+          "status": "ok",
+          "value": 0.0020000000949949026
+        },
+        "KP_APR": {
+          "address": 27,
+          "type": "float32",
+          "reply_can_id": 17,
+          "raw_uint32": 1113063424,
+          "raw_hex": "42580000",
+          "status": "ok",
+          "value": 54.0
+        },
+        "KI_APR": {
+          "address": 28,
+          "type": "float32",
+          "reply_can_id": 17,
+          "raw_uint32": 0,
+          "raw_hex": "00000000",
+          "status": "ok",
+          "value": 0.0
+        },
+        "GREF": {
+          "address": 30,
+          "type": "float32",
+          "reply_can_id": 17,
+          "raw_uint32": 1065353216,
+          "raw_hex": "3f800000",
+          "status": "ok",
+          "value": 1.0
+        },
+        "Deta": {
+          "address": 31,
+          "type": "float32",
+          "reply_can_id": 17,
+          "raw_uint32": 1082130432,
+          "raw_hex": "40800000",
+          "status": "ok",
+          "value": 4.0
+        },
+        "V_BW": {
+          "address": 32,
+          "type": "float32",
+          "reply_can_id": 17,
+          "raw_uint32": 1109393408,
+          "raw_hex": "42200000",
+          "status": "ok",
+          "value": 40.0
+        },
+        "IQ_c1": {
+          "address": 33,
+          "type": "float32",
+          "reply_can_id": 17,
+          "raw_uint32": 1159479296,
+          "raw_hex": "451c4000",
+          "status": "ok",
+          "value": 2500.0
+        },
+        "VL_c1": {
+          "address": 34,
+          "type": "float32",
+          "reply_can_id": 17,
+          "raw_uint32": 1140457472,
+          "raw_hex": "43fa0000",
+          "status": "ok",
+          "value": 500.0
+        },
+        "sub_ver": {
+          "address": 36,
+          "type": "uint32",
+          "reply_can_id": 17,
+          "raw_uint32": 57,
+          "raw_hex": "00000039",
+          "status": "ok",
+          "value": 57
+        },
+        "Imax": {
+          "address": 59,
+          "type": "float32",
+          "status": "not_documented_for_model",
+          "value": null
+        },
+        "VBus": {
+          "address": 60,
+          "type": "float32",
+          "status": "not_documented_for_model",
+          "value": null
+        }
+      }
+    },
+    {
+      "joint": 2,
+      "unit": "A2",
+      "model": "4340P",
+      "bus": 2,
+      "can_id": 2,
+      "feedback_id": 18,
+      "registers": {
+        "UV_Value": {
+          "address": 0,
+          "type": "float32",
+          "reply_can_id": 18,
+          "raw_uint32": 1097859072,
+          "raw_hex": "41700000",
+          "status": "ok",
+          "value": 15.0
+        },
+        "KT_Value": {
+          "address": 1,
+          "type": "float32",
+          "reply_can_id": 18,
+          "raw_uint32": 0,
+          "raw_hex": "00000000",
+          "status": "ok",
+          "value": 0.0
+        },
+        "OT_Value": {
+          "address": 2,
+          "type": "float32",
+          "reply_can_id": 18,
+          "raw_uint32": 1120403456,
+          "raw_hex": "42c80000",
+          "status": "ok",
+          "value": 100.0
+        },
+        "OC_Value": {
+          "address": 3,
+          "type": "float32",
+          "reply_can_id": 18,
+          "raw_uint32": 1061997773,
+          "raw_hex": "3f4ccccd",
+          "status": "ok",
+          "value": 0.800000011920929
+        },
+        "ACC": {
+          "address": 4,
+          "type": "float32",
+          "reply_can_id": 18,
+          "raw_uint32": 1073741824,
+          "raw_hex": "40000000",
+          "status": "ok",
+          "value": 2.0
+        },
+        "DEC": {
+          "address": 5,
+          "type": "float32",
+          "reply_can_id": 18,
+          "raw_uint32": 3221225472,
+          "raw_hex": "c0000000",
+          "status": "ok",
+          "value": -2.0
+        },
+        "MAX_SPD": {
+          "address": 6,
+          "type": "float32",
+          "reply_can_id": 18,
+          "raw_uint32": 1142292480,
+          "raw_hex": "44160000",
+          "status": "ok",
+          "value": 600.0
+        },
+        "sw_ver": {
+          "address": 14,
+          "type": "uint32",
+          "reply_can_id": 18,
+          "raw_uint32": 808595511,
+          "raw_hex": "30323037",
+          "status": "ok",
+          "value": 808595511
+        },
+        "I_BW": {
+          "address": 24,
+          "type": "float32",
+          "reply_can_id": 18,
+          "raw_uint32": 1148846080,
+          "raw_hex": "447a0000",
+          "status": "ok",
+          "value": 1000.0
+        },
+        "KP_ASR": {
+          "address": 25,
+          "type": "float32",
+          "reply_can_id": 18,
+          "raw_uint32": 997959810,
+          "raw_hex": "3b7ba882",
+          "status": "ok",
+          "value": 0.0038399999029934406
+        },
+        "KI_ASR": {
+          "address": 26,
+          "type": "float32",
+          "reply_can_id": 18,
+          "raw_uint32": 990057071,
+          "raw_hex": "3b03126f",
+          "status": "ok",
+          "value": 0.0020000000949949026
+        },
+        "KP_APR": {
+          "address": 27,
+          "type": "float32",
+          "reply_can_id": 18,
+          "raw_uint32": 1113063424,
+          "raw_hex": "42580000",
+          "status": "ok",
+          "value": 54.0
+        },
+        "KI_APR": {
+          "address": 28,
+          "type": "float32",
+          "reply_can_id": 18,
+          "raw_uint32": 0,
+          "raw_hex": "00000000",
+          "status": "ok",
+          "value": 0.0
+        },
+        "GREF": {
+          "address": 30,
+          "type": "float32",
+          "reply_can_id": 18,
+          "raw_uint32": 1065353216,
+          "raw_hex": "3f800000",
+          "status": "ok",
+          "value": 1.0
+        },
+        "Deta": {
+          "address": 31,
+          "type": "float32",
+          "reply_can_id": 18,
+          "raw_uint32": 1082130432,
+          "raw_hex": "40800000",
+          "status": "ok",
+          "value": 4.0
+        },
+        "V_BW": {
+          "address": 32,
+          "type": "float32",
+          "reply_can_id": 18,
+          "raw_uint32": 1109393408,
+          "raw_hex": "42200000",
+          "status": "ok",
+          "value": 40.0
+        },
+        "IQ_c1": {
+          "address": 33,
+          "type": "float32",
+          "reply_can_id": 18,
+          "raw_uint32": 1159479296,
+          "raw_hex": "451c4000",
+          "status": "ok",
+          "value": 2500.0
+        },
+        "VL_c1": {
+          "address": 34,
+          "type": "float32",
+          "reply_can_id": 18,
+          "raw_uint32": 1140457472,
+          "raw_hex": "43fa0000",
+          "status": "ok",
+          "value": 500.0
+        },
+        "sub_ver": {
+          "address": 36,
+          "type": "uint32",
+          "reply_can_id": 18,
+          "raw_uint32": 825241648,
+          "raw_hex": "31303030",
+          "status": "ok",
+          "value": 825241648
+        },
+        "Imax": {
+          "address": 59,
+          "type": "float32",
+          "reply_can_id": 18,
+          "raw_uint32": 1101278682,
+          "raw_hex": "41a42dda",
+          "status": "ok",
+          "value": 20.522388458251953
+        },
+        "VBus": {
+          "address": 60,
+          "type": "float32",
+          "reply_can_id": 18,
+          "raw_uint32": 1103264115,
+          "raw_hex": "41c27973",
+          "status": "ok",
+          "value": 24.309301376342773
+        }
+      }
+    },
+    {
+      "joint": 3,
+      "unit": "A3",
+      "model": "4340P",
+      "bus": 2,
+      "can_id": 3,
+      "feedback_id": 19,
+      "registers": {
+        "UV_Value": {
+          "address": 0,
+          "type": "float32",
+          "reply_can_id": 19,
+          "raw_uint32": 1097859072,
+          "raw_hex": "41700000",
+          "status": "ok",
+          "value": 15.0
+        },
+        "KT_Value": {
+          "address": 1,
+          "type": "float32",
+          "reply_can_id": 19,
+          "raw_uint32": 0,
+          "raw_hex": "00000000",
+          "status": "ok",
+          "value": 0.0
+        },
+        "OT_Value": {
+          "address": 2,
+          "type": "float32",
+          "reply_can_id": 19,
+          "raw_uint32": 1120403456,
+          "raw_hex": "42c80000",
+          "status": "ok",
+          "value": 100.0
+        },
+        "OC_Value": {
+          "address": 3,
+          "type": "float32",
+          "reply_can_id": 19,
+          "raw_uint32": 1061997773,
+          "raw_hex": "3f4ccccd",
+          "status": "ok",
+          "value": 0.800000011920929
+        },
+        "ACC": {
+          "address": 4,
+          "type": "float32",
+          "reply_can_id": 19,
+          "raw_uint32": 1073741824,
+          "raw_hex": "40000000",
+          "status": "ok",
+          "value": 2.0
+        },
+        "DEC": {
+          "address": 5,
+          "type": "float32",
+          "reply_can_id": 19,
+          "raw_uint32": 3221225472,
+          "raw_hex": "c0000000",
+          "status": "ok",
+          "value": -2.0
+        },
+        "MAX_SPD": {
+          "address": 6,
+          "type": "float32",
+          "reply_can_id": 19,
+          "raw_uint32": 1142292480,
+          "raw_hex": "44160000",
+          "status": "ok",
+          "value": 600.0
+        },
+        "sw_ver": {
+          "address": 14,
+          "type": "uint32",
+          "reply_can_id": 19,
+          "raw_uint32": 808595511,
+          "raw_hex": "30323037",
+          "status": "ok",
+          "value": 808595511
+        },
+        "I_BW": {
+          "address": 24,
+          "type": "float32",
+          "reply_can_id": 19,
+          "raw_uint32": 1148846080,
+          "raw_hex": "447a0000",
+          "status": "ok",
+          "value": 1000.0
+        },
+        "KP_ASR": {
+          "address": 25,
+          "type": "float32",
+          "reply_can_id": 19,
+          "raw_uint32": 997959810,
+          "raw_hex": "3b7ba882",
+          "status": "ok",
+          "value": 0.0038399999029934406
+        },
+        "KI_ASR": {
+          "address": 26,
+          "type": "float32",
+          "reply_can_id": 19,
+          "raw_uint32": 990057071,
+          "raw_hex": "3b03126f",
+          "status": "ok",
+          "value": 0.0020000000949949026
+        },
+        "KP_APR": {
+          "address": 27,
+          "type": "float32",
+          "reply_can_id": 19,
+          "raw_uint32": 1113063424,
+          "raw_hex": "42580000",
+          "status": "ok",
+          "value": 54.0
+        },
+        "KI_APR": {
+          "address": 28,
+          "type": "float32",
+          "reply_can_id": 19,
+          "raw_uint32": 0,
+          "raw_hex": "00000000",
+          "status": "ok",
+          "value": 0.0
+        },
+        "GREF": {
+          "address": 30,
+          "type": "float32",
+          "reply_can_id": 19,
+          "raw_uint32": 1065353216,
+          "raw_hex": "3f800000",
+          "status": "ok",
+          "value": 1.0
+        },
+        "Deta": {
+          "address": 31,
+          "type": "float32",
+          "reply_can_id": 19,
+          "raw_uint32": 1082130432,
+          "raw_hex": "40800000",
+          "status": "ok",
+          "value": 4.0
+        },
+        "V_BW": {
+          "address": 32,
+          "type": "float32",
+          "reply_can_id": 19,
+          "raw_uint32": 1109393408,
+          "raw_hex": "42200000",
+          "status": "ok",
+          "value": 40.0
+        },
+        "IQ_c1": {
+          "address": 33,
+          "type": "float32",
+          "reply_can_id": 19,
+          "raw_uint32": 1159479296,
+          "raw_hex": "451c4000",
+          "status": "ok",
+          "value": 2500.0
+        },
+        "VL_c1": {
+          "address": 34,
+          "type": "float32",
+          "reply_can_id": 19,
+          "raw_uint32": 1140457472,
+          "raw_hex": "43fa0000",
+          "status": "ok",
+          "value": 500.0
+        },
+        "sub_ver": {
+          "address": 36,
+          "type": "uint32",
+          "reply_can_id": 19,
+          "raw_uint32": 825241648,
+          "raw_hex": "31303030",
+          "status": "ok",
+          "value": 825241648
+        },
+        "Imax": {
+          "address": 59,
+          "type": "float32",
+          "reply_can_id": 19,
+          "raw_uint32": 1101278682,
+          "raw_hex": "41a42dda",
+          "status": "ok",
+          "value": 20.522388458251953
+        },
+        "VBus": {
+          "address": 60,
+          "type": "float32",
+          "reply_can_id": 19,
+          "raw_uint32": 1103096845,
+          "raw_hex": "41bfec0d",
+          "status": "ok",
+          "value": 23.990259170532227
+        }
+      }
+    },
+    {
+      "joint": 4,
+      "unit": "A4",
+      "model": "4310P",
+      "bus": 2,
+      "can_id": 4,
+      "feedback_id": 20,
+      "registers": {
+        "UV_Value": {
+          "address": 0,
+          "type": "float32",
+          "reply_can_id": 20,
+          "raw_uint32": 1097859072,
+          "raw_hex": "41700000",
+          "status": "ok",
+          "value": 15.0
+        },
+        "KT_Value": {
+          "address": 1,
+          "type": "float32",
+          "reply_can_id": 20,
+          "raw_uint32": 0,
+          "raw_hex": "00000000",
+          "status": "ok",
+          "value": 0.0
+        },
+        "OT_Value": {
+          "address": 2,
+          "type": "float32",
+          "reply_can_id": 20,
+          "raw_uint32": 1120403456,
+          "raw_hex": "42c80000",
+          "status": "ok",
+          "value": 100.0
+        },
+        "OC_Value": {
+          "address": 3,
+          "type": "float32",
+          "reply_can_id": 20,
+          "raw_uint32": 1061997773,
+          "raw_hex": "3f4ccccd",
+          "status": "ok",
+          "value": 0.800000011920929
+        },
+        "ACC": {
+          "address": 4,
+          "type": "float32",
+          "reply_can_id": 20,
+          "raw_uint32": 1073741824,
+          "raw_hex": "40000000",
+          "status": "ok",
+          "value": 2.0
+        },
+        "DEC": {
+          "address": 5,
+          "type": "float32",
+          "reply_can_id": 20,
+          "raw_uint32": 3221225472,
+          "raw_hex": "c0000000",
+          "status": "ok",
+          "value": -2.0
+        },
+        "MAX_SPD": {
+          "address": 6,
+          "type": "float32",
+          "reply_can_id": 20,
+          "raw_uint32": 1142292480,
+          "raw_hex": "44160000",
+          "status": "ok",
+          "value": 600.0
+        },
+        "sw_ver": {
+          "address": 14,
+          "type": "uint32",
+          "reply_can_id": 20,
+          "raw_uint32": 808595511,
+          "raw_hex": "30323037",
+          "status": "ok",
+          "value": 808595511
+        },
+        "I_BW": {
+          "address": 24,
+          "type": "float32",
+          "reply_can_id": 20,
+          "raw_uint32": 1148846080,
+          "raw_hex": "447a0000",
+          "status": "ok",
+          "value": 1000.0
+        },
+        "KP_ASR": {
+          "address": 25,
+          "type": "float32",
+          "reply_can_id": 20,
+          "raw_uint32": 997444414,
+          "raw_hex": "3b73cb3e",
+          "status": "ok",
+          "value": 0.003719999920576811
+        },
+        "KI_ASR": {
+          "address": 26,
+          "type": "float32",
+          "reply_can_id": 20,
+          "raw_uint32": 990057071,
+          "raw_hex": "3b03126f",
+          "status": "ok",
+          "value": 0.0020000000949949026
+        },
+        "KP_APR": {
+          "address": 27,
+          "type": "float32",
+          "reply_can_id": 20,
+          "raw_uint32": 1113063424,
+          "raw_hex": "42580000",
+          "status": "ok",
+          "value": 54.0
+        },
+        "KI_APR": {
+          "address": 28,
+          "type": "float32",
+          "reply_can_id": 20,
+          "raw_uint32": 0,
+          "raw_hex": "00000000",
+          "status": "ok",
+          "value": 0.0
+        },
+        "GREF": {
+          "address": 30,
+          "type": "float32",
+          "reply_can_id": 20,
+          "raw_uint32": 1065353216,
+          "raw_hex": "3f800000",
+          "status": "ok",
+          "value": 1.0
+        },
+        "Deta": {
+          "address": 31,
+          "type": "float32",
+          "reply_can_id": 20,
+          "raw_uint32": 1082130432,
+          "raw_hex": "40800000",
+          "status": "ok",
+          "value": 4.0
+        },
+        "V_BW": {
+          "address": 32,
+          "type": "float32",
+          "reply_can_id": 20,
+          "raw_uint32": 1109393408,
+          "raw_hex": "42200000",
+          "status": "ok",
+          "value": 40.0
+        },
+        "IQ_c1": {
+          "address": 33,
+          "type": "float32",
+          "reply_can_id": 20,
+          "raw_uint32": 1159479296,
+          "raw_hex": "451c4000",
+          "status": "ok",
+          "value": 2500.0
+        },
+        "VL_c1": {
+          "address": 34,
+          "type": "float32",
+          "reply_can_id": 20,
+          "raw_uint32": 1140457472,
+          "raw_hex": "43fa0000",
+          "status": "ok",
+          "value": 500.0
+        },
+        "sub_ver": {
+          "address": 36,
+          "type": "uint32",
+          "reply_can_id": 20,
+          "raw_uint32": 825241648,
+          "raw_hex": "31303030",
+          "status": "ok",
+          "value": 825241648
+        },
+        "Imax": {
+          "address": 59,
+          "type": "float32",
+          "reply_can_id": 20,
+          "raw_uint32": 1101278682,
+          "raw_hex": "41a42dda",
+          "status": "ok",
+          "value": 20.522388458251953
+        },
+        "VBus": {
+          "address": 60,
+          "type": "float32",
+          "reply_can_id": 20,
+          "raw_uint32": 1103078259,
+          "raw_hex": "41bfa373",
+          "status": "ok",
+          "value": 23.954809188842773
+        }
+      }
+    },
+    {
+      "joint": 5,
+      "unit": "A5",
+      "model": "4310P",
+      "bus": 2,
+      "can_id": 5,
+      "feedback_id": 21,
+      "registers": {
+        "UV_Value": {
+          "address": 0,
+          "type": "float32",
+          "reply_can_id": 21,
+          "raw_uint32": 1097859072,
+          "raw_hex": "41700000",
+          "status": "ok",
+          "value": 15.0
+        },
+        "KT_Value": {
+          "address": 1,
+          "type": "float32",
+          "reply_can_id": 21,
+          "raw_uint32": 0,
+          "raw_hex": "00000000",
+          "status": "ok",
+          "value": 0.0
+        },
+        "OT_Value": {
+          "address": 2,
+          "type": "float32",
+          "reply_can_id": 21,
+          "raw_uint32": 1120403456,
+          "raw_hex": "42c80000",
+          "status": "ok",
+          "value": 100.0
+        },
+        "OC_Value": {
+          "address": 3,
+          "type": "float32",
+          "reply_can_id": 21,
+          "raw_uint32": 1061997773,
+          "raw_hex": "3f4ccccd",
+          "status": "ok",
+          "value": 0.800000011920929
+        },
+        "ACC": {
+          "address": 4,
+          "type": "float32",
+          "reply_can_id": 21,
+          "raw_uint32": 1073741824,
+          "raw_hex": "40000000",
+          "status": "ok",
+          "value": 2.0
+        },
+        "DEC": {
+          "address": 5,
+          "type": "float32",
+          "reply_can_id": 21,
+          "raw_uint32": 3221225472,
+          "raw_hex": "c0000000",
+          "status": "ok",
+          "value": -2.0
+        },
+        "MAX_SPD": {
+          "address": 6,
+          "type": "float32",
+          "reply_can_id": 21,
+          "raw_uint32": 1142292480,
+          "raw_hex": "44160000",
+          "status": "ok",
+          "value": 600.0
+        },
+        "sw_ver": {
+          "address": 14,
+          "type": "uint32",
+          "reply_can_id": 21,
+          "raw_uint32": 808595511,
+          "raw_hex": "30323037",
+          "status": "ok",
+          "value": 808595511
+        },
+        "I_BW": {
+          "address": 24,
+          "type": "float32",
+          "reply_can_id": 21,
+          "raw_uint32": 1148846080,
+          "raw_hex": "447a0000",
+          "status": "ok",
+          "value": 1000.0
+        },
+        "KP_ASR": {
+          "address": 25,
+          "type": "float32",
+          "reply_can_id": 21,
+          "raw_uint32": 997444414,
+          "raw_hex": "3b73cb3e",
+          "status": "ok",
+          "value": 0.003719999920576811
+        },
+        "KI_ASR": {
+          "address": 26,
+          "type": "float32",
+          "reply_can_id": 21,
+          "raw_uint32": 990057071,
+          "raw_hex": "3b03126f",
+          "status": "ok",
+          "value": 0.0020000000949949026
+        },
+        "KP_APR": {
+          "address": 27,
+          "type": "float32",
+          "reply_can_id": 21,
+          "raw_uint32": 1113063424,
+          "raw_hex": "42580000",
+          "status": "ok",
+          "value": 54.0
+        },
+        "KI_APR": {
+          "address": 28,
+          "type": "float32",
+          "reply_can_id": 21,
+          "raw_uint32": 0,
+          "raw_hex": "00000000",
+          "status": "ok",
+          "value": 0.0
+        },
+        "GREF": {
+          "address": 30,
+          "type": "float32",
+          "reply_can_id": 21,
+          "raw_uint32": 1065353216,
+          "raw_hex": "3f800000",
+          "status": "ok",
+          "value": 1.0
+        },
+        "Deta": {
+          "address": 31,
+          "type": "float32",
+          "reply_can_id": 21,
+          "raw_uint32": 1082130432,
+          "raw_hex": "40800000",
+          "status": "ok",
+          "value": 4.0
+        },
+        "V_BW": {
+          "address": 32,
+          "type": "float32",
+          "reply_can_id": 21,
+          "raw_uint32": 1109393408,
+          "raw_hex": "42200000",
+          "status": "ok",
+          "value": 40.0
+        },
+        "IQ_c1": {
+          "address": 33,
+          "type": "float32",
+          "reply_can_id": 21,
+          "raw_uint32": 1159479296,
+          "raw_hex": "451c4000",
+          "status": "ok",
+          "value": 2500.0
+        },
+        "VL_c1": {
+          "address": 34,
+          "type": "float32",
+          "reply_can_id": 21,
+          "raw_uint32": 1140457472,
+          "raw_hex": "43fa0000",
+          "status": "ok",
+          "value": 500.0
+        },
+        "sub_ver": {
+          "address": 36,
+          "type": "uint32",
+          "reply_can_id": 21,
+          "raw_uint32": 825241648,
+          "raw_hex": "31303030",
+          "status": "ok",
+          "value": 825241648
+        },
+        "Imax": {
+          "address": 59,
+          "type": "float32",
+          "reply_can_id": 21,
+          "raw_uint32": 1101278682,
+          "raw_hex": "41a42dda",
+          "status": "ok",
+          "value": 20.522388458251953
+        },
+        "VBus": {
+          "address": 60,
+          "type": "float32",
+          "reply_can_id": 21,
+          "raw_uint32": 1103124723,
+          "raw_hex": "41c058f3",
+          "status": "ok",
+          "value": 24.043432235717773
+        }
+      }
+    },
+    {
+      "joint": 6,
+      "unit": "A6",
+      "model": "4310P",
+      "bus": 2,
+      "can_id": 6,
+      "feedback_id": 22,
+      "registers": {
+        "UV_Value": {
+          "address": 0,
+          "type": "float32",
+          "reply_can_id": 22,
+          "raw_uint32": 1097859072,
+          "raw_hex": "41700000",
+          "status": "ok",
+          "value": 15.0
+        },
+        "KT_Value": {
+          "address": 1,
+          "type": "float32",
+          "reply_can_id": 22,
+          "raw_uint32": 0,
+          "raw_hex": "00000000",
+          "status": "ok",
+          "value": 0.0
+        },
+        "OT_Value": {
+          "address": 2,
+          "type": "float32",
+          "reply_can_id": 22,
+          "raw_uint32": 1120403456,
+          "raw_hex": "42c80000",
+          "status": "ok",
+          "value": 100.0
+        },
+        "OC_Value": {
+          "address": 3,
+          "type": "float32",
+          "reply_can_id": 22,
+          "raw_uint32": 1061997773,
+          "raw_hex": "3f4ccccd",
+          "status": "ok",
+          "value": 0.800000011920929
+        },
+        "ACC": {
+          "address": 4,
+          "type": "float32",
+          "reply_can_id": 22,
+          "raw_uint32": 1073741824,
+          "raw_hex": "40000000",
+          "status": "ok",
+          "value": 2.0
+        },
+        "DEC": {
+          "address": 5,
+          "type": "float32",
+          "reply_can_id": 22,
+          "raw_uint32": 3221225472,
+          "raw_hex": "c0000000",
+          "status": "ok",
+          "value": -2.0
+        },
+        "MAX_SPD": {
+          "address": 6,
+          "type": "float32",
+          "reply_can_id": 22,
+          "raw_uint32": 1142292480,
+          "raw_hex": "44160000",
+          "status": "ok",
+          "value": 600.0
+        },
+        "sw_ver": {
+          "address": 14,
+          "type": "uint32",
+          "reply_can_id": 22,
+          "raw_uint32": 808595511,
+          "raw_hex": "30323037",
+          "status": "ok",
+          "value": 808595511
+        },
+        "I_BW": {
+          "address": 24,
+          "type": "float32",
+          "reply_can_id": 22,
+          "raw_uint32": 1148846080,
+          "raw_hex": "447a0000",
+          "status": "ok",
+          "value": 1000.0
+        },
+        "KP_ASR": {
+          "address": 25,
+          "type": "float32",
+          "reply_can_id": 22,
+          "raw_uint32": 997444414,
+          "raw_hex": "3b73cb3e",
+          "status": "ok",
+          "value": 0.003719999920576811
+        },
+        "KI_ASR": {
+          "address": 26,
+          "type": "float32",
+          "reply_can_id": 22,
+          "raw_uint32": 990057071,
+          "raw_hex": "3b03126f",
+          "status": "ok",
+          "value": 0.0020000000949949026
+        },
+        "KP_APR": {
+          "address": 27,
+          "type": "float32",
+          "reply_can_id": 22,
+          "raw_uint32": 1113063424,
+          "raw_hex": "42580000",
+          "status": "ok",
+          "value": 54.0
+        },
+        "KI_APR": {
+          "address": 28,
+          "type": "float32",
+          "reply_can_id": 22,
+          "raw_uint32": 0,
+          "raw_hex": "00000000",
+          "status": "ok",
+          "value": 0.0
+        },
+        "GREF": {
+          "address": 30,
+          "type": "float32",
+          "reply_can_id": 22,
+          "raw_uint32": 1065353216,
+          "raw_hex": "3f800000",
+          "status": "ok",
+          "value": 1.0
+        },
+        "Deta": {
+          "address": 31,
+          "type": "float32",
+          "reply_can_id": 22,
+          "raw_uint32": 1082130432,
+          "raw_hex": "40800000",
+          "status": "ok",
+          "value": 4.0
+        },
+        "V_BW": {
+          "address": 32,
+          "type": "float32",
+          "reply_can_id": 22,
+          "raw_uint32": 1109393408,
+          "raw_hex": "42200000",
+          "status": "ok",
+          "value": 40.0
+        },
+        "IQ_c1": {
+          "address": 33,
+          "type": "float32",
+          "reply_can_id": 22,
+          "raw_uint32": 1159479296,
+          "raw_hex": "451c4000",
+          "status": "ok",
+          "value": 2500.0
+        },
+        "VL_c1": {
+          "address": 34,
+          "type": "float32",
+          "reply_can_id": 22,
+          "raw_uint32": 1140457472,
+          "raw_hex": "43fa0000",
+          "status": "ok",
+          "value": 500.0
+        },
+        "sub_ver": {
+          "address": 36,
+          "type": "uint32",
+          "reply_can_id": 22,
+          "raw_uint32": 825241648,
+          "raw_hex": "31303030",
+          "status": "ok",
+          "value": 825241648
+        },
+        "Imax": {
+          "address": 59,
+          "type": "float32",
+          "reply_can_id": 22,
+          "raw_uint32": 1101278682,
+          "raw_hex": "41a42dda",
+          "status": "ok",
+          "value": 20.522388458251953
+        },
+        "VBus": {
+          "address": 60,
+          "type": "float32",
+          "reply_can_id": 22,
+          "raw_uint32": 1102994624,
+          "raw_hex": "41be5cc0",
+          "status": "ok",
+          "value": 23.7952880859375
+        }
+      }
+    }
+  ],
+  "interpretation": "A1 Imax and VBus were skipped as undocumented for 8009P and remain null. All other requested documented reads completed. Parameter units/scaling, suitable application limits, current/torque accuracy, thermal behavior and physical fault response remain unqualified.",
+  "motor_parameter_writes": false,
+  "agent_hardware_access": false,
+  "protection_qualified": false
+}

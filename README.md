@@ -4,7 +4,7 @@ Motor control, sensing, teleoperation and visualization for the magnetic
 wall-climbing welding robot. Native Ubuntu 24.04 is the deployment target.
 ENCOS drives the chassis; six Damiao motors drive the arm through DM-MC02.
 
-## Current status — November 25
+## Current status — November 26
 
 - **Welding:** the operator selected **v7**, with exact sampled commands and
   bounded A1/A6 response compensation. Matched-cycle tip RMS is 2.168 mm and
@@ -14,10 +14,16 @@ ENCOS drives the chassis; six Damiao motors drive the arm through DM-MC02.
   slots 0/1/3/4; the operator reported normal viewer/keyboard behavior. Use
   `bash scripts/run_motor_test.sh --four-motors`. IDs 1/2 are on CAN1 and 3/4
   on CAN2. The operator confirmed the [wheel mapping](docs/DIFFERENTIAL_DRIVE.md#model-source-and-hardware-mapping)
-  on Nov 25. [CAN freshness, loaded stopping and host-loss qualification](docs/CHASSIS_MODEL_COMMS_TODOS.md) remain open.
+  on Nov 25. The operator closed [COMMS-01](docs/ARM_SESSION_HANDOFF.md#comms-01-closure)
+  on Nov 26 after isolated reply loss and recovery passed on both CAN ports.
+  [Loaded stopping and host-loss qualification](docs/CHASSIS_MODEL_COMMS_TODOS.md) remain open.
 - **Arm setup:** the gun-load firmware/ranges are deployed; routine runs need
   no setup or flash. Use the explicit matching profile. HOLD-01, PLAN-01 and
   BASE-04 are closed; do not reopen their historical incidents.
+- **ROS integration:** ROS-02 is deferred until another day by operator request.
+- **Atomic arm commands:** BASE-06 is complete on firmware `cd93f9b3 / 0x7FFFF8F`.
+  Supported six-joint group holding, configuration readback and final
+  disable/mode restoration passed Nov 26; see the [deployment record](docs/measurements/arm-base06-deployment-2026-11-26.json).
 
 Read [the current handoff](docs/ARM_SESSION_HANDOFF.md), then the
 [V7 operator command](docs/ARM_RIG_TEST.md#weld-motion-accuracy-test).
@@ -59,7 +65,6 @@ without position capture. On the currently commissioned rig, append
 changed feedback ranges. `bash scripts/record_arm_positions.sh` opens the
 separate reference recorder. The reusable [model-guided calibration tool](docs/ARM_MODEL_CALIBRATION.md)
 calculates paths at measured poses and records constraints for changed gear.
-
 
 [Position API and keyboard joint jog](docs/ARM_POSITION_JOG.md): run
 `python3 scripts/jog_dm_arm.py --simulate`, select 1..6, press E once and hold an arrow in the desktop window; release stops.
@@ -122,7 +127,8 @@ IDs 1/2 on CAN1 and IDs 3/4 on CAN2:
 Both manual driving and future automatic chassis trajectory tracking can use
 this velocity interface. The [differential chassis controller](docs/DIFFERENTIAL_DRIVE.md)
 maps timestamped chassis velocity and WASD teleop to four motor RPM targets using
-the preserved four-driven-wheel simulation layout. Hardware mapping still needs commissioning.
+the preserved four-driven-wheel simulation layout. Wheel mapping, forward signs
+and 1:1 gearing were operator-confirmed on Nov 25; assembled driving remains deferred.
 State estimation and trajectory tracking remain future work. Teleoperation now
 uses chassis W/S/A/D only, with keyboard or proportional
 single-stick radio input in the same executable. See
@@ -275,8 +281,7 @@ validate loaded robot motion, traction, braking, or host-loss behavior.
 
 Every active motor needs an explicit command refresh within 250 ms. The C worker
 attempts zero-speed commands on timeout/fault/close, then clears its outputs.
-That is not a verified mechanical stop: cached bridge feedback and bridge behavior
-after host loss still require bench verification. Motor/fixture limits must
+Mechanical stopping after host loss still requires bench verification. Motor/fixture limits must
 be supplied explicitly; no model-specific safe settings are assumed.
 
 ## Package migration

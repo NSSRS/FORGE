@@ -19,8 +19,8 @@ All commands below run without motors or a transport owner.
 
 The operator accepted the **8.22 s preparation time** and retired the earlier
 five-second goal. HOLD-01, PLAN-01 and BASE-04 are closed by operator confirmation.
-Do not reopen them from historical failure records. Current work is ACCURACY-01
-and SPEED-01, prioritizing **end-effector orientation relative to the planned
+Do not reopen them from historical failure records. The Nov 23 follow-up covered
+ACCURACY-01 and SPEED-01, prioritizing **end-effector orientation relative to the planned
 tool frame: 0.5 deg target, 1 deg maximum during welding**. Individual joint
 errors are diagnostic, not per-axis acceptance limits. Position error is reported
 separately in mm. Compare at the recorded time without shifting phase or wrapping

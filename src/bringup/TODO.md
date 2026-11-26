@@ -1,15 +1,12 @@
-# Bringup and deployment: open arm work
+# Bringup and deployment: open work
 
-The [cross-layer registry](../../docs/ARM_LAYER_TODOS.md) is the status authority.
-Owning IDs: **SUPPORT-01, DEPLOY-01, BASE-07, ROS-02**. Read [current hardware status](../../docs/ARM_SESSION_HANDOFF.md)
-and [the base contract](../../docs/ARM_BASE_LAYER.md) before continuing.
+Use the [consolidated registry](../../docs/ARM_LAYER_TODOS.md) and
+[current handoff](../../docs/ARM_SESSION_HANDOFF.md).
 
-Next: qualify base support and fault/power-loss behavior using the deployed
-profiles and recorded bench evidence. Keep radio discovery before node startup
-and exclude other devices; no implicit reconnect/re-arm. Rig radio profiles
-belong in config/ and setup.py; generated reports belong under build/.
+- **ROS-02 (deferred by the operator on Nov 26):** integrate the production arm
+  lifecycle with explicit re-arm.
 
-Completed implementation and run instructions belong in the
-[rig guide](../../docs/ARM_RIG_TEST.md) and
-[source map](../../docs/SOURCE_LAYOUT.md#arm-controls-and-rig-test-file-map).
-Update the owning registry entry instead of duplicating session histories here.
+BASE-06 deployment and the supported stationary BASE-07 check are complete;
+see the handoff for their scope. Chassis testing and PROTECT-01 are deferred. Preserve radio discovery before
+node startup and exclude unrelated devices. Rig profiles belong in config/ and
+setup.py; generated reports belong under build/.

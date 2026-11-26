@@ -63,6 +63,25 @@ per-bus error counters. The simulator identifies itself and leaves unavailable
 transport counters unset. Current, temperature and each field's validity are
 reported separately.
 
+The native owner gates observation timestamps per motor. An idle position
+advances after the slot is queried and the previous record has cleared from
+the input image. During control, one unambiguous change of ACK type advances
+the corresponding position or velocity timestamp and the electrical
+timestamp. Repeated control records and images containing both ACK types for
+one ID do not advance its watchdog. The owner checks their limit and fault
+fields immediately. When observations skip a reply type, subsequent ordinary
+control frames can request the missing ACK at the existing 100 Hz command rate.
+The 250 ms command and feedback deadlines remain independent.
+
+In the [Nov 26 stationary journal review](measurements/encos-inventory-2026-11-26.json),
+each paused motor's old position was present in the first 12 returned images.
+The first image without it was observed 65.4–69.2 ms after the first pause
+sample. The native fake bridge separately exercises indefinite retention of
+one active ACK and of both types together while healthy peers continue.
+On the physical bench, isolated reply loss and recovery passed for ID 1 on
+CAN1 and ID 3 on CAN2 during uninterrupted polling of all four motors.
+The operator accepted this coverage and [closed COMMS-01](ARM_SESSION_HANDOFF.md#comms-01-closure).
+
 ### ENCOS vendor evidence
 
 The original vendor materials were checked on 2026-11-15: `ENCOS+调试技术手册+V1.19EAP.pdf`,
@@ -100,14 +119,9 @@ examples; it does not document receive-freshness metadata.
 ties the toggle to the corresponding input-data update on its own terminal.
 That is not evidence of the ENCOS bridge firmware's CAN receive behavior.
 
-Consequently basic ENCOS telemetry is supported, but per-motor CAN freshness
-through this bridge is **unverified**, not established as unsupported. Resolve
-the boundary with firmware-version-specific vendor semantics or bridge CAN RX
-source, then qualify each motor independently while other motors keep replying.
-Required evidence includes behavior for identical successive replies, missing
-replies, cache retention and restart. Do not promote the global toggle, WKC,
-payload changes or motor command timeout to per-motor freshness without that
-evidence. No physical test or firmware change was performed for this review.
+The vendor materials establish how to decode telemetry. The bench journals
+record when the host saw a reply disappear and return. Neither source provides
+a per-motor CAN reception timestamp for the runtime diagnostics.
 
 ### ENCOS offline capture analysis
 
@@ -148,6 +162,6 @@ See [test commands](../tests/README.md#motor-telemetry-for-both-families).
 
 The 25/50 Hz rates and 2 Hz diagnostics are software defaults. BASE-04 was
 [resolved by operator confirmation on Nov 23](ARM_SESSION_HANDOFF.md#plan-01-and-base-04-resolution).
-ENCOS-specific freshness remains in COMMS-01; fault response, protection and
-loaded stopping remain under BASE-07, PROTECT-01 and SUPPORT-01. Production
+The selected stationary [BASE-07 check](ARM_SESSION_HANDOFF.md#base-07-command-loss-check)
+is recorded; PROTECT-01 is deferred by the operator. Production
 ROS lifecycle and coordinated holding remain ROS-02.

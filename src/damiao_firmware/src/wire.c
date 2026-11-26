@@ -59,6 +59,20 @@ static bool dispatch(arm_wire *w,uint32_t now,uint8_t *out) {
             dm_command c = {f32(p + 1), f32(p + 5), f32(p + 9), f32(p + 13), f32(p + 17)};
             result = type == 4 ? arm_set_result(a, i, &c, now) : arm_set_smooth_result(a, i, &c, now);
             ok = result == ARM_REQUEST_OK;
+        } else if (type == 30) {
+            failed_slot = ARM_REJECT_NO_SLOT;
+            if (p[2] || p[3]) result = ARM_REJECT_INVALID_ARGUMENT;
+            else if (now - w->frame_started >= ARM_LEASE_MS) result = ARM_REJECT_STALE_PRELOAD;
+            else {
+                dm_command commands[ARM_COUNT] = {0};
+                for (unsigned k = 0; k < ARM_COUNT; k++) {
+                    commands[k].p = f32(p + 4 + k * 8);
+                    commands[k].v = f32(p + 8 + k * 8);
+                }
+                result = arm_set_group_result(a, p[0], p[1], commands, now, &failed_slot);
+            }
+            ok = result == ARM_REQUEST_OK;
+            if (ok) put32(out + 9, now);
         } else if (type == 5) {
             result = arm_enable_result(a, i, now);
             ok = result == ARM_REQUEST_OK;
@@ -184,6 +198,7 @@ static bool dispatch(arm_wire *w,uint32_t now,uint8_t *out) {
 }
 bool wire_byte(arm_wire *w,uint8_t b,uint32_t now,uint8_t out[64]) {
     if(w->used==0 && b!=0xa5) return false;
+    if(w->used==0) w->frame_started=now;
     if(w->used==1 && b!=0x5a) { w->used=(b==0xa5)?1:0; return false; }
     w->buffer[w->used++]=b;
     if(w->used<64) return false;

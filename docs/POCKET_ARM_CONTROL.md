@@ -213,8 +213,9 @@ were recorded as -1 from the operator's keyboard Up=CCW observations on
 working Pocket motor control after restarting the ER12 on 2026-11-09.
 PLAN-01 was [resolved by operator confirmation on Nov 23](ARM_SESSION_HANDOFF.md#plan-01-and-base-04-resolution).
 The historical direction observations and simulator tests remain separate
-evidence from physical fault behavior; remaining system fault-injection work
-is under [BASE-07](ARM_LAYER_TODOS.md#base-07--physical-fault-injection-acceptance).
+evidence from physical fault behavior. The
+[BASE-07 stationary command-loss/recovery check](ARM_SESSION_HANDOFF.md#base-07-command-loss-check)
+is recorded; it does not measure RF-loss behavior or moving stop timing.
 
 For the same secured, unloaded six-motor bench (A1 on CAN1, A2..A6 on CAN2), the
 existing keyboard window can determine raw rotation signs with a narrower
@@ -325,8 +326,10 @@ values, all six selections, all four right-stick directions and SE release.
 The operator measured the radio inputs; automated tests do not establish
 physical motor behavior or RF-loss handling.
 
-PLAN-01 is closed; ROS-02, CAL-01, BASE-06, PROTECT-01 and
-SUPPORT-01 remain open in [the registry](ARM_LAYER_TODOS.md).
+PLAN-01 and BASE-06 are closed. ROS-02 and CAL-01 own remaining integration
+work in [the registry](ARM_LAYER_TODOS.md). The selected stationary BASE-07
+check is complete; former SUPPORT-01 does not create another test campaign.
+PROTECT-01 is deferred by the operator.
 
 Initial dashboard validation: 60 Damiao/native-backed/keyboard tests, 23 Pocket policy
 and Qt tests, 6 launch checks, and the ROS/PTY telemetry/STOP integration test

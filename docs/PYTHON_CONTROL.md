@@ -17,7 +17,11 @@ are not exposed.
 
 Opening sends only position queries. A motor's first command activates it;
 the others remain query-only. Fresh initial position must be available before
-activation. Absolute position
+activation. Each idle motor is queried until its position appears. Its output
+slot then stays empty until that motor's prior record clears. This allows
+identical stationary positions to count again on a later query while a
+persistent record ages out. Other configured motors keep their own cadence.
+Absolute position
 bounds apply to Mode 1; Mode 2 does not require the measured accumulated
 angle to lie within those bounds.
 
@@ -121,8 +125,10 @@ Velocity, current, temperature, motor-error, feedback-age, command-age, and
 EtherCAT checks remain active in both modes. The motor's multi-turn count resets
 after power loss.
 
-Feedback types 2 and 3 alternate during motion, so position and velocity can come
-from different cycles. Current is phase A, not supply current or calibrated chassis
+Feedback requests normally alternate between types 2 and 3 during motion.
+If samples skip a type, the driver requests the missing type using the next
+regular command. Position and velocity can come from different cycles.
+Current is phase A, not supply current or calibrated chassis
 force. Encoder angles/speeds are already gearbox-output quantities; do not divide
 by the motor's internal ratio again. Application code accounts for external gearing,
 wheel radius and direction. Multi-turn counts reset on power-up; choose an explicit
@@ -136,7 +142,7 @@ Query-only motors have no command lease. There is no implicit Python heartbeat.
 ## Faults and hardware limitations
 
 The C thread latches a global fault for command expiry, EtherCAT exchange failure,
-a scheduling gap over 100 ms, missing decodable control feedback for 250 ms, motor
+a scheduling gap over 100 ms, no progress between control reply types for 250 ms, motor
 errors, position/speed/current limits or a temperature over 70 C. Current checking
 allows max(0.5 A, 25% of the ceiling) margin, and speed checking allows 1 RPM.
 These checks supplement transmitted motor-side limits; they are not model-specific
@@ -145,9 +151,13 @@ for 500 ms, then clears outputs. No automatic rearming occurs after reconnection
 Close and investigate before explicitly reopening.
 
 **Cached feedback:** healthy EtherCAT and a decodable PDO do not prove a fresh CAN
-reply. The bridge may retain frames. `observed_monotonic_s` is host observation time,
-not verified CAN reception time. Alternating reply types obtains both measurements
-but does not solve cache freshness. Bridge status bytes are uninterpreted pending
+reply. The bridge may retain frames. The owner timestamps a control update
+only when the image for that motor shows one valid reply type and that type
+changes from the last accepted one. A fixed type or a pair of types retained
+together ages out. Every decoded record is checked for motor errors and limit
+violations even during a repeat. `observed_monotonic_s` records host time.
+A bridge that replays different old replies in alternating images can still
+look live. Bridge status bytes are uninterpreted pending
 a verified firmware definition. Limit checks can miss conditions hidden by stale
 telemetry. `state()` values remain available after a fault but can be stale;
 call `check()` in application loops.

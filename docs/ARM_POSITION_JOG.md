@@ -184,8 +184,9 @@ and do not establish assembled-arm calibration or holding.
 
 Stable handoff: [cross-layer registry](ARM_LAYER_TODOS.md), especially
 ROS-02 (production position-velocity adapter), CAL-01 (coordinates/limits),
-BASE-06 (atomic multi-joint commands)
-and SUPPORT-01 (loaded stopping/holding). Add ROS action/service/topic adapters
+the completed BASE-06 atomic multi-joint API and the completed BASE-07
+stationary command-loss/recovery check (including former SUPPORT-01).
+Add ROS action/service/topic adapters
 above this explicit API; do not reimplement drive packets in teleop.
 
 ## Pocket display reuse

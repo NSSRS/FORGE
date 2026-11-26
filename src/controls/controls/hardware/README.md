@@ -3,7 +3,7 @@
 This layer owns real-motor execution and its fake-motor test mode. Offline
 planning is in sibling `../controller/`; the original dynamic simulation is in
 `../simulation/`. It is usable through the CLI and the ROS 2 `control_weld` entry
-point; production lifecycle/atomic group execution remain separate acceptance work.
+point; production lifecycle integration remains separate work.
 
 | Module | Responsibility |
 | --- | --- |
@@ -23,8 +23,10 @@ another owner. `Feedback` uses ordered physical slots A1-A6, raw shaft degrees,
 deg/s and age in ms; adapters convert to radians/rad/s at the motor API boundary.
 
 Arm commands follow `WeldController -> ArmOwner -> TrajectoryArmPort ->
-ArmGroupHoldPort -> ArmBus -> DM-MC02 -> CAN`. Native mode 2 / USB type 4 carries
-position and speed allowance. An explicit `--weld-response-profile` selects the
+ArmGroupHoldPort -> ArmBus -> DM-MC02 -> CAN`. Native mode 2 carries position
+and speed allowance. Firmware with capability `0x04000000` receives one complete
+type-30 batch; older firmware retains sequential type 4. The report records
+`group_command_transport` and `usb_command_type`. An explicit `--weld-response-profile` selects the
 operator-selected v7 bounded periodic A1/A6 response baseline, with the original
 quintic first-cycle blend and capped residual feedback (0.20/0.05 deg).
 Its exact physical-run profile is restored; preparation is unchanged.
@@ -35,8 +37,12 @@ frequency, mapping and scene. See `docs/ARM_RIG_TEST.md` for its command.
 The default host PID tracker adds bounded position
 lead using reference velocity and measured error; the drive velocity field
 remains a ceiling. No torque feedforward, gain writes or type-25 jog smoothing
-are added. Complete targets are validated before sequential dispatch;
-this is not firmware-atomic multi-axis application.
+are added. Complete targets are validated before dispatch. Type 30 validates all
+six slots again in the MCU, then updates all targets and leases before the next
+control tick. CAN frames remain serialized. A failed or uncertain batch stops
+through the existing owner without retry or fallback. Intent loss around a
+successful dispatch retains the existing measured pause/hold behavior. See
+[the protocol contract](../../../../docs/ARM_BASE_LAYER.md#base-06-atomic-group-targets).
 
 Moving ticks use `begin_cycle` to read/validate six fresh samples and `command`
 to consume them in one target dispatch, without a duplicate poll/old-target
@@ -143,6 +149,7 @@ See [WELD_MOTION.md](../../../../docs/WELD_MOTION.md) for limits/search/timing,
 [the handoff](../../../../docs/ARM_SESSION_HANDOFF.md) for current evidence, and
 [tests/README.md](../../../../tests/README.md) for native fake-CAN, model and Qt
 verification. The Nov 23 final close verified disable/mode restoration;
-fault/power-loss stopping remains separate work under SUPPORT-01. The
+the selected stationary [BASE-07 check](../../../../docs/ARM_SESSION_HANDOFF.md#base-07-command-loss-check)
+is also recorded. The
 [weld accuracy test](../../../../docs/ARM_RIG_TEST.md#weld-motion-accuracy-test)
 uses cached trajectory records from this owner.

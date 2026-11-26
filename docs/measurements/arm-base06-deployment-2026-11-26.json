@@ -1,0 +1,295 @@
+{
+  "date": "2026-11-26",
+  "task": "BASE-06",
+  "status": "complete",
+  "report_path": "/home/forge2/forge2_ws/build/arm_tests/base06-deploy-20261126T095624Z/deployment.json",
+  "flash_log_path": "/home/forge2/forge2_ws/build/arm_tests/base06-deploy-20261126T095624Z/flash.log",
+  "flash_log_sha256": "2d77f3bb4d170461ef4196e81dae6515916f5b493aa6e6a48bbbb24429b89bb7",
+  "identity_path": "/home/forge2/forge2_ws/build/arm_tests/base06-deploy-20261126T095624Z/identity.json",
+  "identity_sha256": "8430ee261f9a19752ccd0986aac841f92e8dc26544e860030fa7b050987fa4c1",
+  "firmware": {
+    "build_id": "cd93f9b3",
+    "capabilities": "0x7FFFF8F",
+    "image_sha256": "2c9d993753715b7cb8eac618e6c4ecbafa34a93d83a9477912f13025b3654368",
+    "operator_programmed_and_verified": true,
+    "usb_identity_matched": true
+  },
+  "post_reset": {
+    "configured_mask": 0,
+    "all_slots_disabled": true,
+    "fault_latched": false,
+    "can_tx_frames_by_bus": [
+      0,
+      0,
+      0
+    ]
+  },
+  "typed_rejection": {
+    "request_type": 29,
+    "reason": "INVALID_ARGUMENT",
+    "slot": null
+  },
+  "profile": {
+    "path": "/home/forge2/forge2_ws/src/robot_description/config/arm_rig_gun_a2_a6_load.json",
+    "sha256": "b0e048f5ee1a10d3cc4920d32909f1c352a9a10581d9c4fab1535d4b591b313c"
+  },
+  "selected_weld_mapping": {
+    "path": "/home/forge2/forge2_ws/build/arm_tests/hold-01-20261119/mapping.json",
+    "sha256": "3b5d7a65c313971101e94698de7878b49c5251070909fe1eb7cc0d0a43542f8a",
+    "use": "Deployment provenance only; the stationary raw-position check does not use model coordinates."
+  },
+  "active_motor_configuration_check": {
+    "passed": true,
+    "path": "/home/forge2/forge2_ws/build/arm_tests/base06-deploy-20261126T095624Z/active_config_after_close.json",
+    "sha256": "424cfd5088e66184178ba547ea67d1252cbc182bef5f174d0fb676790902c0d6",
+    "comparisons": 147,
+    "all_slots_disabled_and_fault_free": true,
+    "verified_register_masks": [
+      23,
+      23,
+      23,
+      23,
+      23,
+      23
+    ],
+    "mode_readback_note": "MCU mode is the configured command mode (2). The operator session independently verified motor mode 2 before holding and restored original motor mode 1 on close; cleanup clears the cached mode-valid bit. Cached post-close feedback is allowed to age and is not a fresh motion authorization.",
+    "active_config": [
+      {
+        "slot": 0,
+        "configured": true,
+        "bus": 1,
+        "mode": 2,
+        "model_code": 1,
+        "motor_can_id": 1,
+        "setpoint_can_id": 257,
+        "feedback_can_id": 17,
+        "manual_travel": true,
+        "position_hold": true,
+        "group_hold": true,
+        "verified_register_mask": 23,
+        "profile_limits": {
+          "lower_rad": -12.5,
+          "upper_rad": 12.5,
+          "speed_trip_rad_s": 1.5,
+          "torque_trip_nm": 20.0,
+          "kp_max": 0.0,
+          "kd_max": 0.0
+        },
+        "protocol_ranges": {
+          "pmax_rad": 12.5,
+          "vmax_rad_s": 45.0,
+          "tmax_nm": 54.0
+        }
+      },
+      {
+        "slot": 1,
+        "configured": true,
+        "bus": 2,
+        "mode": 2,
+        "model_code": 2,
+        "motor_can_id": 2,
+        "setpoint_can_id": 258,
+        "feedback_can_id": 18,
+        "manual_travel": true,
+        "position_hold": true,
+        "group_hold": true,
+        "verified_register_mask": 23,
+        "profile_limits": {
+          "lower_rad": -12.5,
+          "upper_rad": 12.5,
+          "speed_trip_rad_s": 1.5,
+          "torque_trip_nm": 30.0,
+          "kp_max": 0.0,
+          "kd_max": 0.0
+        },
+        "protocol_ranges": {
+          "pmax_rad": 12.5,
+          "vmax_rad_s": 10.0,
+          "tmax_nm": 40.0
+        }
+      },
+      {
+        "slot": 2,
+        "configured": true,
+        "bus": 2,
+        "mode": 2,
+        "model_code": 2,
+        "motor_can_id": 3,
+        "setpoint_can_id": 259,
+        "feedback_can_id": 19,
+        "manual_travel": true,
+        "position_hold": true,
+        "group_hold": true,
+        "verified_register_mask": 23,
+        "profile_limits": {
+          "lower_rad": -12.5,
+          "upper_rad": 12.5,
+          "speed_trip_rad_s": 1.5,
+          "torque_trip_nm": 30.0,
+          "kp_max": 0.0,
+          "kd_max": 0.0
+        },
+        "protocol_ranges": {
+          "pmax_rad": 12.5,
+          "vmax_rad_s": 10.0,
+          "tmax_nm": 40.0
+        }
+      },
+      {
+        "slot": 3,
+        "configured": true,
+        "bus": 2,
+        "mode": 2,
+        "model_code": 3,
+        "motor_can_id": 4,
+        "setpoint_can_id": 260,
+        "feedback_can_id": 20,
+        "manual_travel": true,
+        "position_hold": true,
+        "group_hold": true,
+        "verified_register_mask": 23,
+        "profile_limits": {
+          "lower_rad": -1.689767837524414,
+          "upper_rad": 7.735010147094727,
+          "speed_trip_rad_s": 1.5,
+          "torque_trip_nm": 10.0,
+          "kp_max": 0.0,
+          "kd_max": 0.0
+        },
+        "protocol_ranges": {
+          "pmax_rad": 12.5,
+          "vmax_rad_s": 30.0,
+          "tmax_nm": 12.5
+        }
+      },
+      {
+        "slot": 4,
+        "configured": true,
+        "bus": 2,
+        "mode": 2,
+        "model_code": 3,
+        "motor_can_id": 5,
+        "setpoint_can_id": 261,
+        "feedback_can_id": 21,
+        "manual_travel": true,
+        "position_hold": true,
+        "group_hold": true,
+        "verified_register_mask": 23,
+        "profile_limits": {
+          "lower_rad": -12.5,
+          "upper_rad": 12.5,
+          "speed_trip_rad_s": 1.5,
+          "torque_trip_nm": 10.0,
+          "kp_max": 0.0,
+          "kd_max": 0.0
+        },
+        "protocol_ranges": {
+          "pmax_rad": 12.5,
+          "vmax_rad_s": 30.0,
+          "tmax_nm": 12.5
+        }
+      },
+      {
+        "slot": 5,
+        "configured": true,
+        "bus": 2,
+        "mode": 2,
+        "model_code": 3,
+        "motor_can_id": 6,
+        "setpoint_can_id": 262,
+        "feedback_can_id": 22,
+        "manual_travel": true,
+        "position_hold": true,
+        "group_hold": true,
+        "verified_register_mask": 23,
+        "profile_limits": {
+          "lower_rad": -3.5925674438476562,
+          "upper_rad": 5.832210540771484,
+          "speed_trip_rad_s": 1.5,
+          "torque_trip_nm": 10.0,
+          "kp_max": 0.0,
+          "kd_max": 0.0
+        },
+        "protocol_ranges": {
+          "pmax_rad": 12.5,
+          "vmax_rad_s": 30.0,
+          "tmax_nm": 12.5
+        }
+      }
+    ]
+  },
+  "physical_group_hold_check": {
+    "passed": true,
+    "scope": "Supported stationary group preload and atomic refresh; no jog or coordinated travel.",
+    "session_path": "/home/forge2/forge2_ws/build/arm_tests/base06-deploy-20261126T095624Z/session.json",
+    "session_sha256": "1eedc4004f97063b69ead2e9909d0e156b33dda96732515f353138fc381bb1e1",
+    "group_command_transport": "atomic_mode2",
+    "hold_event_to_stop_event_s": 7.12438556699999,
+    "sample_span_s": 7.1121515430004365,
+    "samples": 2142,
+    "samples_per_joint": {
+      "1": 357,
+      "2": 357,
+      "3": 357,
+      "4": 357,
+      "5": 357,
+      "6": 357
+    },
+    "dropped_samples": 0,
+    "all_samples_enabled_confirmed": true,
+    "all_targets_fixed": true,
+    "max_feedback_age_ms": 2,
+    "max_abs_tracking_error_deg": 0.021856605344040804,
+    "max_abs_tracking_error_deg_by_joint": {
+      "1": 0.021856605344040804,
+      "2": 0.0,
+      "3": 0.0,
+      "4": 0.0,
+      "5": 0.0,
+      "6": 0.0
+    },
+    "max_temperature_c": 31,
+    "command_batch_ms": {
+      "median": 1.2925479995828937,
+      "max": 1.7782319991965778
+    },
+    "bus_health_after_close": {
+      "1": {
+        "at_ms": 284468,
+        "tx_frames": 3612,
+        "tx_failed": 0,
+        "rx_frames": 3612,
+        "feedback_frames": 3586,
+        "max_feedback_gap_ms": 12,
+        "max_tick_gap_ms": 3,
+        "late_ticks": 1,
+        "bus_off_events": 0,
+        "status_flags": 1792,
+        "tx_error_count": 0,
+        "rx_error_count": 0
+      },
+      "2": {
+        "at_ms": 284468,
+        "tx_frames": 18060,
+        "tx_failed": 0,
+        "rx_frames": 18060,
+        "feedback_frames": 17930,
+        "max_feedback_gap_ms": 13,
+        "max_tick_gap_ms": 3,
+        "late_ticks": 1,
+        "bus_off_events": 0,
+        "status_flags": 1792,
+        "tx_error_count": 0,
+        "rx_error_count": 0
+      }
+    },
+    "error": null,
+    "exit_code": 0,
+    "disable_acknowledged": true,
+    "mode_restoration_verified": true,
+    "limits": "The hold-to-stop event interval is not a stopping-time measurement. This does not qualify travel synchronization, welding accuracy, unsupported loads or thermal endurance."
+  },
+  "calibration_promoted": false,
+  "production_qualified": false,
+  "scope": "Operator programmed and verified the MCU, then completed supported stationary group holding. Agent reviewed saved samples and compared cached active MCU configuration after the owner closed. BASE-06, including merged BASE-05/DEPLOY-01/COMMS-04, is complete within this recorded scope. No agent motor commands and no new calibration or production qualification."
+}

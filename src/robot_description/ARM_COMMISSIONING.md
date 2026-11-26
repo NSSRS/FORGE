@@ -1,17 +1,20 @@
 # Arm hardware commissioning handoff
 
-Updated 2026-11-15; latest saved physical observations are from Nov 13. Current operator/agent status:
+Historical commissioning context; current operator/agent status and evidence:
 [ARM_SESSION_HANDOFF.md](../../docs/ARM_SESSION_HANDOFF.md). This document owns
 hardware mapping and calibration context; it is not an executable profile.
 
 ## Verified hardware and next stage
 
 The current supported fixture includes **A1-A6**, with six-axis disabled
-identity/feedback checks recorded on Nov 12. Use `config/arm_rig_a1_a6.json`.
+identity/feedback checks recorded on Nov 12. The current gun-load rig uses
+`config/arm_rig_gun_a2_a6_load.json`; the baseline profile's old ranges do not match it.
 `config/arm_rig_a2_a6.json` is retained only for an explicitly disconnected A1. Use the [tester guide and joint
 reference table](../../docs/ARM_POSE_TEST.md) for hand placement, model
-targets, trimming, and staged speed trials. See **SUPPORT-01, CAL-01, SPEED-01 and
-DEPLOY-01** in [the open-work registry](../../docs/ARM_LAYER_TODOS.md).
+targets, trimming, and staged speed trials. Use the
+[consolidated work list](../../docs/ARM_LAYER_TODOS.md): configuration/deployment
+belongs to BASE-06, support/stop/recovery to BASE-07, and coordinates to CAL-01.
+SPEED-01 and PROTECT-01 testing are deferred.
 
 All six motors previously passed the saved 14-stage unloaded group/individual
 sequence on 2026-11-05. That free-shaft result, manual motion and later

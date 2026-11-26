@@ -29,6 +29,7 @@ CAP_A2_RANGE_SETUP = 1 << 22
 CAP_GUN_LOAD = 1 << 23
 CAP_LOAD_RANGE_SETUP = 1 << 24
 CAP_ARM_CONFIG_DIAGNOSTICS = 1 << 25
+CAP_ATOMIC_TARGETS = 1 << 26
 # P-series manual register maps. These are reads only; write whitelist stays
 # TIMEOUT/CTRL_MODE. Imax/VBus are documented for 4340P/4310P, not 8009P V1.1.
 CONTROL_REGISTERS = {
@@ -587,6 +588,35 @@ class ArmBus:
     def enable(self, slot):
         """Requires fresh disabled feedback and a fresh command near measured position."""
         self._request(5,self._slot(slot))
+
+    def command_group(self, targets, velocities, *, smooth_slots=()):
+        """Atomically commit a complete configured mode-2 group, in physical slots.
+
+        No legacy fallback or retry: a lost ACK leaves the commit uncertain and
+        the owner must stop. The returned MCU timestamp is common to all leases.
+        """
+        if not self.capabilities & CAP_ATOMIC_TARGETS:
+            raise RuntimeError('Atomic targets require MC02 capability 0x04000000')
+        targets, velocities = dict(targets), dict(velocities)
+        smooth_slots = set(smooth_slots)
+        for slot in set(targets) | set(velocities) | smooth_slots:
+            self._slot(slot)
+        if not targets or set(targets) != set(self.bench_routes) or set(velocities) != set(targets):
+            raise ValueError('Atomic targets require every configured physical slot and speed')
+        if not smooth_slots <= set(targets):
+            raise ValueError('Smooth slots must belong to the complete target group')
+        packet = bytearray(52)
+        packet[0] = sum(1 << i for i in targets)
+        packet[1] = sum(1 << i for i in smooth_slots)
+        for slot, target in targets.items():
+            velocity = velocities[slot]
+            if not math.isfinite(target) or not math.isfinite(velocity) or velocity <= 0:
+                raise ValueError('Atomic targets require finite positions and positive speeds')
+            if slot in smooth_slots:
+                self.check_smooth_jog_speed(velocity)
+            struct.pack_into('<2f', packet, 4 + slot * 8, target, velocity)
+        reply = self._request(30, packet)
+        return struct.unpack_from('<I', reply, 1)[0]
 
     def stop(self):
         """Request torque disable on all configured arm motors; this is not a brake."""

@@ -1,0 +1,121 @@
+{
+  "date": "2026-11-26",
+  "task": "COMMS-01 stationary inventory, query pause, native idle feedback and individual reply loss",
+  "status": "closed",
+  "closure_basis": "Operator accepted four-motor stationary feedback and host-observed isolated loss and recovery on both bridge ports, tested with ID 1 on CAN1 and ID 3 on CAN2.",
+  "source": "Operator-supplied encos_query terminal output from forge2-NUC13ANKH7",
+  "interface": "enp86s0",
+  "agent_operated_hardware": false,
+  "queries": [
+    {
+      "arguments": "enp86s0 --can-bus 2 --motor-ids 3,4",
+      "query_output_slot": 3,
+      "output_bytes": 86,
+      "input_bytes": 92,
+      "reported_wkc": 3,
+      "motors": [
+        {"id": 3, "position_deg": 38.113873, "hardware_version": "1.0.1", "software_version": "1.0.0", "can_timeout_ms": 500, "brake_released": null},
+        {"id": 4, "position_deg": -173.150391, "hardware_version": "1.0.1", "software_version": "1.0.0", "can_timeout_ms": 500, "brake_released": null}
+      ]
+    },
+    {
+      "arguments": "enp86s0 --can-bus 1 --motor-ids 1,2",
+      "query_output_slot": 0,
+      "output_bytes": 86,
+      "input_bytes": 92,
+      "reported_wkc": 3,
+      "motors": [
+        {"id": 1, "position_deg": -108.759590, "hardware_version": "1.0.1", "software_version": "1.0.0", "can_timeout_ms": 500, "brake_released": null},
+        {"id": 2, "position_deg": 114.424461, "hardware_version": "1.0.1", "software_version": "1.0.0", "can_timeout_ms": 500, "brake_released": null}
+      ]
+    }
+  ],
+  "stationary_query_pause": {
+    "source": "build/encos-feedback-20261126T071001Z.jsonl",
+    "sha256": "4b96dce58f1f90c0d51d33b1a4644ebfb26338b150c340f10899b3e56bacfb53",
+    "completed": true,
+    "bridge_product_code": "0x26483052",
+    "bridge_revision": "0x00020111",
+    "reported_hardware_1009": "n.a.",
+    "reported_software_100a": "5.11",
+    "usb_c_use": "Operator confirmed bridge power. Debug serial capture was off.",
+    "pdo_samples_at_expected_wkc_3": 1399,
+    "initial_pause_samples_with_position_per_id": {"1": 12, "2": 12, "3": 12, "4": 12},
+    "first_absent_position_ms_from_first_pause_pdo": {"1": 67.00, "2": 67.02, "3": 65.40, "4": 69.17},
+    "pause_observations_at_or_after_250_ms_by_id": {"1": 100, "2": 100, "3": 99, "4": 100},
+    "paused_target_position_observations": 0,
+    "late_toggle_edges": 0,
+    "version_then_position_seen_on_resume_for_ids": [1, 2, 3, 4],
+    "independent_can_capture": null
+  },
+  "stationary_native_driver": {
+    "source": "build/encos/sessions/20261126T072808.714450Z.json",
+    "sha256": "db2fdf0858bbebfb8e24fe874956578a712e7cb37686acebff8f1498c74459c1",
+    "mode": "four-motor query-only",
+    "outcome": "passed",
+    "observation_seconds": 2.0,
+    "query_only_snapshots": 100,
+    "observed_position_updates_by_id": {"1": 12, "2": 12, "3": 12, "4": 12},
+    "timestamp_basis": "host_pdo_observation",
+    "position_update_intervals_ms_each_id": {"min": 159.656, "median": 160.006, "max": 160.056},
+    "peak_sampled_position_age_ms_each_id": 158.885,
+    "idle_activation_age_limit_ms": 250,
+    "exchanges_at_last_snapshot": 208,
+    "failed_exchanges": 0,
+    "last_wkc": 3,
+    "expected_wkc": 3,
+    "max_native_cycle_gap_ms": 10.207,
+    "driver_fault": 0,
+    "owner_closed": true,
+    "motion_commanded": false,
+    "individual_reply_loss_injected": false,
+    "independent_can_capture": null
+  },
+  "continuous_poll_reply_loss": [
+    {
+      "source": "build/encos-loss-id1-20261126T075411Z.jsonl",
+      "sha256": "5506b66ac7b5a86cf362aefc338558e211b2543751f18133021cd8dfa4ded4cf",
+      "target_motor_id": 1,
+      "target_bus": "CAN1",
+      "polled_motor_ids": [1, 2, 3, 4],
+      "query_codes": [1, 30],
+      "completed": true,
+      "expected_wkc": 3,
+      "pdo_samples": 3752,
+      "pdo_samples_at_expected_wkc": 3752,
+      "loss_window_ms_from_operator_off_marker": {"first_sample": 250.866, "last_sample": 1255.220},
+      "loss_window_pdo_samples": 181,
+      "loss_window_nonempty_target_records": 0,
+      "loss_window_target_reply_type_changes": 0,
+      "loss_window_peer_reply_type_changes_by_id": {"2": 20, "3": 20, "4": 20},
+      "max_peer_reply_type_change_gap_ms_across_run": 55.888,
+      "recovery_ms_from_operator_on_marker": {"position": 2328.481, "version": 2373.055},
+      "timing_basis": "Host monotonic PDO observation times relative to operator keypresses",
+      "independent_can_capture": null
+    },
+    {
+      "source": "build/encos-loss-id3-20261126T075653Z.jsonl",
+      "sha256": "e624d582bb8226b1638eeba2340b5af144f02bf6c55bca1e7a68e6db2b5b4746",
+      "target_motor_id": 3,
+      "target_bus": "CAN2",
+      "polled_motor_ids": [1, 2, 3, 4],
+      "query_codes": [1, 30],
+      "completed": true,
+      "expected_wkc": 3,
+      "pdo_samples": 2996,
+      "pdo_samples_at_expected_wkc": 2996,
+      "loss_window_ms_from_operator_off_marker": {"first_sample": 250.409, "last_sample": 1254.668},
+      "loss_window_pdo_samples": 181,
+      "loss_window_nonempty_target_records": 0,
+      "loss_window_target_reply_type_changes": 0,
+      "loss_window_peer_reply_type_changes_by_id": {"1": 21, "2": 21, "4": 21},
+      "max_peer_reply_type_change_gap_ms_across_run": 55.909,
+      "first_valid_target_reply_after_loss_window_ms_relative_to_operator_on_marker": -3180.099,
+      "recovery_ms_from_operator_on_marker": {"position": 16.609, "version": 72.205},
+      "timing_basis": "Host monotonic PDO observation times relative to operator keypresses. ID 3 resumed replying before the restore keypress. The positive values time the subsequent confirmation.",
+      "independent_can_capture": null
+    }
+  ],
+  "installed_bridge_firmware": null,
+  "can_freshness_verified": false
+}

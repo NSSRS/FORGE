@@ -7,14 +7,25 @@ not a brake: stop, faults, lease expiry and shutdown still disable the group.
 import math
 
 from . import arm_position as position
+from .arm import CAP_ATOMIC_TARGETS
 
 
 class ArmGroupHoldPort(position.ArmPositionPort):
     def __init__(self, plan, **kwargs):
         self.hold_targets={}
         super().__init__(plan,position_hold=True,group_hold=True,**kwargs)
+        self.report['group_command_transport'] = 'atomic_mode2' if self.atomic_targets else 'legacy_sequential'
+
+    @property
+    def atomic_targets(self):
+        return bool(self.bus.capabilities & CAP_ATOMIC_TARGETS)
 
     def _refresh_targets(self):
+        if self.atomic_targets:
+            smooth = (self.selected-1,) if self.smooth_jog and self.moving else ()
+            self.bus.command_group(self.hold_targets, {i:self.speed for i in self.hold_targets},
+                                   smooth_slots=smooth)
+            return
         for i,target in self.hold_targets.items():
             self.bus.command(i,target,velocity=self.speed,
                              smooth=self.smooth_jog and self.moving and i==self.selected-1)

@@ -11,9 +11,18 @@ static encos_bridge_inputs_t input;
 static float position[6], velocity[6];
 static atomic_int bad_wkc, no_feedback, motor_error, controls, zeros, clears;
 static int bad_layout, split_bus, fourth_present;
+static atomic_int retained_slot, retain_pair, sample_every_other;
+static encos_can_frame_t latest[6], last_position_ack[6], last_velocity_ack[6];
+static unsigned exchange_index;
 static atomic_int slot_controls[6], slot_frames[6];
 int fake_slot_frames(int slot) { return atomic_load(&slot_frames[slot]); }
 int fake_slot_controls(int slot) { return atomic_load(&slot_controls[slot]); }
+void fake_retain_reply(int slot, int both_types)
+{
+    atomic_store(&retain_pair, both_types);
+    atomic_store(&retained_slot, slot);
+}
+void fake_every_other_reply(int enable) { atomic_store(&sample_every_other, enable); }
 
 void fake_fault(int kind)
 {
@@ -37,6 +46,12 @@ int ec_init(const char *name)
     bad_layout = strcmp(name, "forge-test-bad-layout") == 0;
     memset(&output, 0, sizeof(output)); memset(&input, 0, sizeof(input));
     memset(position, 0, sizeof(position)); memset(velocity, 0, sizeof(velocity));
+    memset(latest, 0, sizeof(latest));
+    memset(last_position_ack, 0, sizeof(last_position_ack));
+    memset(last_velocity_ack, 0, sizeof(last_velocity_ack));
+    exchange_index = 0;
+    fake_retain_reply(-1, 0);
+    fake_every_other_reply(0);
     fake_fault(0); atomic_store(&controls, 0); atomic_store(&zeros, 0); atomic_store(&clears, 0);
     ec_slave[1] = (ec_slavet){.Obits=688, .Ibits=736, .Obytes=86, .Ibytes=92,
         .outputs=(uint8_t *)&output, .inputs=(uint8_t *)&input};
@@ -110,5 +125,27 @@ int ec_receive_processdata(int timeout)
         }
     }
     if (atomic_load(&no_feedback)) memset(&input, 0, sizeof(input));
+    ++exchange_index;
+    int frozen = atomic_load(&retained_slot);
+    for (int i = 0; i < 6; ++i) {
+        encos_can_frame_t *reply = &input.motor[i];
+        if (i == frozen) {
+            *reply = latest[i];
+            if (atomic_load(&retain_pair)) {
+                /* Both control types retained, returned entries may reorder. */
+                *reply = exchange_index % 2 ? last_position_ack[i] : last_velocity_ack[i];
+                input.motor[5] = exchange_index % 2 ? last_velocity_ack[i] : last_position_ack[i];
+            }
+            if (reply->dlc) reply->data[0] |= atomic_load(&motor_error);
+        } else if (reply->dlc) {
+            if (atomic_load(&sample_every_other) && exchange_index % 2) {
+                memset(reply, 0, sizeof(*reply));
+                continue;
+            }
+            latest[i] = *reply;
+            if (reply->data[0] >> 5 == 2) last_position_ack[i] = *reply;
+            if (reply->data[0] >> 5 == 3) last_velocity_ack[i] = *reply;
+        }
+    }
     return 3;
 }

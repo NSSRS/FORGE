@@ -1,0 +1,1252 @@
+{
+  "date": "2026-11-26",
+  "source": "build/weld/sessions/20261126T083504.466470Z-9rn4q2xc/session.json",
+  "source_sha256": "249ff3a4883cc87ce94c04ecefeb6e8d0e3a2e1bd2601459bd73d3c19c4a6dc3",
+  "evidence_basis": "Final session JSON only. Failed live JSONL is not reconstructed or treated as complete.",
+  "hardware_qualified": false,
+  "agent_operated_hardware": false,
+  "independent_tip_measurement": false,
+  "source_journal": {
+    "path": "/home/forge2/forge2_ws/build/weld/sessions/20261126T083504.466470Z-9rn4q2xc/session.jsonl",
+    "dropped_records": 1589,
+    "error": "Object of type bool_ is not JSON serializable"
+  },
+  "trace_dropped": 0,
+  "motion_samples_dropped": 0,
+  "tracker_version": 7,
+  "mapping_fingerprint": "335f411af2625e157d875a0dd203a9dab69ce02bcdd2f4ad207ce147fd8fd21b",
+  "scene_fingerprint": "b0f6e114fb5cdfb874217138133c76731ef3287895d1de8875cb8f5c8b22e63f",
+  "effective_hz": 1.729906930274134,
+  "preparation_s": 8.562116552000589,
+  "planning_s": 10.308114903999012,
+  "welding_s": 14.049363406000339,
+  "stop_cause": "operator_input",
+  "attempted_weld_ticks": 522,
+  "valid_sent_weld_ticks": 521,
+  "rejected_ticks": 1,
+  "non_sent_ticks": [
+    {
+      "time_s": 8862.672444148,
+      "elapsed_s": 14.005655001999912,
+      "state": "incomplete"
+    }
+  ],
+  "valid_sent_coverage": {
+    "samples": 521,
+    "first_s": 2.426599894533865e-05,
+    "last_s": 13.957668892999209,
+    "max_gap_ms": 91.69451300112996,
+    "complete": true
+  },
+  "tick_interval_ms": {
+    "mean": 26.841624282692813,
+    "minimum": 20.004613999844878,
+    "maximum": 61.67683199964813,
+    "peak_abs": 61.67683199964813,
+    "rms": 27.966723641637554
+  },
+  "startup": {
+    "samples": 25,
+    "first_s": 2.426599894533865e-05,
+    "last_s": 0.5635429569992993,
+    "same_time_tip": {
+      "samples": 25,
+      "along_mm": {
+        "mean": 0.01758842787447975,
+        "minimum": -0.044565839030326515,
+        "maximum": 0.05832306561302403,
+        "peak_abs": 0.05832306561302403,
+        "rms": 0.04257462546494551
+      },
+      "transverse_mm": {
+        "mean": 1.8813909605610377,
+        "minimum": -1.5595206622043334,
+        "maximum": 7.915092441277468,
+        "peak_abs": 7.915092441277468,
+        "rms": 3.829497007216026
+      },
+      "height_mm": {
+        "mean": -0.009940112447944828,
+        "minimum": -0.05233688548102222,
+        "maximum": 0.08674018230170333,
+        "peak_abs": 0.08674018230170333,
+        "rms": 0.06332733298523673
+      },
+      "distance_mm": {
+        "mean": 2.4119957772146194,
+        "minimum": 0.07463242429287441,
+        "maximum": 7.915648835799262,
+        "peak_abs": 7.915648835799262,
+        "rms": 3.830257207827302
+      }
+    },
+    "orientation_deg": {
+      "mean": 0.3352659919163506,
+      "minimum": 0.05142034141905835,
+      "maximum": 1.0804481630847755,
+      "peak_abs": 1.0804481630847755,
+      "rms": 0.4976481836599612
+    },
+    "orientation_peak_at_s": 0.4717934119998972,
+    "orientation_within_0_5_deg_percent": 68.0,
+    "orientation_within_1_deg_percent": 92.0,
+    "joints": {
+      "A1": {
+        "reference_travel_deg": 1.2468981126617962,
+        "measured_travel_deg": 0.1748528427523297,
+        "tracking_error_deg": {
+          "mean": -0.20853342017909313,
+          "minimum": -0.8912966487721405,
+          "maximum": 0.18074862113732593,
+          "peak_abs": 0.8912966487721405,
+          "rms": 0.4310715656103028
+        },
+        "feedback_age_ms": {
+          "mean": 3.72,
+          "minimum": 3.0,
+          "maximum": 5.0,
+          "peak_abs": 5.0,
+          "rms": 3.778888725538237
+        }
+      },
+      "A2": {
+        "reference_travel_deg": 0.05697361976108084,
+        "measured_travel_deg": 0.0,
+        "tracking_error_deg": {
+          "mean": 0.015067668866709596,
+          "minimum": 0.00024136566413801575,
+          "maximum": 0.057214985425218856,
+          "peak_abs": 0.057214985425218856,
+          "rms": 0.025639688116590554
+        },
+        "feedback_age_ms": {
+          "mean": 2.44,
+          "minimum": 2.0,
+          "maximum": 4.0,
+          "peak_abs": 4.0,
+          "rms": 2.553429066960741
+        }
+      },
+      "A3": {
+        "reference_travel_deg": 0.12059671268147554,
+        "measured_travel_deg": 0.021856605344041213,
+        "tracking_error_deg": {
+          "mean": 0.026060225051126054,
+          "minimum": -0.021036512600616675,
+          "maximum": 0.10427348033562112,
+          "peak_abs": 0.10427348033562112,
+          "rms": 0.049234775088189055
+        },
+        "feedback_age_ms": {
+          "mean": 2.08,
+          "minimum": 2.0,
+          "maximum": 4.0,
+          "peak_abs": 4.0,
+          "rms": 2.1166010488516727
+        }
+      },
+      "A4": {
+        "reference_travel_deg": 0.056745637259126624,
+        "measured_travel_deg": 0.0,
+        "tracking_error_deg": {
+          "mean": -0.023194933583824878,
+          "minimum": -0.04277422754486793,
+          "maximum": 0.013971409714258698,
+          "peak_abs": 0.04277422754486793,
+          "rms": 0.030201115577029335
+        },
+        "feedback_age_ms": {
+          "mean": 1.76,
+          "minimum": 1.0,
+          "maximum": 3.0,
+          "peak_abs": 3.0,
+          "rms": 1.8547236990991407
+        }
+      },
+      "A5": {
+        "reference_travel_deg": 0.06584575970023465,
+        "measured_travel_deg": 0.021856605344041213,
+        "tracking_error_deg": {
+          "mean": -0.005524572520853326,
+          "minimum": -0.05339369889096446,
+          "maximum": 0.012452060809270193,
+          "peak_abs": 0.05339369889096446,
+          "rms": 0.02439042071182226
+        },
+        "feedback_age_ms": {
+          "mean": 0.32,
+          "minimum": 0.0,
+          "maximum": 2.0,
+          "peak_abs": 2.0,
+          "rms": 0.7483314773547883
+        }
+      },
+      "A6": {
+        "reference_travel_deg": 0.23366688246113654,
+        "measured_travel_deg": 0.13113963206424728,
+        "tracking_error_deg": {
+          "mean": 0.04409989019970226,
+          "minimum": -0.06742409685152495,
+          "maximum": 0.2754175520675517,
+          "peak_abs": 0.2754175520675517,
+          "rms": 0.10931975825459361
+        },
+        "feedback_age_ms": {
+          "mean": 0.24,
+          "minimum": 0.0,
+          "maximum": 2.0,
+          "peak_abs": 2.0,
+          "rms": 0.6928203230275509
+        }
+      }
+    }
+  },
+  "whole_pass": {
+    "samples": 521,
+    "first_s": 2.426599894533865e-05,
+    "last_s": 13.957668892999209,
+    "same_time_tip": {
+      "samples": 521,
+      "along_mm": {
+        "mean": -0.028595498540467657,
+        "minimum": -0.2636231536143896,
+        "maximum": 0.18039642712102477,
+        "peak_abs": 0.2636231536143896,
+        "rms": 0.08105337146722492
+      },
+      "transverse_mm": {
+        "mean": 0.12713816458562885,
+        "minimum": -5.969362929931701,
+        "maximum": 7.915092441277468,
+        "peak_abs": 7.915092441277468,
+        "rms": 2.237916422635489
+      },
+      "height_mm": {
+        "mean": -0.007064415871831731,
+        "minimum": -0.2827859450028476,
+        "maximum": 0.5376710430980147,
+        "peak_abs": 0.5376710430980147,
+        "rms": 0.1136648423692644
+      },
+      "distance_mm": {
+        "mean": 1.8925729054152367,
+        "minimum": 0.07463242429287441,
+        "maximum": 7.915648835799262,
+        "peak_abs": 7.915648835799262,
+        "rms": 2.2422665452881954
+      }
+    },
+    "orientation_deg": {
+      "mean": 0.2702076043079278,
+      "minimum": 0.0363290504193603,
+      "maximum": 1.0804481630847755,
+      "peak_abs": 1.0804481630847755,
+      "rms": 0.32123731651388665
+    },
+    "orientation_peak_at_s": 0.4717934119998972,
+    "orientation_within_0_5_deg_percent": 90.59500959692899,
+    "orientation_within_1_deg_percent": 99.61612284069098,
+    "joints": {
+      "A1": {
+        "reference_travel_deg": 2.2606538794622963,
+        "measured_travel_deg": 2.16385857057341,
+        "tracking_error_deg": {
+          "mean": -0.01273342832952319,
+          "minimum": -0.8912966487721405,
+          "maximum": 0.6751942142219036,
+          "peak_abs": 0.8912966487721405,
+          "rms": 0.25428507652016946
+        },
+        "feedback_age_ms": {
+          "mean": 4.748560460652591,
+          "minimum": 2.0,
+          "maximum": 29.0,
+          "peak_abs": 29.0,
+          "rms": 5.8944653437830565
+        }
+      },
+      "A2": {
+        "reference_travel_deg": 0.06167091870916863,
+        "measured_travel_deg": 0.04371321068808243,
+        "tracking_error_deg": {
+          "mean": -0.007577920567475443,
+          "minimum": -0.043472026496246485,
+          "maximum": 0.06151886207391044,
+          "peak_abs": 0.06151886207391044,
+          "rms": 0.030102182829129295
+        },
+        "feedback_age_ms": {
+          "mean": 2.9961612284069097,
+          "minimum": 2.0,
+          "maximum": 18.0,
+          "peak_abs": 18.0,
+          "rms": 3.493619080585393
+        }
+      },
+      "A3": {
+        "reference_travel_deg": 0.13054214673260844,
+        "measured_travel_deg": 0.08742642137616485,
+        "tracking_error_deg": {
+          "mean": -0.005461457293945291,
+          "minimum": -0.08660932474266758,
+          "maximum": 0.10701573236295303,
+          "peak_abs": 0.10701573236295303,
+          "rms": 0.06059849668748888
+        },
+        "feedback_age_ms": {
+          "mean": 2.27063339731286,
+          "minimum": 1.0,
+          "maximum": 14.0,
+          "peak_abs": 14.0,
+          "rms": 2.4207199005362448
+        }
+      },
+      "A4": {
+        "reference_travel_deg": 0.09917528647503104,
+        "measured_travel_deg": 0.24047730029781178,
+        "tracking_error_deg": {
+          "mean": -0.0114493251117028,
+          "minimum": -0.10307592216457806,
+          "maximum": 0.14915008909980543,
+          "peak_abs": 0.14915008909980543,
+          "rms": 0.04876340571006293
+        },
+        "feedback_age_ms": {
+          "mean": 1.6756238003838773,
+          "minimum": 1.0,
+          "maximum": 12.0,
+          "peak_abs": 12.0,
+          "rms": 1.8227607670288435
+        }
+      },
+      "A5": {
+        "reference_travel_deg": 0.07128116159372055,
+        "measured_travel_deg": 0.10928302672020607,
+        "tracking_error_deg": {
+          "mean": -0.006544565504205919,
+          "minimum": -0.09972753021622083,
+          "maximum": 0.07784892731028137,
+          "peak_abs": 0.09972753021622083,
+          "rms": 0.03963713389856975
+        },
+        "feedback_age_ms": {
+          "mean": 0.6046065259117083,
+          "minimum": 0.0,
+          "maximum": 12.0,
+          "peak_abs": 12.0,
+          "rms": 1.1399228852255914
+        }
+      },
+      "A6": {
+        "reference_travel_deg": 0.4275506362665027,
+        "measured_travel_deg": 0.8086943977295107,
+        "tracking_error_deg": {
+          "mean": -0.008774700959677134,
+          "minimum": -0.29088031275458803,
+          "maximum": 0.2859807260307363,
+          "peak_abs": 0.29088031275458803,
+          "rms": 0.12762479009143318
+        },
+        "feedback_age_ms": {
+          "mean": 0.581573896353167,
+          "minimum": 0.0,
+          "maximum": 2.0,
+          "peak_abs": 2.0,
+          "rms": 1.0722462833372368
+        }
+      }
+    }
+  },
+  "steady_after_startup": {
+    "samples": 496,
+    "first_s": 0.5836598610003421,
+    "last_s": 13.957668892999209,
+    "same_time_tip": {
+      "samples": 496,
+      "along_mm": {
+        "mean": -0.030923317412188796,
+        "minimum": -0.2636231536143896,
+        "maximum": 0.18039642712102477,
+        "peak_abs": 0.2636231536143896,
+        "rms": 0.08251920810502693
+      },
+      "transverse_mm": {
+        "mean": 0.03871816478848123,
+        "minimum": -5.969362929931701,
+        "maximum": 5.139746246354214,
+        "peak_abs": 5.969362929931701,
+        "rms": 2.126390646650462
+      },
+      "height_mm": {
+        "mean": -0.006919471487955063,
+        "minimum": -0.2827859450028476,
+        "maximum": 0.5376710430980147,
+        "peak_abs": 0.5376710430980147,
+        "rms": 0.1156233373206235
+      },
+      "distance_mm": {
+        "mean": 1.8663923171188967,
+        "minimum": 0.07501595570995337,
+        "maximum": 5.977905561519183,
+        "peak_abs": 5.977905561519183,
+        "rms": 2.131130065951398
+      }
+    },
+    "orientation_deg": {
+      "mean": 0.2669284517066968,
+      "minimum": 0.0363290504193603,
+      "maximum": 0.8910283899840782,
+      "peak_abs": 0.8910283899840782,
+      "rms": 0.30969686524188306
+    },
+    "orientation_peak_at_s": 1.0881860259996756,
+    "orientation_within_0_5_deg_percent": 91.73387096774194,
+    "orientation_within_1_deg_percent": 100.0,
+    "joints": {
+      "A1": {
+        "reference_travel_deg": 2.2606538794622963,
+        "measured_travel_deg": 2.16385857057341,
+        "tracking_error_deg": {
+          "mean": -0.0028644771274279317,
+          "minimum": -0.5901321069638641,
+          "maximum": 0.6751942142219036,
+          "peak_abs": 0.6751942142219036,
+          "rms": 0.24197924467134105
+        },
+        "feedback_age_ms": {
+          "mean": 4.800403225806452,
+          "minimum": 2.0,
+          "maximum": 29.0,
+          "peak_abs": 29.0,
+          "rms": 5.981321733314415
+        }
+      },
+      "A2": {
+        "reference_travel_deg": 0.06167091870916863,
+        "measured_travel_deg": 0.04371321068808243,
+        "tracking_error_deg": {
+          "mean": -0.008719331325246866,
+          "minimum": -0.043472026496246485,
+          "maximum": 0.06151886207391044,
+          "peak_abs": 0.06151886207391044,
+          "rms": 0.030309719609895078
+        },
+        "feedback_age_ms": {
+          "mean": 3.024193548387097,
+          "minimum": 2.0,
+          "maximum": 18.0,
+          "peak_abs": 18.0,
+          "rms": 3.5343932271142338
+        }
+      },
+      "A3": {
+        "reference_travel_deg": 0.13054214673260844,
+        "measured_travel_deg": 0.06556981603212364,
+        "tracking_error_deg": {
+          "mean": -0.0070502517669831614,
+          "minimum": -0.08660932474266758,
+          "maximum": 0.10701573236295303,
+          "peak_abs": 0.10701573236295303,
+          "rms": 0.061115356572543994
+        },
+        "feedback_age_ms": {
+          "mean": 2.280241935483871,
+          "minimum": 1.0,
+          "maximum": 14.0,
+          "peak_abs": 14.0,
+          "rms": 2.435043220123817
+        }
+      },
+      "A4": {
+        "reference_travel_deg": 0.09917528647503104,
+        "measured_travel_deg": 0.24047730029781178,
+        "tracking_error_deg": {
+          "mean": -0.01085730855564826,
+          "minimum": -0.10307592216457806,
+          "maximum": 0.14915008909980543,
+          "peak_abs": 0.14915008909980543,
+          "rms": 0.049515137961727934
+        },
+        "feedback_age_ms": {
+          "mean": 1.6713709677419355,
+          "minimum": 1.0,
+          "maximum": 12.0,
+          "peak_abs": 12.0,
+          "rms": 1.8211348818976907
+        }
+      },
+      "A5": {
+        "reference_travel_deg": 0.07128116159372055,
+        "measured_travel_deg": 0.10928302672020607,
+        "tracking_error_deg": {
+          "mean": -0.006595976440866836,
+          "minimum": -0.09972753021622083,
+          "maximum": 0.07784892731028137,
+          "peak_abs": 0.09972753021622083,
+          "rms": 0.04025303100042335
+        },
+        "feedback_age_ms": {
+          "mean": 0.6189516129032258,
+          "minimum": 0.0,
+          "maximum": 12.0,
+          "peak_abs": 12.0,
+          "rms": 1.1561546386133201
+        }
+      },
+      "A6": {
+        "reference_travel_deg": 0.4275506362665027,
+        "measured_travel_deg": 0.8086943977295107,
+        "tracking_error_deg": {
+          "mean": -0.011439750917307144,
+          "minimum": -0.29088031275458803,
+          "maximum": 0.2859807260307363,
+          "peak_abs": 0.29088031275458803,
+          "rms": 0.12847840216609377
+        },
+        "feedback_age_ms": {
+          "mean": 0.5987903225806451,
+          "minimum": 0.0,
+          "maximum": 2.0,
+          "peak_abs": 2.0,
+          "rms": 1.08787303576083
+        }
+      }
+    },
+    "tip_lag": {
+      "status": "available",
+      "source": "encoder_reconstructed_from_final_session_json",
+      "lag_ms": 5.473344226017814,
+      "same_time_error": {
+        "samples": 496,
+        "along_mm": {
+          "mean": -0.030923317412188796,
+          "minimum": -0.2636231536143896,
+          "maximum": 0.18039642712102477,
+          "peak_abs": 0.2636231536143896,
+          "rms": 0.08251920810502693
+        },
+        "transverse_mm": {
+          "mean": 0.03871816478848123,
+          "minimum": -5.969362929931701,
+          "maximum": 5.139746246354214,
+          "peak_abs": 5.969362929931701,
+          "rms": 2.126390646650462
+        },
+        "height_mm": {
+          "mean": -0.006919471487955063,
+          "minimum": -0.2827859450028476,
+          "maximum": 0.5376710430980147,
+          "peak_abs": 0.5376710430980147,
+          "rms": 0.1156233373206235
+        },
+        "distance_mm": {
+          "mean": 1.8663923171188967,
+          "minimum": 0.07501595570995337,
+          "maximum": 5.977905561519183,
+          "peak_abs": 5.977905561519183,
+          "rms": 2.131130065951398
+        }
+      },
+      "aligned_error": {
+        "samples": 496,
+        "along_mm": {
+          "mean": -0.030923325191817078,
+          "minimum": -0.2636231746532935,
+          "maximum": 0.1803963925005178,
+          "peak_abs": 0.2636231746532935,
+          "rms": 0.08251918974171236
+        },
+        "transverse_mm": {
+          "mean": 0.05507380930428653,
+          "minimum": -5.156793341769729,
+          "maximum": 5.084020954036354,
+          "peak_abs": 5.156793341769729,
+          "rms": 2.0828626687496334
+        },
+        "height_mm": {
+          "mean": -0.00691943933835356,
+          "minimum": -0.28278590875412135,
+          "maximum": 0.5376710790626045,
+          "peak_abs": 0.5376710790626045,
+          "rms": 0.11562331197503187
+        },
+        "distance_mm": {
+          "mean": 1.8183910182913003,
+          "minimum": 0.07649744742494154,
+          "maximum": 5.157578565062039,
+          "peak_abs": 5.157578565062039,
+          "rms": 2.0877009038218453
+        }
+      },
+      "stroke": {
+        "planned_width_mm": 20.000089004194983,
+        "measured_width_mm": 19.14909799016487,
+        "lower_edge_outward_error_mm": -0.9267716473584837,
+        "upper_edge_outward_error_mm": 0.07578063332836926
+      },
+      "cycle_stroke": {
+        "status": "available",
+        "basis": "Sampled extrema per complete cycle; between-sample peaks are not measured.",
+        "planned_width_mm": 20.000089004194983,
+        "count": 23,
+        "width_mm": {
+          "mean": 18.04043937421515,
+          "minimum": 17.066227057797967,
+          "maximum": 18.811530237102588,
+          "peak_abs": 18.811530237102588,
+          "rms": 18.048393791849946
+        },
+        "median_width_mm": 18.033589940909863,
+        "cycles": [
+          {
+            "cycle": 2,
+            "samples": 20,
+            "measured_width_mm": 17.066227057797967,
+            "lower_edge_outward_error_mm": -1.1661075574693047,
+            "upper_edge_outward_error_mm": -1.7677543889277132
+          },
+          {
+            "cycle": 3,
+            "samples": 24,
+            "measured_width_mm": 18.518432822756054,
+            "lower_edge_outward_error_mm": -1.5097865270860158,
+            "upper_edge_outward_error_mm": 0.028130345647085164
+          },
+          {
+            "cycle": 4,
+            "samples": 20,
+            "measured_width_mm": 18.78673740878801,
+            "lower_edge_outward_error_mm": -1.1465295460481553,
+            "upper_edge_outward_error_mm": -0.06682204935881941
+          },
+          {
+            "cycle": 5,
+            "samples": 21,
+            "measured_width_mm": 17.666343278954855,
+            "lower_edge_outward_error_mm": -1.1206368935268642,
+            "upper_edge_outward_error_mm": -1.2131088317132654
+          },
+          {
+            "cycle": 6,
+            "samples": 21,
+            "measured_width_mm": 17.472422799957332,
+            "lower_edge_outward_error_mm": -1.2901920196686092,
+            "upper_edge_outward_error_mm": -1.2374741845690433
+          },
+          {
+            "cycle": 7,
+            "samples": 23,
+            "measured_width_mm": 17.813933488212797,
+            "lower_edge_outward_error_mm": -1.2903987709328053,
+            "upper_edge_outward_error_mm": -0.8957567450493826
+          },
+          {
+            "cycle": 8,
+            "samples": 21,
+            "measured_width_mm": 18.810063203586417,
+            "lower_edge_outward_error_mm": -0.9267716473584837,
+            "upper_edge_outward_error_mm": -0.2632541532500845
+          },
+          {
+            "cycle": 9,
+            "samples": 21,
+            "measured_width_mm": 17.302740624370273,
+            "lower_edge_outward_error_mm": -1.290398770932823,
+            "upper_edge_outward_error_mm": -1.4069496088918871
+          },
+          {
+            "cycle": 10,
+            "samples": 26,
+            "measured_width_mm": 18.10659153835835,
+            "lower_edge_outward_error_mm": -1.2150347737142173,
+            "upper_edge_outward_error_mm": -0.6784626921224142
+          },
+          {
+            "cycle": 11,
+            "samples": 22,
+            "measured_width_mm": 17.47543606140377,
+            "lower_edge_outward_error_mm": -1.2889917315358872,
+            "upper_edge_outward_error_mm": -1.2356612112553265
+          },
+          {
+            "cycle": 12,
+            "samples": 21,
+            "measured_width_mm": 17.646614281302014,
+            "lower_edge_outward_error_mm": -1.2891984813788628,
+            "upper_edge_outward_error_mm": -1.0642762415141078
+          },
+          {
+            "cycle": 13,
+            "samples": 22,
+            "measured_width_mm": 18.377898146026183,
+            "lower_edge_outward_error_mm": -1.3136440697090315,
+            "upper_edge_outward_error_mm": -0.3085467884597719
+          },
+          {
+            "cycle": 14,
+            "samples": 21,
+            "measured_width_mm": 17.864459134507115,
+            "lower_edge_outward_error_mm": -1.4832315156444675,
+            "upper_edge_outward_error_mm": -0.6523983540434042
+          },
+          {
+            "cycle": 15,
+            "samples": 23,
+            "measured_width_mm": 18.619580149674558,
+            "lower_edge_outward_error_mm": -1.2889917315358144,
+            "upper_edge_outward_error_mm": -0.09151712298461234
+          },
+          {
+            "cycle": 16,
+            "samples": 21,
+            "measured_width_mm": 18.424801862221184,
+            "lower_edge_outward_error_mm": -1.0947532098426933,
+            "upper_edge_outward_error_mm": -0.48053393213110773
+          },
+          {
+            "cycle": 17,
+            "samples": 21,
+            "measured_width_mm": 18.811530237102588,
+            "lower_edge_outward_error_mm": -1.2643394004207664,
+            "upper_edge_outward_error_mm": 0.07578063332836926
+          },
+          {
+            "cycle": 18,
+            "samples": 21,
+            "measured_width_mm": 18.25297934188072,
+            "lower_edge_outward_error_mm": -1.2889917315358606,
+            "upper_edge_outward_error_mm": -0.45811793077840335
+          },
+          {
+            "cycle": 19,
+            "samples": 22,
+            "measured_width_mm": 18.64170367218772,
+            "lower_edge_outward_error_mm": -1.094753209842679,
+            "upper_edge_outward_error_mm": -0.2636321221645854
+          },
+          {
+            "cycle": 20,
+            "samples": 21,
+            "measured_width_mm": 17.45073673748371,
+            "lower_edge_outward_error_mm": -1.1196121530799221,
+            "upper_edge_outward_error_mm": -1.4297401136313557
+          },
+          {
+            "cycle": 21,
+            "samples": 20,
+            "measured_width_mm": 18.033589940909863,
+            "lower_edge_outward_error_mm": -1.1196121530799186,
+            "upper_edge_outward_error_mm": -0.8468869102052015
+          },
+          {
+            "cycle": 22,
+            "samples": 21,
+            "measured_width_mm": 17.50008839251887,
+            "lower_edge_outward_error_mm": -1.2643394004208002,
+            "upper_edge_outward_error_mm": -1.2356612112553158
+          },
+          {
+            "cycle": 23,
+            "samples": 21,
+            "measured_width_mm": 18.617171964991932,
+            "lower_edge_outward_error_mm": -1.2889917315357806,
+            "upper_edge_outward_error_mm": -0.09392530766726992
+          },
+          {
+            "cycle": 24,
+            "samples": 19,
+            "measured_width_mm": 17.670023461956212,
+            "lower_edge_outward_error_mm": -1.2888955216242977,
+            "upper_edge_outward_error_mm": -1.0411700206144765
+          }
+        ]
+      }
+    }
+  },
+  "matched_cycles_3_to_18": {
+    "samples": 349,
+    "first_s": 1.1643983379999554,
+    "last_s": 10.404676172000109,
+    "same_time_tip": {
+      "samples": 349,
+      "along_mm": {
+        "mean": -0.017941254579451088,
+        "minimum": -0.1894929547815991,
+        "maximum": 0.18004491834733471,
+        "peak_abs": 0.1894929547815991,
+        "rms": 0.07781076270375695
+      },
+      "transverse_mm": {
+        "mean": 0.015112146620741588,
+        "minimum": -5.704448318497402,
+        "maximum": 4.882780227803548,
+        "peak_abs": 5.704448318497402,
+        "rms": 2.047886139534572
+      },
+      "height_mm": {
+        "mean": -0.031993268606846204,
+        "minimum": -0.2827859450028476,
+        "maximum": 0.28723627671396734,
+        "peak_abs": 0.28723627671396734,
+        "rms": 0.11612532343381782
+      },
+      "distance_mm": {
+        "mean": 1.8259628062953526,
+        "minimum": 0.07501595570995337,
+        "maximum": 5.704743808576555,
+        "peak_abs": 5.704743808576555,
+        "rms": 2.0526512723872417
+      }
+    },
+    "orientation_deg": {
+      "mean": 0.2579433233515793,
+      "minimum": 0.04055336696512709,
+      "maximum": 0.8550829877006121,
+      "peak_abs": 0.8550829877006121,
+      "rms": 0.2931592391559356
+    },
+    "orientation_peak_at_s": 9.179004350999094,
+    "orientation_within_0_5_deg_percent": 93.69627507163324,
+    "orientation_within_1_deg_percent": 100.0,
+    "joints": {
+      "A1": {
+        "reference_travel_deg": 2.2606529253694134,
+        "measured_travel_deg": 2.16385857057341,
+        "tracking_error_deg": {
+          "mean": -0.00010022679971064757,
+          "minimum": -0.5447589700617073,
+          "maximum": 0.6451301206161872,
+          "peak_abs": 0.6451301206161872,
+          "rms": 0.23286385650558925
+        },
+        "feedback_age_ms": {
+          "mean": 4.742120343839542,
+          "minimum": 2.0,
+          "maximum": 29.0,
+          "peak_abs": 29.0,
+          "rms": 5.946514232609272
+        }
+      },
+      "A2": {
+        "reference_travel_deg": 0.06167091870916863,
+        "measured_travel_deg": 0.0,
+        "tracking_error_deg": {
+          "mean": -0.009517646338726557,
+          "minimum": -0.043472026496246485,
+          "maximum": 0.018198892212922146,
+          "peak_abs": 0.043472026496246485,
+          "rms": 0.029876729717379258
+        },
+        "feedback_age_ms": {
+          "mean": 2.9426934097421205,
+          "minimum": 2.0,
+          "maximum": 17.0,
+          "peak_abs": 17.0,
+          "rms": 3.4296031330796573
+        }
+      },
+      "A3": {
+        "reference_travel_deg": 0.13054214673260844,
+        "measured_travel_deg": 0.021856605344041213,
+        "tracking_error_deg": {
+          "mean": -0.0049231754641750535,
+          "minimum": -0.08660932474266758,
+          "maximum": 0.06578885749486574,
+          "peak_abs": 0.08660932474266758,
+          "rms": 0.060854256931659474
+        },
+        "feedback_age_ms": {
+          "mean": 2.2578796561604584,
+          "minimum": 1.0,
+          "maximum": 14.0,
+          "peak_abs": 14.0,
+          "rms": 2.4295223391773133
+        }
+      },
+      "A4": {
+        "reference_travel_deg": 0.09917524788176024,
+        "measured_travel_deg": 0.24047730029781178,
+        "tracking_error_deg": {
+          "mean": -0.011760304401716758,
+          "minimum": -0.10307592216457806,
+          "maximum": 0.12436245707760918,
+          "peak_abs": 0.12436245707760918,
+          "rms": 0.04973789156272789
+        },
+        "feedback_age_ms": {
+          "mean": 1.656160458452722,
+          "minimum": 1.0,
+          "maximum": 12.0,
+          "peak_abs": 12.0,
+          "rms": 1.8294001396797182
+        }
+      },
+      "A5": {
+        "reference_travel_deg": 0.07128116159372055,
+        "measured_travel_deg": 0.10928302672020607,
+        "tracking_error_deg": {
+          "mean": -0.0054702067046344584,
+          "minimum": -0.09972753005355983,
+          "maximum": 0.07730350442044909,
+          "peak_abs": 0.09972753005355983,
+          "rms": 0.04117527721682298
+        },
+        "feedback_age_ms": {
+          "mean": 0.5931232091690545,
+          "minimum": 0.0,
+          "maximum": 12.0,
+          "peak_abs": 12.0,
+          "rms": 1.171534394149919
+        }
+      },
+      "A6": {
+        "reference_travel_deg": 0.4275504526730529,
+        "measured_travel_deg": 0.8086943977295107,
+        "tracking_error_deg": {
+          "mean": -0.011024640252419686,
+          "minimum": -0.29088031275458803,
+          "maximum": 0.2859807260307363,
+          "peak_abs": 0.29088031275458803,
+          "rms": 0.12299161757631007
+        },
+        "feedback_age_ms": {
+          "mean": 0.5873925501432665,
+          "minimum": 0.0,
+          "maximum": 2.0,
+          "peak_abs": 2.0,
+          "rms": 1.0772457717355233
+        }
+      }
+    },
+    "tip_lag": {
+      "status": "available",
+      "source": "encoder_reconstructed_from_final_session_json",
+      "lag_ms": 3.8408897958140664,
+      "same_time_error": {
+        "samples": 349,
+        "along_mm": {
+          "mean": -0.017941254579451088,
+          "minimum": -0.1894929547815991,
+          "maximum": 0.18004491834733471,
+          "peak_abs": 0.1894929547815991,
+          "rms": 0.07781076270375695
+        },
+        "transverse_mm": {
+          "mean": 0.015112146620741588,
+          "minimum": -5.704448318497402,
+          "maximum": 4.882780227803548,
+          "peak_abs": 5.704448318497402,
+          "rms": 2.047886139534572
+        },
+        "height_mm": {
+          "mean": -0.031993268606846204,
+          "minimum": -0.2827859450028476,
+          "maximum": 0.28723627671396734,
+          "peak_abs": 0.28723627671396734,
+          "rms": 0.11612532343381782
+        },
+        "distance_mm": {
+          "mean": 1.8259628062953526,
+          "minimum": 0.07501595570995337,
+          "maximum": 5.704743808576555,
+          "peak_abs": 5.704743808576555,
+          "rms": 2.0526512723872417
+        }
+      },
+      "aligned_error": {
+        "samples": 349,
+        "along_mm": {
+          "mean": -0.017941380300393484,
+          "minimum": -0.1894930792605578,
+          "maximum": 0.18004479367846216,
+          "peak_abs": 0.1894930792605578,
+          "rms": 0.0778107735834036
+        },
+        "transverse_mm": {
+          "mean": 0.03183450368750476,
+          "minimum": -5.023140791480536,
+          "maximum": 4.7519017033693,
+          "peak_abs": 5.023140791480536,
+          "rms": 2.026345393493572
+        },
+        "height_mm": {
+          "mean": -0.03199305871857142,
+          "minimum": -0.28278573208680147,
+          "maximum": 0.28723648930463463,
+          "peak_abs": 0.28723648930463463,
+          "rms": 0.11612525115419702
+        },
+        "distance_mm": {
+          "mean": 1.7966288055052015,
+          "minimum": 0.07649763770656773,
+          "maximum": 5.023476354102391,
+          "peak_abs": 5.023476354102391,
+          "rms": 2.031161058157106
+        }
+      },
+      "stroke": {
+        "planned_width_mm": 20.00008900419506,
+        "measured_width_mm": 19.14909799016487,
+        "lower_edge_outward_error_mm": -0.9267716473544017,
+        "upper_edge_outward_error_mm": 0.07578063332421081
+      },
+      "cycle_stroke": {
+        "status": "available",
+        "basis": "Sampled extrema per complete cycle; between-sample peaks are not measured.",
+        "planned_width_mm": 20.00008900419506,
+        "count": 16,
+        "width_mm": {
+          "mean": 18.12191027369389,
+          "minimum": 17.302740624370273,
+          "maximum": 18.811530237102588,
+          "peak_abs": 18.811530237102588,
+          "rms": 18.128937863980163
+        },
+        "median_width_mm": 18.179785440119538,
+        "cycles": [
+          {
+            "cycle": 3,
+            "samples": 24,
+            "measured_width_mm": 18.518432822756054,
+            "lower_edge_outward_error_mm": -1.5097865270819337,
+            "upper_edge_outward_error_mm": 0.028130345642926713
+          },
+          {
+            "cycle": 4,
+            "samples": 20,
+            "measured_width_mm": 18.78673740878801,
+            "lower_edge_outward_error_mm": -1.1465295460440732,
+            "upper_edge_outward_error_mm": -0.06682204936297786
+          },
+          {
+            "cycle": 5,
+            "samples": 21,
+            "measured_width_mm": 17.666343278954855,
+            "lower_edge_outward_error_mm": -1.1206368935227822,
+            "upper_edge_outward_error_mm": -1.213108831717424
+          },
+          {
+            "cycle": 6,
+            "samples": 21,
+            "measured_width_mm": 17.472422799957332,
+            "lower_edge_outward_error_mm": -1.2901920196645271,
+            "upper_edge_outward_error_mm": -1.2374741845732018
+          },
+          {
+            "cycle": 7,
+            "samples": 23,
+            "measured_width_mm": 17.813933488212797,
+            "lower_edge_outward_error_mm": -1.2903987709287232,
+            "upper_edge_outward_error_mm": -0.8957567450535411
+          },
+          {
+            "cycle": 8,
+            "samples": 21,
+            "measured_width_mm": 18.810063203586417,
+            "lower_edge_outward_error_mm": -0.9267716473544017,
+            "upper_edge_outward_error_mm": -0.26325415325424295
+          },
+          {
+            "cycle": 9,
+            "samples": 21,
+            "measured_width_mm": 17.302740624370273,
+            "lower_edge_outward_error_mm": -1.290398770928741,
+            "upper_edge_outward_error_mm": -1.4069496088960456
+          },
+          {
+            "cycle": 10,
+            "samples": 26,
+            "measured_width_mm": 18.10659153835835,
+            "lower_edge_outward_error_mm": -1.2150347737101352,
+            "upper_edge_outward_error_mm": -0.6784626921265726
+          },
+          {
+            "cycle": 11,
+            "samples": 22,
+            "measured_width_mm": 17.47543606140377,
+            "lower_edge_outward_error_mm": -1.2889917315318051,
+            "upper_edge_outward_error_mm": -1.235661211259485
+          },
+          {
+            "cycle": 12,
+            "samples": 21,
+            "measured_width_mm": 17.646614281302014,
+            "lower_edge_outward_error_mm": -1.2891984813747808,
+            "upper_edge_outward_error_mm": -1.0642762415182663
+          },
+          {
+            "cycle": 13,
+            "samples": 22,
+            "measured_width_mm": 18.377898146026183,
+            "lower_edge_outward_error_mm": -1.3136440697049494,
+            "upper_edge_outward_error_mm": -0.30854678846393035
+          },
+          {
+            "cycle": 14,
+            "samples": 21,
+            "measured_width_mm": 17.864459134507115,
+            "lower_edge_outward_error_mm": -1.4832315156403855,
+            "upper_edge_outward_error_mm": -0.6523983540475626
+          },
+          {
+            "cycle": 15,
+            "samples": 23,
+            "measured_width_mm": 18.619580149674558,
+            "lower_edge_outward_error_mm": -1.2889917315317323,
+            "upper_edge_outward_error_mm": -0.0915171229887708
+          },
+          {
+            "cycle": 16,
+            "samples": 21,
+            "measured_width_mm": 18.424801862221184,
+            "lower_edge_outward_error_mm": -1.0947532098386112,
+            "upper_edge_outward_error_mm": -0.4805339321352662
+          },
+          {
+            "cycle": 17,
+            "samples": 21,
+            "measured_width_mm": 18.811530237102588,
+            "lower_edge_outward_error_mm": -1.2643394004166844,
+            "upper_edge_outward_error_mm": 0.07578063332421081
+          },
+          {
+            "cycle": 18,
+            "samples": 21,
+            "measured_width_mm": 18.25297934188072,
+            "lower_edge_outward_error_mm": -1.2889917315317785,
+            "upper_edge_outward_error_mm": -0.4581179307825618
+          }
+        ]
+      }
+    }
+  },
+  "earlier_faults": [
+    {
+      "event": "fault",
+      "time_s": 8687.494348821,
+      "state": "fault",
+      "error": "Tracking command is outside the finite path envelope",
+      "primary_fault": "Tracking command is outside the finite path envelope",
+      "cleanup_errors": []
+    },
+    {
+      "event": "fault",
+      "time_s": 8764.250782335,
+      "state": "fault",
+      "error": "Arm feedback became stale before trajectory dispatch",
+      "primary_fault": "Arm feedback became stale before trajectory dispatch",
+      "cleanup_errors": []
+    },
+    {
+      "event": "fault",
+      "time_s": 8787.588573487,
+      "state": "fault",
+      "error": "Arm feedback became stale before trajectory dispatch",
+      "primary_fault": "Arm feedback became stale before trajectory dispatch",
+      "cleanup_errors": []
+    }
+  ],
+  "welding_faults": [],
+  "final_fault": null,
+  "disable_acknowledged": true,
+  "mode_restoration_verified": true,
+  "health": {
+    "A1": {
+      "session_peak_torque_nm": 1.7802200317382812,
+      "welding_peak_torque_nm": 1.7802200317382812,
+      "session_peak_speed_rad_s": 0.34066009521484375,
+      "session_peak_rotor_c": 26,
+      "session_peak_mos_c": 27
+    },
+    "A2": {
+      "session_peak_torque_nm": 14.25152587890625,
+      "welding_peak_torque_nm": 8.60561752319336,
+      "session_peak_speed_rad_s": 0.23687458038330078,
+      "session_peak_rotor_c": 30,
+      "session_peak_mos_c": 30
+    },
+    "A3": {
+      "session_peak_torque_nm": 7.824176788330078,
+      "welding_peak_torque_nm": 6.905982971191406,
+      "session_peak_speed_rad_s": 0.2466421127319336,
+      "session_peak_rotor_c": 30,
+      "session_peak_mos_c": 30
+    },
+    "A4": {
+      "session_peak_torque_nm": 0.47313785552978516,
+      "welding_peak_torque_nm": 0.11294269561767578,
+      "session_peak_speed_rad_s": 0.3003654479980469,
+      "session_peak_rotor_c": 27,
+      "session_peak_mos_c": 28
+    },
+    "A5": {
+      "session_peak_torque_nm": 1.7429790496826172,
+      "welding_peak_torque_nm": 1.4316234588623047,
+      "session_peak_speed_rad_s": 0.5494499206542969,
+      "session_peak_rotor_c": 29,
+      "session_peak_mos_c": 29
+    },
+    "A6": {
+      "session_peak_torque_nm": 0.8211231231689453,
+      "welding_peak_torque_nm": 0.5097684860229492,
+      "session_peak_speed_rad_s": 0.3589744567871094,
+      "session_peak_rotor_c": 26,
+      "session_peak_mos_c": 29
+    }
+  },
+  "formal_accuracy_passed": false,
+  "limitations": [
+    "Encoder/model reconstruction is not independent physical tip evidence.",
+    "Live journal failed. One final incomplete dispatch is excluded; sent coverage is reported through pause.",
+    "Earlier recovery attempts faulted; only the final welding interval is fault-free."
+  ],
+  "measurement_task_complete": true,
+  "decision": "ACCURACY-01 measurement/review complete: the operator-run v7 motion check supplied the requested stroke, startup and orientation evidence. Startup orientation still exceeds the 1 degree maximum and steady stroke remains below the 20 mm plan; these improvements remain under deferred SPEED-01. Preserve the selected v7 profile; task completion is not an accuracy pass or physical qualification.",
+  "method": {
+    "implementation": "src/controls/controls/hardware/weld_accuracy.py",
+    "sampling": "WeldPass and sample_commands against final accepted_plan, using trajectory_trace only between the sole weld_started and its first following pause. Rejected final incomplete dispatch is listed explicitly.",
+    "model": "Verified current scene and saved plan mapping fingerprints; TipModel with D3 closure. Same-time orientation_error_deg and tip_statistics.",
+    "startup": "First weld_entry duration; steady begins after that duration. Matched cycles 3 through 18 use elapsed >= 2/effective_hz and < 18/effective_hz.",
+    "lag_and_stroke": "tip_lag_report fits one time shift for tip position only; tip_cycle_strokes uses sampled extrema in complete cycles. No orientation time shift or spatial alignment."
+  },
+  "comparison_to_20261124_matched_cycles_3_to_18": {
+    "baseline_source": "docs/measurements/arm-weld-v7-baseline-2026-11-24.json",
+    "baseline_same_time_tip_rms_mm": 2.1675352834177524,
+    "current_same_time_tip_rms_mm": 2.0526512723872417,
+    "baseline_orientation_peak_deg": 0.7585440701885234,
+    "current_orientation_peak_deg": 0.8550829877006121,
+    "baseline_cycle_stroke_mm": {
+      "minimum": 15.723315424717432,
+      "median": 18.3502150603315,
+      "maximum": 19.6108776090554,
+      "mean": 18.086148210339974,
+      "stddev": 0.9255248576637923
+    },
+    "current_cycle_stroke_mm": {
+      "status": "available",
+      "basis": "Sampled extrema per complete cycle; between-sample peaks are not measured.",
+      "planned_width_mm": 20.00008900419506,
+      "count": 16,
+      "width_mm": {
+        "mean": 18.12191027369389,
+        "minimum": 17.302740624370273,
+        "maximum": 18.811530237102588,
+        "peak_abs": 18.811530237102588,
+        "rms": 18.128937863980163
+      },
+      "median_width_mm": 18.179785440119538
+    }
+  },
+  "logging_correction": {
+    "cause": "A3Retreat.goal is a NumPy array. Subtracting its A3 coordinate produced a NumPy scalar lower-bound duration and a numpy.bool_ ruled_out_by_limits value, which stopped the live writer at the first accepted retreat plan.",
+    "change": "Convert the retreat distance to a native float before computing timing metadata. Motion paths, limits, response parameters and hardware ownership are unchanged.",
+    "regression": "test_weld_endpoint_recovery.EndpointControlTests.test_timing_adds_retreat_once_to_aliased_search_candidates now JSON-round-trips the accepted plan and every checked preparation-search candidate; it reproduced the original TypeError before the fix.",
+    "physical_logging_verification": false,
+    "validation": {
+      "command": "PYTHONPATH=tests MUJOCO_GL=egl QT_QPA_PLATFORM=offscreen .venv/bin/python -m unittest test_weld_endpoint_recovery test_weld_recording",
+      "tests": 21,
+      "result": "passed",
+      "evidence_kind": "offline model, simulated motor and recording tests; no hardware access"
+    }
+  }
+}

@@ -3,6 +3,9 @@
 Start with [cross-layer registry](../../docs/ARM_LAYER_TODOS.md) and
 [base API contract](../../docs/ARM_BASE_LAYER.md). Relevant stable IDs: **ROS-02, CAL-01**.
 
+**ROS-02 is deferred by the operator on Nov 26.** Keep the existing implementation
+until this work is explicitly resumed.
+
 Cached telemetry for both Damiao and ENCOS is implemented; see
 [ROS topics, ages and diagnostics](../../docs/MOTOR_TELEMETRY.md).
 Current ROS MIT mode is not validated by the position-velocity bench.

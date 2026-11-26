@@ -24,7 +24,7 @@ class Clock:
 
 class CommissioningTests(unittest.TestCase):
 
-    def exercise(self, plan, mutate=None):
+    def exercise(self, plan, mutate=None, *, query_only=False):
         clock = Clock()
         opened = []
 
@@ -38,7 +38,8 @@ class CommissioningTests(unittest.TestCase):
             opened.append(bus)
             return bus
         with redirect_stdout(io.StringIO()):
-            result = run(simulate=True, plan=plan, bus_factory=factory, clock=clock, sleep=clock.sleep)
+            result = run(simulate=True, plan=plan, bus_factory=factory, clock=clock,
+                         sleep=clock.sleep, query_only=query_only)
         return result, opened[0]
 
     def test_motor4_retains_physical_slot_and_both_direction_stops(self):
@@ -62,6 +63,26 @@ class CommissioningTests(unittest.TestCase):
             for value in stage['travel_deg'].values():
                 self.assertGreater(value * stage['target_rpm'], 0)
                 self.assertLess(abs(value), 35)
+
+    def test_idle_observation_reports_each_motor_without_motion(self):
+        result, bus = self.exercise(BenchPlan.fourth(), query_only=True)
+        self.assertEqual(result['schema'], 'forge.encos_idle_feedback')
+        self.assertFalse(bus._active)
+        self.assertTrue(bus._closed)
+        self.assertFalse(result['can_freshness_verified'])
+        self.assertEqual(set(result['stages'][0]['observed_updates']), {1, 2, 3, 4})
+        self.assertTrue(all(n > 0 for n in result['stages'][0]['observed_updates'].values()))
+
+    def test_idle_observation_fails_if_one_position_stops_advancing(self):
+        def freeze(bus):
+            snapshot = bus.snapshot
+            def retained():
+                sample = snapshot()
+                sample['motors'][2]['position_observed_s'] = 0.0
+                return sample
+            bus.snapshot = retained
+        with self.assertRaisesRegex(MotorError, 'Motor 3 idle position'):
+            self.exercise(BenchPlan.fourth(), freeze, query_only=True)
 
     def test_missing_fourth_aborts_before_any_motion_and_records_failure(self):
         with tempfile.TemporaryDirectory() as folder:

@@ -1,23 +1,25 @@
-# Motor protection verification
+# Motor protection verification — deferred
 
-Updated 2026-11-15. Open work under **PROTECT-01** in the
-[cross-layer registry](ARM_LAYER_TODOS.md). All six motors are connected;
-recorded checks/manual movement do not establish protection or loaded operation.
+Updated 2026-11-26. **Deferred by the operator; no test is currently selected.**
+This is reference material for PROTECT-01 in the
+[consolidated registry](ARM_LAYER_TODOS.md), including former COMMS-06.
 
-Guarded, disabled-only readback is implemented. The operator's A2–A6 inspection
-completed at 19:56 on 2026-11-10; see [values and interpretation](DAMIAO_TORQUE_LIMITS.md).
-No gains or current limits were written. Remaining work:
+Guarded, disabled-only readback is implemented. The operator's
+[six-motor inspection](measurements/arm-control-readback-review-2026-11-17.json)
+completed on Nov 17, including A1. The earlier A2–A6 values and interpretation
+are in [DAMIAO_TORQUE_LIMITS.md](DAMIAO_TORQUE_LIMITS.md).
+No gains or current limits were written. Questions to address when resumed:
 
-- [ ] Record and verify model/revision, firmware, bus/IDs, current/protection
-  settings, units/scaling and timeout behavior for every Damiao and ENCOS unit.
-  Extend the A2–A6 protection record to reconnected A1 under support; do not assume
-  the 4310P Imax/VBus registers exist on the 8009P.
-- [ ] Distinguish current-command clamping, overcurrent fault shutdown and
+- Verify engineering units/scaling and supported protection settings for the
+  installed Damiao and ENCOS models, using the existing identity/readback evidence.
+  Do not assume the 4310P Imax/VBus registers exist on the 8009P; A1's
+  undocumented fields remain unknown.
+- Distinguish current-command clamping, overcurrent fault shutdown and
   FORGE's reactive measured-torque trips. Verify drive torque/current reporting
   against independent load/phase-current measurements; PSU current is different.
-- [ ] Select application-specific operating limits and verify persistence,
-  temperature behavior and measured fault/stop response before loaded testing.
-- [ ] Complete ENCOS-specific verification with its documentation and tooling.
+- Establish useful operating limits from independent current/load and thermal
+  measurements. Reuse BASE-07 for stop/recovery and BASE-06 for configuration
+  identity rather than creating duplicate test campaigns here.
 
 Keep production calibration and protection-confirmation flags unchanged until
 their separate acceptance is complete. A successful register read is evidence

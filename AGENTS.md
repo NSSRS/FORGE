@@ -64,8 +64,10 @@ The operator confirmed the earlier A1 undervoltage issue was fixed.
 
 ## Current welding implementation (2026-11-24)
 
-ACCURACY-01 is an operator-run v7 motion check when available. Use the
-saved journal to review cycle stroke and startup. Continuous arm-only tip
+ACCURACY-01 measurement/review completed on Nov 26; remaining startup/stroke
+improvements belong to deferred SPEED-01. See the dated accuracy review linked
+from the handoff; the intact final JSON supplied evidence after live logging failed.
+For future checks, use saved evidence to review cycle stroke and startup. Continuous arm-only tip
 reporting allows one fixed lag. The separate same-time tool
 orientation target is 0.5 deg with a 1.0 deg maximum. Runtime limits remain
 3 degrees for tracking and 0.25 degree for arrival. The operator accepted
@@ -121,6 +123,35 @@ and verified final disable/mode restoration. A1/A6 travel accuracy and
 thermal/continuous-load qualification remain separate work.
 The gun was attached during the earlier 12.0137 Nm A2 fault
 although its raw journal is under `no-ee/`; preserve the load-context correction.
+The operator removed gun-off/gun-on paired hold testing on Nov 26. Do not
+propose or require gun removal for that comparison under LOAD-01 or PROTECT-01.
+The operator deferred PROTECT-01 on Nov 26 and requested a leaner, merged work
+list. Use the consolidated `docs/ARM_LAYER_TODOS.md`: BASE-05/DEPLOY-01 are
+part of BASE-06, SUPPORT-01 is part of BASE-07, and duplicate COMMS entries
+point to those owners. Do not reintroduce protection/thermal tests under another
+ID or turn every unmeasured production boundary into a new bench TODO.
+Completed checks stay closed; existing motor guards and qualification flags remain.
+BASE-06 mode-2 atomic group targets are implemented and tested offline. The
+operator flashed and verified `cd93f9b3` / `0x7FFFF8F` on Nov 26; it is preserved under
+`build/dm_mc02/atomic-targets/`. Type 30 uses one complete frame and capability
+`0x04000000`; group refreshes and weld trajectories select it automatically on
+capable firmware. Agent USB readback verified the new identity, disabled and
+unconfigured slots, no fault, zero CAN transmissions and a typed invalid-slot
+rejection. The operator then completed 7.12 seconds of supported atomic group
+holding: 2,142 samples, no recorded fault or CAN TX failure, verified final
+disable/mode restoration. All 147 post-close active-configuration comparisons
+matched the selected profile and session bounds. BASE-06, including merged
+BASE-05/DEPLOY-01/COMMS-04, is complete; do not repeat it as an open task. Its
+scope is supported stationary batch acceptance. The older `f78f6b0d` uses the reported legacy sequential
+path. Do not retry/fall back after an uncertain atomic commit, or claim atomic
+CAN transmission/physical qualification. See the handoff and deployment evidence.
+The operator completed the selected BASE-07 stationary command-timeout/recovery
+check on Nov 26 (`docs/measurements/arm-command-loss-review-2026-11-26.json`).
+MC02 latched command expiry at 151 ms with 1 ms feedback age; all six motors
+were confirmed disabled, explicit R recovery stayed disabled, and final close
+verified disable/mode restoration. Do not repeat that check or expand it into
+another fault campaign automatically. USB disconnection and moving stop latency
+were not measured; 151 ms is command age at fault detection, not stop time.
 
 The operator restored the physical v7 weld baseline on Nov 24 and deferred
 further weld tuning. ENCOS motor-4 commissioning subsequently passed. The explicit
@@ -144,8 +175,11 @@ closed normally. The subsequent four-motor viewer/keyboard session looked
 normal to the operator. Identification and this bounded motion test are complete;
 do not repeat setup or ID assignment. On Nov 25, the operator confirmed the
 wheel locations, forward command signs and 1:1 gearing in the four-motor
-profile, closing CHASSIS-02. CAN freshness and loaded/host-loss qualification
-remain open. The operator does all hardware work. Follow `docs/CAN2_BENCH.md` and
+profile, closing CHASSIS-02. The operator closed COMMS-01 on Nov 26 after
+isolated reply loss and recovery passed for ID 1 on CAN1 and ID 3 on CAN2.
+See `docs/measurements/encos-inventory-2026-11-26.json` for the host-side
+evidence. Loaded stopping and host-loss qualification remain open.
+The operator does all hardware work. Follow `docs/CAN2_BENCH.md` and
 `docs/measurements/encos-four-motor-physical-review-2026-11-24.json`.
 
 The default host PID tracker uses a bounded preparation clock: nominal speed
@@ -215,6 +249,9 @@ data without another owner or enabled-state register polling.
 
 ## Source and verification
 
+The operator deferred ROS-02 development and physical ROS integration on Nov 26
+until another day. Do not start that work as an automatic follow-up to BASE-06.
+
 - ENCOS is chassis: C11 driver/utilities in `src/encos_driver/`; shared Python
   APIs in `src/motors/`. Damiao is arm: DM-MC02 firmware in
   `src/damiao_firmware/`. Native Ubuntu 24.04 is the deployment target.
@@ -261,8 +298,11 @@ data without another owner or enabled-state register polling.
   extend it. Manual, planned and native command bounds all retain this limit. A5's
   Nov 16 cable-constrained CW/CCW ends and independent straight pose are recorded
   in `docs/measurements/arm-a5-alignment-2026-11-16.json`; ends do not define model
-  zero. The saved complete candidate is separate from the default mapping and
-  still needs alignment checks away from straight and physical qualification.
+  zero. The saved complete candidate is separate from the default mapping.
+  On Nov 26 the operator confirmed matching wrist poses and direction in two
+  off-straight snapshots; see `docs/measurements/arm-a5-pose-review-2026-11-26.json`.
+  That visual subcheck is complete; quantitative alignment, cable margins and
+  broader physical qualification remain open. No calibration anchors changed.
 - Pocket policy and commissioning live in `docs/POCKET_ARM_CONTROL.md`. Preserve
   original input deadlines, SE priming, diagonal stop/resume and cancellation
   during enable. Its GUI consumes cached telemetry and requests stop; it must

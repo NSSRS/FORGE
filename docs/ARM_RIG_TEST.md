@@ -446,7 +446,8 @@ See the [baseline record](measurements/arm-weld-v7-baseline-2026-11-24.json).
 The Nov 23 operator session provides a joint-diagnostic and encoder-reconstructed
 tool-pose baseline; see the [review](ARM_SESSION_HANDOFF.md#accuracy-01-and-speed-01-review)
 and [complete offline archive](measurements/weld/2026-11-23/README.md).
-ACCURACY-01 is a physical motion-only check to run when available. Use the
+ACCURACY-01's physical motion check and review completed on Nov 26; remaining
+startup/stroke improvements are deferred under SPEED-01. For future checks, use the
 v7 launch above and select **Arm output**. Save the journal under
 `build/weld/latest/` and review per-cycle stroke and both edges against the
 20 mm plan. On a continuous arm-only pass, position scoring allows one fixed
@@ -573,62 +574,12 @@ allows the checked shorter staging route on hardware; review its preview and
 reported duration before recovery. Loaded response and actual timing remain
 physical acceptance work.
 
-### Matched runs with and without the end effector
+### Offline hold-log review
 
-Preparation time and calculation time are separate. `--prep-seconds` sets a
-reported goal; it does not override the explicitly requested speed cap. The
-Nov 19 long-wrist start needs about 91.6 degrees of A6 travel, so 5 deg/s cannot
-reach Ready within 5–10 seconds. The offline comparison uses
-`--max-speed-deg-s 30 --prep-seconds 10`, retaining `--optimize-preparation` and
-`--approach-lift-mm 30`. It gives an 8.71 s nominal plan, 8.88 s ideal-shaft
-replay and 11.12 s with synthetic lag. A2 approaches the unchanged 3-degree
-tracking trip in the lagging replay; this is not physical speed qualification.
-Match any explicitly selected speed setting across both payload runs.
-
-For LOAD-01 payload characterization, first record the assembled arm with the
-end effector absent, then repeat with the **1.96 kg** end effector installed
-(operator-reported mass, not a measured COM/inertia). The arm itself remains loaded in both
-conditions. Keep the full gun collision envelope in the model for both runs.
-
-Use the same reviewed mapping/standby, verified encoder branch, controller,
-speed request, acceleration limits and raised approach. Use the same physical
-starting pose and support arrangement, and record any support contact carrying
-weight during measurement. A catch for torque loss should not change the measured
-load between runs. Record initial temperatures and cable routing. Changing the
-start can cause the staging optimizer to choose another path: review the saved
-plans before attributing a timing or torque difference to the end effector.
-Never force a saved path onto changed fresh coordinates to make runs match.
-
-1. With the fixture supported and the previous owner closed by the operator,
-   use the normal reviewed weld-panel command, adding a unique
-   `--output build/arm_tests/HOLD_RUN/no-ee/session.json`. The corresponding
-   `session.jsonl` starts automatically; do not start another telemetry owner.
-2. Calculate, review the route and explicitly **Start recovery**. Leave welding
-   stopped at **Ready**, and observe **15 seconds untouched**. Record visible
-   sag/oscillation and any pushes or support contact. Timing is recovery request
-   to verified Ready, including initial hold verification and settling; planning
-   time is separate. This first pair does not qualify post-weld holding.
-3. Read the JSONL while the panel remains active if needed. Park/rest or restrain
-   the links before disable/close. Retain the final shutdown result. Install the
-   end effector only with the arm supported and torque disabled; mounting while
-   relying on powered hold is not part of this procedure.
-4. Repeat with `--output build/arm_tests/HOLD_RUN/with-ee/session.json`, keeping
-   the conditions above unchanged. If either run faults or is interrupted, retain
-   it separately and use a new filename for a retry. Do not hide the failure in
-   aggregate timing. Repeat pairs after a clean first comparison to assess
-   repeatability and temperature effects.
-
-Offline analysis (also works on a live journal; no device is opened):
+Review an existing saved journal without opening a device:
 
 ```bash
-python3 scripts/analyze_weld_hold.py build/arm_tests/HOLD_RUN/no-ee/session.jsonl \
-  --label no-ee --ee-mass-kg 0
-
-python3 scripts/analyze_weld_hold.py build/arm_tests/HOLD_RUN/no-ee/session.jsonl \
-  --label no-ee --ee-mass-kg 0 \
-  --compare build/arm_tests/HOLD_RUN/with-ee/session.jsonl \
-  --compare-label with-ee --compare-ee-mass-kg 1.96 \
-  --output build/arm_tests/HOLD_RUN/comparison.json
+.venv/bin/python scripts/analyze_weld_hold.py /path/to/session.jsonl
 ```
 
 The analyzer separates attempts and contiguous stages; prints measured mean/peak
@@ -1094,6 +1045,80 @@ The Pocket summary is written to the timestamped `arm_report` path during
 session shutdown. Use a different filename for each retained run; the same
 destination is overwritten. Omitting `arm_report` leaves summary-file output
 disabled. Console/ROS logs are separate, normally under `~/.ros/log/`.
+
+## BASE-06 deployed group-command check
+
+This BASE-06 check [passed on Nov 26](measurements/arm-base06-deployment-2026-11-26.json)
+on firmware `cd93f9b3 / 0x7FFFF8F`: 7.12 seconds of supported group holding,
+matching MCU configuration and verified final disable/mode restoration. The
+procedure is retained for relevant future changes, not a pending repeat. Use a
+new report path for any later run so the completed deployment evidence survives.
+
+Keep mechanical support carrying the complete arm and gun on torque loss.
+With other motor control windows closed, turn motor power on and launch:
+
+```bash
+bash /home/forge2/forge2_ws/scripts/control_arm.sh \
+  --plan /home/forge2/forge2_ws/src/robot_description/config/arm_rig_gun_a2_a6_load.json \
+  --speed-deg-s 5 \
+  --report /home/forge2/forge2_ws/build/arm_tests/base06-deploy-20261126T095624Z/session.json
+```
+
+After the window reports healthy feedback, press **H**, keep the window focused
+for about five seconds, press **D**, then close normally. No jog is needed for
+this check. Retain the USB connection for cached active-configuration readback
+after the owner closes; never start a second owner while this window is open.
+
+Review `group_command_transport=atomic_mode2`, the new build/capability identity,
+fresh enabled hold samples, fault/error fields and final disable/mode restoration.
+Compare the retained MCU route/mode/limits and protocol ranges to this session's
+configured bounds and selected profile. Save that readback with the deployment
+report. This check establishes supported stationary batch acceptance, not
+coordinated travel accuracy or broader load qualification. A failed check stays
+in its saved report for diagnosis rather than being reset/retried automatically.
+
+## Stationary command-loss and recovery check
+
+This BASE-07 check [passed on Nov 26](measurements/arm-command-loss-review-2026-11-26.json).
+The procedure is retained for relevant future changes, not a pending repeat.
+It uses the deployed firmware and existing manual owner. The arm and gun must
+be carried by mechanical support when torque is
+removed. Close the mirror or other arm owner before starting this panel.
+
+Launch from one terminal and retain its process ID in that same shell:
+
+```bash
+cd /home/forge2/forge2_ws
+base07_run="build/arm_tests/base07-$(date -u +%Y%m%dT%H%M%SZ)"
+mkdir -p "$base07_run"
+bash scripts/control_arm.sh \
+  --plan src/robot_description/config/arm_rig_gun_a2_a6_load.json \
+  --report "$base07_run/session.json" &
+base07_pid=$!
+```
+
+Press **H** once and wait for all six motors to hold stationary without a fault.
+Leave jogging disarmed. Return to the same terminal; focus loss retains the
+explicit group hold. Suspend only this owner for one second, then resume it:
+
+```bash
+(
+  trap 'kill -CONT "$base07_pid" 2>/dev/null' EXIT
+  kill -STOP "$base07_pid" && sleep 1
+)
+```
+
+The MCU command lease should expire while the host is suspended. Expect a
+latched fault and disabled motors; the resumed panel may report a UI stall as
+well. Resuming the process must not restore holding. Press **R** once to save
+the fault evidence and perform explicit recovery through the same owner.
+Successful recovery must leave all six motors disabled; leave H/E/arrows alone.
+Close the panel normally to write `session.json` and retain its recovery report.
+If the panel cannot recover, retain its error for review instead of retrying.
+
+Review the MCU fault snapshot, six disabled states and recovery result before
+accepting this check. This observes stationary command expiry and explicit
+recovery; it does not measure moving stop distance/time or test USB disconnection.
 
 ## Disabled current/loop-parameter inspection (2026-11-10)
 

@@ -1,19 +1,14 @@
-# Python motor APIs: open arm work
+# Python motor APIs: open work
 
-The [cross-layer registry](../../docs/ARM_LAYER_TODOS.md) is the status authority.
-Owning IDs: **BASE-05, BASE-06, PROTECT-01, CAL-01, SPEED-01**. Read [current hardware status](../../docs/ARM_SESSION_HANDOFF.md)
-and [the base contract](../../docs/ARM_BASE_LAYER.md) before continuing.
+Use the [consolidated registry](../../docs/ARM_LAYER_TODOS.md) for status and
+[base contract](../../docs/ARM_BASE_LAYER.md) for API details.
 
-Both families now expose cached telemetry through existing owners; see
-[MOTOR_TELEMETRY.md](../../docs/MOTOR_TELEMETRY.md). The real weld adapters reuse
-these APIs; no enabled register polling or second owner is added.
+- **CAL-01:** raw/model coordinate integration for the next selected operating range.
+- **ROS-02:** production lifecycle integration is deferred by the operator on Nov 26.
 
-Next: support SPEED-01 tracking qualification using
-cached command/feedback evidence, alongside PROTECT-01 protection verification.
-Physical calibration, stopping, torque decoding and thermal behavior
-remain open; follow the registry rather than repeating completed range setup.
-
-Completed implementation and run instructions belong in the
-[rig guide](../../docs/ARM_RIG_TEST.md) and
-[source map](../../docs/SOURCE_LAYOUT.md#arm-controls-and-rig-test-file-map).
-Update the owning registry entry instead of duplicating session histories here.
+SPEED-01 tuning and PROTECT-01 testing are deferred. Completed motor readbacks,
+range setup, BASE-06 atomic deployment and the stationary BASE-07 check are not
+pending tests; see the
+[handoff](../../docs/ARM_SESSION_HANDOFF.md#base-07-command-loss-check).
+Telemetry continues to consume cached
+owner data without CAN polling or lease renewal.

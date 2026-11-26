@@ -1,12 +1,15 @@
-# Firmware base: open arm work
+# Firmware base: open work
 
-The [cross-layer registry](../../docs/ARM_LAYER_TODOS.md) is the status authority.
-Owning IDs: **BASE-05, BASE-06, BASE-07, PROTECT-01, SPEED-01**. Read [current hardware status](../../docs/ARM_SESSION_HANDOFF.md)
-and [the base contract](../../docs/ARM_BASE_LAYER.md) before continuing.
+Use the [consolidated registry](../../docs/ARM_LAYER_TODOS.md) for status and
+[base contract](../../docs/ARM_BASE_LAYER.md) for protocol details.
 
-Next: validate active configuration readback on the rig, implement atomic multi-joint targets and qualify physical fault response. Coordinate speed commissioning with the host/profile layer. Keep deterministic routing, leases, cached diagnostics and latched faults here; planning, ROS coordinates and gravity policy belong above it.
+BASE-06 (including former BASE-05/DEPLOY-01/COMMS-04) is complete within its
+[recorded deployment and stationary group-hold scope](../../docs/measurements/arm-base06-deployment-2026-11-26.json).
+No additional base-firmware implementation task is selected.
 
-Completed implementation and run instructions belong in the
-[rig guide](../../docs/ARM_RIG_TEST.md) and
-[source map](../../docs/SOURCE_LAYOUT.md#arm-controls-and-rig-test-file-map).
-Update the owning registry entry instead of duplicating session histories here.
+The selected stationary BASE-07 command-loss/recovery check is complete;
+reuse its [recorded scope](../../docs/ARM_SESSION_HANDOFF.md#base-07-command-loss-check).
+
+PROTECT-01 and SPEED-01 testing are deferred. Preserve deterministic routing,
+leases, cached diagnostics and latched faults. Planning and model/load policy
+remain above the firmware layer.

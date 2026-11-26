@@ -46,6 +46,10 @@ add_executable(encos_query main.c cli_bridge.c)
 target_compile_options(encos_query PRIVATE -Wall -Wextra -Werror)
 target_link_libraries(encos_query PRIVATE encos_protocol encos_soem)
 
+add_executable(encos_feedback_probe feedback_probe.c probe_serial.c cli_bridge.c)
+target_compile_options(encos_feedback_probe PRIVATE -Wall -Wextra -Werror)
+target_link_libraries(encos_feedback_probe PRIVATE encos_protocol encos_soem)
+
 add_executable(encos_motion motion.c cli_bridge.c)
 target_compile_options(encos_motion PRIVATE -Wall -Wextra -Werror)
 target_link_libraries(encos_motion PRIVATE encos_protocol encos_soem)
@@ -74,9 +78,11 @@ add_test(NAME python_motors COMMAND ${CMAKE_COMMAND} -E env
     ${Python3_EXECUTABLE} -m unittest -v test_python_motors test_native_driver)
 
 # Exercise actual discovery/ID-assignment CLIs with a socket-free transport.
-foreach(tool query assign_id)
+foreach(tool query assign_id feedback_probe)
     if(tool STREQUAL "query")
         set(cli_source main.c)
+    elseif(tool STREQUAL "feedback_probe")
+        set(cli_source feedback_probe.c probe_serial.c)
     else()
         set(cli_source assign_id.c)
     endif()
@@ -90,4 +96,5 @@ add_test(NAME encos_cli COMMAND ${CMAKE_COMMAND} -E env
     "PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}/../../tests"
     "ENCOS_QUERY_TEST=$<TARGET_FILE:encos_query_test>"
     "ENCOS_ASSIGN_TEST=$<TARGET_FILE:encos_assign_id_test>"
-    ${Python3_EXECUTABLE} -m unittest -v test_encos_cli)
+    "ENCOS_FEEDBACK_PROBE_TEST=$<TARGET_FILE:encos_feedback_probe_test>"
+    ${Python3_EXECUTABLE} -m unittest -v test_encos_cli test_encos_feedback_probe)

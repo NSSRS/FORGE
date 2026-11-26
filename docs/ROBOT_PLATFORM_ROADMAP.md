@@ -1,7 +1,8 @@
 # FORGE robot platform development roadmap
 
-For the current implementation/qualification gaps, use the
-[chassis model and motor communication open-work list](CHASSIS_MODEL_COMMS_TODOS.md).
+This is a future system-design roadmap, not the current bench-test queue.
+Use the [consolidated arm work list](ARM_LAYER_TODOS.md) and
+[chassis work list](CHASSIS_MODEL_COMMS_TODOS.md) for current scope and deferrals.
 
 ## Arm welding and telemetry update — 2026-11-15
 
@@ -11,10 +12,11 @@ alignment, closed-chain planning, physical motor envelopes, multi-start CMA-ES,
 actual motor adapters and checked plan animation are implemented in
 [the weld controller](WELD_MOTION.md). Independent arm/chassis switches gate output.
 The configured target remains 2 Hz; the checked provisional-model solution is
-about 1.815288 Hz. The operator can run the later v7 motion check
-under ACCURACY-01 when available.
-LOAD-01 weight compensation and FEEDBACK-01 sensor/ESO feedback follow the first
-arm welding run. These additions do not complete localization or production
+about 1.815288 Hz. The later v7 motion check and review completed ACCURACY-01
+on Nov 26; remaining tuning is deferred under SPEED-01. See the
+[current handoff](ARM_SESSION_HANDOFF.md#accuracy-01-and-speed-01-review).
+LOAD-01 weight compensation and FEEDBACK-01 sensor/ESO feedback remain future
+features; a completed weld does not automatically select them. These additions do not complete localization or production
 hold/stop qualification; the proposed system below remains a roadmap.
 
 ## IMU implementation update — 2026-10-15

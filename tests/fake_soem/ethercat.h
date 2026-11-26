@@ -12,6 +12,7 @@ typedef struct {
     uint8_t CoEdetails;
     uint16_t state, Obits, Ibits;
     uint32_t Obytes, Ibytes;
+    uint32_t eep_man, eep_id, eep_rev;
     uint8_t *outputs, *inputs;
 } ec_slavet;
 typedef struct { int outputsWKC, inputsWKC; } ec_groupt;
@@ -27,5 +28,7 @@ uint16_t ec_statecheck(uint16_t slave, uint16_t state, int timeout);
 int ec_send_processdata(void);
 int ec_receive_processdata(int timeout);
 int ec_writestate(uint16_t slave);
+int ec_SDOread(uint16_t slave, uint16_t index, uint8_t subindex, uint8_t complete_access,
+               int *size, void *value, int timeout);
 void ec_close(void);
 #endif

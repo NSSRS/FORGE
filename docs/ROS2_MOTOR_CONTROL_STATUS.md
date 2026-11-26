@@ -14,6 +14,9 @@ See [radio calibration](RADIO_CONTROL.md) for ESP32 input.
 
 ## Arm and dual-family telemetry
 
+ROS-02 lifecycle/mode-2 integration is deferred by the operator as of Nov 26.
+The current ROS MIT node remains separate from the validated manual/weld owner.
+
 The existing ROS owners publish cached ENCOS `/joint_states` at 50 Hz and
 Damiao `/arm/joint_states` at 25 Hz, plus `/diagnostics` at 2 Hz/on status change.
 ENCOS effort stays empty: phase current is not torque. Damiao effort is the

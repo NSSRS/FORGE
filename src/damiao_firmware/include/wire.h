@@ -9,6 +9,7 @@
 typedef struct {
     arm_controller *arm; uint8_t buffer[64]; unsigned used; uint32_t sequence; bool session;
     uint32_t snapshot_generation;
+    uint32_t frame_started;
     uint8_t snapshot[3][51]; /* three frozen pages, two motors/page */
 } arm_wire;
 uint32_t wire_crc(const uint8_t *, size_t);

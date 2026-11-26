@@ -32,8 +32,8 @@ class TrajectoryArmPort(ArmGroupHoldPort):
     """Stream validated complete targets through existing mode-2 group holding.
 
     The controller already supplies time-indexed smooth targets. Use native mode 2
-    (USB type 4), without the custom type-25 manual-jog slew and its extra lag.
-    USB commands remain sequential: this is not firmware-atomic multi-axis motion.
+    without the custom manual-jog slew and its extra lag. Capable firmware uses
+    one atomic type-30 group commit; older firmware retains sequential type 4.
     A failure uses the existing latched fault/whole-group disable policy.
     """
 
@@ -68,7 +68,7 @@ class TrajectoryArmPort(ArmGroupHoldPort):
         super().__init__(*args, window_degrees=None, smooth_jog=False, **kwargs)
         self.report.update(
             target_policy="controller_trajectory_native_mode2",
-            usb_command_type=4,
+            usb_command_type=30 if self.atomic_targets else 4,
             secondary_jog_smoothing=False,
             trajectory_speed_ceilings_deg_s=self.axis_ceilings.tolist(),
         )
@@ -86,6 +86,14 @@ class TrajectoryArmPort(ArmGroupHoldPort):
             self.endpoint_minimum = min(self.endpoint_minimum, float(raw[2]))
             if raw[2] > self.endpoint_minimum + ALLOWANCE_DEG:
                 raise ValueError("A3 moved outward during endpoint recovery/hold")
+        if self.atomic_targets:
+            if self.path_active:
+                self._check_intent()
+            self.bus.command_group(self.hold_targets,
+                                   {i:float(self.path_speeds[i]) for i in self.hold_targets})
+            if self.path_active:
+                self._check_intent()
+            return
         for i, target in self.hold_targets.items():
             if self.path_active:
                 self._check_intent()
@@ -140,7 +148,7 @@ class TrajectoryArmPort(ArmGroupHoldPort):
             lo, hi = self._limits(i)
             if not lo < target < hi:
                 raise ValueError(f"A{i+1}: target exceeds configured protocol bounds")
-        # Commit only after validating every axis. Physical dispatch is sequential.
+        # Validate every axis before dispatch; the transport is capability gated.
         with self._guard_motion():
             if self._cycle is None:
                 self.begin_cycle()

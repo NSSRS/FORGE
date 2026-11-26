@@ -90,6 +90,12 @@ native build alone does not establish ROS/model coverage; report optional skips.
   and differential forward/left/right/stop commands through all four PDO slots.
   Split-bus tests require ID 3 on CAN2, verify slots `[0,1,3]`, reject invalid
   slot maps, and check that the vacant passage carries no control commands.
+  Per-motor retained-reply regressions hold one active reply or both ACK
+  types in reordered slots while the peer keeps replying. They check the
+  feedback trip, cached ages, immediate motor errors and recovery of both
+  measurements when only every other exchange carries feedback. Idle tests
+  verify recurring unchanged positions, reduced query traffic and rejection
+  of activation from a frozen position.
 
 The fake library has no raw-socket transport and cannot access motor hardware.
 Native integration cases skip unless `ENCOS_TEST_LIBRARY` names that library;
@@ -160,6 +166,16 @@ These tests do not establish real-weld recognition or millimeter accuracy.
 
 ## Passive ENCOS capture analysis
 
+The native ENCOS CTest suite also exercises the stationary feedback probe
+against a socket-free bridge with retained and cleared replies in reordered
+slots. It checks the exact four-motor query sequence, WKC failure, missing
+feedback, interrupt cleanup, exclusive report creation and byte-exact
+read-only capture from a pseudo-terminal. The continuous-polling loss mode
+also covers an isolated frozen or cleared reply through recovery, a peer
+dropping out, missing recovery and an operator marker without actual loss.
+See the
+[operator procedure](../docs/CAN2_BENCH.md#stationary-feedback-probe-with-the-existing-bridge).
+
 Run the offline analyzer regression against synthetic Ethernet pcaps and
 SocketCAN logs. The tests cover identical CAN replies, retention and DLC
 clearing on one motor while the others report, capture clock uncertainty,
@@ -196,6 +212,16 @@ Keep the ROS domain isolated from hardware nodes. These tests open no physical
 motor transport and do not establish real bus timing or loaded acceptance.
 
 ## Damiao arm
+
+BASE-06 adds `damiao_atomic_targets_test.c` to CTest. It checks every partial
+frame length, corrupt CRC, invalid last-axis data, masks, stale feedback/lease,
+old partial frames, sequence replay, timer rollover, sparse physical slots and
+commit-before-tick behavior. `test_damiao_arm`, `test_arm_group_hold` and
+`test_weld_hardware` cover the host capability gate, group refresh and native
+trajectory owner, including truncated writes, rejected batches, lost ACK with
+no retry/fallback, explicit recovery, intent-loss hold and legacy sequential
+dispatch. `test_arm_smooth_jog` and `test_weld_response` retain the jog and v7
+command regressions. Run Qt-dependent tests with `QT_QPA_PLATFORM=offscreen`.
 
 BASE-05 tests verify typed USB rejections, active MCU route and limit readback,
 legacy host/firmware compatibility, valid feedback CAN ID zero, and the
@@ -491,7 +517,7 @@ and [Nov 17 archive](../docs/measurements/weld/2026-11-17/README.md).
 | `test_weld_preparation_search.py` | Nov 16 <=5 s ideal replay; Nov 17 raised approach with unequal lag and full geometry; Nov 19 long-wrist start at explicit 30 deg/s under 10 s with ideal shafts; final lowering minimum preserves selected staging, earlier timings, geometric cubics and limits, including the recorded loaded start with synthetic lag; independent stopped-leg timing, required lift, acceleration reserve, hardware opt-in and legacy offline-plan rejection |
 | `test_weld_recovery.py` | Bounded depth-first route search and backtracking, start/preload validation, waypoint arrival and cancelled activation |
 | `test_weld_planner_performance.py` | Interval sampling bounds and retiming invariance, exact joined endpoints, contact-mask equivalence against the full model, cache invalidation/copy isolation and optimistic stopped-motion bounds; latency itself belongs in the seeded benchmark |
-| `test_weld_endpoint_recovery.py` | Recorded A3 contact separation, 0.25 deg startup boundary, unchanged other limits, explicit inward-only activation, pause/replan, stale/outward rejection, strict handoff, preview and full optimized model replay; fake-CAN command guards are also in `test_weld_hardware.py` |
+| `test_weld_endpoint_recovery.py` | Recorded A3 contact separation, 0.25 deg startup boundary, unchanged other limits, explicit inward-only activation, pause/replan, stale/outward rejection, strict handoff, JSON-serializable retreat/search timing, preview and full optimized model replay; fake-CAN command guards are also in `test_weld_hardware.py` |
 | `test_weld_model.py` | Actual D3/triangle-clearance/inertia checks, complete-route fake-shaft replay and repeated weld boundaries |
 | `test_weld_dashboard.py` | Cached temperatures, signed torque/trip display, age rejection including the missing-feedback sentinel, bounded stage/run peaks, preparation clocks and distinct state/pause causes |
 | `test_weld_panel.py` | Worker ownership, ready hold across focus/heartbeat loss, active-motion cancellation, startup fault reset/R, queued-action rejection, reset failure/close, preview isolation, pause-cause journals, compact layouts with retained first-fault evidence, and stable viewer/plot geometry during live text/frame updates at narrow, desktop and 4K sizes |

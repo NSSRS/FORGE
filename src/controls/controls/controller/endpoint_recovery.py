@@ -104,7 +104,8 @@ def add_retreat_timing(plan, endpoint):
     policy = A3Retreat.from_document(endpoint['policy'])
     duration = JointPath.from_document(endpoint['path']).duration
     extra = duration + .2
-    distance = policy.start[2] - policy.goal[2]
+    # Keep timing comparisons JSON-native; goal is a NumPy array.
+    distance = float(policy.start[2] - policy.goal[2])
     speed, accel = endpoint['speed_deg_s'], endpoint['acceleration_deg_s2']
     triangular = 2 * math.sqrt(distance / accel)
     lower = triangular if distance <= speed**2 / accel else distance / speed + speed / accel

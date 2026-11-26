@@ -1,16 +1,14 @@
-# Robot description and calibration: open arm work
+# Robot description and calibration: open work
 
-The [cross-layer registry](../../docs/ARM_LAYER_TODOS.md) is the status authority.
-Owning IDs: **SUPPORT-01, CAL-01, SPEED-01, DEPLOY-01, LOAD-01, FEEDBACK-01**. Read [current hardware status](../../docs/ARM_SESSION_HANDOFF.md)
-and [the base contract](../../docs/ARM_BASE_LAYER.md) before continuing.
+Use the [consolidated registry](../../docs/ARM_LAYER_TODOS.md) for status and
+[current handoff](../../docs/ARM_SESSION_HANDOFF.md) for measured evidence.
 
-The measured unit-gain sign/offset mapping and derived controller standby now
-exist; their source provenance is retained. Load/COM/inertia identification and
-external sensor/tool transforms are deferred follow-ups after the first arm weld.
+- **CAL-01:** finish independent angle/branch validation and the versioned map
+  required by the next operating range or ROS coordinate adapter.
+- **LOAD-01 / FEEDBACK-01:** future mass/inertia and sensor-frame work when those
+  features are selected, not another current motor-test sequence.
 
-Next: validate the candidate model mappings at additional physical poses and record unmodeled cable/tool constraints using the reusable model-guided calibration tool. The stationary six-axis power cycle and one off-power return observation per joint are recorded; broader encoder-branch and precision qualification remain open. IDs and simulator poses are not physical calibration. Preserve unknown values and false production flags until measured acceptance; faster-motion settings need separate qualification.
-
-Completed implementation and run instructions belong in the
-[rig guide](../../docs/ARM_RIG_TEST.md) and
-[source map](../../docs/SOURCE_LAYOUT.md#arm-controls-and-rig-test-file-map).
-Update the owning registry entry instead of duplicating session histories here.
+The reference captures, return round and A5 visual comparison are already
+recorded. Only investigate a new discrepancy or needed range; do not repeat
+those rounds. Support/stop evidence belongs to BASE-07, deployment identity to
+BASE-06. Existing unknown fields and production flags remain unchanged.

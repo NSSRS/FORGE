@@ -43,7 +43,7 @@ uint8_t arm_control_mode(const arm_controller *a, const arm_joint *j) {
 static bool posvel(const arm_controller *a,const arm_joint *j) {
     return arm_control_mode(a, j) == 2;
 }
-static bool pack_command(arm_controller *a,arm_joint *j,const dm_command *c,uint8_t d[8]) {
+static bool pack_command(const arm_controller *a,const arm_joint *j,const dm_command *c,uint8_t d[8]) {
     if(posvel(a,j)) return c->kp==0 && c->kd==0 && c->t==0 && dm_pack_posvel(c->p,c->v,d);
     return dm_pack(&j->range,c,d);
 }
@@ -362,11 +362,11 @@ bool arm_reset(arm_controller *a) {
     for(unsigned i=0;i<ARM_COUNT;i++) { a->joints[i].registers=0; a->joints[i].command_seen=false; }
     return true;
 }
-arm_request_result arm_set_result(arm_controller *a, unsigned i, const dm_command *c, uint32_t now) {
+static arm_request_result check_command(const arm_controller *a, unsigned i, const dm_command *c) {
     if (i >= ARM_COUNT) return ARM_REJECT_INVALID_ARGUMENT;
     if (a->id_commissioning || a->range_commissioning) return ARM_REJECT_INVALID_STATE;
     if (a->fault) return ARM_REJECT_FAULT_LATCHED;
-    arm_joint *joint = &a->joints[i];
+    const arm_joint *joint = &a->joints[i];
     if (!joint->configured || joint->registers != 31 || joint->stopping)
         return ARM_REJECT_INVALID_STATE;
     if (!isfinite(c->p) || !isfinite(c->v) || !isfinite(c->t) ||
@@ -385,6 +385,12 @@ arm_request_result arm_set_result(arm_controller *a, unsigned i, const dm_comman
         return ARM_REJECT_INVALID_STATE;
     if (posvel(a, joint) && fabsf(c->p - joint->p) > (a->routed_bench ? 3.2f : 1.0f))
         return ARM_REJECT_LIMIT_EXCEEDED;
+    return ARM_REQUEST_OK;
+}
+arm_request_result arm_set_result(arm_controller *a, unsigned i, const dm_command *c, uint32_t now) {
+    arm_request_result result = check_command(a, i, c);
+    if (result != ARM_REQUEST_OK) return result;
+    arm_joint *joint = &a->joints[i];
     joint->cmd = *c;
     joint->command_at = now;
     joint->command_seen = true;
@@ -395,21 +401,66 @@ bool arm_set(arm_controller *a, unsigned i, const dm_command *c, uint32_t now) {
     return arm_set_result(a, i, c, now) == ARM_REQUEST_OK;
 }
 
-arm_request_result arm_set_smooth_result(arm_controller *a, unsigned i, const dm_command *c, uint32_t now) {
+static arm_request_result check_smooth(const arm_controller *a, unsigned i, const dm_command *c) {
     if (i >= ARM_COUNT) return ARM_REJECT_INVALID_ARGUMENT;
-    arm_joint *joint = &a->joints[i];
+    const arm_joint *joint = &a->joints[i];
     /* Only explicit, already-confirmed manual mode-2 holds may ramp. */
     if (!a->routed_bench || !joint->position_hold || !joint->manual_travel ||
         joint->bench_mode != 2 || !joint->enabled || !joint->enable_confirmed)
         return ARM_REJECT_INVALID_STATE;
     if (!isfinite(c->v)) return ARM_REJECT_INVALID_ARGUMENT;
     if (!bounded(c->v, 0.001f, 0.17453294f)) return ARM_REJECT_LIMIT_EXCEEDED;
+    return ARM_REQUEST_OK;
+}
+arm_request_result arm_set_smooth_result(arm_controller *a, unsigned i, const dm_command *c, uint32_t now) {
+    arm_request_result smooth = check_smooth(a, i, c);
+    if (smooth != ARM_REQUEST_OK) return smooth;
     arm_request_result result = arm_set_result(a, i, c, now);
-    if (result == ARM_REQUEST_OK) joint->smooth_jog = true;
+    if (result == ARM_REQUEST_OK) a->joints[i].smooth_jog = true;
     return result;
 }
 bool arm_set_smooth(arm_controller *a, unsigned i, const dm_command *c, uint32_t now) {
     return arm_set_smooth_result(a, i, c, now) == ARM_REQUEST_OK;
+}
+
+arm_request_result arm_set_group_result(arm_controller *a, uint8_t mask, uint8_t smooth_mask,
+                                      const dm_command commands[ARM_COUNT], uint32_t now, uint8_t *failed_slot) {
+    *failed_slot = ARM_REJECT_NO_SLOT;
+    uint8_t configured = 0;
+    for (unsigned i = 0; i < ARM_COUNT; i++)
+        if (a->joints[i].configured) configured |= 1u << i;
+    if (!mask || mask != configured || (smooth_mask & ~mask)) return ARM_REJECT_INVALID_ARGUMENT;
+    if (a->fault) return ARM_REJECT_FAULT_LATCHED;
+    if (!a->routed_bench || a->id_commissioning || a->range_commissioning)
+        return ARM_REJECT_INVALID_STATE;
+    /* No writes or CAN sends during validation, including on the last slot. */
+    for (unsigned i = 0; i < ARM_COUNT; i++) if (mask & (1u << i)) {
+        *failed_slot = i;
+        const arm_joint *joint = &a->joints[i];
+        if (!joint->group_hold || joint->bench_mode != 2) return ARM_REJECT_INVALID_STATE;
+        arm_request_result result = check_command(a, i, &commands[i]);
+        if (result != ARM_REQUEST_OK) return result;
+        if (!joint->feedback_seen || now - joint->feedback_at >= ARM_FEEDBACK_MS)
+            return ARM_REJECT_STALE_FEEDBACK;
+        /* USB is serviced before arm_tick: never revive an expired live lease. */
+        if (joint->enabled && (!joint->command_seen || now - joint->command_at >= ARM_LEASE_MS))
+            return ARM_REJECT_STALE_PRELOAD;
+        if (smooth_mask & (1u << i)) {
+            result = check_smooth(a, i, &commands[i]);
+            if (result != ARM_REQUEST_OK) return result;
+        }
+    }
+    /* forge_poll dispatch and arm_tick share one main loop, never an ISR.
+       All targets become visible to the next tick with the same lease time. */
+    for (unsigned i = 0; i < ARM_COUNT; i++) if (mask & (1u << i)) {
+        arm_joint *joint = &a->joints[i];
+        joint->cmd = commands[i];
+        joint->command_at = now;
+        joint->command_seen = true;
+        joint->smooth_jog = (smooth_mask & (1u << i)) != 0;
+    }
+    *failed_slot = ARM_REJECT_NO_SLOT;
+    return ARM_REQUEST_OK;
 }
 
 static arm_request_result check_enable(const arm_controller *a, unsigned i, uint32_t now) {

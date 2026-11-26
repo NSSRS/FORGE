@@ -6,7 +6,7 @@ import unittest
 from unittest.mock import patch
 import source_paths  # noqa
 from motors.arm import (ArmBus, ArmRejectReason, ArmRequestRejected,
-                        CAP_ARM_CONFIG_DIAGNOSTICS, decode, frame)
+                        CAP_ARM_CONFIG_DIAGNOSTICS, CAP_ATOMIC_TARGETS, decode, frame)
 
 
 class FakeUSB:
@@ -137,6 +137,33 @@ class ArmTests(unittest.TestCase):
         corrupt=bytearray(packet); corrupt[20]^=1
         with self.assertRaises(ValueError): decode(corrupt)
         with self.assertRaises(ValueError): frame(1,1,b'a'*53)
+
+    def test_atomic_group_capability_and_complete_validation_before_write(self):
+        usb = FakeUSB()
+        with ArmBus(transport=usb) as bus:
+            targets = {i:.1 * i for i in range(6)}
+            speeds = dict.fromkeys(targets, .05)
+            bus.bench_routes = dict.fromkeys(targets)
+            with self.assertRaisesRegex(RuntimeError, '0x04000000'):
+                bus.command_group(targets, speeds)
+            bus.capabilities |= CAP_ATOMIC_TARGETS
+            for invalid in ({i:0 for i in range(5)}, targets | {5:float('nan')},
+                            targets | {6:0}, targets | {5:1e100}):
+                with self.subTest(targets=invalid), self.assertRaises((ValueError, OverflowError)):
+                    bus.command_group(invalid, speeds)
+            with self.assertRaises(ValueError): bus.command_group(targets, speeds | {5:0})
+            with self.assertRaises(ValueError): bus.command_group(targets, speeds, smooth_slots=(6,))
+            self.assertEqual([k for k, _ in usb.sent], [1])
+            bus.command_group(targets, speeds)
+            kind, payload = usb.sent[-1]
+            self.assertEqual((kind, payload[:4]), (30, bytes([63, 0, 0, 0])))
+            for i in targets:
+                p, v = struct.unpack_from('<2f', payload, 4 + 8 * i)
+                self.assertAlmostEqual(p, targets[i]); self.assertAlmostEqual(v, speeds[i])
+            # Subsets retain physical slots and never silently omit a known route.
+            bus.bench_routes.pop(0); targets.pop(0); speeds.pop(0)
+            bus.command_group(targets, speeds)
+            self.assertEqual(usb.sent[-1][1][:12], bytes([62]) + bytes(11))
 
 
 class NativeTransport(FakeUSB):

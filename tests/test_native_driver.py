@@ -252,6 +252,95 @@ class NativeTests(unittest.TestCase):
         time.sleep(.06)
         self.assertEqual(self.bus._backend.status(), 3)
 
+    def test_idle_requery_after_clear_and_reject_frozen_position(self):
+        # Unchanged stationary positions remain usable through successive clearing cycles.
+        start = self.bus.snapshot()
+        frames = self.fake.fake_slot_frames(1)
+        time.sleep(.2)
+        latest = self.bus.snapshot()
+        queries = self.fake.fake_slot_frames(1) - frames
+        ticks = latest['exchanges'] - start['exchanges']
+        self.assertGreater(queries, 1)
+        self.assertLessEqual(abs(2 * queries - ticks), 3)
+        self.assertGreater(latest['motors'][1]['position_observed_s'],
+                           start['motors'][1]['position_observed_s'])
+
+        self.fake.fake_retain_reply(1, 0)
+        time.sleep(.08)
+        stamp = self.bus.snapshot()['motors'][1]['position_observed_s']
+        time.sleep(.26)
+        sample = self.bus.snapshot()
+        self.assertEqual(sample['motors'][1]['position_observed_s'], stamp)
+        self.assertGreater(sample['motors'][0]['position_observed_s'], stamp)
+        with self.assertRaisesRegex(MotorError, r'missing motor IDs: \[2\]'):
+            self.bus.wait_ready(timeout=.03)
+        with self.assertRaises(MotorError):
+            self.bus.velocity(2, 0)
+        self.assertEqual(self.fake.fake_controls(), 0)
+        self.fake.fake_retain_reply(-1, 0)
+        self.bus.wait_ready()
+        self.assertEqual(self.fake.fake_controls(), 0)
+
+    def check_retained_control_feedback(self, both_types):
+        for _ in range(6):
+            self.bus.velocity(1, 0)
+            self.bus.position(2, 0)
+            time.sleep(.02)
+        self.fake.fake_retain_reply(1, both_types)
+        time.sleep(.04)
+        frozen = self.bus.snapshot()
+        deadline = time.monotonic() + .6
+        while time.monotonic() < deadline:
+            try:
+                self.bus.velocity(1, 0)
+                self.bus.position(2, 0)
+            except MotorError:
+                break
+            time.sleep(.01)
+        sample = self.bus.snapshot()
+        self.assertEqual(sample['fault'], 3)
+        self.assertGreater(sample['motors'][0]['electrical_observed_s'],
+                           frozen['motors'][0]['electrical_observed_s'])
+        for field in ('position_observed_s', 'velocity_observed_s', 'electrical_observed_s'):
+            self.assertEqual(sample['motors'][1][field], frozen['motors'][1][field])
+        self.assertEqual(sample['failed_exchanges'], 0)
+        self.assertFalse(sample['can_freshness_verified'])
+        self.fake.fake_retain_reply(-1, 0)
+        with self.assertRaises(MotorError):
+            self.bus.velocity(1, 0)
+
+    def test_retained_control_reply_latches_with_other_motor_healthy(self):
+        self.check_retained_control_feedback(0)
+
+    def test_reordered_retained_ack_pair_cannot_renew_feedback(self):
+        self.check_retained_control_feedback(1)
+
+    def test_repeated_type_with_motor_error_trips_before_timeout(self):
+        self.bus.velocity(1, 0)
+        time.sleep(.06)
+        self.fake.fake_retain_reply(0, 0)
+        time.sleep(.04)
+        self.fake.fake_fault(3)
+        deadline = time.monotonic() + .1
+        while not self.bus._backend.status() and time.monotonic() < deadline:
+            time.sleep(.005)
+        self.assertEqual(self.bus._backend.status(), 3)
+        self.assertEqual(self.bus.state(1).error, 1)
+
+    def test_even_cycle_sampling_keeps_both_stationary_control_fields_current(self):
+        self.fake.fake_every_other_reply(1)
+        stamps = {'position_observed_s': set(), 'velocity_observed_s': set()}
+        for _ in range(35):
+            self.bus.velocity(1, 0)
+            time.sleep(.015)
+            row = self.bus.snapshot()['motors'][0]
+            for field in stamps:
+                if row[field] is not None:
+                    stamps[field].add(row[field])
+        self.bus.check()
+        for values in stamps.values():
+            self.assertGreater(len(values), 5)
+
     def test_motor_fault_stops_all(self):
         self.bus.velocity(1, 1); self.bus.velocity(2, -1)
         self.fake.fake_fault(3)

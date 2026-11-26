@@ -101,6 +101,10 @@ Topics are unchanged. Packages, node names, executable names, YAML keys and
 documentation now use unprefixed names. Class names with Forge prefixes are
 internal Python identifiers and were retained to avoid unrelated changes.
 The C binary encos_query remains a read-only query utility inside encos_driver.
+`encos_feedback_probe` also lives in `src/encos_driver/`, with passive serial
+capture isolated in `probe_serial.c`. It owns the query-only EtherCAT session;
+the offline `motors.encos_debug` analyzer reads saved journals and is launched
+through the thin `scripts/inspect_encos_debug.py` wrapper.
 
 ## Build and validation
 
